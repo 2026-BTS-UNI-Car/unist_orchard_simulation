@@ -2,9 +2,10 @@
  "copy_method": "git show <commit>:<source_path> (byte-exact, as stored)",
  "derivation": {
   "note": "rewritten by tools/steer_sim/regen_vendor.py; check with tools/steer_sim/check_vendor_sync.py",
-  "previous_manifest_SHA256": "e63d3aafc49d6227bfb6dfbf19dd38ec8de655bf3cc8baebeb57aa3c75947631",
-  "previous_source_branch": "single-row-20261102",
-  "previous_source_commit": "c35126025d9ea1d4c939312b64e09c57e90a70b6"
+  "previous_manifest_SHA256": "8274abb9a59f9ea2a351c68b9476af8b1586d777d3403148111228f28f0433a4",
+  "previous_source_branch": "steering-sim-20261108",
+  "previous_source_commit": "1df7c2f33c8a2b317dec877a883c7873b576aa72",
+  "previous_source_repository": "2026-BTS-UNI-Car/orchard-rover-clone (SIM)"
  },
  "files": [
   {
@@ -54,8 +55,8 @@
  "import_root": "tools/row_executor/vendor: the vendor namespace package of row_executor; closed_loop_copy and orchard_perception_copy are imported as row_executor.vendor.* by row_executor.core.load_vendor (the folder is never put on sys.path)",
  "modified": false,
  "schema": "ubts.row_executor.vendor_manifest.v1",
- "source_branch": "steering-sim-20261108",
- "source_commit": "1df7c2f33c8a2b317dec877a883c7873b576aa72",
- "source_repository": "2026-BTS-UNI-Car/orchard-rover-clone (SIM)",
+ "source_branch": "main",
+ "source_commit": "1e51e6bb3079a8989cb695726c64c0fac667a124",
+ "source_repository": "2026-BTS-UNI-Car/unist_orchard_simulation",
  "verification": "row_executor.core.load_vendor() recomputes every sha256 before import and refuses on mismatch, imports the copies under row_executor.vendor (the SIM-tree name orchard_perception points at the vendored copy only while the vendored estimator is imported) and checks the imported files again; closed_loop_copy/single_row.py is imported next to the verified controllers module (core.single_row_module) and its sha256 is checked again at import"
 }

@@ -1,0 +1,1265 @@
+{
+ "schema": "ubts.steer_sim.pin_manifest.v1",
+ "note": "Base files that the steering simulation reuses from the earlier simulator: the imported paths that already existed on the main branch of the earlier repository (before the steering branch), except the rewritten notice and rule files (NOTICE, third_party/README.md, .gitattributes, .gitignore). sha256 and size are the bodies as imported. tools/steer_sim/check_pins.py fails when one of them changes, unless the path is listed in PIN_ALLOWLIST.json with a reason; after a reviewed change, update the entry here in the same commit. python_baseline lists the Python files of the import (used for the module name check when the base branch does not exist yet).",
+ "pinned_from": {
+  "repository": "2026-BTS-UNI-Car/unist_orchard_simulation",
+  "commit": "1e51e6bb3079a8989cb695726c64c0fac667a124"
+ },
+ "earlier_repository": {
+  "name": "2026-BTS-UNI-Car/orchard-rover-clone",
+  "main_commit": "4791d86e3ee13696b99b95fb498043716abd5ed9",
+  "import_commit": "50fc854ee2462e761e7ce281dca937f1700e0f2b"
+ },
+ "pinned_files": 226,
+ "files": {
+  "LICENSE": {
+   "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+   "bytes": 11358
+  },
+  "dashboard/.gitattributes": {
+   "sha256": "7395145c08e89b6d48a44cf45b30e41a68446623ebdad92acc289357a7ed1d23",
+   "bytes": 536
+  },
+  "dashboard/UPSTREAM.md": {
+   "sha256": "e63f267bca4b75dc55aad6c34fca6300639dcc32b9aa89fc8e4475734268a892",
+   "bytes": 8443
+  },
+  "dashboard/config/dashboard.json": {
+   "sha256": "b3d376cbe8ccbcc3b55af47f2a7750d9f056b2852497209ce83b04d47eb59e70",
+   "bytes": 302
+  },
+  "dashboard/config/field_autonomy_preparation.json": {
+   "sha256": "c9f731640ab23f7ae8957814ebfa33048afc87e39e6191ff791cb56a0bd940a4",
+   "bytes": 1428
+  },
+  "dashboard/dashboard_server/__init__.py": {
+   "sha256": "882a62d54bbed120bad94d435ef2c8dd1b437bc48a19e1fca67deb8d4d2bbede",
+   "bytes": 46
+  },
+  "dashboard/dashboard_server/__main__.py": {
+   "sha256": "5f61a6f24a212c7d4b3e8ed2c3405f27e32eb85052918a351f69d59a71090ed9",
+   "bytes": 78
+  },
+  "dashboard/dashboard_server/adaptive_video.py": {
+   "sha256": "033bfc1b94b961641404a01c84396d54f71ef24d413c432104992cb31e58d91b",
+   "bytes": 4404
+  },
+  "dashboard/dashboard_server/app.py": {
+   "sha256": "50e1be875ad79523482b6d712b7d63fbee6927558e0fe7b5f9a9ddd8adba3fb1",
+   "bytes": 66164
+  },
+  "dashboard/dashboard_server/archive_mapping.py": {
+   "sha256": "673bb6d2c112b966b5e24fd45add6cf810a0d0c23d5eca7664c5526a45950b27",
+   "bytes": 11051
+  },
+  "dashboard/dashboard_server/autonomy_settings.py": {
+   "sha256": "475c5e44631e86e3513487df252db37d0d1c66089e83063279e8da5611863611",
+   "bytes": 1626
+  },
+  "dashboard/dashboard_server/external_native_pc.py": {
+   "sha256": "42aa1c8cd30e024eaacd7e77aa11185faf57c0406580e8f2bd61be4a667bef74",
+   "bytes": 3599
+  },
+  "dashboard/dashboard_server/field_preflight.py": {
+   "sha256": "a44a26b061441c5863e639aad3d2195a96c1bc18d9c8120b4db30464808ecf50",
+   "bytes": 4513
+  },
+  "dashboard/dashboard_server/gps.py": {
+   "sha256": "d872e2478879f0f568582bf851e5da16979737534b8477dd1f5c674929cc21ae",
+   "bytes": 15086
+  },
+  "dashboard/dashboard_server/gps_reception.py": {
+   "sha256": "1f719599b45b33b1b10c3c7eef4169881f9aa3644ecd7b71393b8e4162063d01",
+   "bytes": 4167
+  },
+  "dashboard/dashboard_server/gps_utc.py": {
+   "sha256": "3ef3dae95b54790a844855401767873e1d812b69fa5005d4df488240d896b7da",
+   "bytes": 5891
+  },
+  "dashboard/dashboard_server/imu_processing.py": {
+   "sha256": "38d37a8a7a22b9b09a81388ed8b79b8c1794045c53b73967b5ed9961cb040c13",
+   "bytes": 3894
+  },
+  "dashboard/dashboard_server/lidar_odometry.py": {
+   "sha256": "f159c616cd45f958b6d176961574bcd6476f0d7e20c6e05d6bf793f86805e8e8",
+   "bytes": 14468
+  },
+  "dashboard/dashboard_server/lidar_preview_recovery.py": {
+   "sha256": "c5c95feff763853c96d05fbe20ce7375d8c884f3165b1d9a5775bfd909002cb1",
+   "bytes": 8471
+  },
+  "dashboard/dashboard_server/live_mapping.py": {
+   "sha256": "8793b6c6cc3781b3441399394a7f6e8358f571c236c6dc549ded11a3e6066582",
+   "bytes": 16393
+  },
+  "dashboard/dashboard_server/motor_pwm.py": {
+   "sha256": "60ac85934bb978fa8943eb04542d9992a7f96ce60a48e3f15e54b1067ccbf3e4",
+   "bytes": 12435
+  },
+  "dashboard/dashboard_server/native_mapping_proxy.py": {
+   "sha256": "08edd28e91719df2822881a6251c2698d508027c8d37fb51dfc91599778c53ca",
+   "bytes": 4810
+  },
+  "dashboard/dashboard_server/native_mapping_service.py": {
+   "sha256": "238f4fb1ade18ee38340b2fd0020d18c50c158d045d7ac72dcaacf7bf0bad06d",
+   "bytes": 3671
+  },
+  "dashboard/dashboard_server/native_navigation.py": {
+   "sha256": "eb95f3e4629149685f3a2eccc4ceaa9d9b0e9abf991e727d69843f32cd54cdb0",
+   "bytes": 8045
+  },
+  "dashboard/dashboard_server/occupancy_map.py": {
+   "sha256": "9ea2a772b981857b8f2d22cf0dc1e7aff692d6418afeea1e41df2a6e2d864c53",
+   "bytes": 15359
+  },
+  "dashboard/dashboard_server/offline_maps.py": {
+   "sha256": "0872ffc264c0cfa500bc0163df5929b7fcf4fbd3dfe97ba8b84372207a018fa2",
+   "bytes": 1954
+  },
+  "dashboard/dashboard_server/playback_profile.py": {
+   "sha256": "2b7980f7483309bb10ce9079ed258bd2653fc6ba8f448b4757159c1c965674df",
+   "bytes": 1178
+  },
+  "dashboard/dashboard_server/raw_sim_mapping.py": {
+   "sha256": "407cd0c3fdef9c1b08224c212943eec4f75474338310d3c149ebb5a2dea1f49e",
+   "bytes": 35877
+  },
+  "dashboard/dashboard_server/recording_clock.py": {
+   "sha256": "2f830c235d763dffb012f8d2dcd71c2c8ac4f93408beb44d988de3cef7df931c",
+   "bytes": 9247
+  },
+  "dashboard/dashboard_server/rover_api.py": {
+   "sha256": "c69f3573ab3966e5e1334943263daef9763f298021ae93c5f8a39c821664741f",
+   "bytes": 838
+  },
+  "dashboard/dashboard_server/sensor_mapping/UPSTREAM.json": {
+   "sha256": "f170a88c470c5e267f0804cb8ba1a5bc8af3282870f6a1d55028583cab032607",
+   "bytes": 5956
+  },
+  "dashboard/dashboard_server/sensor_mapping/__init__.py": {
+   "sha256": "0a205db2bab198a38463a395b7a99e6dc69ff6b331be23bc3f5ac295d6e87405",
+   "bytes": 65
+  },
+  "dashboard/dashboard_server/sensor_mapping/continuous_mapping.py": {
+   "sha256": "42d83afd696aec6ec24caa4f9ba72938c6e559e4550db407ff33cd515a5761ec",
+   "bytes": 5302
+  },
+  "dashboard/dashboard_server/sensor_mapping/cursor.py": {
+   "sha256": "cd69de806d6a7875e89cdd5ee36638981d911ea3f8d31c3824d3a6761feb7946",
+   "bytes": 3630
+  },
+  "dashboard/dashboard_server/sensor_mapping/native_raster.cc": {
+   "sha256": "70f00598ccb6f9940d2021d9db2cdfb8394cd59a29b5b84deb366c024b14f2e5",
+   "bytes": 8451
+  },
+  "dashboard/dashboard_server/sensor_mapping/native_raster.py": {
+   "sha256": "55baa11eb0fa906a4e76d12eb0698c69735100ef776775271d29336b6d95aab8",
+   "bytes": 7181
+  },
+  "dashboard/dashboard_server/sensor_mapping/occupancy_map.py": {
+   "sha256": "5ee1bb0ffbd660a1ae83e5164a1244267dd1fba4bee91b6a9351b24310f15435",
+   "bytes": 22324
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/__init__.py": {
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "bytes": 0
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/continuous_localization.py": {
+   "sha256": "ae943495f99766dac69848e168fd68c3c32731862bf03019d4cc35590562e51e",
+   "bytes": 16609
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/fit_workers.py": {
+   "sha256": "7200ce276bdd7c046fb06f614333140d99e7d954377a2bfe07a4991f61968be7",
+   "bytes": 454
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/gnss_constraints.py": {
+   "sha256": "6b58228bd36aaff0d110a19dc3a2d72c441470d33166872959819211f58369e8",
+   "bytes": 9933
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_localization.py": {
+   "sha256": "530b75b5ddb4ea5fbf2aa81fe664416041c79068c4e12bd1a74dc427fd0c9c3d",
+   "bytes": 13724
+  },
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_point_support.py": {
+   "sha256": "d0102340e4ddd03758096373d4e99712ad159421c7e8ce9e07e0acf3c1fba0e4",
+   "bytes": 4614
+  },
+  "dashboard/dashboard_server/sensor_mapping/tile_transport.py": {
+   "sha256": "2d453deff661710376f885d41d53bdd21630d5ba201cb9223df520ebe763d07f",
+   "bytes": 6571
+  },
+  "dashboard/dashboard_server/sensor_mapping/tiled_checkpoint.py": {
+   "sha256": "c7de487be920510c2ceb0932d324b012f68204b63d07125f4855d24846b0fddb",
+   "bytes": 8570
+  },
+  "dashboard/dashboard_server/sensor_mapping/tiled_occupancy.py": {
+   "sha256": "370fdf425130f492891384b998f647bd5a7169c746310f39538ea07f06ce9f12",
+   "bytes": 14002
+  },
+  "dashboard/dashboard_server/sim_map_history.py": {
+   "sha256": "166e7eec872ef2cd07a4d7a393d923a8e35450bdf8b2e80645d92b666e8a39e6",
+   "bytes": 5168
+  },
+  "dashboard/dashboard_server/sim_mapping.py": {
+   "sha256": "ea01a38b574f4bd4118f58c23c0407c61c985139177e81f32b490d201477af00",
+   "bytes": 21940
+  },
+  "dashboard/dashboard_server/sim_mapping_operations.py": {
+   "sha256": "689908b7c2349043b11ea3ea7e9a3617d46313352de562355bffd3f70323671a",
+   "bytes": 3002
+  },
+  "dashboard/dashboard_server/sim_native_owner_proxy.py": {
+   "sha256": "3ff56663798a2c437c0885adf003eb31fcb8b4d750f7f3efeaf6c7ece3290ad5",
+   "bytes": 8481
+  },
+  "dashboard/dashboard_server/sim_native_view_proxy.py": {
+   "sha256": "09ab97d4c84ca77abe124003dda75256317f75581dbb99ebbb4c73d068fa6c62",
+   "bytes": 8395
+  },
+  "dashboard/dashboard_server/simulation.py": {
+   "sha256": "240fbbb7b34275c74a90fc8d3e302bc9b9e412a830b41a9cf721f1dc39b58873",
+   "bytes": 11043
+  },
+  "dashboard/dashboard_server/telemetry.py": {
+   "sha256": "4181843547dc299700fb588a88393ff8cd456d63bc9b1624c2d6269e45ead154",
+   "bytes": 162251
+  },
+  "dashboard/dashboard_server/telemetry_cache.py": {
+   "sha256": "7c166b6e59fdddec5f0c99b1fabf0cea3e61f65e0944ad37fd9af556165fe4ac",
+   "bytes": 3546
+  },
+  "dashboard/dashboard_server/test_live_mapping.py": {
+   "sha256": "e1bb56b1d9f22ef5c8096828e73b68d90d211719e33c685946467f9d4d2d401e",
+   "bytes": 10084
+  },
+  "dashboard/dashboard_server/tile_transport.py": {
+   "sha256": "3fcda3e7c8c6c7a08e3df3b9f629d82e332c1253873eaf2c121ffcf8d08eada1",
+   "bytes": 5461
+  },
+  "dashboard/dashboard_server/tiled_checkpoint.py": {
+   "sha256": "e3323edbc480b32f611079c3929f3dfe4040bd4765dcc574b8f1f7b110a5db57",
+   "bytes": 8242
+  },
+  "dashboard/dashboard_server/tiled_occupancy.py": {
+   "sha256": "2f10632e0cd06023e24a369f9ed00554de5442803a639d889a7416df07516620",
+   "bytes": 7432
+  },
+  "dashboard/scripts/__init__.py": {
+   "sha256": "d8bb7d52801cd03c191f6ac98a2f2184802225b89523fc380adb4cb70f112888",
+   "bytes": 78
+  },
+  "dashboard/scripts/build_adaptive_recording.py": {
+   "sha256": "b5b9a5847a75c56258fbf817bbb510bf239251a5a67844b980315ee15568d2ce",
+   "bytes": 13883
+  },
+  "dashboard/scripts/camera_stream_policy.py": {
+   "sha256": "ca0e0cc0bc7532e6009fc9d63f48309741565af83359c46b14e9fd9c5f3fc6a8",
+   "bytes": 4520
+  },
+  "dashboard/scripts/camera_ws_bridge.py": {
+   "sha256": "74db00427a031203203873a68b7651b7d345952aa49c7214f3073caf87ac0b38",
+   "bytes": 40280
+  },
+  "dashboard/scripts/data_recorder_service.py": {
+   "sha256": "6982cd2cb146f90654c8679f93e371d5cc9c66778fb04d47b3376b916f2a9dcd",
+   "bytes": 60106
+  },
+  "dashboard/scripts/esp_motor.py": {
+   "sha256": "3ff12d0d3f60e9423b1a570f5532601a4fd6b94af5335b4197582ba2458f1887",
+   "bytes": 5531
+  },
+  "dashboard/scripts/esp_wheel_controller.py": {
+   "sha256": "d31e12eda589bb2288530e12538d80495e25420fd2455b3a96c8436c3e798f70",
+   "bytes": 16093
+  },
+  "dashboard/scripts/export_recording_camera.py": {
+   "sha256": "10776288fefdf9c5da1f198cee73dd8e9880f91bbefb2030e73530ab2d40e6ab",
+   "bytes": 7419
+  },
+  "dashboard/scripts/gps_ros2_driver.py": {
+   "sha256": "ef53becb5a0845111ca16bf91954051525c2aae1a91532fbbb86068e9778f9e3",
+   "bytes": 14499
+  },
+  "dashboard/scripts/gps_ws_bridge.py": {
+   "sha256": "1ff095cce29434dbde35f2d1335dde2e96a5f9e60c53e6bfde41b74ac6067b61",
+   "bytes": 4734
+  },
+  "dashboard/scripts/hls_bandwidth.py": {
+   "sha256": "ff027edf77ef1bc11ab6e3d97bb531313a90107ea7775d1e0673ef8e4bae448f",
+   "bytes": 3577
+  },
+  "dashboard/scripts/imu_ws_bridge.py": {
+   "sha256": "edea7a58e773d50bfea0195992462f303d21ecb75c17c4ee6d607c3cdd4b07a4",
+   "bytes": 10174
+  },
+  "dashboard/scripts/install_adaptive_recording.py": {
+   "sha256": "324ff0e1f0d0206b25c8bb77f234390cfdcdd699392bf9b41d85ec8089d6071b",
+   "bytes": 10267
+  },
+  "dashboard/scripts/lidar_ws_bridge.py": {
+   "sha256": "a2b0a0e51141e7d441050a789e013248452d0a0806f62f6070766ad4bd713578",
+   "bytes": 15012
+  },
+  "dashboard/scripts/native_jpeg_vfr.py": {
+   "sha256": "26ad1520a8c613f70a0b22b3b7cfdb13d5e2efe32e30ae27fe1e39e37ecba8af",
+   "bytes": 6656
+  },
+  "dashboard/scripts/native_stage_timing.py": {
+   "sha256": "3c1560e502e9f1ce6ccbec261bd3357769ba8b21c59097993157177228b1fd6b",
+   "bytes": 12960
+  },
+  "dashboard/scripts/recording_postprocess.py": {
+   "sha256": "9ab69922783507f9df3dcef51dc94543a803c8fee4de364c6400b9e03ba1ac35",
+   "bytes": 24530
+  },
+  "dashboard/scripts/ros_executor.py": {
+   "sha256": "604f057c3aadedd0511621f20e8461185f97072b85c6b98e71501638b3d9e15c",
+   "bytes": 1604
+  },
+  "dashboard/scripts/rover_control_bridge.py": {
+   "sha256": "c0a9945ee6d0cfafda1c5588743d13bf65890e06521e7bb435337a7ce8ed5fba",
+   "bytes": 6424
+  },
+  "dashboard/scripts/rover_control_core.py": {
+   "sha256": "5cc86b226e880406a849ad958ba92812e6c4f2c03e2b427592209f0b1680b92e",
+   "bytes": 4436
+  },
+  "dashboard/scripts/sim_camera_health.py": {
+   "sha256": "2fecae601f2446e08c413ee0795ce15998c24e6bef057597b347c6e82fe8abd3",
+   "bytes": 5228
+  },
+  "dashboard/scripts/sim_clock.py": {
+   "sha256": "86a5fe0ab0452839096bfe8ed54a7805bf40e71f0482482cbfbad20a44b0d106",
+   "bytes": 2510
+  },
+  "dashboard/scripts/sim_video_clock.py": {
+   "sha256": "d73dddd11b45603aaf377d5f8e9c2e41e08dea74e08cb2c7ef742dbc0f9247ad",
+   "bytes": 15906
+  },
+  "dashboard/scripts/stream_policy.py": {
+   "sha256": "3203460405104873c54debd8c2b1b86cacb4775e743f740c92bc335bcd8e0be4",
+   "bytes": 4892
+  },
+  "dashboard/static/app.js": {
+   "sha256": "83a45e88df1809173ec3ea5f49fbe6a0bb9198bed29f3a7ed0d3143c8ecfa9b6",
+   "bytes": 241069
+  },
+  "dashboard/static/archive-map-buffer.mjs": {
+   "sha256": "e316cb5c58f962b24fda8fee3294d14a2dd69d64f0ea76454f9f74d12db76621",
+   "bytes": 2753
+  },
+  "dashboard/static/archive-segments.mjs": {
+   "sha256": "1b22ef5eb5bb997535a61d6dfbd998ddd2612c49ec27c9f96df6370b8db1e2c4",
+   "bytes": 2671
+  },
+  "dashboard/static/archive-video-clock.js": {
+   "sha256": "d0066c162964da50584c1d0ba361c669d59de8450756cd844ecbf8313c9967bf",
+   "bytes": 15123
+  },
+  "dashboard/static/archive-video.js": {
+   "sha256": "13b25919a5d97aa5eea12aedc80bd332a68e3f3e0077c8f09abfc48f9496c510",
+   "bytes": 4227
+  },
+  "dashboard/static/assets/apple-touch-icon.png": {
+   "sha256": "6b38b37769fccbf5a7bcd6e3df9f784ecd878d15a3e08f9f7ffff5b4a109f9ae",
+   "bytes": 35039
+  },
+  "dashboard/static/assets/favicon.png": {
+   "sha256": "96b62de973e6ea22a308c9f9eb7c618b1b9076aa3da28e4b84e634d2acc9839d",
+   "bytes": 155971
+  },
+  "dashboard/static/assets/ubts-logo.png": {
+   "sha256": "24344cf97c833fb321983a71f81fd969dcee86fff04030043566b5f24ca786c3",
+   "bytes": 273821
+  },
+  "dashboard/static/external-native-pc.mjs": {
+   "sha256": "183701d1f60e8cd259e82bcb357492f2e32ef873eef6da27eef2122062814ae3",
+   "bytes": 2988
+  },
+  "dashboard/static/favicon.ico": {
+   "sha256": "98700b4e2a81b576e7f87d93b755221360d6d97493a663d8e5de053e04aa3923",
+   "bytes": 32038
+  },
+  "dashboard/static/field-preparation.css": {
+   "sha256": "b25e75cf05c2c54e902fe487f2de50294682dd74f53a0eed5834f4980da672ea",
+   "bytes": 497
+  },
+  "dashboard/static/field-preparation.js": {
+   "sha256": "fa40b2734551ad3304b9f27f38040985df0ad7f07d75e555be7785bb86aecf4a",
+   "bytes": 2531
+  },
+  "dashboard/static/gps-entry.js": {
+   "sha256": "a44591fac2c3f797836ff0827314047c0084ab2f97801dce4b0754d4daa30557",
+   "bytes": 238
+  },
+  "dashboard/static/gps-map-model.mjs": {
+   "sha256": "0ee8a703635abb2eda874ffe159739ce22c6d6745a37588e4fd9a7bff487f1e2",
+   "bytes": 4139
+  },
+  "dashboard/static/gps-map.css": {
+   "sha256": "c12cf8331b5b345925ff8b9438362e9b232fc7336b5a088eb377e811bb1a2dc0",
+   "bytes": 2940
+  },
+  "dashboard/static/gps-map.js": {
+   "sha256": "e786cb20517b72ab1b3dd6da5a434a797d4df27cb261340321bc0aee5965a947",
+   "bytes": 15713
+  },
+  "dashboard/static/gps-style-dark.json": {
+   "sha256": "ec02220219459a805fb14b8ae7b264f0fcee7c9c55d8617609ccbc3d36705fb9",
+   "bytes": 66885
+  },
+  "dashboard/static/gps-style-light.json": {
+   "sha256": "982a2a91b307a04246d09487b5a5db7e39a548c884e3cb794969ff86e0d09c9f",
+   "bytes": 66907
+  },
+  "dashboard/static/grid-cell-codec.mjs": {
+   "sha256": "ec7afaf62937e54e67e1b096151a3769d8c4e14af20c198d23f7a061e3ae4136",
+   "bytes": 3159
+  },
+  "dashboard/static/index.html": {
+   "sha256": "c38f1db121f43752d5720c395a3dde2aa145c02aeba4c46a96605b93169f19ca",
+   "bytes": 44920
+  },
+  "dashboard/static/live-map.css": {
+   "sha256": "60e98e9cc2e4f2927dcd68f5374355341e87e6fc75217cc5f0fd62cf98f94c85",
+   "bytes": 3443
+  },
+  "dashboard/static/live-map.js": {
+   "sha256": "52f0fe82f75daee1ff8134a5bdc0d51621f687b536c223aa63b5ec0cdf917be3",
+   "bytes": 8913
+  },
+  "dashboard/static/mapping-jobs.mjs": {
+   "sha256": "5608164bbaa5ceab1e601d5638faedca8f3eb115f35ad78679167433c6e192e7",
+   "bytes": 2666
+  },
+  "dashboard/static/media-jobs.css": {
+   "sha256": "86dd1a73257d6574b0fbec3d4893a7e4b6405c52e5eb6ac40d930032b223dd05",
+   "bytes": 495
+  },
+  "dashboard/static/media-jobs.js": {
+   "sha256": "5fc09dde72ff79543e7b07f8346e2a67daf9ead23d6eacf5863320c8dcef225f",
+   "bytes": 4322
+  },
+  "dashboard/static/metric-map.mjs": {
+   "sha256": "7fa9cd2b2fa27eec3c2a638afef5f819d828fb89d181f3d45cf4895277904bc1",
+   "bytes": 14227
+  },
+  "dashboard/static/native-probability/LICENSE": {
+   "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+   "bytes": 11358
+  },
+  "dashboard/static/native-probability/NOTICE": {
+   "sha256": "f12c7b7c6b57c1008f9dfffdf028cb189adbcb2cedd66798468d79a24dc9cdd6",
+   "bytes": 738
+  },
+  "dashboard/static/native-probability/display_geometry.mjs": {
+   "sha256": "bd0ceb790c51e3d3a2ca3874e344cb9d35b4759c9716947f4bb8a34e9375fe43",
+   "bytes": 3501
+  },
+  "dashboard/static/native-probability/example.html": {
+   "sha256": "a2413c6ffeee9e3a81469bf3a2650da8f7932718ff8836c2a89109c0225688b7",
+   "bytes": 2347
+  },
+  "dashboard/static/native-probability/native_wire_receiver.mjs": {
+   "sha256": "f21437635581c076aed80befbb10d22a26c6df139d5ee90c54b7728271ad3fe1",
+   "bytes": 20108
+  },
+  "dashboard/static/native-probability/native_worker.mjs": {
+   "sha256": "8fb1cf1e95622a172879936ed431fbb378ca3eb757ab664ba398a5e455bf88f1",
+   "bytes": 2383
+  },
+  "dashboard/static/native-probability/presentation.mjs": {
+   "sha256": "043f621dc395f320487f7299d400e300f5ded3282a8aa6059be4e309b8f2dd84",
+   "bytes": 3343
+  },
+  "dashboard/static/native-probability/transport.mjs": {
+   "sha256": "d4063d336b10ece511227bef4827ac349deafaa2ceb40c974b2f77caf8d24e91",
+   "bytes": 16373
+  },
+  "dashboard/static/native-probability/view.mjs": {
+   "sha256": "199a9bfa3431a43e6469a914768bb402cfc7fd0032529f1342b547c90f5f2dc8",
+   "bytes": 9072
+  },
+  "dashboard/static/sim-map-model.mjs": {
+   "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb",
+   "bytes": 7667
+  },
+  "dashboard/static/sim-map.css": {
+   "sha256": "ec0281a21b86659322fbbaca3fe6b849339c15438600477cc032975d5fa82ab0",
+   "bytes": 6467
+  },
+  "dashboard/static/sim-map.js": {
+   "sha256": "ec74a9d930b835d027a84e243b9e8d1ae8fc05498ab7929877836143f4f3bd75",
+   "bytes": 24011
+  },
+  "dashboard/static/sim-native-owner.mjs": {
+   "sha256": "b83cdca4ae48b8e4b81b497e367438ca6bdae1f20f6719fc4a808b42c0911b10",
+   "bytes": 5615
+  },
+  "dashboard/static/sim-native-view.mjs": {
+   "sha256": "87d828277384b19f4b0150ca8d0165bf30401be2d2182d5344e5f4fca4e74e2f",
+   "bytes": 3450
+  },
+  "dashboard/static/styles.css": {
+   "sha256": "7900ba300b87b43b5e6b49cb96a7517d8c81dc1187ae548e5ec67e44e9e5f62d",
+   "bytes": 62043
+  },
+  "dashboard/static/vendor/gps-map-vendors.json": {
+   "sha256": "e0d6c4a524ac4314dbb329f3d838eeb58a93d0543d7a905c378e8d22db0e3f28",
+   "bytes": 2776
+  },
+  "dashboard/static/vendor/hls/LICENSE": {
+   "sha256": "ca8773cf798c7ed997d4dd7c8e23c348699f8d5b7462636694cc14de6cda12db",
+   "bytes": 1338
+  },
+  "dashboard/static/vendor/hls/hls.min.js": {
+   "sha256": "a12e7ee1cd64a69dcdb314157e45dafcba705bfb0b1440b7935cb265d374423e",
+   "bytes": 619692
+  },
+  "dashboard/static/vendor/hls/provenance.json": {
+   "sha256": "12d9ee0240288fe7994336cccc8f9016a078e0405240403f65b37c6deade7249",
+   "bytes": 277
+  },
+  "dashboard/static/vendor/korean-font/KOREAN-OFL.txt": {
+   "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+   "bytes": 4388
+  },
+  "dashboard/static/vendor/korean-font/korean.woff2": {
+   "sha256": "5c471f2f88057b3b012eda394e2a866cf66b4a74d9c270b7fe5d28033a8bcb3c",
+   "bytes": 629988
+  },
+  "dashboard/static/vendor/maplibre-gl/LICENSE.txt": {
+   "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+   "bytes": 5984
+  },
+  "dashboard/static/vendor/maplibre-gl/maplibre-gl-shared.mjs": {
+   "sha256": "76b5f55bdee928c65d592684aaff2b913d50b6b17b0ec6334e88b09b6aa47960",
+   "bytes": 515924
+  },
+  "dashboard/static/vendor/maplibre-gl/maplibre-gl-worker.mjs": {
+   "sha256": "01ad197aa7f4cec258a890febd71b7515e96309881b036a7095befc01a45296e",
+   "bytes": 19133
+  },
+  "dashboard/static/vendor/maplibre-gl/maplibre-gl.css": {
+   "sha256": "d8617d8421930e3fc6185365400e788c374c1a5d9fbe87999998c0bc14a202d3",
+   "bytes": 83310
+  },
+  "dashboard/static/vendor/maplibre-gl/maplibre-gl.mjs": {
+   "sha256": "3f55566295583644617fe17d008a36c580414b8c71dd2e1fcff1309de6fdee5d",
+   "bytes": 590228
+  },
+  "dashboard/static/vendor/pmtiles/LICENSE.txt": {
+   "sha256": "0371c38f338835f7fc13ed71176f3d92144e22c8b736a31cced57adbbeb647b3",
+   "bytes": 1713
+  },
+  "dashboard/static/vendor/pmtiles/pmtiles.js": {
+   "sha256": "caf981bc46f6327ee7e65d5dc964d89d38a69f60edca2bd4c5c890c21b554c6c",
+   "bytes": 20229
+  },
+  "dashboard/static/vendor/protomaps_basemaps/LICENSE.txt": {
+   "sha256": "74f975cfedd168098c43b5cfd6e587e40604684c4ffcec3e90d24b3b09c061b0",
+   "bytes": 3289
+  },
+  "dashboard/static/vendor/protomaps_basemaps/basemaps.js": {
+   "sha256": "551864f01da1bfe3005e99987197f22f56d0c35f9a10fa1727a889e2434af16d",
+   "bytes": 38680
+  },
+  "docker/Dockerfile.ubts": {
+   "sha256": "81fcbf934b0e7a4143afa848930d72da31e4c4aaf5482ffe4d0a6ce3138eaf9b",
+   "bytes": 1728
+  },
+  "ros2_ws/src/orchard_gazebo/README.md": {
+   "sha256": "2f3a894745640685a624049079fa6bfc648d99f982e836d4912864999752100b",
+   "bytes": 2364
+  },
+  "ros2_ws/src/orchard_gazebo/config/bridge.yaml": {
+   "sha256": "cb8c4028850e6f808a125657a1e4628e396cc5d4e1f360ff819ac82f9a33f917",
+   "bytes": 3138
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/__init__.py": {
+   "sha256": "0e8a55a7529c3e9edb85819626aa3db5eadbd21707332b836e2632a14f09326b",
+   "bytes": 191
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/generate.py": {
+   "sha256": "aa7bb67590a2f9ef1a84ef8b844f54a851d28ca8b2d0b07392787080f13e6334",
+   "bytes": 3241
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/lane_error_monitor.py": {
+   "sha256": "dec0620a5613f449991803111a3d264ce013cc4073e9f05d987d5404023d0100",
+   "bytes": 3788
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/meshes.py": {
+   "sha256": "2beece184d1ba447392f90ae41c870866f923264c7aa6cf882b05d0ac7d28ae2",
+   "bytes": 16474
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/model_gen.py": {
+   "sha256": "e4392a2df8fd9833f0e554791bad5dd38255f226716bb8253b37be630cdc4657",
+   "bytes": 12262
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/terrain.py": {
+   "sha256": "516170f98445320619a0480a312cc16088f5718912928d5c530eb058af309028",
+   "bytes": 21469
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/vegetation.py": {
+   "sha256": "060e9ed024036caa4c50704532cb30ad90ff046c60ae2ad8eef8c5a72afb5c94",
+   "bytes": 19866
+  },
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/world_gen.py": {
+   "sha256": "70f50a8c43e2c262e3e9ecea1ad753beacba62d0cbf536c8c7f727af56d659ec",
+   "bytes": 27731
+  },
+  "ros2_ws/src/orchard_gazebo/package.xml": {
+   "sha256": "617150c47152d9c1c2b8aec793f84ca6f4bc8e46f2740704165fd1b72c228f22",
+   "bytes": 1004
+  },
+  "ros2_ws/src/orchard_gazebo/resource/orchard_gazebo": {
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "bytes": 0
+  },
+  "ros2_ws/src/orchard_gazebo/setup.cfg": {
+   "sha256": "af0986fb552f34fd283f50b546ecfb030f3a9f641f84576e013b124fbe49597f",
+   "bytes": 97
+  },
+  "ros2_ws/src/orchard_gazebo/setup.py": {
+   "sha256": "f330ccb0873b2950c0e7dea81b96d18d825753a703e0e171c887c5a11755d98c",
+   "bytes": 890
+  },
+  "ros2_ws/src/orchard_gazebo/test/test_generators.py": {
+   "sha256": "d6815bd78c3619a90ba53249976108a84a552c47cb4cf2f8a0ec5fdd87d5764f",
+   "bytes": 7987
+  },
+  "ros2_ws/src/orchard_navigation/orchard_navigation/__init__.py": {
+   "sha256": "a422c059663030cb6e054d19a61bfe42887cff6e57f284770a51b1bf4f0e797f",
+   "bytes": 445
+  },
+  "ros2_ws/src/orchard_navigation/orchard_navigation/controller.py": {
+   "sha256": "4a7632393f408cff0de70a0000d1078acc162f3f197c998fa9fecbdc361cc07e",
+   "bytes": 5978
+  },
+  "ros2_ws/src/orchard_navigation/orchard_navigation/headland.py": {
+   "sha256": "f2898e6eb2526ebcd5aa549ea436e4d1341683d49cd284ee60083c7d11ec0e7d",
+   "bytes": 12873
+  },
+  "ros2_ws/src/orchard_navigation/test/test_controller.py": {
+   "sha256": "30c66a5c327a457b399b4428863fbeb04c61543f663537b547506e06a60edf9b",
+   "bytes": 1942
+  },
+  "sim/ubts/actuator_response.py": {
+   "sha256": "e02eb1df1445cf703dbac424ced341f7eda28c4fb1c9b592d6e7f1bc9dcb3f03",
+   "bytes": 3745
+  },
+  "sim/ubts/adapter.py": {
+   "sha256": "66dc1612cf040e795a06a22ab7fb861b8c4b598769ad8bc79d4d0cf946539c3f",
+   "bytes": 32760
+  },
+  "sim/ubts/assemble_world.py": {
+   "sha256": "0ccfd0e736847d29daa32c7148ab3595d97e7bbdbb9c191e3f0679adcbe39dd4",
+   "bytes": 8533
+  },
+  "sim/ubts/autonomy.py": {
+   "sha256": "ea0301f9d18bdbf197d6bb08142f4672b2ca15253ccb92e5f91a8a2856469e6f",
+   "bytes": 21603
+  },
+  "sim/ubts/autonomy_control.py": {
+   "sha256": "3648e548a2021ce80ebbcc65e3dd0c358cf6213dbd3e72b4801da2e33b478911",
+   "bytes": 21066
+  },
+  "sim/ubts/bridge.yaml": {
+   "sha256": "e8997cd6782d331ce5ddc7663bfa1fc044715358bd7ba05784162469624bbd50",
+   "bytes": 1590
+  },
+  "sim/ubts/callback_drain.py": {
+   "sha256": "984d18903d9174dd6306ae399761a53667281701bfbf275ce4d4484c355cb605",
+   "bytes": 2153
+  },
+  "sim/ubts/callback_timing.py": {
+   "sha256": "02a5bb624b02971526e0122d621f347e9f335394356956a5ee4e67c237945e57",
+   "bytes": 10551
+  },
+  "sim/ubts/camera_profile.py": {
+   "sha256": "44ce3f75ee50893ba3d33c67e8e49607008399aaef998802dacf38d83982db91",
+   "bytes": 2669
+  },
+  "sim/ubts/closed_loop/__init__.py": {
+   "sha256": "a7a68f3ebb74e2d40c91e6a9c8b83e86a701cf84fc65a72cdc809cf6dfc9a5d0",
+   "bytes": 654
+  },
+  "sim/ubts/closed_loop/controllers.py": {
+   "sha256": "34570abd7a900edef39ba05dc50325e2e1e3f83f997a9e3b500b51fd217552a6",
+   "bytes": 38098
+  },
+  "sim/ubts/closed_loop/estimator.py": {
+   "sha256": "39a088681f30c82dc07b8c4cd4cf667aa0a5f0468e7ec62e720de96712aaee97",
+   "bytes": 90950
+  },
+  "sim/ubts/closed_loop/evaluate.py": {
+   "sha256": "81908ea9564fa6e70a724747394c8f1cb1c1e45be78429ed893296306b83445f",
+   "bytes": 26094
+  },
+  "sim/ubts/closed_loop/harness.py": {
+   "sha256": "1070292fc1dc4f184ef58e5e87048cbd4b69345fca6de9a7ae94b85d0c58d043",
+   "bytes": 23132
+  },
+  "sim/ubts/closed_loop/matrix.py": {
+   "sha256": "2f9c4d81b9a7fdec379c85f3365b24b1dee6c557750a277cc064177a79af43d7",
+   "bytes": 27517
+  },
+  "sim/ubts/closed_loop/world.py": {
+   "sha256": "4d591d956471aad295ae05d1bbe7616f29da5a3bc121b3232380955fec58314e",
+   "bytes": 14363
+  },
+  "sim/ubts/control.py": {
+   "sha256": "eb0babcc53a18070a6ab2d8c719611258dcc916768277bfd3e8223f7dc313575",
+   "bytes": 646
+  },
+  "sim/ubts/cpu_lidar.py": {
+   "sha256": "6b58c508abe228cefaee7dd2d06f6ea5091d6e0c3385ad9dc4f3113ad1a30251",
+   "bytes": 12428
+  },
+  "sim/ubts/encoderless/__init__.py": {
+   "sha256": "ec189a6710fbf258c0c472ca7806c082a4da8a3dc01a5982091c21d01c0cf9e7",
+   "bytes": 251
+  },
+  "sim/ubts/encoderless/body_motion.py": {
+   "sha256": "a8944e8c6ad305ea0fe8a746b0e914811a8565155181d5ef239e611dd932ae4b",
+   "bytes": 9788
+  },
+  "sim/ubts/encoderless/body_velocity.py": {
+   "sha256": "b7aa0850c92ff20781140d4615ed5438e2c3cd6eb6d522b0887549569285db2d",
+   "bytes": 10324
+  },
+  "sim/ubts/encoderless/compact_registration.py": {
+   "sha256": "a9c42af0ec9d42d5663663614f31e95f690afe14b0ce9828f7fb7a166d0806c4",
+   "bytes": 18559
+  },
+  "sim/ubts/encoderless/localized_motion.py": {
+   "sha256": "c59c1911bbb10d90ee44d3660d6bdd56d8844df9841804301ad252efb5a59640",
+   "bytes": 13346
+  },
+  "sim/ubts/encoderless/registration.py": {
+   "sha256": "6df0a8af3c637d05f7c6058c15af724b6fa657c24750eb7353a11ecd6b5b633f",
+   "bytes": 14744
+  },
+  "sim/ubts/encoderless/sensor_contract.py": {
+   "sha256": "39242c55cc8c259d1cf6acaa744a17f9912d7a277281959adfefa9676da08275",
+   "bytes": 12957
+  },
+  "sim/ubts/encoderless/shadow_pipeline.py": {
+   "sha256": "00195f8e654a5040a80b754a8766ba466b57ecaf194841bf716fbac00a91a2a8",
+   "bytes": 21759
+  },
+  "sim/ubts/encoderless/test_body_motion.py": {
+   "sha256": "aaa807371ced894be21717fbd252901143791cd0a7ab5b5c758eac248f3bf8cf",
+   "bytes": 8873
+  },
+  "sim/ubts/encoderless/test_compact_registration.py": {
+   "sha256": "86d83a23baf8f87926b328572d759323b09b6941f09f24b24982ad7564534dcd",
+   "bytes": 20724
+  },
+  "sim/ubts/encoderless/test_registration.py": {
+   "sha256": "e7883e4f100f795178f11cf599fa64c6923485c4fb73fcba45186928726cddb2",
+   "bytes": 9310
+  },
+  "sim/ubts/encoderless/test_sensor_contract.py": {
+   "sha256": "7bfed8e74ff498b8030ad60eb2e0490f934fc05fc7410157bfa9a070c6cd53fa",
+   "bytes": 17657
+  },
+  "sim/ubts/encoderless_runtime_contract.py": {
+   "sha256": "a8f17a0fd7e1fe3474176dc761cddfae1d1d8fcf14aef2ed89ad2c722659a2ab",
+   "bytes": 6937
+  },
+  "sim/ubts/fastdds.xml": {
+   "sha256": "ad190d7864ec7757c49f8d654a55dbbc24f3039221181a36e9f2d6ad779d252c",
+   "bytes": 1214
+  },
+  "sim/ubts/field_response.py": {
+   "sha256": "9b45abf86540ce12762045ab0f1acf430001266588e61f2ca02298f255a3f099",
+   "bytes": 44645
+  },
+  "sim/ubts/gc_timing.py": {
+   "sha256": "fa2b80d1d38dbfe3a44d323dbb2d0ede3532908b3bff889e93efd40a498bff72",
+   "bytes": 7758
+  },
+  "sim/ubts/generate_world.py": {
+   "sha256": "4d525e37104d5da0a90f6263e504c5bef62995bc48dbe686dcf7b95dec8f70b3",
+   "bytes": 9143
+  },
+  "sim/ubts/health.py": {
+   "sha256": "7dd7045f47c3819761c2ab4118e6a8cdcd8fd567581e6268d488372fcc3d8d98",
+   "bytes": 263
+  },
+  "sim/ubts/lidar_broadphase.py": {
+   "sha256": "f403082d445710ea97ffa3ce6febe9844a71eb4274e361f539bbd396006b852c",
+   "bytes": 2021
+  },
+  "sim/ubts/loop_timing.py": {
+   "sha256": "d9cff2a6035d4d112ff5501ba86c274760dcbd845f1e7a9a27f569808164013f",
+   "bytes": 13638
+  },
+  "sim/ubts/mesh_raycast.py": {
+   "sha256": "38c8cb5620f440ba0a982dcba4adaa907ac4eab2b23e64875b0f7c41554b05a4",
+   "bytes": 11231
+  },
+  "sim/ubts/occupancy_lookup.py": {
+   "sha256": "bce0a7474989f268951f7bd8f46cd5b18c0abe3659130d5405695cabe2b4474a",
+   "bytes": 3446
+  },
+  "sim/ubts/orchard_perception/__init__.py": {
+   "sha256": "d0603fe76e558b1ade6da73b02abca703f31eaa33c63bb48c8e968f772be9def",
+   "bytes": 75
+  },
+  "sim/ubts/orchard_perception/scan_corridor.py": {
+   "sha256": "198ef42a4def368dadf72874cdc929b177f5f805b1d67c76a0d4769185a1fe5b",
+   "bytes": 14182
+  },
+  "sim/ubts/orchard_perception/scenarios.py": {
+   "sha256": "4549f892752bcf55a14479b670b481a708997871f396bb7a836c01f37c3daf51",
+   "bytes": 12808
+  },
+  "sim/ubts/orchard_perception/test_scan_corridor.py": {
+   "sha256": "8b883a0a0ca9465948c07770bb04909df32f4462fd916eef3900a9d44d204dbb",
+   "bytes": 5040
+  },
+  "sim/ubts/orchard_perception/test_scenarios.py": {
+   "sha256": "dec9a0ce5b4ac9102ce7cd8eef26fbdac2e9ba934be4c659df7186e31251d6bb",
+   "bytes": 5889
+  },
+  "sim/ubts/planar_odometry.py": {
+   "sha256": "c14a325a16f116c7106bfd612a2040cde06e3297ef4a19351764495005ffd409",
+   "bytes": 14080
+  },
+  "sim/ubts/rover.yaml": {
+   "sha256": "04ee92fe6e3192e4e501003948032e0ac4196f4828bac6a0b44ef9efd6c6393a",
+   "bytes": 3941
+  },
+  "sim/ubts/sim_telemetry.py": {
+   "sha256": "e4e1a82bfd957ab9904b5bf758add3fdc2cc637fdcde0b84c1554b89049f5c6f",
+   "bytes": 13467
+  },
+  "sim/ubts/snapshot_writer.py": {
+   "sha256": "e73e91eb1ec8049a297e881b458dbe05d1de962eed4daf81c9fa78be0d9b19b9",
+   "bytes": 3504
+  },
+  "sim/ubts/test_actuator_response.py": {
+   "sha256": "8a015bfd5dc7e2983ebeeac65d9505ad6740e3efaaef6f4e44b293d66df9b4b3",
+   "bytes": 1292
+  },
+  "sim/ubts/test_callback_drain.py": {
+   "sha256": "14fb3af400c0b6a3ae207ece1d5adf8623a4ad49f17783f1990469d89230110b",
+   "bytes": 5706
+  },
+  "sim/ubts/test_callback_timing.py": {
+   "sha256": "3c79a515216a2c17363d34e9ac146429b0e318a7e7ebeb845d34140a65959271",
+   "bytes": 14611
+  },
+  "sim/ubts/test_camera_contract.py": {
+   "sha256": "76349e2981a0951b1891b95ddbaac2c8910ebbb6cef67e124b837f0a38c3d343",
+   "bytes": 2920
+  },
+  "sim/ubts/test_closed_loop_controller.py": {
+   "sha256": "146756ca56b7f70da79b65f6f4312e7df1550d7fadbe3d8c7e993648ff6c5e6f",
+   "bytes": 27616
+  },
+  "sim/ubts/test_closed_loop_estimator.py": {
+   "sha256": "02ecc916860ccb8aa91003c13a7ef96bba57d0000a336ac4101a9c2f07ffcee5",
+   "bytes": 13208
+  },
+  "sim/ubts/test_closed_loop_matrix.py": {
+   "sha256": "4327ced492c0491eed74a963a14fa656c940cf362f79952bdaf03b6251f7a502",
+   "bytes": 5836
+  },
+  "sim/ubts/test_closed_loop_runs.py": {
+   "sha256": "f8d5711f81e249feea5f7fb5c5b427fb9c93371388c4348562a88924c1b631c1",
+   "bytes": 8440
+  },
+  "sim/ubts/test_cpu_lidar.py": {
+   "sha256": "a7544e53b1bfa7c9f975bb1e717daf63a0425b77d9269111fa6a1682bb88ba29",
+   "bytes": 5220
+  },
+  "sim/ubts/test_field_response.py": {
+   "sha256": "843c60ed8d619c06cd71cd503d66c0556d9e5850ab8503fab5efed7a7b437cef",
+   "bytes": 18416
+  },
+  "sim/ubts/test_generated_sdf_names.py": {
+   "sha256": "656633f1bfdd439d5f790da64b2e58d52eef6045468ac4e026d43827c72efdd1",
+   "bytes": 1718
+  },
+  "sim/ubts/test_loop_timing.py": {
+   "sha256": "c1630b94102a74dee64251eb19ee035176315eeea911ff3204f7d0f2e531bb91",
+   "bytes": 19048
+  },
+  "sim/ubts/test_planar_odometry.py": {
+   "sha256": "b0e6199dd002c20b29c03555fa957b67b468f83548f38b24212254daef116c1b",
+   "bytes": 11135
+  },
+  "sim/ubts/test_sim_motor_response.py": {
+   "sha256": "69e52dd035350859250d54e9726072c5038bf799122cf8c0ba43d716de4b8594",
+   "bytes": 2488
+  },
+  "sim/ubts/test_sim_telemetry.py": {
+   "sha256": "a7d0192912365125fce4cff1e16a0c4c2566732324fee5fdc63eec092c65f959",
+   "bytes": 11602
+  },
+  "sim/ubts/test_snapshot_writer.py": {
+   "sha256": "bbbf96f040e27166a080980496f2a02952b2c2663d88db4a3fda5f75f6b75459",
+   "bytes": 3662
+  },
+  "sim/ubts/test_yaw_rate_tracker.py": {
+   "sha256": "67a2658dd0ccff39054eb70c55e361dd1e79ead86aa210a7edae3a30e0a0450b",
+   "bytes": 5160
+  },
+  "sim/ubts/visualization.py": {
+   "sha256": "ff3e098561244f5df024807be71cfeb9c2b84b40a34201b47ebea8325b84bbee",
+   "bytes": 3217
+  },
+  "sim/ubts/yaw_rate_tracker.py": {
+   "sha256": "c28ae89527ca4cdbdffacf9afbb9fd9ed10cd77fc3d2f065d5484bb2ba2c5f22",
+   "bytes": 5151
+  }
+ },
+ "python_baseline": [
+  "dashboard/dashboard_server/__init__.py",
+  "dashboard/dashboard_server/__main__.py",
+  "dashboard/dashboard_server/adaptive_video.py",
+  "dashboard/dashboard_server/app.py",
+  "dashboard/dashboard_server/archive_mapping.py",
+  "dashboard/dashboard_server/autonomy_settings.py",
+  "dashboard/dashboard_server/external_native_pc.py",
+  "dashboard/dashboard_server/field_preflight.py",
+  "dashboard/dashboard_server/gps.py",
+  "dashboard/dashboard_server/gps_reception.py",
+  "dashboard/dashboard_server/gps_utc.py",
+  "dashboard/dashboard_server/imu_processing.py",
+  "dashboard/dashboard_server/lidar_odometry.py",
+  "dashboard/dashboard_server/lidar_preview_recovery.py",
+  "dashboard/dashboard_server/live_mapping.py",
+  "dashboard/dashboard_server/motor_pwm.py",
+  "dashboard/dashboard_server/native_mapping_proxy.py",
+  "dashboard/dashboard_server/native_mapping_service.py",
+  "dashboard/dashboard_server/native_navigation.py",
+  "dashboard/dashboard_server/occupancy_map.py",
+  "dashboard/dashboard_server/offline_maps.py",
+  "dashboard/dashboard_server/playback_profile.py",
+  "dashboard/dashboard_server/raw_sim_mapping.py",
+  "dashboard/dashboard_server/recording_clock.py",
+  "dashboard/dashboard_server/rover_api.py",
+  "dashboard/dashboard_server/sensor_mapping/__init__.py",
+  "dashboard/dashboard_server/sensor_mapping/continuous_mapping.py",
+  "dashboard/dashboard_server/sensor_mapping/cursor.py",
+  "dashboard/dashboard_server/sensor_mapping/native_raster.py",
+  "dashboard/dashboard_server/sensor_mapping/occupancy_map.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/__init__.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/continuous_localization.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/fit_workers.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/gnss_constraints.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_localization.py",
+  "dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_point_support.py",
+  "dashboard/dashboard_server/sensor_mapping/tile_transport.py",
+  "dashboard/dashboard_server/sensor_mapping/tiled_checkpoint.py",
+  "dashboard/dashboard_server/sensor_mapping/tiled_occupancy.py",
+  "dashboard/dashboard_server/sim_map_history.py",
+  "dashboard/dashboard_server/sim_mapping.py",
+  "dashboard/dashboard_server/sim_mapping_operations.py",
+  "dashboard/dashboard_server/sim_native_owner_proxy.py",
+  "dashboard/dashboard_server/sim_native_view_proxy.py",
+  "dashboard/dashboard_server/simulation.py",
+  "dashboard/dashboard_server/telemetry.py",
+  "dashboard/dashboard_server/telemetry_cache.py",
+  "dashboard/dashboard_server/test_live_mapping.py",
+  "dashboard/dashboard_server/tile_transport.py",
+  "dashboard/dashboard_server/tiled_checkpoint.py",
+  "dashboard/dashboard_server/tiled_occupancy.py",
+  "dashboard/scripts/__init__.py",
+  "dashboard/scripts/build_adaptive_recording.py",
+  "dashboard/scripts/camera_stream_policy.py",
+  "dashboard/scripts/camera_ws_bridge.py",
+  "dashboard/scripts/data_recorder_service.py",
+  "dashboard/scripts/esp_motor.py",
+  "dashboard/scripts/esp_motor_v3.py",
+  "dashboard/scripts/esp_wheel_controller.py",
+  "dashboard/scripts/export_recording_camera.py",
+  "dashboard/scripts/gps_ros2_driver.py",
+  "dashboard/scripts/gps_ws_bridge.py",
+  "dashboard/scripts/hls_bandwidth.py",
+  "dashboard/scripts/imu_ws_bridge.py",
+  "dashboard/scripts/install_adaptive_recording.py",
+  "dashboard/scripts/lidar_ws_bridge.py",
+  "dashboard/scripts/native_jpeg_vfr.py",
+  "dashboard/scripts/native_stage_timing.py",
+  "dashboard/scripts/recording_postprocess.py",
+  "dashboard/scripts/ros_executor.py",
+  "dashboard/scripts/rover_control_bridge.py",
+  "dashboard/scripts/rover_control_core.py",
+  "dashboard/scripts/sim_camera_health.py",
+  "dashboard/scripts/sim_clock.py",
+  "dashboard/scripts/sim_video_clock.py",
+  "dashboard/scripts/steer_bridge_core.py",
+  "dashboard/scripts/steer_control_core.py",
+  "dashboard/scripts/steer_rover_bridge.py",
+  "dashboard/scripts/stream_policy.py",
+  "dashboard/scripts/test_steer_bridge_core.py",
+  "dashboard/scripts/test_steer_bridge_equivalence.py",
+  "dashboard/scripts/test_steer_codec.py",
+  "dashboard/scripts/test_steer_control_core.py",
+  "dashboard/scripts/test_steer_link.py",
+  "dashboard/scripts/test_steer_rover_bridge.py",
+  "dashboard/scripts/test_steer_support.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/__init__.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/generate.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/lane_error_monitor.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/meshes.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/model_gen.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/terrain.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/vegetation.py",
+  "ros2_ws/src/orchard_gazebo/orchard_gazebo/world_gen.py",
+  "ros2_ws/src/orchard_gazebo/setup.py",
+  "ros2_ws/src/orchard_gazebo/test/test_generators.py",
+  "ros2_ws/src/orchard_navigation/orchard_navigation/__init__.py",
+  "ros2_ws/src/orchard_navigation/orchard_navigation/controller.py",
+  "ros2_ws/src/orchard_navigation/orchard_navigation/headland.py",
+  "ros2_ws/src/orchard_navigation/test/test_controller.py",
+  "sim/ubts/actuator_response.py",
+  "sim/ubts/adapter.py",
+  "sim/ubts/assemble_world.py",
+  "sim/ubts/autonomy.py",
+  "sim/ubts/autonomy_control.py",
+  "sim/ubts/callback_drain.py",
+  "sim/ubts/callback_timing.py",
+  "sim/ubts/camera_profile.py",
+  "sim/ubts/closed_loop/__init__.py",
+  "sim/ubts/closed_loop/controllers.py",
+  "sim/ubts/closed_loop/estimator.py",
+  "sim/ubts/closed_loop/evaluate.py",
+  "sim/ubts/closed_loop/external_paths.py",
+  "sim/ubts/closed_loop/harness.py",
+  "sim/ubts/closed_loop/matrix.py",
+  "sim/ubts/closed_loop/raster_catalogue.py",
+  "sim/ubts/closed_loop/raster_corridor.py",
+  "sim/ubts/closed_loop/single_row.py",
+  "sim/ubts/closed_loop/single_row_eval.py",
+  "sim/ubts/closed_loop/test_single_row.py",
+  "sim/ubts/closed_loop/testdata/estimator_ref_999a863.py",
+  "sim/ubts/closed_loop/testdata/raster_world_ref_e71e27d4.py",
+  "sim/ubts/closed_loop/world.py",
+  "sim/ubts/control.py",
+  "sim/ubts/cpu_lidar.py",
+  "sim/ubts/encoderless/__init__.py",
+  "sim/ubts/encoderless/body_motion.py",
+  "sim/ubts/encoderless/body_velocity.py",
+  "sim/ubts/encoderless/compact_registration.py",
+  "sim/ubts/encoderless/localized_motion.py",
+  "sim/ubts/encoderless/registration.py",
+  "sim/ubts/encoderless/sensor_contract.py",
+  "sim/ubts/encoderless/shadow_pipeline.py",
+  "sim/ubts/encoderless/test_body_motion.py",
+  "sim/ubts/encoderless/test_compact_registration.py",
+  "sim/ubts/encoderless/test_registration.py",
+  "sim/ubts/encoderless/test_sensor_contract.py",
+  "sim/ubts/encoderless_runtime_contract.py",
+  "sim/ubts/field_response.py",
+  "sim/ubts/field_world/__init__.py",
+  "sim/ubts/field_world/a12_twin.py",
+  "sim/ubts/field_world/a7_equivalence.py",
+  "sim/ubts/field_world/build_field_world.py",
+  "sim/ubts/field_world/closure.py",
+  "sim/ubts/field_world/coord_lint.py",
+  "sim/ubts/field_world/orchard_stats.py",
+  "sim/ubts/field_world/raster_ops.py",
+  "sim/ubts/field_world/real_scan_compare.py",
+  "sim/ubts/field_world/scene_spec.py",
+  "sim/ubts/gc_timing.py",
+  "sim/ubts/generate_world.py",
+  "sim/ubts/health.py",
+  "sim/ubts/lidar_broadphase.py",
+  "sim/ubts/loop_timing.py",
+  "sim/ubts/mesh_raycast.py",
+  "sim/ubts/occupancy_lookup.py",
+  "sim/ubts/orchard_perception/__init__.py",
+  "sim/ubts/orchard_perception/scan_corridor.py",
+  "sim/ubts/orchard_perception/scenarios.py",
+  "sim/ubts/orchard_perception/test_scan_corridor.py",
+  "sim/ubts/orchard_perception/test_scan_corridor_exact.py",
+  "sim/ubts/orchard_perception/test_scenarios.py",
+  "sim/ubts/orchard_perception/testdata/scan_corridor_ref_999a863.py",
+  "sim/ubts/planar_odometry.py",
+  "sim/ubts/sim_telemetry.py",
+  "sim/ubts/snapshot_writer.py",
+  "sim/ubts/steering/__init__.py",
+  "sim/ubts/steering/actuator_link.py",
+  "sim/ubts/steering/backend_api.py",
+  "sim/ubts/steering/conformance/__init__.py",
+  "sim/ubts/steering/conformance/run_conformance.py",
+  "sim/ubts/steering/drive.py",
+  "sim/ubts/steering/entry_feasibility.py",
+  "sim/ubts/steering/evaluate_steer.py",
+  "sim/ubts/steering/fast_sim.py",
+  "sim/ubts/steering/flat_world.py",
+  "sim/ubts/steering/geometry.py",
+  "sim/ubts/steering/gz_assemble.py",
+  "sim/ubts/steering/gz_direct_drive.py",
+  "sim/ubts/steering/gz_esp_emulator.py",
+  "sim/ubts/steering/gz_model.py",
+  "sim/ubts/steering/gz_probe.py",
+  "sim/ubts/steering/host_profile_export.py",
+  "sim/ubts/steering/ident/__init__.py",
+  "sim/ubts/steering/ident/a18.py",
+  "sim/ubts/steering/ident/analysis.py",
+  "sim/ubts/steering/ident/bench.py",
+  "sim/ubts/steering/ident/instruments.py",
+  "sim/ubts/steering/ident/procedures.py",
+  "sim/ubts/steering/ident/recorder.py",
+  "sim/ubts/steering/ident/rig.py",
+  "sim/ubts/steering/ident/yard.py",
+  "sim/ubts/steering/l0_servo.py",
+  "sim/ubts/steering/maneuvers.py",
+  "sim/ubts/steering/native/__init__.py",
+  "sim/ubts/steering/native/build.py",
+  "sim/ubts/steering/native/fw_eeprom.py",
+  "sim/ubts/steering/native/lockstep_v2.py",
+  "sim/ubts/steering/p6a_checks.py",
+  "sim/ubts/steering/p6a_client.py",
+  "sim/ubts/steering/p6a_fw_rules.py",
+  "sim/ubts/steering/p6a_graph.py",
+  "sim/ubts/steering/p6a_imu_model.py",
+  "sim/ubts/steering/procedural_orchard.py",
+  "sim/ubts/steering/s2_format.py",
+  "sim/ubts/steering/safety_scripts/__init__.py",
+  "sim/ubts/steering/safety_scripts/acceptance.py",
+  "sim/ubts/steering/safety_scripts/catalogue.py",
+  "sim/ubts/steering/safety_scripts/measure.py",
+  "sim/ubts/steering/scan_unobserved_clip.py",
+  "sim/ubts/steering/scene_spec.py",
+  "sim/ubts/steering/scripted_control.py",
+  "sim/ubts/steering/sensor_contract_steer.py",
+  "sim/ubts/steering/steered_plant.py",
+  "sim/ubts/steering/supervisor_steer.py",
+  "sim/ubts/steering/t1_rig.py",
+  "sim/ubts/steering/truth_isolation.py",
+  "sim/ubts/steering/vehicle_profile.py",
+  "sim/ubts/steering/verify_steer.py",
+  "sim/ubts/test_actuator_response.py",
+  "sim/ubts/test_callback_drain.py",
+  "sim/ubts/test_callback_timing.py",
+  "sim/ubts/test_camera_contract.py",
+  "sim/ubts/test_closed_loop_controller.py",
+  "sim/ubts/test_closed_loop_estimator.py",
+  "sim/ubts/test_closed_loop_estimator_exact.py",
+  "sim/ubts/test_closed_loop_evaluate_overrides.py",
+  "sim/ubts/test_closed_loop_external_paths.py",
+  "sim/ubts/test_closed_loop_harness_hooks.py",
+  "sim/ubts/test_closed_loop_matrix.py",
+  "sim/ubts/test_closed_loop_raster_corridor.py",
+  "sim/ubts/test_closed_loop_row_end_continuation.py",
+  "sim/ubts/test_closed_loop_row_end_continuation_v2.py",
+  "sim/ubts/test_closed_loop_row_end_position.py",
+  "sim/ubts/test_closed_loop_runs.py",
+  "sim/ubts/test_closed_loop_side_clearance.py",
+  "sim/ubts/test_closed_loop_single_row_estimator.py",
+  "sim/ubts/test_closed_loop_world_extras.py",
+  "sim/ubts/test_cpu_lidar.py",
+  "sim/ubts/test_field_response.py",
+  "sim/ubts/test_field_world.py",
+  "sim/ubts/test_generated_sdf_names.py",
+  "sim/ubts/test_loop_timing.py",
+  "sim/ubts/test_planar_odometry.py",
+  "sim/ubts/test_resolved_sensor_path.py",
+  "sim/ubts/test_sim_motor_response.py",
+  "sim/ubts/test_sim_telemetry.py",
+  "sim/ubts/test_snapshot_writer.py",
+  "sim/ubts/test_steering_backend_api.py",
+  "sim/ubts/test_steering_conformance.py",
+  "sim/ubts/test_steering_drive.py",
+  "sim/ubts/test_steering_entry_feasibility.py",
+  "sim/ubts/test_steering_evaluate.py",
+  "sim/ubts/test_steering_fast_sim.py",
+  "sim/ubts/test_steering_firmware.py",
+  "sim/ubts/test_steering_geometry.py",
+  "sim/ubts/test_steering_gz_model.py",
+  "sim/ubts/test_steering_host_firmware.py",
+  "sim/ubts/test_steering_host_profile_export.py",
+  "sim/ubts/test_steering_ident.py",
+  "sim/ubts/test_steering_ident_rig.py",
+  "sim/ubts/test_steering_maneuvers.py",
+  "sim/ubts/test_steering_native.py",
+  "sim/ubts/test_steering_p6a.py",
+  "sim/ubts/test_steering_p6a_emulator.py",
+  "sim/ubts/test_steering_plant.py",
+  "sim/ubts/test_steering_profile.py",
+  "sim/ubts/test_steering_s2_format.py",
+  "sim/ubts/test_steering_safety_scripts.py",
+  "sim/ubts/test_steering_scene_spec.py",
+  "sim/ubts/test_steering_scripted_control.py",
+  "sim/ubts/test_steering_seed_regressions.py",
+  "sim/ubts/test_steering_t1_rig.py",
+  "sim/ubts/test_steering_truth_isolation.py",
+  "sim/ubts/test_steering_worlds.py",
+  "sim/ubts/test_yaw_rate_tracker.py",
+  "sim/ubts/visualization.py",
+  "sim/ubts/yaw_rate_tracker.py",
+  "tools/field_calib/__init__.py",
+  "tools/field_calib/drive_calib.py",
+  "tools/field_calib/odometry.py",
+  "tools/field_calib/records.py",
+  "tools/field_calib/steps.py",
+  "tools/field_calib/tests/calib_testlib.py",
+  "tools/field_calib/tests/test_field_calib.py",
+  "tools/field_calib/timeline.py",
+  "tools/field_calib/validate_drive_evidence.py",
+  "tools/row_executor/__init__.py",
+  "tools/row_executor/body_mask_fit.py",
+  "tools/row_executor/body_mask_static.py",
+  "tools/row_executor/bridge_client.py",
+  "tools/row_executor/calib_analysis.py",
+  "tools/row_executor/calib_runs.py",
+  "tools/row_executor/config.py",
+  "tools/row_executor/core.py",
+  "tools/row_executor/executor_main.py",
+  "tools/row_executor/field_records.py",
+  "tools/row_executor/guard.py",
+  "tools/row_executor/navigation_observation.py",
+  "tools/row_executor/operator_http.py",
+  "tools/row_executor/sim_in_loop.py",
+  "tools/row_executor/sim_in_loop_steer.py",
+  "tools/row_executor/sim_paths.py",
+  "tools/row_executor/single_row_sim.py",
+  "tools/row_executor/single_row_video.py",
+  "tools/row_executor/tests/live_ros_smoke.py",
+  "tools/row_executor/tests/rowexec_testlib.py",
+  "tools/row_executor/tests/test_body_mask_static.py",
+  "tools/row_executor/tests/test_bridge_client.py",
+  "tools/row_executor/tests/test_bridge_protocol_linux.py",
+  "tools/row_executor/tests/test_calib_runs.py",
+  "tools/row_executor/tests/test_config.py",
+  "tools/row_executor/tests/test_executor_loop.py",
+  "tools/row_executor/tests/test_field1010_closed_loop.py",
+  "tools/row_executor/tests/test_guard.py",
+  "tools/row_executor/tests/test_imu_yaw.py",
+  "tools/row_executor/tests/test_navigation_observation.py",
+  "tools/row_executor/tests/test_no_turn_import.py",
+  "tools/row_executor/tests/test_operator_http.py",
+  "tools/row_executor/tests/test_page_js.py",
+  "tools/row_executor/tests/test_review_fixes_core.py",
+  "tools/row_executor/tests/test_review_fixes_day2.py",
+  "tools/row_executor/tests/test_run_script.py",
+  "tools/row_executor/tests/test_runner.py",
+  "tools/row_executor/tests/test_scan_adapter.py",
+  "tools/row_executor/tests/test_shadow_startup_script.py",
+  "tools/row_executor/tests/test_sim_in_loop_steer.py",
+  "tools/row_executor/tests/test_sim_paths.py",
+  "tools/row_executor/tests/test_single_row_mode.py",
+  "tools/row_executor/tests/test_single_row_sim.py",
+  "tools/row_executor/tests/test_steer_executor.py",
+  "tools/row_executor/tests/test_vendor_tools.py",
+  "tools/row_executor/vendor/closed_loop_copy/__init__.py",
+  "tools/row_executor/vendor/closed_loop_copy/controllers.py",
+  "tools/row_executor/vendor/closed_loop_copy/estimator.py",
+  "tools/row_executor/vendor/closed_loop_copy/single_row.py",
+  "tools/row_executor/vendor/orchard_perception_copy/__init__.py",
+  "tools/row_executor/vendor/orchard_perception_copy/scan_corridor.py",
+  "tools/row_executor/write_sha256sums.py",
+  "tools/steer_sim/check_import_manifest.py",
+  "tools/steer_sim/check_pins.py",
+  "tools/steer_sim/check_vendor_sync.py",
+  "tools/steer_sim/regen_vendor.py"
+ ]
+}
