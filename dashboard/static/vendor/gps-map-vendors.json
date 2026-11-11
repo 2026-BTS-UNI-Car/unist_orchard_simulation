@@ -1,0 +1,69 @@
+[
+  {
+    "package": "maplibre-gl",
+    "version": "6.11.2",
+    "file": "static/vendor/maplibre-gl/maplibre-gl.css",
+    "sha256": "d8617d8421930e3fc6185365400e788c374c1a5d9fbe87999998c0bc14a202d3",
+    "source": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-6.11.2.tgz"
+  },
+  {
+    "package": "maplibre-gl",
+    "version": "6.11.2",
+    "file": "static/vendor/maplibre-gl/LICENSE.txt",
+    "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+    "source": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-6.11.2.tgz"
+  },
+  {
+    "package": "pmtiles",
+    "version": "4.5.0",
+    "file": "static/vendor/pmtiles/pmtiles.js",
+    "sha256": "caf981bc46f6327ee7e65d5dc964d89d38a69f60edca2bd4c5c890c21b554c6c",
+    "source": "https://registry.npmjs.org/pmtiles/-/pmtiles-4.5.0.tgz"
+  },
+  {
+    "package": "@protomaps/basemaps",
+    "version": "5.7.2",
+    "file": "static/vendor/protomaps_basemaps/basemaps.js",
+    "sha256": "551864f01da1bfe3005e99987197f22f56d0c35f9a10fa1727a889e2434af16d",
+    "source": "https://registry.npmjs.org/@protomaps/basemaps/-/basemaps-5.7.2.tgz"
+  },
+  {
+    "package": "maplibre-gl",
+    "version": "6.11.2",
+    "file": "static/vendor/maplibre-gl/maplibre-gl.mjs",
+    "sha256": "3f55566295583644617fe17d008a36c580414b8c71dd2e1fcff1309de6fdee5d",
+    "source": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-6.11.2.tgz"
+  },
+  {
+    "package": "maplibre-gl",
+    "version": "6.11.2",
+    "file": "static/vendor/maplibre-gl/maplibre-gl-shared.mjs",
+    "sha256": "76b5f55bdee928c65d592684aaff2b913d50b6b17b0ec6334e88b09b6aa47960",
+    "source": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-6.11.2.tgz"
+  },
+  {
+    "package": "maplibre-gl",
+    "version": "6.11.2",
+    "file": "static/vendor/maplibre-gl/maplibre-gl-worker.mjs",
+    "sha256": "01ad197aa7f4cec258a890febd71b7515e96309881b036a7095befc01a45296e",
+    "source": "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-6.11.2.tgz"
+  },
+  {
+    "package": "Noto Sans KR weight 400 subset renamed UBTS Map Korean",
+    "file": "static/vendor/korean-font/korean.woff2",
+    "source": "https://github.com/google/fonts/tree/main/ofl/notosanskr",
+    "sha256": "5c471f2f88057b3b012eda394e2a866cf66b4a74d9c270b7fe5d28033a8bcb3c"
+  },
+  {
+    "package": "pmtiles",
+    "file": "static/vendor/pmtiles/LICENSE.txt",
+    "source": "https://github.com/protomaps/PMTiles/blob/main/LICENSE",
+    "sha256": "0371c38f338835f7fc13ed71176f3d92144e22c8b736a31cced57adbbeb647b3"
+  },
+  {
+    "package": "protomaps_basemaps",
+    "file": "static/vendor/protomaps_basemaps/LICENSE.txt",
+    "source": "https://github.com/protomaps/basemaps/blob/main/LICENSE.md",
+    "sha256": "74f975cfedd168098c43b5cfd6e587e40604684c4ffcec3e90d24b3b09c061b0"
+  }
+]

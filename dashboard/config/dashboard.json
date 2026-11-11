@@ -1,0 +1,11 @@
+{
+  "mode": "live",
+  "telemetry_file": "runtime/telemetry_snapshot.json",
+  "project_name": "UNIST Orchard Rover Dashboard",
+  "poll_interval_ms": 2000,
+  "site": {
+    "name": "과수원 자율주행 연구 대시보드",
+    "team": "유니주행차",
+    "platform": "Jetson Orin Nano Super"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "version": "1.7.3",
+  "upstream": "https://github.com/video-dev/hls.js/releases/tag/v1.7.3",
+  "tarball_sha256": "a7290f1645f7c605baec75638acda6c6f7b08dde8a615c841a19d0e38df88729",
+  "bundle_sha256": "a12e7ee1cd64a69dcdb314157e45dafcba705bfb0b1440b7935cb265d374423e"
+}
