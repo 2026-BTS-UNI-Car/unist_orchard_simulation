@@ -1,0 +1,90 @@
+# User approximations and simulation assumptions, NOT measured motor calibration.
+world:
+  preset: original  # upstream detailed orchard; sensor_test is a separate simple fixture
+  quality: lite     # upstream apply_lite(): same tree/terrain models, fewer decorations
+  shadows: false   # CPU render preset; keeps upstream geometry, materials and lights
+  seed: 7
+  physics_hz: 120   # 8.33ms local dynamics; exact 30/20/10Hz sensor periods
+vehicle:
+  original_length_m: 1.22
+  original_width_m: 0.70
+  original_height_m: 0.75
+  nominal_battery_v: 12
+  rated_payload_kg: 60  # payload capacity, never vehicle mass
+  body_size_m: [1.10, 0.54, 0.24]  # cut body, simplified assumption
+  body_center_height_m: 0.32
+  body_mass_kg: 24.0
+  wheel_mass_kg: 1.5
+  wheelbase_m: 0.76
+  track_m: 0.56
+  wheel_radius_m: 0.14
+  wheel_width_m: 0.12
+  drive: four_wheel_skid  # front steering locked assumed; verify before real use
+  max_wheel_speed_m_s: 1.00 # responsive simulation tuning; not measured hardware
+  acceleration_m_s2: 1.50  # smooth ramp; STOP still bypasses the ramp immediately
+  actuator_response:
+    # Qualitative stress profile from the user's field observations, not a
+    # fitted velocity/braking curve. Oct3 provides only 3 stable pivot runs;
+    # gyro Z is still not a certified body-yaw axis. PWM is never odometry.
+    # profile: field_20261010 selects sim/ubts/field_response.py (2026-10-10
+    # manual drive: measured >=90% duty, MCU ramp, pivot breakaway/stall; low
+    # duty still SIM_ASSUMED). Not validated in Gazebo; default stays below.
+    # With field_20261010 the SIM_ASSUMED 50% forward deadband and 80% pivot
+    # minimum make duties below them INERT: the dashboard default manual speed
+    # (25%) and the Gazebo AutonomousControl defaults (0.4/0.3 m/s = 40/30% of
+    # max_wheel_speed_m_s) do not move the rover. Use >= 60% forward and 100%
+    # pivots for trials with that profile.
+    profile: qualitative_stress
+    enabled: true
+    forward_deadband: 0.12
+    pivot_deadband: 0.40
+    moving_turn_efficiency: 0.55
+    pivot_efficiency: 0.75
+    left_gain: 0.99
+    right_gain: 1.00
+    pivot_stick_slip_fraction: 0.10
+    pivot_period_s: 0.8
+    field_20261010:   # used only when profile: field_20261010
+      seed: 0           # first pivot rotates (~24 deg/s); seed 7 draws the rare 5% stall
+      surface: normal   # or stall_prone (035952: 8/11 pivots did not rotate; ESTIMATED)
+lidar:
+  model: RPLIDAR_S2
+  height_above_ground_m: 0.60  # user's corrected approximation
+  x_m: 0.18                 # simulation assumption, slightly forward of center
+  y_m: 0.0
+  samples: 3200
+  hz: 10.0
+  min_m: 0.05
+  max_m: 30.0
+  noise_stddev_m: 0.01      # assumed Gaussian; +/-30mm spec is not 1 sigma
+imu:
+  model: BNO085
+  height_above_ground_m: 0.56  # same x/y as LiDAR; z and orientation assumed
+  hz: 20.0
+camera:
+  model: UVC_RGB
+  xyz_m: [0.40, 0.0, 0.48]  # assumed mount
+  horizontal_fov_deg: 70.0  # uncalibrated nominal, no lens calibration claim
+  width: 640               # software-rendering simulation preset, not HW limit
+  height: 360
+  hz: 30.0
+  hardware_max: 1920x1080@30
+  rotation_deg: 0          # upright simulated mount; no double 180deg correction
+gps:
+  model: ZED-F9P
+  enabled: true
+  origin_latitude: 37.0   # arbitrary virtual orchard, not the real robot location
+  origin_longitude: 127.0
+  origin_altitude_m: 0.0
+  virtual_receiver:
+    # SIM-only factor scale matching the legacy native-source .5m fallback;
+    # not measured F9P accuracy/covariance. The ideal source adds no noise.
+    horizontal_accuracy_floor_m: 0.5
+    horizontal_noise_stddev_m: 0.0  # nonzero noise is unsupported/fails no-fix
+
+autonomy:
+  yaw_rate_feedback:
+    # Verified short physical headland on corrected wheel friction. Kp=2
+    # oscillated and made the swept-path safety guard reject side trees.
+    # Simulation tuning only; Ki, freshness and obstacle limits stay unchanged.
+    kp: 0.5
