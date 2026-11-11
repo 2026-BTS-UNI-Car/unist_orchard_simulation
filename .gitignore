@@ -1,0 +1,39 @@
+# Run results, measurements and local data stay outside the repository
+runs/
+data/
+artifacts/
+# Build outputs
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+dist/
+*.so
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+# Recordings and trained models are never tracked here
+*.bag
+*.mcap
+*.db3
+*.onnx
+*.pt
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+# Private settings and secrets (keys, tokens, passwords, certificates, account files)
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials*.json
+secrets*.json
+*.private.json
+*-private.json

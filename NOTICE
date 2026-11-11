@@ -1,0 +1,59 @@
+unist_orchard_simulation (UNIST BTS 유니주행차)
+Copyright 2026 UNIST BTS 유니주행차 팀
+
+이 저장소의 코드는 Apache License 2.0 (LICENSE) 을 따릅니다.
+아래 제3자 구성요소는 각자의 라이선스를 따릅니다. 파일별 정리는 third_party/README.md.
+
+[원본 프로젝트]
+이 저장소는 orchard-rover (https://github.com/pathcmd95/orchard-rover, Apache-2.0,
+Copyright 2026 UNIST BTS 유니주행차 팀) 의 커밋 c3c1f8657ab0526f8ff2221064ebc145e0a0831a (c3c1f86) 에서
+갈라져 나온 시뮬레이션 저장소 2026-BTS-UNI-Car/orchard-rover-clone 의 브랜치 steering-sim-20261108
+(커밋 50fc854ee2462e761e7ce281dca937f1700e0f2b) 에서, 앞바퀴 조향 시뮬레이션이 실제로 쓰는 파일만 골라
+가져온 것입니다. 파일별 출처(옛 경로, 옛 blob ID, sha256)는 docs/provenance/IMPORT_MANIFEST.json,
+가져온 범위와 바꾼 내용은 docs/provenance/IMPORT_NOTES_KO.md 에 있습니다.
+
+원본 프로젝트(c3c1f86)에서 그대로 가져온 파일 (바이트 동일, 19개):
+- LICENSE
+- ros2_ws/src/orchard_gazebo/ 의 14개: config/bridge.yaml, orchard_gazebo/__init__.py, generate.py,
+  lane_error_monitor.py, meshes.py, model_gen.py, terrain.py, vegetation.py, world_gen.py, package.xml,
+  resource/orchard_gazebo, setup.cfg, setup.py, test/test_generators.py
+- ros2_ws/src/orchard_navigation/ 의 4개: orchard_navigation/__init__.py, controller.py, headland.py,
+  test/test_controller.py
+
+원본 프로젝트의 파일을 고친 것:
+- ros2_ws/src/orchard_gazebo/README.md : 팀 장비 안내 4줄을 더했습니다 (옛 시뮬레이션 저장소에서 바뀐 그대로).
+- NOTICE, third_party/README.md, .gitattributes, .gitignore : 이 저장소에 실제로 든 내용에 맞게 다시 썼습니다.
+
+원본 프로젝트에서 가져오지 않은 것: 3D LiDAR·PX4·인식·계획 패키지, 비전 모델, PX4 airframe, MID360 설정,
+학습 도구, 원본 설명서와 영상. 원본 NOTICE 의 제3자 고지 가운데 이 파일들에만 해당하는 항목은
+(Ultralytics YOLO 모델, torchvision 구조의 분할 모델, PX4 airframe, livox_ros_driver2 설정) 해당 파일이
+이 저장소에 없으므로 싣지 않았습니다.
+
+그 밖의 파일(sim/ubts, dashboard, firmware, tools, docs/steering 등)은 옛 시뮬레이션 저장소에서 UNIST BTS
+유니주행차 팀이 작성한 것이며 Apache-2.0 을 따릅니다. 가져오면서 일부러 바꾼 파일은
+docs/provenance/IMPORT_NOTES_KO.md 의 '의도적으로 바꾼 파일' 에 적었습니다.
+
+[저장소에 포함된 제3자 구성요소]
+- dashboard/static/vendor/hls/hls.min.js : hls.js 1.7.3. Apache-2.0, Copyright (c) 2017 Dailymotion.
+    전문 dashboard/static/vendor/hls/LICENSE
+- dashboard/static/vendor/maplibre-gl/ : MapLibre GL JS 6.11.2. BSD-3-Clause, Copyright (c) 2023, MapLibre contributors.
+    전문 dashboard/static/vendor/maplibre-gl/LICENSE.txt
+- dashboard/static/vendor/pmtiles/pmtiles.js : PMTiles 4.5.0. BSD-3-Clause.
+    전문 dashboard/static/vendor/pmtiles/LICENSE.txt
+- dashboard/static/vendor/protomaps_basemaps/basemaps.js : @protomaps/basemaps 5.7.2. BSD-3-Clause 외
+    (Copyright 2019-2023 Protomaps LLC, Kelso Cartography). 전문과 저작자 표시
+    dashboard/static/vendor/protomaps_basemaps/LICENSE.txt
+- dashboard/static/vendor/korean-font/korean.woff2 : Noto Sans KR (weight 400) 의 부분 글꼴. SIL Open Font License 1.1.
+    전문 dashboard/static/vendor/korean-font/KOREAN-OFL.txt
+- dashboard/static/native-probability/ : 확률 격자 표시용 선택 구성요소 (Apache-2.0). Cartographer 와
+    Cartographer ROS (Copyright The Cartographer Authors, Apache-2.0) 의 확률 격자 값·좌표 의미를 따르며
+    상위 프로젝트의 C++ 실행 코드나 바이너리는 싣지 않습니다. 고지 dashboard/static/native-probability/NOTICE,
+    전문 dashboard/static/native-probability/LICENSE
+각 파일의 출처 주소와 sha256 은 dashboard/static/vendor/gps-map-vendors.json 과
+dashboard/static/vendor/hls/provenance.json 에 있습니다.
+
+[실행하거나 이미지를 만들 때 쓰는 것 (저장소에는 없음)]
+- ROS 2 Jazzy · Gazebo Harmonic (Apache-2.0)
+- docker/Dockerfile.ubts 가 설치하는 배포판 패키지와 Python 패키지 (numpy, scipy, PyYAML, OpenCV, websockets,
+  trimesh, embreex 등)
+각 구성요소의 라이선스 전문은 원본 배포처에 있고, Docker 이미지 안에서는 /usr/share/doc 등에 있습니다.

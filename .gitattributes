@@ -1,0 +1,21 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp4 binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.npz binary
+# Third-party web libraries of the dashboard copy: bytes as published (see also dashboard/.gitattributes).
+dashboard/static/vendor/** -text -whitespace
+# Stored with CRLF or mixed line ends in the source repository and kept byte-exact. dashboard/.gitattributes
+# repeats these four lines because its *.py rule would otherwise win for files under dashboard/.
+dashboard/dashboard_server/sensor_mapping/occupancy_map.py -text
+dashboard/dashboard_server/sensor_mapping/raw_mapping/gnss_constraints.py -text
+dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_localization.py -text
+dashboard/dashboard_server/sensor_mapping/raw_mapping/raw_point_support.py -text
+# Hash-checked files of the row executor (SHA256SUMS, vendored copies): always LF.
+tools/row_executor/SHA256SUMS text eol=lf
+tools/row_executor/vendor/** text eol=lf
