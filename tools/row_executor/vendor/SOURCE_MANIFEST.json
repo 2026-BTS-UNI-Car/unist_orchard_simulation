@@ -1,0 +1,61 @@
+{
+ "copy_method": "git show <commit>:<source_path> (byte-exact, as stored)",
+ "derivation": {
+  "note": "rewritten by tools/steer_sim/regen_vendor.py; check with tools/steer_sim/check_vendor_sync.py",
+  "previous_manifest_SHA256": "e63d3aafc49d6227bfb6dfbf19dd38ec8de655bf3cc8baebeb57aa3c75947631",
+  "previous_source_branch": "single-row-20261102",
+  "previous_source_commit": "c35126025d9ea1d4c939312b64e09c57e90a70b6"
+ },
+ "files": [
+  {
+   "bytes": 654,
+   "git_blob": "3ec6b943f786e6fec2bb987aaa53bb1b1cfc7dcf",
+   "sha256": "a7a68f3ebb74e2d40c91e6a9c8b83e86a701cf84fc65a72cdc809cf6dfc9a5d0",
+   "source_path": "sim/ubts/closed_loop/__init__.py",
+   "vendored_path": "closed_loop_copy/__init__.py"
+  },
+  {
+   "bytes": 38098,
+   "git_blob": "3ab043f8b050d8bdaf82dea30a1e1a665bc44c15",
+   "sha256": "34570abd7a900edef39ba05dc50325e2e1e3f83f997a9e3b500b51fd217552a6",
+   "source_path": "sim/ubts/closed_loop/controllers.py",
+   "vendored_path": "closed_loop_copy/controllers.py"
+  },
+  {
+   "bytes": 90950,
+   "git_blob": "f2febceeb63564adc7cf52d10c5042753a3038f8",
+   "sha256": "39a088681f30c82dc07b8c4cd4cf667aa0a5f0468e7ec62e720de96712aaee97",
+   "source_path": "sim/ubts/closed_loop/estimator.py",
+   "vendored_path": "closed_loop_copy/estimator.py"
+  },
+  {
+   "bytes": 46531,
+   "git_blob": "2d4fd560dcc8b3fd72aa277ff300214a539e8aaf",
+   "sha256": "03a6c84a89976288f01ba5640561c9059341cc1a667132f731b13d1d988a2fe6",
+   "source_path": "sim/ubts/closed_loop/single_row.py",
+   "vendored_path": "closed_loop_copy/single_row.py"
+  },
+  {
+   "bytes": 75,
+   "git_blob": "e158cc4aa7db547b7bbf372862a60d473007a13a",
+   "sha256": "d0603fe76e558b1ade6da73b02abca703f31eaa33c63bb48c8e968f772be9def",
+   "source_path": "sim/ubts/orchard_perception/__init__.py",
+   "vendored_path": "orchard_perception_copy/__init__.py"
+  },
+  {
+   "bytes": 14182,
+   "git_blob": "b58b27c1a7ab47f355fa18e159a491fd27c88f49",
+   "sha256": "198ef42a4def368dadf72874cdc929b177f5f805b1d67c76a0d4769185a1fe5b",
+   "source_path": "sim/ubts/orchard_perception/scan_corridor.py",
+   "vendored_path": "orchard_perception_copy/scan_corridor.py"
+  }
+ ],
+ "generated_by": "tools/steer_sim/regen_vendor.py (--commit)",
+ "import_root": "tools/row_executor/vendor: the vendor namespace package of row_executor; closed_loop_copy and orchard_perception_copy are imported as row_executor.vendor.* by row_executor.core.load_vendor (the folder is never put on sys.path)",
+ "modified": false,
+ "schema": "ubts.row_executor.vendor_manifest.v1",
+ "source_branch": "steering-sim-20261108",
+ "source_commit": "1df7c2f33c8a2b317dec877a883c7873b576aa72",
+ "source_repository": "2026-BTS-UNI-Car/orchard-rover-clone (SIM)",
+ "verification": "row_executor.core.load_vendor() recomputes every sha256 before import and refuses on mismatch, imports the copies under row_executor.vendor (the SIM-tree name orchard_perception points at the vendored copy only while the vendored estimator is imported) and checks the imported files again; closed_loop_copy/single_row.py is imported next to the verified controllers module (core.single_row_module) and its sha256 is checked again at import"
+}

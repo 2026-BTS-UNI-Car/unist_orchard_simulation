@@ -1,0 +1,127 @@
+실행기 단일열 모드 (mode 'single_row') — 2026-11-02
+=====================================================
+[조향 브랜치 사본 2026-11-09] 단일열 작업 546fa8c에서 가져온 문서다. 회전(turn_*, TURN_ASSIST.txt)·재생(replay_*, row_shadow_replay.py)·convert_1003.py·row_gate_report.py는 가져오지 않았다. 바꾼 것: docs/steering/EXECUTOR_IMPORT_KO.md.
+
+목표 문서: 작업 루트의 SINGLE_ROW_GOAL_20261102.md (한 열을 중심선 따라 끝까지 주행하고 열 끝에서 안전하게 정지).
+headland 회전, 다음 열 진입, 여러 열, 마지막 열 판정은 이 모드의 범위가 아니다. 이 문서는 소프트웨어 통합 설명이다.
+실차 검증이나 설치 완료 선언이 아니다. 실차 기본값은 계속 OFF다(motor_output_enabled false, SHADOW).
+
+1. 무엇이 들어갔나
+------------------
+  제어기     vendor/closed_loop_copy/single_row.py (SingleRowController, SIM 브랜치 소스와 byte 동일,
+             vendor/SOURCE_MANIFEST.json에 sha256과 유래 기록). core.Runner가 mode 'single_row'에서 이것을 만든다.
+             SIM 실행(sim_in_loop, single_row_sim)은 SIM 트리의 모듈을 쓰되 manifest와 byte 동일한지 import 때 검사한다.
+  동작       연속 전진 + 차등 보정(pure pursuit 바깥 루프, IMU yaw rate 안쪽 루프, 오차 부호와 무관하게 유지되는
+             지속 편향 추정). 제자리 회전·후진은 없다. 작은 오차에 정지→회전→출발을 하지 않는다.
+             PWM은 속도가 아니다: base duty를 LiDAR 정합 속도 기준으로 [single_row_base_min_pct, base_max]
+             안에서 조절한다(시작은 base_duty_pct).
+             열 끝: 추정기의 양측 지지 종료 + 여유 공간 증거(row_end_ahead_m)만 쓴다. 시간·거리·GPS·나무 하나
+             누락·입력한 열 길이로는 열 끝을 판정하지 않는다. 감속 구간(APPROACH_END) 뒤 정지하고, 정지 뒤에는
+             자동 회전·재출발이 없다(새 Start가 필요하다).
+  유지된 것  입력 신선도·hold 규칙(새 누름만 재개), 종결 결정 보존, 통로 상실 일시정지(정지 확인 뒤 새 누름),
+             기하 guard(heading 25도, lateral), rolling inner-wheel 제한, N9 무반응 누적 한도, OutputGuard
+             (전진 전용·duty/차등 상한·안쪽 바퀴 하한), 측면 여유 규칙(ON), bridge 소유권·deadman·STOP latch.
+
+2. 설정 키 (config.py, 바뀌지 않은 블록은 dump/digest에서 빠져 기존 설정 digest가 그대로다)
+-------------------------------------------------------------------------------------------
+  mode                           'single_row'
+  require_native_navigation      false로 명시해야 한다(true면 설정 거부: provider 요구를 조용히 무시하지 않는다)
+  single_row_target_speed_m_s    0.40  순항 목표 속도(LiDAR 정합 속도)
+  single_row_min_speed_m_s       0.20  큰 횡오차·권한 SLOW일 때 목표, 시간 상한의 기준 속도
+  single_row_approach_speed_m_s  0.20  열 끝 감속 구간 목표
+  single_row_base_min_pct / max  45 / 55  speed loop의 base duty 범위 (base_duty_pct = 시작 base)
+  single_row_bias_max_pct        12    지속 편향 추정 한계 [% 차등] (max_differential 이하)
+  single_row_start_max_deg       25    출발·재획득 정렬 한계 (guard_heading_deg 이하)
+  single_row_end_stop_offset_m   0.61  관측된 열 끝보다 base가 이만큼 앞에서 선다(차체 앞이 열 끝에 온다)
+  single_row_max_row_length_m    120   한 run의 거리 안전 상한
+  규칙   base_min ≤ base_duty_pct ≤ base_max, base_max + max_differential ≤ duty_cap_pct, base_min - max_differential ≥ 1,
+         min/approach ≤ target ≤ max_speed_m_s, max_yaw_rate ≤ 0.6 × 2 × arc gain × max_differential,
+         turn_assist_enabled 거부, controller_overrides.row_end_stop_m 거부.
+  안쪽 바퀴  breakaway(C2)가 알려지면: base_min - max_differential ≥ (C3b rolling 측정 시 rolling, 아니면 breakaway)
+         + margin, base_min ≥ breakaway + margin. 즉 규칙은 speed loop의 가장 낮은 base에서 성립해야 한다.
+  모터 출력  기존 규칙 전부(C2/C3/C5/C7, S6, N1, 조향 GO 규칙 max_differential 10-20·권한 ≥ 4.0 deg/s) +
+         single_row_end_stop_offset_m ≥ footprint_length_m / 2.
+  예시   config.single_row_shadow.example.json (SHADOW, 측정값 없음: feasibility 'unknown').
+
+3. 위치 추정과 native navigation
+--------------------------------
+  제어에 쓰는 것은 실행기 자신의 2D LiDAR + raw IMU 추정기다: 통로 기준 횡오차·heading 오차, scan matching 속도,
+  resolved_polyline 거리. 상태에 'SENSOR_ONLY_SINGLE_ROW'로 표시한다. GPS·카메라·PWM·SIM 참값·가상 엔코더는
+  위치 정답으로 쓰지 않는다.
+  native navigation provider는 필수가 아니다. 있으면 매 tick 평가해 상태(native_cross_check)에 보고만 한다.
+  그 WAIT는 출발 허가도 정지 사유도 아니며, 완전히 유효한 같은 snapshot의 COST_OCCUPIED 보고만 일시정지시킨다
+  ('native_cross_check_cost_occupied', OBSTACLE 분류; 안전 쪽으로만 작동). 생성 시험 provider를 시험 모드 밖에서
+  쓰면 보고는 GENERATED_PROVIDER_FORBIDDEN이고 거부권도 없다. 다른 모드의 require_native_navigation 동작은 그대로다.
+
+4. 열 길이와 백스톱
+-------------------
+  Start에서 열 길이는 선택이다(/api/start {"row_len_m": null}).
+  없음     거리 상한 = single_row_max_row_length_m, 이동시간 상한 = backstop_time_factor × 상한 /
+           min(single_row_min_speed_m_s, single_row_approach_speed_m_s). (120 m, 0.20 m/s → 690 s)
+  있음     기존 L - backstop_margin_m (2 m) 거리 한도가 추가된다(작은 쪽이 끝낸다). 실제 열 길이를 그대로 넣으면
+           열 끝 2 m 전에 백스톱이 끝내므로, 열 끝 판정을 쓰려면 넉넉한 상한(+5 m)을 넣는다.
+  백스톱 정지는 'row_distance_backstop' / 'row_time_backstop'이며 분류는 OPERATOR_OR_BACKSTOP이다(열 끝 아님).
+
+5. 정지 분류 (status single_row.stop_category, 운용 화면 문구)
+-------------------------------------------------------------
+  ROW_END 정상 열 끝 / END_STRUCTURE 열 끝 구조물 / OBSTACLE 열 안 장애물·벽 / PERCEPTION_OR_LOCALISATION 센서·위치
+  추정 신뢰도 부족 / CONTROL_AUTHORITY 조향·구동 권한 부족(DRIVE 포함) / OPERATOR_OR_BACKSTOP 운용자·백스톱 /
+  SYSTEM_FAULT 브리지·루프 오류 / UNCLASSIFIED. 표는 vendored single_row.stop_category(PREREG 표)가 먼저이고,
+  표에 없는 실행기 전용 사유(operator_stop, bridge_*, stall_guard 등)만 core.SINGLE_ROW_EXECUTOR_CATEGORIES로 보탠다.
+  첫 정지(일시정지 또는 종료)는 first_stop으로 남는다.
+
+6. 운용 화면
+------------
+  mode가 single_row이면 '단일열 주행' 카드가 보인다: Start(열 길이 선택)·End run·STOP(큰 STOP과 같은 op stop),
+  단계(출발 준비/중심선 추종/열 끝 감속/정지 중/정지), 횡오차·heading 오차, 신뢰도, 좌/우 PWM, 차등·한계·포화·권한,
+  편향 추정, base, 목표 속도, 열 끝/정지점까지 거리, 주행거리, 속도, 정지 사유와 분류, 그리고 추정기 좌표의
+  위에서 본 그림(추정 중심선·열 선·관측된 지지 끝·차체·최근 경로, 통로 축이 위). 표시 전용이며 모터 경로를 바꾸지 않는다.
+  JSONL tick에는 'sr'(단계·참조 횡오차·차등·포화·권한·편향·base·남은 거리·신뢰도·분류)가 붙는다.
+
+7. SIM 실행기 (single_row_sim.py)
+---------------------------------
+  실제 ExecutorLoop(mode single_row) + 실제 대시보드 RoverControl(가짜 모터) + 10/10 raster 회랑(SLAM 재구성 지도).
+  plant: P_fit1003, field1010, SidedGainPlant(좌우 구동 이득, plant subclass). PREREG 조건·회랑·seed 행렬, 운용자 모사
+  (Start → Arm → 1.2 s에 한 번 누름, 계속 유지, 재누름 없음; 기본은 열 길이 없음), 최대 12 워커, EPISODES.jsonl,
+  SUMMARY.json, REPORT_KO.txt, traces/*.json.gz, 선택 영상(videos/*.mp4). 사용법은 파일 머리말.
+  SIM 실행기 설정의 base 범위는 inner-wheel 규칙에 묶인다: P_fit1003 50-60 %(약 0.42 m/s 이상이라 0.20 m/s 감속
+  목표에 못 미친다), field1010 60-75 %. 이 값들은 SIM 가정이며 현장 보정값이 아니다.
+
+7a. 개발 1회차 분석으로 더한 설정 (2026-11-02, SIM 개발값이며 현장 보정값이 아님)
+-------------------------------------------------------------------------------
+  single_row_acquire_behind_m 2.5     첫 회랑 획득에 LiDAR 뒤 2.5 m ~ 앞 8 m의 반사만 쓴다(열 입구 출발: 뒤쪽
+                                      headland의 벽·통·덤불이 두 열 선 사이를 막아 획득이 거부되던 문제). 재획득은 그대로.
+  single_row_acquire_window_deg 30    첫 획득의 축 탐색 범위(다른 모드 50도). 출발 정렬 한계(25도)보다 작을 수 없다.
+                                      성긴 열에서 36~50도의 대각 나무 정렬이 지배 축이 되던 문제.
+  single_row_end_segment_span_m 2.0   열 끝: 한쪽 지지를 첫 빈 간격(>= 6 m, 기존 필요 간격 이상)에서 자른다. 그 너머가 양쪽
+                                      모두 이어지는 열(3개 이상 덩어리, 2 m 이상)이면 교차 틈으로 보고 자르지 않는다. 열 끝
+                                      7~10 m 너머의 기둥·울타리·덤불이 10 m 범위에 들어오면 지지 끝이 그쪽으로 튀어 확정된 열
+                                      끝이 사라지던 문제.
+  single_row_initial_press_grace_s 1.0  첫 누름(await_hold, 재개 전)이 입력 신선 1 s 전에 들어와도 계속 누르고 있으면 1 s
+                                      동안 유지하고, 그 안에 입력이 신선해지면 출발한다(LiDAR 지연 0.2~0.3 s에서 1.2 s 누름이
+                                      무시되던 문제). 떼거나 시간이 지나면 기존대로 press_ignored_inputs_not_fresh. 일시정지 뒤
+                                      재개는 여전히 입력이 신선할 때의 새 누름만 받는다.
+  정지 분류 표(vendored single_row.stop_category)에 실행기 전용 사유를 새 항목으로 더했다(재매핑 없음).
+
+7b. 개발 2회차 분석으로 더한 설정 (2026-11-02, SIM 개발값)
+-----------------------------------------------------
+  single_row_band_about_vehicle true  한쪽만 보인 열 갱신이 회랑 band를 차량 위치를 중심으로 돌린다(기존: 주행 시작점을
+                                      중심으로 돌려, 시작점에서 36 m 떨어진 곳의 0.7도 갱신이 차량 위치의 회랑을 0.45 m 옮김
+                                      -> 횡오차 추정 0.4~1.0 m 점프 -> obstacle_ahead / guard_lateral / 열 끝 근처 상실).
+  single_row_end_stagger_gap_m 4.0    열 끝: 양쪽이 끝났는데 한쪽 끝이 다른 쪽보다 2 m 넘게 멀면, 먼 쪽 지지에서 다른 쪽 끝
+                                      근처(2 m 안)에서 시작하는 4 m 이상 빈 틈 너머가 열 모양이 아닐 때 그 틈 앞에서 끝낸다
+                                      (열 끝 4.9 m 너머 한쪽 선 연장 위의 0.6 m 물체를 그쪽 열 끝으로 보아 지나치던 문제:
+                                      045553 L3-R2 fwd MISSED_ROW_END 59/84). 한 열만 나무 하나로 4 m 넘게 더 이어지는
+                                      실제 엇갈림은 잘릴 수 있다(DEV 8개 회랑 라벨 단위에는 없음).
+  single_row_end_last_trunk true      열 끝: 97 백분위가 잘라 내는 작은 마지막 나무(반사 2개 이상 덩어리)의 중심을 끝으로 둔다
+                                      (마지막 단위가 5 cm 셀 하나인 열에서 끝이 1.0 m 짧아져 이른 정지 e -1.0~-1.3 m).
+  단일열 지지 분할 수정               열 끝 너머가 이어지는 열인지를 0.5 m 구간 4개 이상(각 반사 2개 이상, 2 m 이상)으로 보고,
+                                      분할 후보가 없는 쪽도 원래 끝 너머로 같은 판단을 한다(양쪽 5 m 틈에서 한쪽 열의 다음
+                                      나무가 10 m 범위 밖에 있으면 열 끝으로 잘못 확정되던 문제).
+  END_STRUCTURE 분류(controller)      각 열이 구조물 앞 3 m 안에서 끝나거나 빈 공간으로 끝났으면 END_STRUCTURE(엇갈린 열 끝:
+                                      한 열은 일찍 열린 곳에서 끝나고 다른 열은 벽까지 이어진 경우가 OBSTACLE로 분류되던 문제).
+
+8. 남은 것 (미완료)
+-------------------
+  실제 native provider, 실차 저 duty 응답·정지 거리·조향 권한 측정, PREREG 개발·holdout 평가, Jetson 설치(기본 OFF)와
+  현장 주행 검증은 아직이다. 물리적 조향 권한 부족은 소프트웨어로 해결했다고 하지 않는다(CONTROL_AUTHORITY 정지).

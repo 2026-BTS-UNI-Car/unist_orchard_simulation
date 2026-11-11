@@ -1,0 +1,350 @@
+row_executor 운용·프로토콜 노트 (2026-10-22, 주말 현장 MVP-0/MVP-1용)
+=====================================================================
+[조향 브랜치 사본 2026-11-09] 단일열 작업 546fa8c에서 가져온 문서다. 회전(turn_*, TURN_ASSIST.txt)·재생(replay_*, row_shadow_replay.py)·convert_1003.py·row_gate_report.py는 가져오지 않았다. 바꾼 것: docs/steering/EXECUTOR_IMPORT_KO.md.
+범위: tools/row_executor/{config.py, guard.py, core.py, bridge_client.py} + vendor/ + tests/.
+이 패키지는 스스로 모터 명령을 보내지 않는다. Runner는 Decision만 돌려주고, BridgeClient를 쓸지는 호출자
+(executor_main, 아직 미작성)가 정한다. 기본값 motor_output_enabled=false(SHADOW). ROS import 없음.
+Jetson 설치·실차 시험은 하지 않았다. 아래 "확인"은 단위·프로토콜 시험(4절) 범위다.
+
+1. 파일
+-------
+  config.py      ExecutorConfig(frozen), strict JSON(load_config/loads/dumps), validate(), feasibility()
+  guard.py       OutputGuard(마지막 출력 검사), Backstop(L-2 m 거리, 1.15(L-2)/v 시간)
+  core.py        load_vendor(sha256 검증 후 import), ScanAdapter, ImuYawRate, Runner, Decision
+  bridge_client.py  BridgeClient(UnixSocketTransport), arm_precheck, recovery_hint, RECOVERY_PROCEDURE
+  vendor/        SIM estimator.py / controllers.py / scan_corridor.py (+원래 __init__.py) 바이트 그대로.
+                 출처 2026-10-19 cross-alley SIM 브랜치 커밋 1eb9c07261120b0242edf495e88f3e680bbe40a4,
+                 vendor/SOURCE_MANIFEST.json에 sha256·bytes·git blob. load_vendor()가 매번 다시 해시를 계산하고
+                 다르면 import를 거부한다(VendorError). 수정 금지: 바꿀 일이 있으면 새로 vendoring하고 manifest를 갱신.
+  config.field_shadow.example.json  현장 기본 SHADOW 설정(= ExecutorConfig() 기본값).
+
+2. ESP 브리지 프로토콜 규칙 (DASH = 대시보드 폴더, 읽기 전용 참조: sim_paths 'dashboard_dir')
+-----------------------------------------------------------------------------------
+  - 소켓 /run/ubts-rover/control.sock, JSON 한 줄. 연결 하나에 요청 하나다(Handler.handle가 한 줄만 읽고 닫음).
+    UnixSocketTransport는 요청마다 새로 연결한다. 시험에서 연결 수 = 요청 수 = 서버 accept 수를 확인했다.
+  - drive는 0/0을 포함해 항상 deadman:true. deadman이 없으면 invalid_drive → hard stop + lease 삭제
+    (rover_control_core.py dispatch). 운용자의 hold-to-run은 실행기 쪽 신호이고 브리지 deadman 필드와 무관하다.
+    hold를 놓으면 실행기는 drive(0,0, deadman:true)를 계속 보낸다 → lease 유지(moving=False라 0.75 s 입력 만료 없음,
+    owner TTL 30 s는 drive마다 갱신, ticket 1.5 s는 drive마다 새로 발급).
+  - 0이 아닌 drive는 0.75 s 안에 갱신해야 한다. 아니면 브리지가 input_expired로 정지하고 lease를 지운다.
+    실행기는 10 Hz(send_hz) 전송 + 0으로 바뀌는 순간 즉시 전송(executor_main 몫).
+  - stop은 lease 없이 누구나 보낼 수 있다(대시보드·관찰자 폰 STOP). 응답 "stop_requested"는 출력 0 확인이 아니다.
+    출력은 status()['outputs']로 확인한다. STOP 직후 20 ms 안에 들어온 요청은 stop_barrier로 거부된다.
+  - BridgeClient 상태: DISARMED → arm() → ARMED → stop() → DISARMED. 어떤 오류든 LATCHED
+    (전송 오류·시간 초과·형식 오류·ok:false 전부: control_not_owned, stale_input_rearm_required, invalid_sequence,
+    request_expired, control_busy_stopped, stop_barrier, status ok:false 등). LATCHED 진입 때 lease를 갖고 있었으면
+    best-effort op stop을 보낸다. lease가 없을 때(arm 거부 등)는 다른 소유자를 멈추지 않도록 stop을 보내지 않는다.
+    (1일차 검토 S7) drive가 control_not_owned 또는 stop_barrier로 거부되면(LEASE_GONE_ERRORS: 다른 클라이언트의 STOP·
+    입력 만료로 우리 lease가 이미 없다) stop을 보내지 않는다. 그 사이 사람이 대시보드에서 Arm한 새 lease를 지우지 않기
+    위해서다(counts.latch_stop_skipped). lease가 남아 있을 수 있는 오류(전송 오류·시간 초과·request_expired·
+    control_busy_stopped·stale_input_rearm_required·invalid_sequence 등)는 그대로 stop을 보낸다.
+  - 자동 재arm 없음: LATCHED에서는 drive()가 아무것도 보내지 않고, arm()은 acknowledge_latch()(운용자의 명시적 동작)
+    전까지 거부한다. 정상 종료 stop 뒤에도 arm은 운용자의 Start가 있을 때만 부른다.
+  - arm 전 점검(arm_precheck): status ok, connected, firmware UBTS_WHEEL_PWM_V2, last_error 없음, state disarmed·
+    armed false(다른 클라이언트가 잡고 있으면 control_in_use와 같은 상황), moving false, snapshot 나이 ≤ 2 s.
+    점검 통과 후 arm 사이에 대시보드가 먼저 arm하면 arm_refused:control_in_use로 LATCHED(stop 안 보냄).
+  - 정상 종료 순서(executor_main 몫): drive(0,0) 계속 → 추정기 still 또는 terminal_stop_wait_s(1.5 s) → stop(lease 해제)
+    → 이후 사람이 대시보드에서 수동 조종 가능. 운용자 STOP 버튼은 stop(latch=True).
+
+3. Runner 규칙 (core.py docstring이 원문)
+---------------------------------------
+  - Start(row_len_m 필수) → 새 추정기, Backstop 무장, PAUSED('await_hold').
+  - PAUSED → ACTIVE: 새 hold 누름(상승 에지)이 있고, 그 순간 LiDAR·IMU가 fresh_recover_s(1 s) 이상 연속 신선할 때만.
+    Start 전부터 누르고 있던 것은 누름으로 치지 않는다. 신선도 1 s 전 누름은 무시('press_ignored_inputs_not_fresh')되고
+    놓았다가 다시 눌러야 한다. 재개마다 RowController를 새로 만든다(일시정지가 drive_no_response로 읽히지 않게).
+  - ACTIVE → PAUSED(0/0): hold 해제, 입력 stale(LiDAR > 0.45 s, IMU > 0.4 s; C1 gate P2), 루프 정지(tick 간격 > 0.35 s, stall_guard),
+    외부 pause(감시 스레드), 통로 상실(아래). 단, 제어기가 종결 정지를 이미 정한 뒤(STOP_REQUESTED, pending 'hold'/'front',
+    'wait_corridor' 외 모든 pending)라면 일시정지 대신 그 종결 이유로 ENDED가 된다(1일차 S1/F1; end_note
+    'terminal_stop_pending_at_<why>'). 백스톱 등 다른 종결이 먼저 오면 end_note 'controller_pending:<사유>'.
+  - 통로 상실(1일차 S2/F7): 제어기가 통로 상실 정지(STOP_REQUESTED, pending 'wait_corridor')를 시작하거나 'start'가 아닌
+    REACQUIRE에 들어가면 PAUSED('corridor_lost' / 'reacquire_needs_press'), 제어기는 버린다. 재개 = 신선한 입력 + 추정기 정지
+    (still ≥ still_confirm_s 0.4 s) 뒤의 새 누름(그 전 누름은 'press_ignored_not_standstill'). 센 거리 5 m 안 4번째 상실은
+    종결 'corridor_lost_repeat_limit'.
+  - stale 단일 규칙: stale → 0/0, PAUSED. 데이터가 돌아와도, 계속 누르고 있어도 다시 출발하지 않는다. 신선 1 s 뒤
+    "새 누름"만 재개한다. 한 run에 stale이 max_stale_events(3)를 넘으면 종결 'stale_repeat_limit'.
+    vendored 제어기 자체의 자동 복구(1 s 신선 + 정지 → REACQUIRE)는 쓰이지 않는다(stale 입력으로 step하지 않고,
+    그래도 recoverable HOLD가 오면 같은 규칙으로 처리).
+  - 종결(ENDED, 재시작은 새 Start만): 제어기의 모든 종결 HOLD(row_end_candidate, front_blocked, side_blocked,
+    corridor_not_acquired, drive_no_response, ...; 모르는 이유도 종결), 종결 정지 중의 일시정지(위),
+    corridor_lost_repeat_limit, drive_no_response_repeat(2일차 N9: run 전체에서 출력 중 무움직임 누적 > 6 s, 움직임이 보이면 0),
+    guard_violation:*, row_distance_backstop, row_time_backstop, backstop_odometry_invalid, stale_repeat_limit,
+    stall_guard_repeat_limit(4번째), clock_regression, end_run(운용자).
+  - MVP-1 정지 = min(row_end_candidate, 주행거리 ≥ L-2 m, 이동 시간 ≥ 1.15·(L-2)/v_measured).
+    이동 시간은 마지막 명령이 0이 아니거나 추정기가 정지를 보고하지 않는 동안만 센다(정지해 기다리는 시간은 안 셈).
+    주행거리는 추정기가 움직임을 보고하는 tick의 증가분만 센다(1일차 F4; 정지 중 정합 지터는 still_excluded_m). 차는 L−2에
+    정지 거리를 더한 곳(0.45 m/s면 약 L−1.7 m)에 선다(backstop.expected_rest_m).
+    v_measured가 없으면(SHADOW) 시간 백스톱은 꺼진다. 마지막 2 m와 headland 회전은 사람이 한다.
+  - drive_no_response: 첫 전진 명령 후 약 3 s(MCU ramp 1 s + grace 1 s + 무반응 1 s, scan 하나 더)에 0 출력,
+    정지 확인 후 약 +0.7 s에 종결. 바퀴를 띄운 벤치에서는 이것이 정상이다(시험: FOLLOW 후 3.0–3.3 s).
+  - 제어기 시계: vendored RowController는 since=0.0으로 시작한다(SIM은 t=0에서 시작). 단조 시계(부팅 후 수천 s)
+    그대로 step하면 REACQUIRE 6 s 시간 초과가 즉시 나서 모든 run이 corridor_not_acquired로 끝난다(이번에 발견).
+    Runner는 제어기를 "재개 시각 = 0"인 상대 시계로 step한다. snapshot에는 나이·기간만 있어 다른 영향은 없다.
+  - side 규칙(continuous_side): 새 제어기는 side_blocked를 서로 다른 scan 2개로 확인한다. 재개 직후 차체 옆
+    hard margin 안에 이미 물체가 있으면 FOLLOW 출력(예: 55/55)이 약 0.1 s 나간 뒤 정지한다(MCU ramp로 실제 duty는
+    약 10 %p). 차체 자기반사가 마스크되지 않으면 출발 직후 side_blocked 종결이 난다(시험으로 확인, body_mask로 해소).
+
+4. 파라미터 실현 가능성 (config.validate / feasibility)
+------------------------------------------------------
+  - 허용 모드: continuous, continuous_side만(전진 전용, pivot·REDUCE 없음). 제어기 override는 허용 목록만
+    (pivot·turn·fallback·tick·side bias 불가).
+  - 안쪽 바퀴: base - max_diff ≥ breakaway + inner_margin, reduce - max_diff ≥ breakaway + inner_margin.
+    breakaway(C2)가 있으면 항상 검사(위반은 설정 오류). inner_margin(기본 10)은 SHADOW에서 조정 가능(MOTOR는 ≥ 10, 2일차 N1).
+    rolling_breakaway_duty_pct(C3b)도 쟀으면(1일차 F2): 주행 중 base/reduce − max_diff ≥ rolling + margin, 정지 출발 시
+    base/reduce ≥ breakaway + margin. Runner는 추정기가 지속 움직임을 보기 전(still 아님, 정합 유효, 0.10 m/s 이상; 0.05 미만이면
+    해제)에는 차등을 평균 유지한 채 줄여 안쪽 바퀴를 breakaway + margin 이상으로 두고, Guard는 그때 static, 움직인 뒤에는 rolling
+    기준으로 검사한다.
+    예: base 55 / diff 20 / B_fwd 44 → 안쪽 35 < 54로 거부(FEASIBILITY_CRITIQUE H1). reduce 기본값 = base.
+  - OutputGuard 실행 중 검사: 정수, 음수 금지(후진·pivot), duty ≤ duty_cap, |L-R| ≤ diff_cap,
+    주행 중 min(L,R) ≥ breakaway + margin(inner_rule_enabled). 위반 → 0/0 + 종결 guard_violation:<이유>.
+    duty_cap ≥ base + diff, diff_cap ≥ 2·diff가 아니면 설정 오류(정상 출력이 가드에 걸리는 설정 금지).
+  - motor_output_enabled=true에는 측정값이 모두 필요: breakaway_duty_pct(C2), v_measured_m_s(C3, ≤ max_speed_m_s 0.5),
+    measured_yaw_at_max_diff_deg_s(C5, ≥ 2 °/s, max_yaw_rate ≤ 0.6×측정값), measured_stop_distance_m(C7, 2일차 N8: 정지 모델이
+    v_measured에서 측정 이상이고 모델 + front_margin ≥ 측정 + 0.35), inner_rule_enabled=true.
+    SHADOW에서는 모르는 값이 있어도 되며 status 'unknown'으로 보고한다.
+  - MOTOR(열 추종·보정)에서는 안전 관련 값을 평가된 기본값보다 느슨하게 못 한다(1일차 S6 + 2일차 N1; config.py 문서열과
+    2일차 블록 DAY2_MOTOR_LIMITS / DAY2_CONTROLLER_LIMITS가 원문). 보정 설정은 base ≤ 60, duty_cap ≤ 75, max_speed ≤ 0.5(N2).
+  - 현장 설정 onsite_update(2일차 R2): diff를 낮추면 measured_yaw_at_max_diff_deg_s를 × 새 diff / 파일 diff로 줄이고
+    max_yaw_rate_deg_s를 0.6 × 그 값(0.1 단위 내림, 파일 값 이하)으로 낮춘 뒤 다시 검사한다. 권한 < 2 °/s면 거부.
+  - 이 검사는 설정 파일 단계다. 실행기 CLI 플래그(--motor-output)·화면 Arm은 executor_main에서 따로 요구해야 한다.
+
+5. bench 패턴 (바퀴 띄움 V7 전용)
+--------------------------------
+  - profile 'field'에서는 bench_pattern·bench_ack가 있으면 설정 오류. load_config(path, expected_profile='field')는
+    profile이 다른 파일을 거부한다. Runner.start_bench는 profile 'bench'에서만 동작.
+  - profile 'bench'는 bench_ack == 'WHEELS_OFF_GROUND' 필요. 각 단계 ≤ 10 s, 합 ≤ 60 s, 단계 ≤ 32개, 전진만,
+    가드 규칙 동일. 실행 중에도 hold·stale 규칙·OutputGuard를 그대로 거친다(일시정지 후 이어서, 끝나면 종결).
+
+6. ESP 브리지 FAULT / EspMotor.error 복구 절차 (bridge_client.RECOVERY_PROCEDURE와 같은 내용)
+-----------------------------------------------------------------------------------------
+  원인 두 가지는 브리지 프로세스 안에서 풀리지 않는다:
+   (a) MCU watchdog → EspMotor.error='mcu_watchdog_rearm_required'(지우는 코드 없음) → connected=false, arm 거부
+       (verified_esp_v2_required). 시험: device_unavailable로 lease 삭제, 실행기 LATCHED, 재arm 점검 실패 확인.
+   (b) WheelController의 RuntimeError(예: 'PC heartbeat expired; wheels disabled')가 Bridge.step의
+       except (ControlError, ValueError)를 빠져나감 → main 루프가 영구 'fault' 상태, 이후 요청은 0.4 s 뒤
+       control_busy_stopped. 시험: main 루프를 그대로 따라 한 루프로 확인(main 소스 조각 일치도 검사).
+  절차:
+   1. 차량을 안전하게: 물리 E-stop 누름 또는 바퀴 띄움. 브리지 재시작 때 ESP 리셋 출력 튐 가능(미검증).
+   2. 실제 컨테이너 이름·상태 확인: docker ps -a --filter name=esp-rover-bridge --format '{{.Names}} {{.Status}}'
+      (compose의 container_name은 unist-orachard-ros2-esp-rover-bridge; 설치된 이름을 그대로 쓴다),
+      runtime/rover_bridge_status.json
+   3. docker restart <2의 이름>  (그 컨테이너만)
+      docker compose up/down/restart는 절대 쓰지 않는다(compose가 옛 대시보드 이미지로 되돌림, 작업 루트 지침 문서 10/13 표).
+   4. status가 connected=true, firmware=UBTS_WHEEL_PWM_V2, state=disarmed, last_error=null인지 확인.
+   5. 실행기 화면에서 latch 확인(acknowledge) 후 Start(자동 재개 없음).
+   USB를 다시 꽂아 장치가 다시 잡혀 restart로 열리지 않으면 compose로 재생성하지 말고 중단·보고한다(장치 매핑은
+   컨테이너 생성 시점 고정).
+
+7. 시험 (2026-10-22 실행 결과)
+-----------------------------
+  명령(작업 트리 루트에서):
+    Windows  python -B -m pytest -p no:cacheprovider tools/row_executor/tests     (node가 있으면 화면 JS 시험 포함)
+    WSL      python3 -B -m unittest discover -s tools/row_executor/tests -p "test_[bcgis]*.py"   (pytest·scipy 없음)
+             python3 -B -m unittest discover -s tools/row_executor/tests -p "test_run_script.py"
+    컨테이너 (Git Bash에서는 MSYS_NO_PATHCONV=1) docker run --rm --network none --name ubts-rowexec-<x>
+             -v <worktree>:/work:ro -v <대시보드 폴더>:/dash:ro -e UBTS_DASH_DIR=/dash
+             -e PYTHONDONTWRITEBYTECODE=1 -v /tmp/ubts-rowexec-robind:/rw
+             -v /tmp/ubts-rowexec-robind:/run/ubts-rover:ro -e UBTS_RO_BIND_RW=/rw -e UBTS_RO_BIND_RO=/run/ubts-rover
+             -w /work --entrypoint python3 <image> -B -m pytest -p no:cacheprovider tools/row_executor/tests
+             (/tmp/... 는 Docker Desktop VM의 tmpfs 경로: 같은 디렉터리를 쓰기·읽기 전용으로 두 번 bind해 ReadOnlyBindTest를 돌린다)
+  결과는 커밋 메시지와 상위 보고에 있다. 실제 Bridge 시험(test_bridge_protocol_linux)은 Linux 전용(fcntl/termios)이라
+  Windows에서는 skip된다. numpy 1.21 호환은 ubts-native-test:py310-scipy(Python 3.10.12, numpy 1.21.5, scipy 1.8.0,
+  Jetson jammy apt와 같은 버전대)에서 전체 시험으로 확인했다.
+  실데이터 확인(시험 파일 아님): 10/10 045553 처음 180 s를 SHADOW로 Runner에 넣음 → scan 1803개 거부 0,
+  통로 유효 tick 82 %, on_scan 최대 115 ms(이 PC), 예외 없음.
+
+8. 통합 (2026-10-22 2차) — 실행 파일과 C1 gate 반영
+-------------------------------------------------
+  executor_main.py   ExecutorLoop(ROS 없음, 20 Hz step: 요청 → STOP → stall pause → IMU 전부 → scan은 모두 스탬프하되
+                     최신 하나만 처리 → Runner.tick → 브리지 출력 → 상태·JSONL), HoldState(누름 id, 0.5 s 만료 후 부활 없음),
+                     InputBuffer(콜백은 수신 시각과 메시지만 넣음), JsonlLog(비동기·유한 큐), RosInput(rclpy, /scan
+                     BEST_EFFORT depth 2, /imu/data_raw depth 50, /rover/control/requested), 감시 스레드(0.35 s →
+                     drive(0,0) 1회 + pause), main()(SHA256SUMS·vendored 해시·config 검사 후 시작, SIGTERM 정리).
+                     SHADOW가 기본: BridgeClient·전송 객체가 없다. MOTOR = config motor_output_enabled + --motor-output + Arm.
+                     MOTOR에서는 Arm 전 누르기가 무시된다(Start → Arm → hold). STOP은 HTTP 스레드에서 즉시 op stop.
+  operator_http.py   ThreadingHTTPServer, 설정 주소만 바인드, 시작마다 새 토큰(?t= / X-Row-Token), Host·Origin 검사,
+                     4 KiB JSON, CSP nonce. 큰 hold 버튼(100 ms heartbeat, pointerup/leave/blur/visibilitychange/pagehide 해제),
+                     STOP, Start(열 길이 필수), End, Arm(MOTOR만), Latch 확인, 현장 설정(base/reduce/diff, 범위 제한), 상태 2 Hz.
+  config.onsite_update  현장 설정: base 30–70 / reduce 30–70 / diff 0–25 + cap·안쪽 바퀴 규칙; MOTOR면 파일 값 이하만.
+  run_executor.sh / README_FIELD.txt   Jetson 실행(설치 native 이미지 ID, ENTRYPOINT 재정의, :ro bind mount, 시작 SHA 검사,
+                     --rm --network host --ipc host --restart no; SHADOW는 브리지 소켓 디렉터리를 mount하지 않음).
+  write_sha256sums.py   SHA256SUMS 재생성(파일을 바꿀 때마다; 시험이 일치를 확인).
+  C1 gate 반영(core/config, 기본값): P1 NearConfirmFilter(2 scan, 2 m, 0.35+0.10 m), P2 imu_max_age_s 0.4,
+    P3 기하 guard(25°, 측면 여유 0), P4 ScanStamper header_offset(창 50, 0.5 s 재설정, 수신 시각 상한), P5 corridor_every_n_scans 3.
+    Runner는 ENDED 뒤에도 다음 Start 전까지 추정기를 계속 돌린다(정지 관측, 종결 뒤 이동 거리 기록).
+  시험·검증 도구: tests/test_executor_loop.py, tests/test_operator_http.py, tests/live_ros_smoke.py(ROS 컨테이너 수동 실행),
+    sim_in_loop.py(SIM 닫힌 루프: 실제 ExecutorLoop → BridgeClient → 대시보드 RoverControl → SIM 플랜트),
+    replay_executor_shadow.py(10/10 기록 6개를 가짜 ROS 메시지로 ExecutorLoop에 재생, SHADOW 자동).
+  여전히 없는 것: Jetson 처리 시간(V5)·실차 닫힌 루프·바퀴 띄움 벤치(V7)·AP 도달 거리 측정. Dockerfile은 만들지 않았다
+  (설치 이미지 + bind mount 방식, FEASIBILITY_CRITIQUE L1).
+
+9. 1일차 검토 수정 Fix B (2026-10-22; executor_main / operator_http / bridge_client / run_executor.sh / 문서)
+------------------------------------------------------------------------------------------------------
+  core/config/guard의 수정(S1 종결 유지, S2 통로 상실 = 새 누름, S4 bench 움직임 interlock, S5/S6 설정 검사, F2, F4)은
+  같은 날 다른 작업(Fix A)이다. README_FIELD.txt 4절이 운용자에게 보이는 동작을 설명한다.
+  S3/F8 HoldState  누름 id 추적. 누름이 살아 있는 동안 다른 id가 오면 conflict: 두 id 모두 은퇴, 레벨이 내려간다(일시정지).
+                   release(id)는 그 id가 현재 누름이 아니어도(처음 보는 id여도) 은퇴시킨다(늦게 온 beat 무시). 은퇴한 id는
+                   다시 받지 않는다(최근 4096개 기억). ExecutorLoop._hold_signal은 HoldState.serial로, 두 tick 사이에
+                   한 누름이 끝나고 새 누름이 시작되면 한 tick을 '놓음'으로 보여 새 누름마다 별도의 상승 에지를 만든다
+                   (counts.hold_edges_split). /api/hold 거부 응답: press_conflict / press_retired / invalid_press_id.
+                   화면: 새 누름은 직전 release 요청이 끝난 뒤(최대 0.7 s) 시작, conflict면 경고.
+  S7 bridge_client LEASE_GONE_ERRORS(control_not_owned, stop_barrier) → LATCHED, op stop 없음(2절).
+  S8 JsonlLog      os.write로 한 줄씩(사용자 버퍼 없음), 모든 예외를 잡음, 실패한 줄부터 dropped에 셈, 2 s 뒤 같은 파일
+                   재열기(앞에 빈 줄), health() = ok/failing/stalled/capped + dropped/write_errors/last_error → /status의 log,
+                   화면 "기록" 줄과 빨간 경고. 5 s마다 fsync. writer 스레드가 없으면 put()이 매 줄을 dropped로 센다.
+     run_loop      MOTOR: 이전과 같음(이벤트 + emergency_stop: 즉시 op stop, 다음 step에서 LATCHED·run 종료, 60 s 안
+                   6번째 예외면 프로세스 종료). SHADOW: 프로세스를 끝내지 않음, run을 'loop_exception'으로 끝냄,
+                   loop_exceptions/loop_error를 상태에 바로 반영, trace는 처음 10개 + 10 s마다 요약, 40 step 연속 실패면
+                   Runner 재생성(최대 5번, reset_runner는 SHADOW 전용).
+  S9 화면          모드 띠(SHADOW 주황 / MOTOR Arm 전 보라 / ARMED 빨강), SHADOW STOP 버튼 "shadow run 종료 (차량 정지 아님)",
+                   상태의 vehicle_control·stop_button, emergency_stop 응답의 note. 시작 로그에도 SHADOW 안내 한 줄.
+  S10 화면         STOP은 2.5 s 시간 제한(AbortController). 결과: 확인(초록) / SHADOW(주황) / 실패(빨강, 대시보드 STOP·
+                   E-stop 안내, 눌러서 닫기). MOTOR stop 미확인은 HTTP 502. 403(토큰 무효)이면 버튼을 막고 5 s 뒤 다시
+                   불러와 토큰 안내 화면(GET / 403 HTML: operator_token.txt·run_executor.sh logs)으로. 상태 조회 2회 실패 =
+                   "연결 끊김" 경고 + 표 흐림. 일시정지 이유에 다시 출발하는 법, 종결 이유에 end_note.
+      run_executor.sh  motor·bench는 /run/ubts-rover를 :ro로 mount(Linux 컨테이너 tmpfs bind에서 실제 브리지로 arm/drive/
+                   stop·브리지 재시작 뒤 재연결 확인: 2026-10-22 현장 자율주행 작업 폴더의 fixb_day1/ro_probe_out.json, 시험
+                   ReadOnlyBindTest).
+  S4 run_executor.sh  bench는 --wheels-off-ground-confirmed 필수(docker 호출 전), bench.json profile이 "bench"가 아니면
+                   (field 포함) 거부, config.json이 motor_output_enabled=true면 거부, 시작 때 경고 3줄. 시험은 가짜 docker를
+                   PATH 맨 앞에 두고 스크립트를 실제로 실행한다(진짜 docker 호출 없음, 'docker run' 0회 확인).
+  시험 추가: test_executor_loop(HoldAliasTest, LogWriterTest(/dev/full 실제 ENOSPC 포함), StopMeaningTest, 루프 예외 3개,
+    S7 loop 수준), test_bridge_client(S7 2개), test_bridge_protocol_linux(S7 실제 브리지, ReadOnlyBindTest),
+    test_operator_http(토큰 화면, 문구, 두 기기, 502), test_page_js(node: 화면 JS를 가짜 DOM·타이머·fetch로 실행),
+    test_run_script(:ro, bench 게이트 실행 5개).
+
+
+10. 보정 run(calib_runs.py)과 JSONL 형식 (2026-10-22 추가; review_correctness_day1 F2·F3)
+-------------------------------------------------------------------------------------
+  calib_runs.py      CalibPlan(make_plan: 화면 입력의 범위 검사, 표는 base 중심), CalibRun(상태 기계: 단계 진행, 종결 검사,
+                     단계 통계), plan_options(화면 선택지), arc_outcome / rolldown_outcome. numpy·ROS·I/O 없음.
+  core.Runner        start_calibration(t, plan): run_kind 'arc' | 'rolldown' | 'stop'(2일차 C7). 첫 누름에 표 시작(CalibRun.begin),
+                     그 뒤의 모든 일시정지는 종결('calib_<why>'). 출력은 CalibRun 전용 OutputGuard(cap, 전진만, 최소 duty = plan의
+                     최저 duty: 출발 = 측정 breakaway 또는 40, arc 쌍 = rolling(측정 시) 또는 출발 최소, rolldown = floor_pct 20–,
+                     기본 25; 2일차 R1/N4). 제어기·기하 guard·Backstop은 쓰지 않는다(보정 run의 거리·시간 상한과 검사가 대신).
+                     종결 뒤 매 tick CalibRun.observe_stop(0/0 tick부터 정지까지의 거리, C7).
+  executor_main      요청 calib_start(calib_kind, params): MOTOR + config calib_motor_output_enabled만. Arm은 run 종류별:
+                     보정 run = config.calib_output_problems가 비어야 함, 열 추종 run = motor_output_enabled + feasibility 'ok'.
+                     상태: calib(진행·결과), calib_options(화면 선택지), row_motor, calib_allowed.
+  operator_http      POST /api/calib_start {"kind", "params"} (다른 키는 400). 화면 '보정' 카드: 선택지·미리보기·결과 표.
+  calib_analysis.py  JSONL → 보정 run 표, tick 재계산 대조, config 조각, field_calib 어댑터(c5_segments). 표준 라이브러리만.
+                     통합(12절) 뒤에는 읽기·요약만 한다: --out-config는 거부(종료 코드 2), 설정은 field_calib/make_field_config.py.
+  body_mask_static.py  C0 정지 scan 차체 마스크(S5 한도), 녹화 sidecar 읽기. 표준 라이브러리만(시험용 --npz만 numpy).
+  설정 키(config.py 별도 블록): calib_motor_output_enabled(기본 false), calib_distance_cap_m(15), calib_time_cap_s(45).
+
+10.1 JSONL 기록 형식 (logs/row_executor_<UTC>_<pid>_<n>.jsonl, 한 줄에 JSON 객체 하나, UTF-8, LF)
+  읽는 쪽 규칙: 빈 줄·깨진 줄은 건너뛴다(디스크 오류 뒤 반쪽 줄 가능, review S8). 'config' 이벤트가 프로세스 경계다
+  (run 번호는 프로세스마다 1부터). t = time.monotonic() 초(같은 프로세스 안에서만 비교), wall = time.time().
+  tick 줄 (k="tick", 20 Hz):
+    t, run, state(IDLE/PAUSED/ACTIVE/ENDED), reason, L, R(이번 tick 결정 duty %), sent([L, R] 이번 tick에 브리지로 보낸 값
+    또는 null), hold, ctl([제어기 상태, 이유]; 보정 run은 ["CALIB", "calib_<kind>_<phase>"]), lidar_age, imu_age (s),
+    corridor, corridor_reason, lat, head, width, end, front, sideL, sideR (m, °), dist (추정기 경로 길이 m),
+    v (추정기 속도 m/s; LiDAR 정합 5개 중앙값), yaw (gyro yaw rate °/s = 저역통과 − bias), still, vib, scan{...},
+    loop_ms, bridge, backstop{...}(열 run), end_reason(ENDED), end_note(ENDED이고 있을 때, 2일차 R6),
+    roll(rolling 임계 사용 중 여부, F2), inner_lim(차등 제한 tick 수), nomo(출력 중 무움직임 누적 s, N9) — 있을 때만
+    보정 run의 ACTIVE tick에만 calib 객체:
+      k      'arc' | 'rolldown' | 'stop'  i, n   단계 번호(0부터), 단계 수
+      ph     'start'(arc·stop: base/base로 굴러가기 전, rolldown: 움직임 전) | 'settle' | 'measure' | 'rolling'(rolldown 첫 단계)
+             (2일차 R5) 단계를 닫는 tick은 그 단계의 (i, 'measure')로 남고 다음 tick부터 새 i의 'settle'이다
+      sL, sR 이번 tick에 표가 명령하는 duty(arc 'start'는 base/base)   gyro   gyro yaw °/s (= yaw)
+      lidar  LiDAR yaw °/s: 최근 0.5 s의 LiDAR 자세 변화(정합이 모두 유효할 때만, 아니면 null)
+      lok    lidar 값이 유효            odom   이번 tick의 LiDAR 정합 유효
+      hd     run 시작 이후 방향 변화 °(bias 보정 gyro 적분)   cd   움직임 중에만 센 거리 m (review F4)
+      et     첫 누름 이후 초
+  이벤트 줄 (k="event"):
+    config        config(전체 설정), config_digest, motor_allowed, feasibility, source_digest, vendor_commit
+    calib_start   run_id, plan{kind, base_pct, floor_pct, floor_source, start_floor_pct, start_floor_source,
+                  steps[[L, R], ...], step_s(stop: 정속 창 s), step_m, distance_cap_m, time_cap_s, yaw_cap_dps,
+                  run_heading_cap_deg, step_heading_cap_deg, overspeed_m_s, duty_cap_pct, diff_cap_pct, max_differential_pct, params}
+    calib_step    run_id, kind, result: 끝난 단계 하나
+                    공통 i, L, R, seconds(측정 구간 초), distance_m, speed_m_s(평균), min_speed_m_s, gyro_yaw_dps
+                    (측정 구간 방향 변화/초), lidar_yaw_dps(정합 80 % 이상일 때, 아니면 null), lidar_ok_fraction, scans,
+                    interrupted
+                    arc      diff(= R − L), gain_dps_per_pct(LiDAR 우선, 없으면 gyro), valid(측정 ≥ 1.5 s, 중단·정지 아님)
+                    rolldown duty, stalled, sustained
+                    stop     duty, stalled, steady
+    calib_result  run_id, kind, end_reason, results[...], outcome, plan, config_digest
+                    arc outcome      sides{left, right: steps, gain_lidar, gain_gyro, gain, max_abs_diff}, gain_min,
+                                     full_diff_pct(= 2 × max_differential), yaw_at_full_diff_dps, extrapolated
+                    rolldown outcome lowest_sustained_pct, stalled_at_pct, floor_pct, floor_reached, rolling_breakaway_duty_pct
+                    stop outcome     steady, speed_m_s, min_speed_m_s
+    calib_stop    (2일차 C7) run_id, kind, base_pct, terminal_stop_wait_s(0/0를 유지한 최대 s: stop 종류 4, 그 밖 1.5),
+                  emergency(즉시 op stop으로 끝났는지), stop{done, ok, v_at_zero_m_s, odom_valid_at_zero, stop_distance_m,
+                  time_to_rest_s, excluded_m | why: odometry_invalid / not_observed}. 모든 보정 run 종결 뒤 한 번.
+    run_end       (2일차 R6) run_id, run_kind, end_reason, end_note, pauses, resumes, stale_events, stall_guard_pauses,
+                  controllers_built, corridor_lost_pauses, inner_limited_ticks, no_motion_drive_s, backstop, distance_m,
+                  guard_violation. run마다 한 번.
+    그 밖: start, request(Start/Arm/calib_start/params 결과), emergency_stop, bridge_stop, bridge_error, watchdog_stall,
+    params(old/new에 base·reduce·diff와 measured_yaw·max_yaw), loop_exception(_summary), runner_reset, shutdown.
+  부호: R > L → 왼쪽(+yaw, CCW). yaw·lidar·hd는 +가 왼쪽. 거리·속도는 진행 방향 +.
+
+10.2 분석기 어댑터 (tools/field_calib, 2026-10-22 현장 보정 브랜치)
+  from row_executor import calib_analysis as CA
+  runs = CA.load_runs(CA.find_logs('<logs 폴더>'))           # 또는 CA.load_runs([파일, ...])
+  segments = [row for run in runs for row in CA.c5_segments(run, label='grass')]
+  c5_segments의 행은 field_calib steps.c5_arc 'segments' 행과 같은 키·단위다:
+    rid('executor:<파일>:<run>'), label, req[L, R], diff(R − L), t_rel(null), seconds, samples(scan 수),
+    method('executor_lidar' | 'imu'), yaw_lidar_dps, yaw_imu_dps, yaw_net_dps(LiDAR 우선; 실행기 gyro는 이미 bias 제거),
+    yaw_imu_net_dps, speed_m_s, gain_dps_per_pct, radius_m, side('left' | 'right')
+  그래서 field_calib의 _ls_gain(segments)·좌우 gain 계산에 녹화 arc와 섞어 넣을 수 있다(유효 단계만 나온다).
+  rolldown(C3b)은 field_calib에 해당 항목이 없다: CA.summarize(run)['outcome']['rolling_breakaway_duty_pct'].
+  CA.summarize / CA.config_fragment / CA.fit_fragment / CA.merge_config가 CLI(10.6절 README)와 같은 계산이다.
+  [통합 2026-10-22] 이 어댑터는 실제로 쓰인다: make_field_config.executor_inputs가 같은 날의 base가 같은 유효 arc run을 모두
+  c5_segments로 모아(run 키 포함) recommend(executor=…)에 넘긴다. 녹화의 직진 편향(c5.straight_bias_subtracted_dps)을 실행기
+  arc의 yaw_net에서도 뺀다(같은 정의). 12절.
+
+
+11. 2일차 검토 수정 (2026-10-22; review_safety_day2 N1–N9, review_correctness_day2 R1–R9)
+--------------------------------------------------------------------------------------
+  config.py      2일차 블록(파일 끝, 다른 브랜치 병합을 위해 분리): day2_motor_problems(N1, _motor_field_problems에서 호출 =
+                 열 추종·보정 모두), calib_day2_problems(N2), onsite_yaw_authority(R2). feasibility: C7 unknown/필수(N8).
+  calib_runs.py  'stop' 종류(C7), start_floor_pct / floor_pct(arc 쌍: rolling), rolldown 바닥 20–(기본 25)(R1), arc base/base 출발
+                 (N4, ARC_SWITCH_SPEED_M_S 0.10), 단계 변경을 tick 기록 뒤로(R5), observe_stop(C7), stop_outcome.
+  core.Runner    tick이 종결 뒤 observe_stop 호출, 무응답 누적(N9, NO_RESPONSE_CUMULATIVE_FACTOR 2 × (ramp 1 + grace 1 + 1) = 6 s),
+                 bench 정합 상실(N6, BENCH_ODOM_LOST_S 1 s).
+  executor_main  EMERGENCY_PREFIXES에 bench_motion/bench_front/bench_odometry, calib_yaw_rate/calib_overspeed/calib_heading_change(N3).
+                 'calib_stop_test' 종결은 0/0을 최대 STOP_TEST_WAIT_S 4 s 유지한 뒤 op stop(순수 감속 정지를 재기 위해). calib_stop·
+                 run_end 이벤트, tick의 end_note/roll/inner_lim/nomo(R6), params 이벤트·응답에 yaw 권한(R2), 상태 yaw_params.
+  operator_http  Start 칸 아래 L 재측정 안내(R4), 보정 카드의 stop 종류·결과 줄의 "0/0 뒤 정지", 범위 줄의 yaw 권한(R2).
+  calib_analysis 같은 날(12 h)만, 종류별 최신 run이 무효이면 예전 run 값에 WARNING + --out-config 거부(종료 코드 4,
+                 --allow-older)(N7), stop run 3개 이상 → measured_stop_distance_m, 정지 모델 대조 메모.
+                 (통합 12절: 거부·--allow-older는 make_field_config로 옮겼다. calib_analysis는 fallback을 경고만 한다.)
+  body_mask_static  진행 방향 ±35° 구간은 --confirm-forward-sector가 있어야 쓴다(종료 코드 4)(N5).
+  sim_in_loop    SIM_MEASURED: breakaway 20(N1 하한), measured_stop_distance_m 0.25(N8). SIL 결과의 의미는 같다(base 55·diff 20에서
+                 안쪽 바퀴 35 ≥ 20 + 10).
+  시험: tests/test_review_fixes_day2.py(33개, 6693938에서는 24개 실패 + subtest 35개 실패; 통과하는 것은 바뀌지 않은 동작의 대조군).
+
+
+12. 통합 (2026-10-22, 2026-10-22 통합 브랜치 = field-weekend 4730583 + field-calib c8447a7)
+--------------------------------------------------------------------------------------------------------
+  병합: 실제 merge commit. 충돌은 config.py(문서열·dataclass 필드·함수 블록)와 guard.py(문서열)뿐이었고 둘 다 양쪽을 살렸다.
+    dataclass는 주말 키 뒤에 회전 블록을 둔다(TURN_KEYS = turn_assist_enabled부터 끝까지; 손대지 않은 회전 블록은 to_dict/digest에서
+    빠진다: 기본 digest c492bf27ca6d = 4730583과 같다). 의미 충돌 수정: config.C7_UNKNOWN(상수), field_calib G3b의 출력 ON 검사에서
+    C7 미측정만 제외(C7은 실행기 stop run이 잰다), turn_testlib(B 25, C7 0.25), turn_sim_in_loop SIM_MEASURED(B 20, C7 0.25,
+    sim_default 권한 4.0 = 설정 로드용, 측정 아님), test_turn_review BodyMask(S5가 먼 마스크를 로드에서 거부; 회전의 blind-beam 규칙은
+    0.02–0.05 m 띠에서 시험).
+  규칙 한 곳: config.py 끝 field decision rules 블록 — STEER_* 상수, decision_max_differential, steering_authority(직접 구간 창
+    2d − 5 … 2d, 방향 부호, 방향마다 3구간), steering_go_problems, max_yaw_for_authority, guard_caps, motor_min_yaw_authority,
+    motor_steering_problems(feasibility의 MOTOR 분기에서 호출), icr_base_from_lidar(회전 블록 옆). field_calib/recommend.py의 상수는
+    이 블록의 별칭이다(예전 실행기 config.py면 ImportError로 멈춤).
+  실행기 MOTOR(열 추종, field, 연속 모드 = 허용된 모든 모드): max_differential 10–20, 권한 ≥ max(min_yaw_authority_deg_s, 4.0).
+    SHADOW·보정 설정은 그대로. 기본값 불변(min_yaw_authority_deg_s 2.0). 시험 설정(motor_config/feasible/motor_cfg)은 base 60·diff 10·
+    cap 70/20·권한 4.2·max_yaw 2.5로 바꿨다(B 40 + 10 = 안쪽 50 유지). R2 시험: diff 14 → 4.2/2.5, 13 이하 거부.
+  설정 생성기 하나: tools/field_calib/make_field_config.py calib|final(README_FIELD 12절). 녹화 단계 결과(calib_result.json)에
+    recommend()를 고정 base(결정표 55)와 실행기 run으로 다시 돌린다(numpy, scipy 불필요; 녹화를 다시 읽지 않음).
+    recommend(…, base=, executor=): base 고정이면 G2에 그 duty의 스톱워치 3회 필요(R3); executor가 있으면 결정표에 R, C5는
+    녹화+실행기 합친 규칙값·실행기만·최신 실행기 run 중 최솟값, C7은 실행기 값(stop_onset_s를 덮도록 올림), G6(C3b, 참고)·
+    G7(C7) 행, 실행기 C7이 GO면 G4는 참고 행. 회전 후보(C6)는 회전 보조가 켜진 설정에만 쓴다.
+  calib_analysis --out-config: 거부(종료 코드 2). run_field_calib.sh config calib|final이 래퍼(호스트 numpy 또는 docker,
+    기록 폴더 :ro).
+  duty_cap 규칙 하나: guard_caps = (base + d, 2d), 회전 보조가 켜진 설정에서만 회전 전진 duty + 회전 차등 cap까지 올림.
+    보정 설정은 config의 cap을 두고 base + d·2d보다 작으면 올린다(N2: 보정 cap ≤ 75는 config 검사).
+  ICR 규약 하나: README_FIELD 12.6, config.icr_base_from_lidar, field_calib steps.icr_along_left. SIM 플랜트(turn_sim_in_loop,
+    tests)의 'LiDAR 뒤 거리'는 내부 값이고 설정에 쓰이지 않는다.
+  회전 보조(INFO_ONLY, 기본 꺼짐): turn SIL 1장면 smoke(open_W3.5, seed 0)는 충돌 0·guard 위반 0이지만 끝 이유가 calib 브랜치와
+    다르다(ready ↔ not_ready, 결정적; B 10→20 때문이 아니라 주말 브랜치의 C1 gate 기본값 — corridor_every_n_scans 3, header_offset
+    scan stamp, 근거리 확인 등 — 이 SETTLE_ACQUIRE/follow check에 들어오기 때문). 회전 보조를 켜기 전에 turn SIL 행렬을 다시 돌린다.
+  시험 명령(작업 트리 루트):
+    Windows  python -B -m pytest -p no:cacheprovider tools/row_executor/tests tools/field_calib/tests
+             (cd sim/ubts && python -B -m pytest -p no:cacheprovider test_closed_loop_evaluate_overrides.py)
+    WSL      7절 명령 + test_turn_bridge_protocol_linux.py(실제 대시보드 브리지)
+    컨테이너 7절 명령에 tools/field_calib/tests 추가(같은 이미지: py3.10 / numpy 1.21 / scipy 1.8)
