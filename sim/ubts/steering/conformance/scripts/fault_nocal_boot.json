@@ -1,0 +1,28 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_nocal_boot",
+  "spec": ["9.1", "9.4", "5.3", "5.6", "4.6", "4.11", "7.11"],
+  "description": "빈 EEPROM: 부팅 때 NOCAL과 BOOT(fl 4001), 배너 cal=none, 보정 보고 줄은 빈 형식. 부팅 때 F NOCAL은 내지 않는다. ARM은 nocal. W 표시가 없어 pos, tgt, cmd는 0. 래치가 있어도 BENCH는 들어간다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": "blank", "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 150, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 160, "text": "D8 50\n"},
+    {"tick": 250, "text": "STOP\n"},
+    {"tick": 300, "text": "CAL GET*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=none sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 0, "to": "4001"},
+    {"type": "line", "tick": 100, "text": "N - nocal*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 150, "to": 3},
+    {"type": "line", "tick": 160, "text": "P D8 0 50*{crc}"},
+    {"type": "status", "tick": 200, "fields": {"st": 3, "fl": "4001", "raw": 512, "pos": 0, "tgt": 0, "cmd": 0, "L": 12, "en": 1}},
+    {"type": "change", "channel": "mcu_state", "tick": 250, "to": 1},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 350, "fields": {"st": 1, "fl": "4001"}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["F", "W", "A"]}
+  ],
+  "end": {"tick": 400}
+}

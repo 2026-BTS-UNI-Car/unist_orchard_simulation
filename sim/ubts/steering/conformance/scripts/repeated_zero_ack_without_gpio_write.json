@@ -1,0 +1,30 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "repeated_zero_ack_without_gpio_write",
+  "spec": ["4.12", "8.4", "11.6"],
+  "v2_map": "repeated_zero_ack_without_gpio_write",
+  "description": "BENCH에서 D8 0을 세 번(그리고 D5 0, D3 0, D0 0): 줄마다 P 줄 하나, 핀 값이 바뀌지 않으므로 GPIO 쓰기 수(setup()의 14)는 그대로.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 200, "text": "D8 0\n"},
+    {"tick": 210, "text": "D8 0\n"},
+    {"tick": 220, "text": "D8 0\n"},
+    {"tick": 230, "text": "D5 0\n"},
+    {"tick": 240, "text": "D3 0\n"},
+    {"tick": 250, "text": "D0 0\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "P D8 0 0*{crc}"},
+    {"type": "line", "tick": 210, "text": "P D8 0 0*{crc}"},
+    {"type": "line", "tick": 220, "text": "P D8 0 0*{crc}"},
+    {"type": "line", "tick": 230, "text": "P D5 0 0*{crc}"},
+    {"type": "line", "tick": 240, "text": "P D3 0 0*{crc}"},
+    {"type": "line", "tick": 250, "text": "P D0 0 0*{crc}"},
+    {"type": "pins_window", "window": [0, 300], "gpio_writes": 14, "drive_l": 0, "drive_r": 0, "drive_en": 1, "steer_en": 0},
+    {"type": "pins_window", "window": [100, 300], "mcu_state": 3}
+  ],
+  "end": {"tick": 300}
+}

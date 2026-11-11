@@ -1,0 +1,31 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "adc_model_center",
+  "spec": ["7.2", "13.3", "13.6"],
+  "description": "ADC 모형 경로: 가변저항 모형(0점 오차, 잡음, 표류, 급전 처짐을 0으로 덮어씀)은 등가각 0에서 raw 512. adc_set으로 대본 값 520, adc_model로 다시 모형 512. 조향 모터 급전 끔·켬은 MCU가 모른다(핀, 상태 그대로). report_adc로 analogRead 값을 본다. plant 급전 배율이 틱 500에 1.01이 되면 그 틱 끝 표본부터 512 x 1.01 = 517.12 -> 517, analogRead는 틱 501에 517.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "model"}, "report_adc": true, "startup_overrides": {"actuator": {"zero_offset_rad": 0.0}, "pot": {"noise_sd_counts": 0.0, "drift_rad_per_s": 0.0, "supply_sag_per_pwm": 0.0}}},
+  "plant": {"supply_scale": [[0, 1.0], [500, 1.01]]},
+  "inputs": [],
+  "events": [
+    {"tick": 100, "kind": "adc_set", "raw": 520},
+    {"tick": 200, "kind": "adc_model"},
+    {"tick": 300, "kind": "motor_power", "on": false},
+    {"tick": 350, "kind": "motor_power", "on": true}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 50, "fields": {"raw": 512, "pos": 0, "fl": "4000"}},
+    {"type": "change", "channel": "adc_read", "tick": 0, "to": 512},
+    {"type": "change", "channel": "adc_read", "tick": 100, "to": 520},
+    {"type": "status", "tick": 150, "fields": {"raw": 520}},
+    {"type": "change", "channel": "adc_read", "tick": 200, "to": 512},
+    {"type": "status", "tick": 250, "fields": {"raw": 512}},
+    {"type": "status", "tick": 400, "fields": {"raw": 512, "st": 1, "en": 1}},
+    {"type": "change", "channel": "adc_read", "tick": 501, "to": 517},
+    {"type": "status", "tick": 550, "fields": {"raw": 517}},
+    {"type": "pins_window", "window": [0, 600], "mcu_state": 1, "steer_en": 0, "fault_bits": "4000"},
+    {"type": "no_line", "window": [0, 600], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 600}
+}

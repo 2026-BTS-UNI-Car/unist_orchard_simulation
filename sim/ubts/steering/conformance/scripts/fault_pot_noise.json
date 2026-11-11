@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_pot_noise",
+  "spec": ["6.7", "6.4", "7.2"],
+  "description": "raw 512 -> 560(틱 250). 잡음 창(raw 50표본)에 560이 하나 들어간 틱 250에 분산 45.16 > 25 -> POT_NOISE: arg = floor(100 x 112896 / 2500) = 4515, brake, 조향 OFF, DISARMED. jmp 1023이라 튐 판정은 끼지 않는다. ARM(틱 300)이 받는다(창이 모두 560이라 분산 0).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"jmp": 1023}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 0*{crc}\n"},
+    {"tick": 300, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 250, "kind": "adc_set", "raw": 560}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=3EA92FC6 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 249, "drive_l": 33, "steer_en": 1},
+    {"type": "line", "tick": 250, "text": "F POT_NOISE 4515 250*{crc}"},
+    {"type": "pins", "tick": 250, "drive_l": 0, "steer_en": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 250, "to": "0010"},
+    {"type": "change", "channel": "mcu_state", "tick": 300, "to": 2},
+    {"type": "status", "tick": 350, "fields": {"st": 2, "raw": 560, "pos": 145, "fl": "0000"}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

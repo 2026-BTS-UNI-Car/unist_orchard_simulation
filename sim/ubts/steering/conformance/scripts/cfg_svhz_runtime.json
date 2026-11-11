@@ -1,0 +1,28 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cfg_svhz_runtime",
+  "spec": ["4.10", "7.1", "7.5", "7.6", "5.9"],
+  "description": "실행 중 CFG svhz 1000(틱 101, 홀수): 서보 시계는 틱 100(500 Hz 격자)에서 next = 102를 잡았고, 틱 102의 서보 틱부터 새 주기 1로 매 틱이 서보 틱이다(4.10절 처음 쓰는 곳부터 적용, 7.1절). 보정 보고 줄은 cfgdirty=1이지만 ARM을 막지 않는다(12.1-24). 홀수 틱 201의 ARM에서 조향 EN이 그 틱에 1(500 Hz였으면 202). C(틱 211, S 100)에서 cmd는 dt 1, rstd 480 ‰/s로 움직여 틱 254에 |e| = 21 > db가 되고 출력 102가 나간다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 101, "text": "CFG svhz 1000*{crc}\n"},
+    {"tick": 150, "text": "CAL GET*{crc}\n"},
+    {"tick": 201, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 211, "text": "C 1 300 0 0 100*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 101, "text": "A CFG svhz 1000*{crc}"},
+    {"type": "line", "tick": 150, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=1*{crc}"},
+    {"type": "pins", "tick": 200, "steer_en": 0, "mcu_state": 1},
+    {"type": "change", "channel": "steer_en", "tick": 201, "to": 1},
+    {"type": "change", "channel": "mcu_state", "tick": 201, "to": 2},
+    {"type": "status", "tick": 250, "fields": {"st": 2, "q": 1, "tgt": 100, "cmd": 19, "sp": 0}},
+    {"type": "pins", "tick": 253, "steer_pwm": 0},
+    {"type": "change", "channel": "steer_pwm", "tick": 254, "to": 102},
+    {"type": "status", "tick": 300, "fields": {"cmd": 43, "sp": 102, "fl": "0000"}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "F", "W", "P"]}
+  ],
+  "end": {"tick": 400}
+}

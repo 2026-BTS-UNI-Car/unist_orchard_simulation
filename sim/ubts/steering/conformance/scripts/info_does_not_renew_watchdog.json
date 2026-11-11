@@ -1,0 +1,37 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "info_does_not_renew_watchdog",
+  "spec": ["4.3", "4.5", "6.2", "5.3"],
+  "v2_map": "info_does_not_renew_watchdog",
+  "description": "INFO, STOP, DISARM, CAL GET, CFG 조회는 last_input을 바꾸지 않는다(상태 줄 wd가 계속 오른다). ARMED에서 INFO(틱 200) 뒤에도 watchdog은 마지막 C(20) + 501 = 521에 동작. PING만 wd를 0부터 다시 센다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 0*{crc}\n"},
+    {"tick": 200, "text": "INFO\n"},
+    {"tick": 600, "text": "STOP\n"},
+    {"tick": 700, "text": "DISARM*88\n"},
+    {"tick": 800, "text": "CAL GET*{crc}\n"},
+    {"tick": 900, "text": "CFG kp*{crc}\n"},
+    {"tick": 1000, "text": "PING\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 250, "fields": {"st": 2, "wd": 230}},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "line", "tick": 521, "text": "W 521*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 521, "to": 1},
+    {"type": "status", "tick": 650, "fields": {"st": 1, "wd": 630}},
+    {"type": "status", "tick": 750, "fields": {"st": 1, "wd": 730}},
+    {"type": "line", "tick": 800, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 850, "fields": {"wd": 830}},
+    {"type": "line", "tick": 900, "text": "A CFG kp 245*{crc}"},
+    {"type": "status", "tick": 950, "fields": {"wd": 930}},
+    {"type": "status", "tick": 1050, "fields": {"wd": 50, "fl": "1000"}},
+    {"type": "no_line", "window": [0, 1100], "kinds": ["N", "P"]}
+  ],
+  "end": {"tick": 1100}
+}

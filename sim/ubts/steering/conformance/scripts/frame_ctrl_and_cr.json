@@ -1,0 +1,41 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "frame_ctrl_and_cr",
+  "spec": ["2.1", "2.2", "2.4", "6.6"],
+  "description": "0x20..0x7E 밖 바이트(NUL, 0x01, 0x7F, 0x80, TAB)와 CR 규칙 위반(CR 뒤 LF가 아님)은 N - ctrl. CR LF는 정상 줄. 빈 줄(LF, CR LF)은 조용히 무시. 한 줄에서 먼저 생긴 오류 하나만: 제어 문자 뒤 과길이는 ctrl, 과길이 뒤 제어 문자는 long. DISARMED라 출력은 바뀌지 않고, 나쁜 줄 4개마다 좋은 줄을 넣어 CRC 결함은 없다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "hex": "50494E47006A756E6B0A"},
+    {"tick": 110, "text": "PI\u0001NG\n"},
+    {"tick": 120, "text": "PING\n"},
+    {"tick": 130, "hex": "50494E47800A"},
+    {"tick": 135, "text": "PING\n"},
+    {"tick": 140, "text": "PING\t\n"},
+    {"tick": 150, "text": "PING\r\r\n"},
+    {"tick": 160, "text": "PI\rNG\n"},
+    {"tick": 170, "text": "PING\r\n"},
+    {"tick": 180, "text": "\n"},
+    {"tick": 190, "text": "\r\n"},
+    {"tick": 200, "text": "CFG kp*{crc}\r\n"},
+    {"tick": 210, "text": "\u0001XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"},
+    {"tick": 220, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\u0001\n"},
+    {"tick": 230, "text": "PING\n"},
+    {"tick": 240, "text": "STOP\r\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 110, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 120, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 130, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 140, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 150, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 160, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 211, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 200, "text": "A CFG kp 245*{crc}"},
+    {"type": "line", "tick": 221, "text": "N - long*{crc}"},
+    {"type": "pins_window", "window": [0, 300], "fault_bits": "4000", "mcu_state": 1, "drive_l": 0}
+  ],
+  "end": {"tick": 300}
+}

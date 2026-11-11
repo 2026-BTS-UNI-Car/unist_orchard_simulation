@@ -1,0 +1,40 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "mcu_reset_mid_row",
+  "spec": ["6.4", "6.1", "10.1", "10.3", "10.7", "4.8", "7.1", "8.2"],
+  "description": "주행 중(L 56, 조향 출력 115) MCU 리셋(틱 405, hw_wdt, boot_delay 70): 리셋 틱부터 핀이 뜬다(구동 EN 0 = coast, 조향 EN 0, mcu_state 255). 리셋 중 온 바이트는 사라진다. 틱 475에 새 boot_id 배너, BOOT, DISARMED. 호스트의 옛 C는 state, 옛 boot_id ARM은 boot. 새 부팅에서 last_q는 0이라 q 1을 받는다. 서보 틱 위상은 새 부팅 틱(475, 홀수)에 묶여 틱 510의 ARM은 511에 조향 EN을 켠다. 구동 휴지도 새 부팅 틱부터(595 출발).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}, "boot_delay_ticks": 70},
+  "inputs": [
+    {"tick": 80, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 90, "text": "C 1 300 100 100 120*{crc}\n"},
+    {"tick": 190, "text": "C 2 300 100 100 120*{crc}\n"},
+    {"tick": 290, "text": "C 3 300 100 100 120*{crc}\n"},
+    {"tick": 390, "text": "C 4 300 100 100 120*{crc}\n"},
+    {"tick": 440, "text": "PING\n"},
+    {"tick": 490, "text": "C 5 300 100 100 120*{crc}\n"},
+    {"tick": 500, "text": "ARM 89025CC1*{crc}\n"},
+    {"tick": 510, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 520, "text": "C 1 300 100 100 120*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 405, "kind": "mcu_reset", "reason": 1}
+  ],
+  "expect": [
+    {"type": "line", "tick": 70, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 70, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 404, "drive_l": 56, "drive_en": 1, "steer_en": 1, "steer_pwm": 115, "mcu_state": 2},
+    {"type": "pins_window", "window": [405, 474], "drive_l": 0, "drive_r": 0, "drive_en": 0, "steer_en": 0, "steer_pwm": 0, "mcu_state": 255, "fault_bits": "0000"},
+    {"type": "line", "tick": 475, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=hw_wdt hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 475, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 475, "mcu_state": 1, "drive_en": 1, "steer_en": 0, "fault_bits": "4000"},
+    {"type": "line", "tick": 490, "text": "N 5 state*{crc}"},
+    {"type": "line", "tick": 500, "text": "N - boot*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 510, "to": 2},
+    {"type": "change", "channel": "steer_en", "tick": 511, "to": 1},
+    {"type": "status", "tick": 525, "fields": {"ms": 120, "n": 0, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 120, "cmd": 2, "sp": 0, "fl": "0000", "wd": 5, "tl": 295}},
+    {"type": "first_change", "channel": "drive_l", "after": 521, "tick": 595, "to": 2},
+    {"type": "status", "tick": 575, "fields": {"n": 1, "L": 0, "cmd": 26, "sp": 102}},
+    {"type": "no_line", "window": [0, 650], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 650}
+}

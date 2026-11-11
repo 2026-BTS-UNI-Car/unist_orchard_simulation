@@ -1,0 +1,25 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "status_tx_drop",
+  "spec": ["5.10", "5.4", "5.2"],
+  "description": "TX 고리 512 B에 줄을 통째로만 넣는다. 한 틱(100)에 INFO 두 번과 모르는 줄 네 개: 배너 160 + 보정 119 + 배너 160 = 439 B, 둘째 보정 줄(119 B)은 자리가 없어 버린다. N 줄 네 개(11 B씩) 뒤 상태 줄(44 B)도 버린다. 버린 상태 줄도 n을 올려 틱 150 줄은 n 2. 다음 INFO 배너의 drop=2. (SIM의 availableForWrite가 한 틱의 바이트를 모두 받는다고 본다.)",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "INFO\nINFO\nX\nX\nX\nX\n"},
+    {"tick": 200, "text": "INFO\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "count", "window": [100, 100], "min": 2, "max": 2, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "count", "window": [100, 100], "min": 4, "max": 4, "text": "N - cmd*{crc}"},
+    {"type": "no_line", "window": [100, 100], "kinds": ["S"]},
+    {"type": "status", "tick": 50, "fields": {"n": 0}},
+    {"type": "status", "tick": 150, "fields": {"n": 2}},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=2*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 200, "fields": {"n": 3}}
+  ],
+  "end": {"tick": 250}
+}

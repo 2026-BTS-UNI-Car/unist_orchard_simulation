@@ -1,0 +1,27 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "disarm_bench",
+  "spec": ["4.7", "6.4", "8.2", "4.12"],
+  "description": "BENCH 구동 중 DISARM(틱 700): release(255/s 감속, 틱 1090에 0), 조향 OFF 그대로, DISARMED. 뒤의 D8은 state.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 200, "text": "D8 100\n"},
+    {"tick": 400, "text": "PING\n"},
+    {"tick": 600, "text": "PING\n"},
+    {"tick": 700, "text": "DISARM*88\n"},
+    {"tick": 800, "text": "D8 50\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "P D8 0 100*{crc}"},
+    {"type": "pins", "tick": 699, "drive_l": 100},
+    {"type": "pins", "tick": 700, "drive_l": 98, "mcu_state": 1},
+    {"type": "pins", "tick": 710, "drive_l": 95},
+    {"type": "change", "channel": "drive_l", "tick": 1090, "to": 0},
+    {"type": "line", "tick": 800, "text": "N - state*{crc}"},
+    {"type": "pins_window", "window": [100, 1300], "steer_en": 0, "steer_pwm": 0}
+  ],
+  "end": {"tick": 1300}
+}

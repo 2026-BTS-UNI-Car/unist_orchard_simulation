@@ -1,0 +1,26 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "bench_watchdog",
+  "spec": ["6.2", "4.11", "4.12", "5.7"],
+  "description": "BENCH에서도 watchdog은 움직임과 상관없이 돈다. 판정은 (now - last_input) > wd로 엄격히 크다: 마지막 D8(틱 150)에서 500 ms 뒤인 틱 650의 PING은 제때다. 그 뒤 입력이 없으면 틱 1151에 brake, DISARMED, WATCHDOG 래치(BENCH는 BOOT를 지우지 않아 fl 5000), W 1151.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 150, "text": "D8 100\n"},
+    {"tick": 650, "text": "PING\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 150, "text": "P D8 0 100*{crc}"},
+    {"type": "pins", "tick": 651, "mcu_state": 3, "drive_l": 100},
+    {"type": "pins", "tick": 1150, "drive_l": 100},
+    {"type": "line", "tick": 1151, "text": "W 1151*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 1151, "to": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 1151, "to": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 1151, "to": "5000"},
+    {"type": "status", "tick": 1200, "fields": {"st": 1, "fl": "5000", "L": 0, "wd": 550}},
+    {"type": "no_line", "window": [0, 1300], "kinds": ["N", "F", "A"]}
+  ],
+  "end": {"tick": 1300}
+}

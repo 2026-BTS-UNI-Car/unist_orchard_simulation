@@ -1,0 +1,32 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "power_cycle",
+  "spec": ["6.1", "6.4", "9.1", "10.3", "10.1"],
+  "description": "주행 중 전원 끊김(틱 300부터 500틱): 핀 0, EN 0, mcu_state 255, 받은 바이트는 사라진다. 틱 800에 전원 켬 리셋(원인 0 = power_on): 새 boot_id, EEPROM은 남아 cal=7. 새 부팅에서 ARM과 C(q 1)를 받는다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 0*{crc}\n"},
+    {"tick": 500, "text": "PING\n"},
+    {"tick": 850, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 860, "text": "C 1 300 0 0 0*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "power_cycle", "off_ticks": 500}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 299, "drive_l": 45, "drive_en": 1, "mcu_state": 2},
+    {"type": "pins_window", "window": [300, 799], "mcu_state": 255, "drive_en": 0, "steer_en": 0, "drive_l": 0, "drive_r": 0, "steer_pwm": 0, "fault_bits": "0000"},
+    {"type": "line", "tick": 800, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 800, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 800, "mcu_state": 1, "drive_en": 1, "fault_bits": "4000"},
+    {"type": "status", "tick": 850, "fields": {"ms": 50, "n": 0, "st": 2, "fl": "0000", "wd": 0}},
+    {"type": "status", "tick": 900, "fields": {"n": 1, "q": 1, "tl": 260, "wd": 40}},
+    {"type": "no_line", "window": [0, 950], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 950}
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "late_c_after_stop",
+  "spec": ["4.5", "4.8", "6.1", "6.8"],
+  "description": "09-19 필수 장애 시험(MCU 쪽): STOP 직후 늦게 온 C는 DISARMED라 state(틱 160). 재무장(ARM은 last_q를 바꾸지 않는다) 뒤 이미 받은 q의 재전송(q 2)은 old. 새 q 4만 받고, 구동은 brake 뒤 120 ms 휴지(틱 270)를 지킨다. HOLD 중 ARM은 ACTIVE로 넘어가 조향 EN이 끊기지 않는다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 150, "text": "STOP\n"},
+    {"tick": 160, "text": "C 3 300 100 100 0*{crc}\n"},
+    {"tick": 200, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 210, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 4 300 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 149, "drive_l": 7},
+    {"type": "change", "channel": "drive_l", "tick": 150, "to": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 150, "to": 1},
+    {"type": "line", "tick": 160, "text": "N 3 state*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 200, "to": 2},
+    {"type": "line", "tick": 210, "text": "N 2 old*{crc}"},
+    {"type": "first_change", "channel": "drive_l", "after": 221, "tick": 270, "to": 2},
+    {"type": "pins_window", "window": [150, 400], "steer_en": 1},
+    {"type": "status", "tick": 250, "fields": {"st": 2, "q": 4, "fl": "0000", "tl": 270}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

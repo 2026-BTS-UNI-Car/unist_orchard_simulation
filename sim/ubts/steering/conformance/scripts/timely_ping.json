@@ -1,0 +1,38 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "timely_ping",
+  "spec": ["4.4", "6.2", "6.3", "8.2"],
+  "v2_map": "timely_ping",
+  "description": "V2와 다르다: PING은 링크 watchdog만 갱신하고 C의 TTL을 늘리지 않는다. PING을 100 ms마다 보내도 TTL은 틱 320에 만료(brake, ARMED 유지). 새 C(q 2, 틱 1010)가 다시 움직인다(휴지 끝, 같은 틱 출발). PING이 끊기면 TTL(1310), watchdog(1511).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 100, "text": "PING\n"},
+    {"tick": 200, "text": "PING\n"},
+    {"tick": 300, "text": "PING\n"},
+    {"tick": 400, "text": "PING\n"},
+    {"tick": 500, "text": "PING\n"},
+    {"tick": 600, "text": "PING\n"},
+    {"tick": 700, "text": "PING\n"},
+    {"tick": 800, "text": "PING\n"},
+    {"tick": 900, "text": "PING\n"},
+    {"tick": 1010, "text": "C 2 300 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "pins", "tick": 320, "drive_l": 0, "mcu_state": 2},
+    {"type": "status", "tick": 1000, "fields": {"st": 2, "fl": "0800", "tl": 0, "wd": 100, "L": 0, "q": 1}},
+    {"type": "change", "channel": "drive_l", "tick": 1010, "to": 2},
+    {"type": "change", "channel": "fault_bits", "tick": 1010, "to": "0000"},
+    {"type": "status", "tick": 1050, "fields": {"st": 2, "q": 2, "fl": "0000", "tl": 260, "wd": 40, "L": 12}},
+    {"type": "line", "tick": 1310, "text": "F TTL 2 1310*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 1310, "to": 0},
+    {"type": "line", "tick": 1511, "text": "W 1511*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 1511, "to": 1},
+    {"type": "no_line", "window": [0, 1600], "kinds": ["N", "A", "P"]}
+  ],
+  "end": {"tick": 1600}
+}

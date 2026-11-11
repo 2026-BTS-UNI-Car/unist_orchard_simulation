@@ -1,0 +1,25 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "servo_deadband_dwell",
+  "spec": ["7.6", "6.5"],
+  "description": "데드밴드(db 20) 안에서 dwell 200 ms 머물면 제동 유지(틱 208). 그 뒤 위치가 -30(e 30)이 되어도 2·db = 40을 넘기 전에는 다시 밀지 않는다(출력 0, dwell 없이는 102). -42(e 42, 틱 402)에서 다시 민다(102). raw는 6, 4, 4 count씩 움직여 튐·잡음 결함은 없다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "adc_set", "raw": 506},
+    {"tick": 310, "kind": "adc_set", "raw": 502},
+    {"tick": 400, "kind": "adc_set", "raw": 498}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [10, 401], "steer_pwm": 0, "steer_en": 1},
+    {"type": "change", "channel": "steer_pwm", "tick": 402, "to": 102},
+    {"type": "status", "tick": 350, "fields": {"st": 2, "pos": -30, "cmd": 0, "sp": 0}},
+    {"type": "status", "tick": 450, "fields": {"pos": -42, "sp": 102}},
+    {"type": "no_line", "window": [0, 480], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 480}
+}

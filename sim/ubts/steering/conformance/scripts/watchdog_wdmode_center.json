@@ -1,0 +1,26 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "watchdog_wdmode_center",
+  "spec": ["6.2", "6.5", "7.5", "4.10"],
+  "description": "wdmode 1(center): watchdog(틱 521)에 tgt 0, cmd = 측정 위치(300)에서 출발해 속도 제한으로 0을 향한다. 최근 구동이 있어 rmov(960/s). |e| > db가 되는 틱 542부터 조향 출력이 - 쪽으로 나간다. hloss 300 뒤 틱 821에 OFF. ADC 611 = 300 ‰.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"wdmode": 1, "hloss": 300, "ttlmax": 1000}}}, "adc": {"mode": "script", "raw": 611}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 1000 100 100 300*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=1000 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=0B445B0E left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 521, "text": "W 521*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 521, "to": 1},
+    {"type": "pins", "tick": 520, "steer_pwm": 0, "drive_l": 100},
+    {"type": "pins", "tick": 541, "steer_pwm": 0},
+    {"type": "pins", "tick": 542, "steer_pwm": -102},
+    {"type": "status", "tick": 550, "fields": {"st": 1, "pos": 300, "tgt": 0, "cmd": 272, "sp": -102, "fl": "1000", "en": 3}},
+    {"type": "status", "tick": 800, "fields": {"tgt": 0, "cmd": 32, "sp": -255}},
+    {"type": "change", "channel": "steer_en", "tick": 821, "to": 0},
+    {"type": "pins", "tick": 821, "steer_pwm": 0},
+    {"type": "no_line", "window": [0, 900], "kinds": ["N", "F", "A", "P"]}
+  ],
+  "end": {"tick": 900}
+}

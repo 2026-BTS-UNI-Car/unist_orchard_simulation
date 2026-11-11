@@ -1,0 +1,36 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "port_open_reset",
+  "spec": ["10.7", "10.3", "10.1", "2.2", "5.2", "6.1"],
+  "description": "포트 열기 리셋(틱 300, 원인 6 = ext_sys, boot_delay 70). 리셋 때마다 부트 롬 쓰레기 바이트(줄 아님)를 내고, 틱 370에 새 boot_id 배너. 리셋 전에 보내던 반쪽 줄(BENCH 8902)은 RX 버퍼와 함께 사라지고, 부팅 뒤 도착한 나머지 5CC1*71은 보통 줄로 읽혀 crc로 거절된다. 옛 boot_id ARM은 boot, INFO는 새 배너를 다시 낸다. 상태 줄 ms는 리셋 틱부터 다시 센다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}, "boot_delay_ticks": 70, "boot_garbage_hex": "00FF55AA0D0A"},
+  "inputs": [
+    {"tick": 290, "text": "BENCH 8902"},
+    {"tick": 400, "text": "5CC1*71\n"},
+    {"tick": 410, "text": "ARM 89025CC1*{crc}\n"},
+    {"tick": 420, "text": "INFO\n"},
+    {"tick": 430, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 440, "text": "DISARM*88\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "port_open_reset"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 70, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 70, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 370, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=ext_sys hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 370, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [300, 369], "mcu_state": 255, "drive_en": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 370, "to": 1},
+    {"type": "line", "tick": 400, "text": "N - crc*{crc}"},
+    {"type": "line", "tick": 410, "text": "N - boot*{crc}"},
+    {"type": "line", "tick": 420, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=ext_sys hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 420, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 420, "fields": {"ms": 120, "n": 0, "st": 1, "fl": "4000", "wd": 50}},
+    {"type": "change", "channel": "mcu_state", "tick": 430, "to": 2},
+    {"type": "change", "channel": "mcu_state", "tick": 440, "to": 1},
+    {"type": "status", "tick": 470, "fields": {"ms": 170, "n": 1, "st": 1, "fl": "0000"}},
+    {"type": "no_line", "window": [0, 500], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 500}
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "emergency_stop_immediate",
+  "spec": ["4.5", "6.4", "6.5", "7.1", "7.6"],
+  "v2_map": "emergency_stop_immediate",
+  "description": "ARMED 주행 중(L 255, R 128, 조향 서보 출력 115) STOP(틱 1215): 그 틱에 구동 brake(0틱), DISARMED. 조향은 측정 위치 HOLD(stoppol 0)라 tgt = cmd = 0이 되고, 1215는 서보 틱이 아니라 핀은 그 틱 그대로, 다음 서보 틱 1216에 0(BRAKE). hstop 2000 뒤 틱 3215에 OFF. STOP 뒤 늦게 온 C(q 13)는 state.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 255 128 120*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 255 128 120*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 255 128 120*{crc}\n"},
+    {"tick": 320, "text": "C 4 300 255 128 120*{crc}\n"},
+    {"tick": 420, "text": "C 5 300 255 128 120*{crc}\n"},
+    {"tick": 520, "text": "C 6 300 255 128 120*{crc}\n"},
+    {"tick": 620, "text": "C 7 300 255 128 120*{crc}\n"},
+    {"tick": 720, "text": "C 8 300 255 128 120*{crc}\n"},
+    {"tick": 820, "text": "C 9 300 255 128 120*{crc}\n"},
+    {"tick": 920, "text": "C 10 300 255 128 120*{crc}\n"},
+    {"tick": 1020, "text": "C 11 300 255 128 120*{crc}\n"},
+    {"tick": 1120, "text": "C 12 300 255 128 120*{crc}\n"},
+    {"tick": 1215, "text": "STOP\n"},
+    {"tick": 1220, "text": "C 13 300 255 128 120*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 1214, "drive_l": 255, "drive_r": 128, "steer_pwm": 115, "steer_en": 1, "mcu_state": 2},
+    {"type": "pins", "tick": 1215, "drive_l": 0, "drive_r": 0, "steer_pwm": 115, "steer_en": 1, "mcu_state": 1, "drive_en": 1},
+    {"type": "change", "channel": "steer_pwm", "tick": 1216, "to": 0},
+    {"type": "pins_window", "window": [1216, 3214], "steer_en": 1, "steer_pwm": 0, "drive_l": 0, "drive_r": 0},
+    {"type": "change", "channel": "steer_en", "tick": 3215, "to": 0},
+    {"type": "line", "tick": 1220, "text": "N 13 state*{crc}"},
+    {"type": "status", "tick": 1250, "fields": {"st": 1, "q": 12, "L": 0, "R": 0, "en": 3, "tgt": 0, "cmd": 0, "sp": 0, "fl": "0000", "tl": 0}},
+    {"type": "status", "tick": 3250, "fields": {"st": 1, "en": 1}},
+    {"type": "no_line", "window": [0, 3300], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 3300}
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_track",
+  "spec": ["6.7", "6.4", "7.5"],
+  "description": "maxp 150이라 |u| < stp 153(STALL 없음). cmd가 위치(0)에서 120 넘게 벌어진 상태(서보 갱신 전 cmd 기준)가 틱 273부터 계속 -> runTrack >= trt(1000)인 틱 1272에 TRACK(F TRACK 600 1272, arg = cmd - P = 600): 조향 OFF, brake, DISARMED.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"maxp": 150}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 1000*{crc}\n"},
+    {"tick": 100, "text": "PING\n"},
+    {"tick": 300, "text": "PING\n"},
+    {"tick": 500, "text": "PING\n"},
+    {"tick": 700, "text": "PING\n"},
+    {"tick": 900, "text": "PING\n"},
+    {"tick": 1100, "text": "PING\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=C6491780 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "pins", "tick": 1271, "steer_en": 1, "steer_pwm": 150, "mcu_state": 2},
+    {"type": "line", "tick": 1272, "text": "F TRACK 600 1272*{crc}"},
+    {"type": "pins", "tick": 1272, "steer_en": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 1272, "to": "0200"},
+    {"type": "status", "tick": 1300, "fields": {"st": 1, "fl": "0200"}},
+    {"type": "no_line", "window": [0, 1350], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 1350}
+}

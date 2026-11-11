@@ -1,0 +1,23 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "half_frame_rejected",
+  "spec": ["2.2", "4.2", "6.2"],
+  "description": "09-19 필수 장애 시험(MCU 쪽) 반쪽 프레임: LF 없이 끊긴 ARM 89025C 뒤에 PING이 오면 한 줄 ARM 89025CPING이 되어 nocrc로 거절된다(ARM도 PING도 실행되지 않음, wd가 계속 오른다). 파서에는 줄 사이 시간 제한이 없다: PING과 LF가 100 ms 떨어져 와도 LF 틱에 PING으로 실행된다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "ARM 89025C"},
+    {"tick": 150, "text": "PING\n"},
+    {"tick": 300, "text": "PING"},
+    {"tick": 400, "text": "\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 150, "text": "N - nocrc*{crc}"},
+    {"type": "status", "tick": 200, "fields": {"st": 1, "wd": 200}},
+    {"type": "status", "tick": 350, "fields": {"wd": 350}},
+    {"type": "status", "tick": 450, "fields": {"wd": 50}},
+    {"type": "no_line", "window": [0, 500], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 500}
+}

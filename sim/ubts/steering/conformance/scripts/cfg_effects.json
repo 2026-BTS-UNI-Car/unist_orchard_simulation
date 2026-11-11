@@ -1,0 +1,50 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cfg_effects",
+  "spec": ["4.10", "5.4", "6.2", "7.2", "6.3"],
+  "description": "sthz 50(틱 120)은 다음 상태 줄(150) 뒤부터 20 ms 주기(170, 190, ...). sthz 20(틱 260)도 다음 줄(270) 뒤부터 50 ms. wd 100 (배너 wd=100): BENCH(틱 500) 뒤 입력이 없으면 601에 watchdog. med 1이면 중앙값 없이 그 틱 raw가 f(틱 750의 raw 520이 상태 줄 770에 보인다. 주기를 바꾼 뒤 상태 줄 위상은 270 + 50k). ttlmax 50이면 ttl 51은 range, ttl 50인 C는 50 ms 뒤 만료.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 120, "text": "CFG sthz 50*{crc}\n"},
+    {"tick": 260, "text": "CFG sthz 20*{crc}\n"},
+    {"tick": 400, "text": "CFG wd 100*{crc}\n"},
+    {"tick": 410, "text": "INFO\n"},
+    {"tick": 500, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 700, "text": "CFG med 1*{crc}\n"},
+    {"tick": 800, "text": "CFG ttlmax 50*{crc}\n"},
+    {"tick": 850, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 860, "text": "C 1 51 0 0 0*{crc}\n"},
+    {"tick": 870, "text": "C 1 50 0 0 0*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 750, "kind": "adc_set", "raw": 520}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 120, "text": "A CFG sthz 50*{crc}"},
+    {"type": "status", "tick": 150, "fields": {"n": 2}},
+    {"type": "status", "tick": 170, "fields": {"n": 3}},
+    {"type": "status", "tick": 190, "fields": {"n": 4}},
+    {"type": "count", "window": [151, 260], "min": 5, "max": 5, "kinds": ["S"]},
+    {"type": "line", "tick": 260, "text": "A CFG sthz 20*{crc}"},
+    {"type": "status", "tick": 270, "fields": {"n": 8}},
+    {"type": "status", "tick": 320, "fields": {"n": 9}},
+    {"type": "count", "window": [271, 400], "min": 2, "max": 2, "kinds": ["S"]},
+    {"type": "line", "tick": 400, "text": "A CFG wd 100*{crc}"},
+    {"type": "line", "tick": 410, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=100 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 410, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=1*{crc}"},
+    {"type": "line", "tick": 601, "text": "W 601*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 601, "to": 1},
+    {"type": "line", "tick": 700, "text": "A CFG med 1*{crc}"},
+    {"type": "status", "tick": 770, "fields": {"raw": 520}},
+    {"type": "line", "tick": 800, "text": "A CFG ttlmax 50*{crc}"},
+    {"type": "line", "tick": 860, "text": "N 1 range*{crc}"},
+    {"type": "status", "tick": 870, "fields": {"st": 2, "q": 1, "tl": 50, "wd": 0}},
+    {"type": "line", "tick": 920, "text": "F TTL 1 920*{crc}"},
+    {"type": "line", "tick": 971, "text": "W 971*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 971, "to": 1},
+    {"type": "no_line", "window": [0, 1050], "kinds": ["P"]}
+  ],
+  "end": {"tick": 1050}
+}

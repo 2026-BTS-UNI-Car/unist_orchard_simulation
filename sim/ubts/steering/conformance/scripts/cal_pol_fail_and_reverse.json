@@ -1,0 +1,41 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cal_pol_fail_and_reverse",
+  "spec": ["7.10", "4.9", "7.7", "9.5"],
+  "description": "CAL POL에서 위치가 움직이지 않으면 A POL fail 0 0(pol_ok 0 그대로). 위치가 반대로 움직이면(d1 -6, d2 +6) ok이고 mdir = sign(d1) x sign(raw_l - raw_c) = -1. SAVE(cal_id 8) 뒤 JOG는 mdir를 쓰지 않아 D6(+50)이고, ARMED 서보 출력은 u x mdir이라 u = +102가 핀 -102로 나간다(틱 2402).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 0, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "CAL POL*{crc}\n"},
+    {"tick": 1200, "text": "CAL POL*{crc}\n"},
+    {"tick": 2300, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 2320, "text": "CAL JOG 50 20*{crc}\n"},
+    {"tick": 2350, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 2360, "text": "C 1 300 0 0 100*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 1300, "kind": "adc_set", "raw": 506},
+    {"tick": 1800, "kind": "adc_set", "raw": 512}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=3BAD116B left=842 center=512 right=181 soft=935,-935 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [100, 399], "steer_pwm": 153},
+    {"type": "pins_window", "window": [600, 899], "steer_pwm": -153},
+    {"type": "line", "tick": 1100, "text": "A POL fail 0 0*{crc}"},
+    {"type": "line", "tick": 1100, "text": "UBTS_STEER_V3 cal id=7 crc=3BAD116B left=842 center=512 right=181 soft=935,-935 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [1200, 1499], "steer_pwm": 153},
+    {"type": "pins_window", "window": [1700, 1999], "steer_pwm": -153},
+    {"type": "line", "tick": 2200, "text": "A POL ok -6 6*{crc}"},
+    {"type": "line", "tick": 2200, "text": "UBTS_STEER_V3 cal id=7 crc=3BAD116B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=-1 caldirty=1 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 2300, "text": "UBTS_STEER_V3 cal id=8 crc=1CD8ACEB left=842 center=512 right=181 soft=935,-935 pol=ok mdir=-1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 2320, "text": "A JOG 50 20*{crc}"},
+    {"type": "pins_window", "window": [2320, 2339], "steer_pwm": 50, "steer_en": 1},
+    {"type": "pins", "tick": 2340, "steer_en": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 2350, "to": 2},
+    {"type": "pins", "tick": 2401, "steer_pwm": 0},
+    {"type": "pins", "tick": 2402, "steer_pwm": -102},
+    {"type": "status", "tick": 2450, "fields": {"st": 2, "tgt": 100, "cmd": 44, "sp": -102}},
+    {"type": "no_line", "window": [0, 2500], "kinds": ["N", "F", "W", "P"]}
+  ],
+  "end": {"tick": 2500}
+}

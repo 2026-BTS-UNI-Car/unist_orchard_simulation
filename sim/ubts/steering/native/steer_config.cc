@@ -1,0 +1,550 @@
+// Startup configuration of the native steering process (see steer_config.h).
+#include "steer_config.h"
+
+#include <stdio.h>
+
+#include <cmath>
+#include <string>
+
+#include "steer_geometry.h"
+#include "steer_json.h"
+
+namespace ubts_steer {
+
+namespace {
+
+const double kPi = 3.14159265358979323846;
+const double kHalfPi = 1.57079632679489661923;
+const double kMaxPotGainCountsPerRad = 1e9;
+
+const char *const kInjectionNames[kInjKindCount] = {
+    "jam",      "slow",      "driver_dead",   "driver_stuck_on", "polarity_reversed", "pot_open",    "pot_short",
+    "pot_stuck", "pot_noise_x10", "pot_jump", "pot_slip",        "pot_drift",         "pot_reversed"};
+
+std::string format_double(double x) {
+  char buf[40];
+  snprintf(buf, sizeof buf, "%.17g", x);
+  return buf;
+}
+
+bool is_finite(double x) { return x == x && x <= 1.7976931348623157e308 && x >= -1.7976931348623157e308; }
+
+// Read access to one JSON object with an exact key set; every error names the key path.
+class ObjectView {
+ public:
+  ObjectView(const json::Document &doc, int index, const std::string &path) : doc_(doc), index_(index), path_(path) {
+    if (doc.node(index).kind != json::kObject) throw ConfigError(path_ + ": must be an object");
+  }
+
+  void require_keys(const char *const *names, size_t count) const {
+    const json::Node &node = doc_.node(index_);
+    for (size_t i = 0; i < node.keys.size(); ++i) {
+      bool known = false;
+      for (size_t j = 0; j < count; ++j) known = known || node.keys[i] == names[j];
+      if (!known) throw ConfigError(key_path(node.keys[i]) + ": unknown key");
+    }
+    for (size_t j = 0; j < count; ++j) {
+      bool present = false;
+      for (size_t i = 0; i < node.keys.size(); ++i) present = present || node.keys[i] == names[j];
+      if (!present) throw ConfigError(key_path(names[j]) + ": missing key");
+    }
+  }
+
+  int child(const char *name) const {
+    const json::Node &node = doc_.node(index_);
+    for (size_t i = 0; i < node.keys.size(); ++i) {
+      if (node.keys[i] == name) return node.items[i];
+    }
+    throw ConfigError(key_path(name) + ": missing key");
+  }
+
+  const json::Node &node(const char *name) const { return doc_.node(child(name)); }
+
+  std::string key_path(const std::string &name) const { return path_.empty() ? name : path_ + "." + name; }
+
+  double number(const char *name, double lo, double hi, bool lo_open = false, bool hi_open = false) const {
+    const json::Node &n = node(name);
+    if (n.kind != json::kNumber) throw ConfigError(key_path(name) + ": must be a number");
+    const double v = n.number;
+    if (!is_finite(v)) throw ConfigError(key_path(name) + ": must be finite");
+    const bool below = lo_open ? !(v > lo) : !(v >= lo);
+    const bool above = hi_open ? !(v < hi) : !(v <= hi);
+    if (below || above) {
+      throw ConfigError(key_path(name) + ": " + format_double(v) + " outside " + (lo_open ? "(" : "[") +
+                        format_double(lo) + ", " + format_double(hi) + (hi_open ? ")" : "]"));
+    }
+    return v;
+  }
+
+  int64_t integer(const char *name, int64_t lo, int64_t hi) const {
+    const json::Node &n = node(name);
+    int64_t v = 0;
+    if (!json::to_int64(n, &v)) throw ConfigError(key_path(name) + ": must be an integer");
+    if (v < lo || v > hi) throw ConfigError(key_path(name) + ": " + n.text + " out of range");
+    return v;
+  }
+
+  bool boolean(const char *name) const {
+    const json::Node &n = node(name);
+    if (n.kind != json::kBool) throw ConfigError(key_path(name) + ": must be true or false");
+    return n.boolean;
+  }
+
+  std::string string(const char *name) const {
+    const json::Node &n = node(name);
+    if (n.kind != json::kString) throw ConfigError(key_path(name) + ": must be a string");
+    return n.text;
+  }
+
+  ObjectView object(const char *name) const { return ObjectView(doc_, child(name), key_path(name)); }
+
+  const json::Document &doc() const { return doc_; }
+
+ private:
+  const json::Document &doc_;
+  int index_;
+  std::string path_;
+};
+
+void parse_geometry(const ObjectView &g, GeometryConfig *out) {
+  static const char *const keys[] = {"steer_type",
+                                     "wheelbase_m",
+                                     "kingpin_width_m",
+                                     "ackermann_ratio",
+                                     "wheel_mech_limit_rad",
+                                     "eq_mech_limit_left_rad",
+                                     "eq_mech_limit_right_rad",
+                                     "eq_soft_limit_left_rad",
+                                     "eq_soft_limit_right_rad",
+                                     "link_table_rad"};
+  g.require_keys(keys, sizeof keys / sizeof keys[0]);
+  const std::string type = g.string("steer_type");
+  if (type == "linkage") {
+    out->linkage = true;
+  } else if (type == "axle_pivot") {
+    out->linkage = false;
+  } else {
+    throw ConfigError(g.key_path("steer_type") + ": must be linkage or axle_pivot");
+  }
+  out->wheelbase_m = g.number("wheelbase_m", 0.0, 10.0, true);
+  out->kingpin_width_m = g.number("kingpin_width_m", 0.0, 10.0, true);
+  out->ackermann_ratio = g.number("ackermann_ratio", 0.0, 1.0);
+  const ObjectView limits = g.object("wheel_mech_limit_rad");
+  static const char *const limit_keys[] = {"left_wheel_toward_left", "left_wheel_toward_right",
+                                           "right_wheel_toward_left", "right_wheel_toward_right"};
+  limits.require_keys(limit_keys, 4);
+  for (int i = 0; i < 4; ++i) out->wheel_limit_rad[i] = limits.number(limit_keys[i], 0.0, kHalfPi, true, true);
+  out->eq_mech_left_rad = g.number("eq_mech_limit_left_rad", 0.0, kHalfPi, true, true);
+  out->eq_mech_right_rad = g.number("eq_mech_limit_right_rad", 0.0, kHalfPi, true, true);
+  out->eq_soft_left_rad = g.number("eq_soft_limit_left_rad", 0.0, out->eq_mech_left_rad, true);
+  out->eq_soft_right_rad = g.number("eq_soft_limit_right_rad", 0.0, out->eq_mech_right_rad, true);
+
+  const json::Document &doc = g.doc();
+  const json::Node &table = g.node("link_table_rad");
+  const std::string path = g.key_path("link_table_rad");
+  if (table.kind != json::kArray) throw ConfigError(path + ": must be an array of [pot, wheel] rows");
+  if (table.items.size() < 2 || table.items.size() > 64) throw ConfigError(path + ": needs 2..64 rows");
+  out->link_pot_rad.clear();
+  out->link_wheel_rad.clear();
+  for (size_t r = 0; r < table.items.size(); ++r) {
+    const json::Node &row = doc.node(table.items[r]);
+    if (row.kind != json::kArray || row.items.size() != 2) throw ConfigError(path + ": each row must be [pot, wheel]");
+    double v[2];
+    for (int c = 0; c < 2; ++c) {
+      const json::Node &cell = doc.node(row.items[static_cast<size_t>(c)]);
+      if (cell.kind != json::kNumber || !is_finite(cell.number) || std::fabs(cell.number) > kPi) {
+        throw ConfigError(path + ": row values must be finite numbers within [-pi, pi]");
+      }
+      v[c] = cell.number;
+    }
+    if (r > 0 && (!(v[0] > out->link_pot_rad.back()) || !(v[1] > out->link_wheel_rad.back()))) {
+      throw ConfigError(path + ": both columns must be strictly increasing");
+    }
+    out->link_pot_rad.push_back(v[0]);
+    out->link_wheel_rad.push_back(v[1]);
+  }
+}
+
+void check_geometry_consistency(const GeometryConfig &g) {
+  // The equivalent mechanical limits must keep both wheels inside their own limits, and one
+  // wheel must touch its limit (they are the largest such angles, design 3.2).
+  const double inside_tol = 1e-9, touch_tol = 1e-7;
+  double left = 0.0, right = 0.0;
+  wheel_angles(g.eq_mech_left_rad, g.linkage, g.wheelbase_m, g.kingpin_width_m, g.ackermann_ratio, &left, &right);
+  const double over_left = std::fmax(left - g.wheel_limit_rad[kLeftTowardLeft], right - g.wheel_limit_rad[kRightTowardLeft]);
+  if (over_left > inside_tol || over_left < -touch_tol) {
+    throw ConfigError("geometry.eq_mech_limit_left_rad: inconsistent with wheel_mech_limit_rad (wheel margin " +
+                      format_double(-over_left) + " rad)");
+  }
+  wheel_angles(-g.eq_mech_right_rad, g.linkage, g.wheelbase_m, g.kingpin_width_m, g.ackermann_ratio, &left, &right);
+  const double over_right =
+      std::fmax(-left - g.wheel_limit_rad[kLeftTowardRight], -right - g.wheel_limit_rad[kRightTowardRight]);
+  if (over_right > inside_tol || over_right < -touch_tol) {
+    throw ConfigError("geometry.eq_mech_limit_right_rad: inconsistent with wheel_mech_limit_rad (wheel margin " +
+                      format_double(-over_right) + " rad)");
+  }
+}
+
+void parse_actuator(const ObjectView &a, int mode, ActuatorConfig *out) {
+  static const char *const keys[] = {"level",
+                                     "rate_max_rad_s",
+                                     "rate_standstill_rad_s",
+                                     "tau_s",
+                                     "min_pwm",
+                                     "min_pwm_standstill",
+                                     "backlash_rad",
+                                     "backlash_wander_sd_rad",
+                                     "backlash_wander_corr_length_m",
+                                     "self_locking",
+                                     "release_scale",
+                                     "release_centering_per_s_per_m_s",
+                                     "release_noise_sd_rad",
+                                     "release_noise_corr_length_m",
+                                     "lr_asymmetry",
+                                     "stall_torque_nm",
+                                     "load_moving_nm",
+                                     "load_standstill_nm",
+                                     "zero_offset_rad"};
+  a.require_keys(keys, sizeof keys / sizeof keys[0]);
+  const std::string level = a.string("level");
+  if (level == "L0") {
+    out->level = kLevelL0;
+    if (mode != kModeTestServo) throw ConfigError("actuator.level: L0 (ideal servo) works only in mode test_servo");
+  } else if (level == "L1") {
+    out->level = kLevelL1;
+  } else if (level == "L1b") {
+    throw ConfigError(
+        "actuator.level: L1b (torque model) is not implemented in v1 (TODO: needs the steering motor no-load speed "
+        "and a load-torque model, design 3.3 and Q11)");
+  } else {
+    throw ConfigError("actuator.level: must be L0, L1 or L1b");
+  }
+  out->rate_max_rad_s = a.number("rate_max_rad_s", 0.0, 100.0, true);
+  out->rate_standstill_rad_s = a.number("rate_standstill_rad_s", 0.0, 100.0, true);
+  out->tau_s = a.number("tau_s", 0.0, 10.0, true);
+  out->min_pwm = a.number("min_pwm", 0.0, 1.0, false, true);
+  out->min_pwm_standstill = a.number("min_pwm_standstill", 0.0, 1.0, false, true);
+  // design 3.3 L1: a standing car steers slower and needs more PWM to start the motor
+  if (out->rate_standstill_rad_s > out->rate_max_rad_s) {
+    throw ConfigError("actuator.rate_standstill_rad_s: " + format_double(out->rate_standstill_rad_s) +
+                      " must not exceed rate_max_rad_s " + format_double(out->rate_max_rad_s));
+  }
+  if (out->min_pwm_standstill < out->min_pwm) {
+    throw ConfigError("actuator.min_pwm_standstill: " + format_double(out->min_pwm_standstill) +
+                      " must not be below min_pwm " + format_double(out->min_pwm));
+  }
+  out->backlash_rad = a.number("backlash_rad", 0.0, 0.5);
+  out->wander_sd_rad = a.number("backlash_wander_sd_rad", 0.0, 0.5);
+  out->wander_corr_length_m = a.number("backlash_wander_corr_length_m", 0.0, 1e6, true);
+  out->self_locking = a.boolean("self_locking");
+  out->release_scale = a.number("release_scale", 0.0, 100.0);
+  out->release_centering_per_s_per_m_s = a.number("release_centering_per_s_per_m_s", 0.0, 1000.0);
+  out->release_noise_sd_rad = a.number("release_noise_sd_rad", 0.0, 0.5);
+  out->release_noise_corr_length_m = a.number("release_noise_corr_length_m", 0.0, 1e6, true);
+  out->lr_asymmetry = a.number("lr_asymmetry", -0.9, 0.9);
+  out->stall_torque_nm = a.number("stall_torque_nm", 0.0, 1e4);
+  out->load_moving_nm = a.number("load_moving_nm", 0.0, 1e4);
+  out->load_standstill_nm = a.number("load_standstill_nm", 0.0, 1e4);
+  out->zero_offset_rad = a.number("zero_offset_rad", -kHalfPi, kHalfPi, true, true);
+}
+
+void parse_pot(const ObjectView &p, PotConfig *out) {
+  static const char *const keys[] = {"location",         "range_rad",          "to_steer_ratio",  "center_raw",
+                                     "adc_bits",         "ratiometric",        "supply_sag_per_pwm", "noise_sd_counts",
+                                     "linearity_frac",   "gain_error",         "drift_rad_per_s", "cal_residual_rad"};
+  p.require_keys(keys, sizeof keys / sizeof keys[0]);
+  const std::string location = p.string("location");
+  if (location == "motor") {
+    out->at_motor = true;
+  } else if (location == "wheel") {
+    out->at_motor = false;
+  } else {
+    throw ConfigError("pot.location: must be motor or wheel");
+  }
+  out->range_rad = p.number("range_rad", 0.0, 4.0 * kPi, true);
+  out->to_steer_ratio = p.number("to_steer_ratio", 0.0, 100.0, true);
+  // pot_raw is 0..1023 on the wire (backend_api.POT_RAW_MAX), so at most 10 bits.
+  out->adc_bits = static_cast<int>(p.integer("adc_bits", 1, 10));
+  out->center_raw = static_cast<int>(p.integer("center_raw", 0, (1 << out->adc_bits) - 1));
+  out->ratiometric = p.boolean("ratiometric");
+  out->supply_sag_per_pwm = p.number("supply_sag_per_pwm", 0.0, 1.0, false, true);
+  out->noise_sd_counts = p.number("noise_sd_counts", 0.0, 1000.0);
+  out->linearity_frac = p.number("linearity_frac", -0.5, 0.5);
+  out->gain_error = p.number("gain_error", -1.0, 10.0, true);
+  out->drift_rad_per_s = p.number("drift_rad_per_s", -1.0, 1.0);
+  out->cal_residual_rad = p.number("cal_residual_rad", -kPi, kPi);
+  // ADC counts per rad; bounded so that center + gain * angle stays finite (no NaN reaches the int conversion)
+  const double gain = static_cast<double>(1 << out->adc_bits) * out->to_steer_ratio * (1.0 + out->gain_error) /
+                      out->range_rad;
+  if (!is_finite(gain) || !(gain > 0.0) || gain > kMaxPotGainCountsPerRad) {
+    throw ConfigError("pot: gain 2^adc_bits * to_steer_ratio * (1 + gain_error) / range_rad = " + format_double(gain) +
+                      " counts/rad must be finite and in (0, " + format_double(kMaxPotGainCountsPerRad) + "]");
+  }
+}
+
+void parse_servo(const ObjectView &s, int tick_hz, ServoConfig *out) {
+  static const char *const keys[] = {"servo_hz", "kp_per_rad", "deadband_rad", "min_pwm", "max_pwm"};
+  s.require_keys(keys, sizeof keys / sizeof keys[0]);
+  out->servo_hz = static_cast<int>(s.integer("servo_hz", 1, tick_hz));
+  if (tick_hz % out->servo_hz != 0) throw ConfigError("mcu_tick_hz: must be a multiple of test_servo.servo_hz");
+  out->kp_per_rad = s.number("kp_per_rad", 0.0, 1e6);
+  out->deadband_rad = s.number("deadband_rad", 0.0, kPi);
+  out->min_pwm = s.number("min_pwm", 0.0, 1.0);
+  out->max_pwm = s.number("max_pwm", 0.0, 1.0);
+  if (out->min_pwm > out->max_pwm) throw ConfigError("test_servo.min_pwm: must not exceed max_pwm");
+}
+
+void parse_injections(const json::Document &doc, int index, int level, std::vector<Injection> *out) {
+  const json::Node &list = doc.node(index);
+  if (list.kind != json::kArray) throw ConfigError("injections: must be an array");
+  if (list.items.size() > 64) throw ConfigError("injections: at most 64 items");
+  for (size_t i = 0; i < list.items.size(); ++i) {
+    char path[48];
+    snprintf(path, sizeof path, "injections[%lu]", static_cast<unsigned long>(i));
+    const ObjectView item(doc, list.items[i], path);
+    static const char *const keys[] = {"kind", "at_s", "params"};
+    item.require_keys(keys, 3);
+    Injection inj;
+    const std::string kind = item.string("kind");
+    inj.kind = -1;
+    for (int k = 0; k < kInjKindCount; ++k) {
+      if (kind == kInjectionNames[k]) inj.kind = k;
+    }
+    if (inj.kind < 0) throw ConfigError(item.key_path("kind") + ": unknown injection kind " + kind);
+    inj.at_s = item.number("at_s", 0.0, 1e9);
+    const ObjectView params = item.object("params");
+    switch (inj.kind) {
+      case kInjSlow: {
+        static const char *const p[] = {"rate_scale"};
+        params.require_keys(p, 1);
+        inj.value = params.number("rate_scale", 0.0, 1.0, true);
+        break;
+      }
+      case kInjDriverStuckOn: {
+        static const char *const p[] = {"pwm"};
+        params.require_keys(p, 1);
+        inj.value = params.number("pwm", -1.0, 1.0);
+        break;
+      }
+      case kInjPotNoiseX10: {
+        static const char *const p[] = {"scale"};
+        params.require_keys(p, 1);
+        inj.value = params.number("scale", 0.0, 1e6, true);
+        break;
+      }
+      case kInjPotJump: {
+        static const char *const p[] = {"counts", "duration_s"};
+        params.require_keys(p, 2);
+        inj.counts = static_cast<long>(params.integer("counts", -65535, 65535));
+        inj.duration_s = params.number("duration_s", 0.0, 1e9, true);
+        break;
+      }
+      case kInjPotSlip: {
+        static const char *const p[] = {"offset_rad"};
+        params.require_keys(p, 1);
+        inj.value = params.number("offset_rad", -2.0 * kPi, 2.0 * kPi);
+        break;
+      }
+      case kInjPotDrift: {
+        static const char *const p[] = {"rate_rad_per_s"};
+        params.require_keys(p, 1);
+        inj.value = params.number("rate_rad_per_s", -100.0, 100.0);
+        break;
+      }
+      default: {
+        params.require_keys(0, 0);
+        break;
+      }
+    }
+    if (level == kLevelL0 &&
+        (inj.kind == kInjDriverDead || inj.kind == kInjDriverStuckOn || inj.kind == kInjPolarityReversed)) {
+      throw ConfigError(item.key_path("kind") + ": driver fault " + kind +
+                        " needs the PWM actuator (L1); L0 is an ideal servo");
+    }
+    out->push_back(inj);
+  }
+}
+
+const char *const kProtocolV1 = "ubts.steer_lockstep.v1";
+const char *const kProtocolV2 = "ubts.steer_lockstep.v2";
+
+int hex_value(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
+
+// Hex text -> bytes; false on an odd length or a non-hex character.
+bool hex_bytes(const std::string &text, std::vector<uint8_t> *out) {
+  if (text.size() % 2 != 0) return false;
+  out->clear();
+  for (size_t i = 0; i < text.size(); i += 2) {
+    const int hi = hex_value(text[i]), lo = hex_value(text[i + 1]);
+    if (hi < 0 || lo < 0) return false;
+    out->push_back(static_cast<uint8_t>((hi << 4) | lo));
+  }
+  return true;
+}
+
+void parse_firmware(const ObjectView &f, const GeometryConfig &g, FirmwareConfig *out) {
+  static const char *const keys[] = {"expect_build", "boot_seed",       "chip_id",          "eeprom_hex",
+                                     "initial_delta_eq_rad", "boot_delay_ticks", "millis_start", "boot_garbage_hex",
+                                     "adc_mode",     "adc_script_raw",  "motor_power",      "report_adc",
+                                     "report_servo"};
+  f.require_keys(keys, sizeof keys / sizeof keys[0]);
+  const json::Node &build = f.node("expect_build");
+  if (build.kind == json::kNull) {
+    out->expect_build_set = false;
+  } else {
+    bool ok = build.kind == json::kString && build.text.size() == 8;
+    for (size_t i = 0; ok && i < build.text.size(); ++i) {
+      const char c = build.text[i];
+      ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F');
+    }
+    if (!ok) throw ConfigError(f.key_path("expect_build") + ": must be null or 8 uppercase hex digits");
+    out->expect_build_set = true;
+    out->expect_build = build.text;
+  }
+  if (!json::to_uint64(f.node("boot_seed"), &out->boot_seed)) {
+    throw ConfigError(f.key_path("boot_seed") + ": must be an integer 0..2^64-1");
+  }
+  out->chip_id = static_cast<uint32_t>(f.integer("chip_id", 0, 16777215));
+  const json::Node &eeprom = f.node("eeprom_hex");
+  if (eeprom.kind == json::kNull) {
+    out->eeprom_set = false;
+    for (int i = 0; i < 256; ++i) out->eeprom[i] = 0xFF;
+  } else {
+    std::vector<uint8_t> bytes;
+    if (eeprom.kind != json::kString || eeprom.text.size() != 512 || !hex_bytes(eeprom.text, &bytes)) {
+      throw ConfigError(f.key_path("eeprom_hex") + ": must be null or 512 hex digits (256 bytes)");
+    }
+    out->eeprom_set = true;
+    for (int i = 0; i < 256; ++i) out->eeprom[i] = bytes[static_cast<size_t>(i)];
+  }
+  const double delta = f.number("initial_delta_eq_rad", -kHalfPi, kHalfPi, true, true);
+  if (delta > g.eq_mech_left_rad || delta < -g.eq_mech_right_rad) {
+    throw ConfigError(f.key_path("initial_delta_eq_rad") + ": outside the equivalent mechanical limits");
+  }
+  out->initial_delta_eq_rad = delta;
+  out->boot_delay_ticks = static_cast<uint32_t>(f.integer("boot_delay_ticks", 0, 1000));
+  out->millis_start = static_cast<uint32_t>(f.integer("millis_start", 0, 4294967295LL));
+  const std::string garbage = f.string("boot_garbage_hex");
+  if (garbage.size() > 512 || !hex_bytes(garbage, &out->boot_garbage)) {
+    throw ConfigError(f.key_path("boot_garbage_hex") + ": must be an even number of hex digits, at most 512");
+  }
+  const std::string adc = f.string("adc_mode");
+  if (adc == "model") {
+    out->adc_model = true;
+  } else if (adc == "script") {
+    out->adc_model = false;
+  } else {
+    throw ConfigError(f.key_path("adc_mode") + ": must be model or script");
+  }
+  out->adc_script_raw = static_cast<uint16_t>(f.integer("adc_script_raw", 0, 1023));
+  out->motor_power = f.boolean("motor_power");
+  out->report_adc = f.boolean("report_adc");
+  out->report_servo = f.boolean("report_servo");
+}
+
+}  // namespace
+
+const char *injection_kind_name(int kind) {
+  return kind >= 0 && kind < kInjKindCount ? kInjectionNames[kind] : "unknown";
+}
+
+Config parse_config(const std::string &line) {
+  try {
+    json::Document parsed(line);
+    const ObjectView top(parsed, parsed.root(), "");
+    // The protocol string selects the key set: v2 adds "firmware" (section 11.2).
+    bool v2 = false;
+    {
+      const json::Node &root = parsed.node(parsed.root());
+      for (size_t i = 0; i < root.keys.size(); ++i) {
+        if (root.keys[i] == "protocol") {
+          const json::Node &value = parsed.node(root.items[i]);
+          v2 = value.kind == json::kString && value.text == kProtocolV2;
+        }
+      }
+    }
+    static const char *const keys_v1[] = {"protocol",      "mode",       "seed",     "mcu_tick_hz", "profile_id",
+                                          "profile_sha256", "profile_overrides", "geometry", "actuator", "pot",
+                                          "test_servo",    "mcu",        "injections"};
+    static const char *const keys_v2[] = {"protocol",      "mode",       "seed",     "mcu_tick_hz", "profile_id",
+                                          "profile_sha256", "profile_overrides", "geometry", "actuator", "pot",
+                                          "test_servo",    "mcu",        "injections", "firmware"};
+    if (v2) {
+      top.require_keys(keys_v2, sizeof keys_v2 / sizeof keys_v2[0]);
+    } else {
+      top.require_keys(keys_v1, sizeof keys_v1 / sizeof keys_v1[0]);
+    }
+    Config cfg;
+    const std::string protocol = top.string("protocol");
+    if (protocol == kProtocolV1) {
+      cfg.protocol = 1;
+    } else if (protocol == kProtocolV2) {
+      cfg.protocol = 2;
+    } else {
+      throw ConfigError("protocol: expected ubts.steer_lockstep.v1 or ubts.steer_lockstep.v2, got " + protocol);
+    }
+    const std::string mode = top.string("mode");
+    if (mode == "direct_pwm") {
+      cfg.mode = kModeDirectPwm;
+    } else if (mode == "test_servo") {
+      cfg.mode = kModeTestServo;
+    } else if (mode == "firmware") {
+      if (cfg.protocol != 2) {
+        throw ConfigError("mode: firmware needs protocol ubts.steer_lockstep.v2; v1 runs direct_pwm and test_servo");
+      }
+      cfg.mode = kModeFirmware;
+    } else {
+      throw ConfigError("mode: unknown mode " + mode);
+    }
+    if (!json::to_uint64(top.node("seed"), &cfg.seed)) throw ConfigError("seed: must be an integer 0..2^64-1");
+    cfg.tick_hz = static_cast<int>(top.integer("mcu_tick_hz", 100, 100000));
+    cfg.profile_id = top.string("profile_id");
+    cfg.profile_sha256 = top.string("profile_sha256");
+    const json::Node &overrides = top.node("profile_overrides");
+    if (overrides.kind != json::kNull && overrides.kind != json::kObject) {
+      throw ConfigError("profile_overrides: must be null or an object");
+    }
+    if (top.node("mcu").kind != json::kObject) throw ConfigError("mcu: must be an object");
+
+    parse_geometry(top.object("geometry"), &cfg.geometry);
+    check_geometry_consistency(cfg.geometry);
+
+    parse_actuator(top.object("actuator"), cfg.mode, &cfg.actuator);
+    const double offset = cfg.actuator.zero_offset_rad;
+    if (!(offset < cfg.geometry.eq_mech_left_rad) || !(offset > -cfg.geometry.eq_mech_right_rad)) {
+      throw ConfigError("actuator.zero_offset_rad: must lie strictly inside the equivalent mechanical limits");
+    }
+    parse_pot(top.object("pot"), &cfg.pot);
+    parse_servo(top.object("test_servo"), cfg.tick_hz, &cfg.servo);
+    parse_injections(parsed, top.child("injections"), cfg.actuator.level, &cfg.injections);
+    if (cfg.protocol == 2) {
+      const json::Node &firmware = top.node("firmware");
+      if (cfg.mode == kModeFirmware) {
+        if (firmware.kind != json::kObject) throw ConfigError("firmware: must be an object in mode firmware");
+        // MCU tick = 1 ms = millis() + 1 (section 11.2); the firmware reads only EEPROM, compile constants and
+        // the serial bytes, so of the mcu block only the baud is used here.
+        if (cfg.tick_hz != 1000) throw ConfigError("mcu_tick_hz: mode firmware needs 1000");
+        const ObjectView mcu = top.object("mcu");
+        const json::Node &baud = mcu.node("baud");
+        int64_t value = 0;
+        if (!json::to_int64(baud, &value) || value < 1 || value > 5760000) {
+          throw ConfigError("mcu.baud: must be an integer baud rate");
+        }
+        cfg.mcu_baud = static_cast<uint32_t>(value);
+        parse_firmware(top.object("firmware"), cfg.geometry, &cfg.fw);
+      } else if (firmware.kind != json::kNull) {
+        throw ConfigError("firmware: must be null unless the mode is firmware");
+      }
+    }
+    return cfg;
+  } catch (const json::ParseError &e) {
+    throw ConfigError(std::string("startup line is not valid JSON: ") + e.what());
+  }
+}
+
+}  // namespace ubts_steer

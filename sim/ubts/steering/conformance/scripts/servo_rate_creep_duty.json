@@ -1,0 +1,185 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "servo_rate_creep_duty",
+  "spec": [
+    "7.5",
+    "8.2",
+    "7.1"
+  ],
+  "description": "RF-03 남은 경로를 규격대로 고정한다: MCU는 차속을 모르므로 0이 아닌 적용 duty는 구동 데드밴드 안의 작은 duty(10/255, 약 4 %)여도 움직이는 중이다. 부팅 휴지 120 ms 동안은 duty 0이라 rstd 480/s(틱 100에 cmd 39), 틱 120부터 duty 2..10이라 rmov 960/s(틱 150에 78, 틱 500에 414). 틱 520 L = R = 0(release): 램프가 틱 550에 0이 되고 마지막 0 아닌 duty는 틱 549다. movms 300 ms 동안(서보 틱 848까지) rmov를 유지하고(틱 800에 702) 그 뒤 rstd(틱 850에 749, 틱 900에 773, 틱 1000에 821). ADC는 대본 512(P = 0)라 STALL·TRACK이 끼지 않게 stp 255, stt 1000, trk 2000, trt 10000. 기대값은 규격 7.1·7.5·8.2 산술로 계산했다(펌웨어 소스를 쓰지 않았다).",
+  "setup": {
+    "boot_seed": 1,
+    "chip_id": "5A1B2C",
+    "eeprom": {
+      "record": {
+        "cal_id": 7,
+        "raw_l": 842,
+        "raw_c": 512,
+        "raw_r": 181,
+        "soft_l": 935,
+        "soft_r": -935,
+        "pol_ok": 1,
+        "mdir": 1,
+        "params": {
+          "stp": 255,
+          "stt": 1000,
+          "trk": 2000,
+          "trt": 10000
+        }
+      }
+    },
+    "adc": {
+      "mode": "script",
+      "raw": 512
+    }
+  },
+  "inputs": [
+    {
+      "tick": 10,
+      "text": "ARM {boot}*{crc}\n"
+    },
+    {
+      "tick": 20,
+      "text": "C 1 300 10 10 1000*{crc}\n"
+    },
+    {
+      "tick": 120,
+      "text": "C 2 300 10 10 1000*{crc}\n"
+    },
+    {
+      "tick": 220,
+      "text": "C 3 300 10 10 1000*{crc}\n"
+    },
+    {
+      "tick": 320,
+      "text": "C 4 300 10 10 1000*{crc}\n"
+    },
+    {
+      "tick": 420,
+      "text": "C 5 300 10 10 1000*{crc}\n"
+    },
+    {
+      "tick": 520,
+      "text": "C 6 300 0 0 1000*{crc}\n"
+    },
+    {
+      "tick": 620,
+      "text": "C 7 300 0 0 1000*{crc}\n"
+    },
+    {
+      "tick": 720,
+      "text": "C 8 300 0 0 1000*{crc}\n"
+    },
+    {
+      "tick": 820,
+      "text": "C 9 300 0 0 1000*{crc}\n"
+    },
+    {
+      "tick": 920,
+      "text": "C 10 300 0 0 1000*{crc}\n"
+    },
+    {
+      "tick": 1020,
+      "text": "C 11 300 0 0 1000*{crc}\n"
+    }
+  ],
+  "expect": [
+    {
+      "type": "line",
+      "tick": 0,
+      "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"
+    },
+    {
+      "type": "line",
+      "tick": 0,
+      "text": "UBTS_STEER_V3 cal id=7 crc=B798319C left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"
+    },
+    {
+      "type": "status",
+      "tick": 100,
+      "fields": {
+        "cmd": 39,
+        "L": 0,
+        "R": 0,
+        "tgt": 1000
+      }
+    },
+    {
+      "type": "status",
+      "tick": 150,
+      "fields": {
+        "cmd": 78,
+        "L": 10,
+        "R": 10
+      }
+    },
+    {
+      "type": "status",
+      "tick": 500,
+      "fields": {
+        "cmd": 414,
+        "L": 10,
+        "R": 10,
+        "sp": 255
+      }
+    },
+    {
+      "type": "status",
+      "tick": 550,
+      "fields": {
+        "cmd": 462,
+        "L": 0,
+        "R": 0
+      }
+    },
+    {
+      "type": "status",
+      "tick": 800,
+      "fields": {
+        "cmd": 702,
+        "L": 0,
+        "R": 0
+      }
+    },
+    {
+      "type": "status",
+      "tick": 850,
+      "fields": {
+        "cmd": 749
+      }
+    },
+    {
+      "type": "status",
+      "tick": 900,
+      "fields": {
+        "cmd": 773
+      }
+    },
+    {
+      "type": "status",
+      "tick": 1000,
+      "fields": {
+        "cmd": 821,
+        "tgt": 1000,
+        "sp": 255
+      }
+    },
+    {
+      "type": "no_line",
+      "window": [
+        0,
+        1100
+      ],
+      "kinds": [
+        "N",
+        "F",
+        "W",
+        "A",
+        "P"
+      ]
+    }
+  ],
+  "end": {
+    "tick": 1100
+  }
+}

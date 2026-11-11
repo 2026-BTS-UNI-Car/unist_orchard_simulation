@@ -1,0 +1,26 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_softlimit",
+  "spec": ["7.4", "7.8", "5.3", "6.7"],
+  "description": "ADC 839(pos 991 > soft_l 935): 부팅부터 SOFTLIMIT 조건 비트(경고, F 없음, 정지 없음). ARM(틱 10)은 받고 tgt = cmd = 991. raw 829(틱 14)로 pos 961: cmd(988..)가 pos보다 20 넘게 커서 서보가 + 쪽(바깥쪽) 102를 내야 하지만 pos >= soft_l이라 막힌다(틱 16..29 출력 0). raw 812(틱 40)로 pos 909 < 935가 되면 비트가 꺼지고 + 출력 102가 나간다(틱 42).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"jmp": 100, "nsd": 1000}}}, "adc": {"mode": "script", "raw": 839}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 14, "kind": "adc_set", "raw": 829},
+    {"tick": 40, "kind": "adc_set", "raw": 812}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=2EECB96B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 0, "to": "4080"},
+    {"type": "change", "channel": "fault_bits", "tick": 10, "to": "0080"},
+    {"type": "pins_window", "window": [16, 41], "steer_pwm": 0, "steer_en": 1},
+    {"type": "change", "channel": "steer_pwm", "tick": 42, "to": 102},
+    {"type": "change", "channel": "fault_bits", "tick": 42, "to": "0000"},
+    {"type": "status", "tick": 50, "fields": {"st": 2, "pos": 909, "tgt": 991, "cmd": 971, "sp": 102, "fl": "0000"}},
+    {"type": "no_line", "window": [0, 300], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 300}
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cal_erase_twice",
+  "spec": ["4.9", "9.5", "5.6", "12.1"],
+  "description": "CAL ERASE를 다시 하는 경우(결정 12.1-54): 받은 CAL ERASE는 늘 응답 F NOCAL 0 <ms>와 보정 보고 줄을 낸다(5.6절의 '한 번'은 결함 판정 줄이다). 첫 ERASE(틱 100)만 R을 지움 표시로 commit한다. 둘째(200)와 리셋 뒤 셋째(400)는 R이 없어 쓰지 않는다(commit 수 1 그대로). 리셋 뒤 부팅은 cal=none이고 부팅 때 F NOCAL은 없다(12.1-44). 리셋 뒤 millis()는 0부터 다시 세므로 틱 400의 줄은 ms 100이다(1절). ARM은 nocal.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "CAL ERASE*{crc}\n"},
+    {"tick": 200, "text": "CAL ERASE*{crc}\n"},
+    {"tick": 400, "text": "CAL ERASE*{crc}\n"},
+    {"tick": 450, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "mcu_reset", "reason": 4}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "F NOCAL 0 100*{crc}"},
+    {"type": "line", "tick": 100, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "eeprom_commits", "tick": 100, "to": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 100, "to": "4001"},
+    {"type": "line", "tick": 200, "text": "F NOCAL 0 200*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=soft_restart hw=front_steer_v0 out=drive2,steer1 cal=none sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 400, "text": "F NOCAL 0 100*{crc}"},
+    {"type": "line", "tick": 400, "text": "UBTS_STEER_V3 cal id=none crc=00000000 left=- center=- right=- soft=0,0 pol=no mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 450, "text": "N - nocal*{crc}"},
+    {"type": "pins_window", "window": [100, 499], "eeprom_commits": 1},
+    {"type": "no_line", "window": [0, 500], "kinds": ["W", "A", "P"]}
+  ],
+  "end": {"tick": 500}
+}

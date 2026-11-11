@@ -1,0 +1,88 @@
+# ros_gz_bridge configuration of the steering G-SIM (design 4.3, 8.3 P6a; docs/steering/P6A_HEADLESS_KO.md).
+# supervisor_steer.bridge_config() checks it against the scene manifest (actuator topics exactly the manifest's
+# steer and drive topics) and drops the camera entries for a scene without a camera.
+# Not here on purpose: /sim/cmd_vel, /sim/wheel_odom, /joint_states, /odom, /tf (no differential drive, no wheel
+# odometry, no dynamic TF) and a gz LiDAR (the Embree process publishes /sim/scan itself).
+# /clock and /sim/truth/joint_states keep 50 samples (about 0.4 s at 120 Hz) in the ROS publisher's history: with a
+# history of 1 the reliable writer dropped a sample whenever the next one came before the reader had it (the ESP
+# emulator missed about 5 % of the /clock samples in P6a, review RG-03, 2026-11-09).
+- ros_topic_name: /clock
+  publisher_queue: 50
+  subscriber_queue: 1
+  gz_topic_name: /clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: gz.msgs.Clock
+  direction: GZ_TO_ROS
+- ros_topic_name: /camera/image_raw
+  gz_topic_name: /sim/camera
+  ros_type_name: sensor_msgs/msg/Image
+  gz_type_name: gz.msgs.Image
+  direction: GZ_TO_ROS
+- ros_topic_name: /camera/camera_info
+  gz_topic_name: /sim/camera_info
+  ros_type_name: sensor_msgs/msg/CameraInfo
+  gz_type_name: gz.msgs.CameraInfo
+  direction: GZ_TO_ROS
+- ros_topic_name: /sim/imu
+  publisher_queue: 8
+  subscriber_queue: 8
+  gz_topic_name: /sim/imu
+  ros_type_name: sensor_msgs/msg/Imu
+  gz_type_name: gz.msgs.IMU
+  direction: GZ_TO_ROS
+# truth (evaluation, Embree LiDAR pose, virtual GPS, emulator speed); executor forbidden (A13)
+- ros_topic_name: /ground_truth/odom
+  gz_topic_name: /sim/ground_truth
+  ros_type_name: nav_msgs/msg/Odometry
+  gz_type_name: gz.msgs.Odometry
+  direction: GZ_TO_ROS
+- ros_topic_name: /sim/truth/joint_states
+  publisher_queue: 50
+  subscriber_queue: 1
+  gz_topic_name: /sim/truth/joint_states
+  ros_type_name: sensor_msgs/msg/JointState
+  gz_type_name: gz.msgs.Model
+  direction: GZ_TO_ROS
+# actuator targets from the ESP emulator (steering joint angle in rad, drive joint velocity target in rad/s)
+- ros_topic_name: /sim/act/steer_left_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/steer_left_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ
+- ros_topic_name: /sim/act/steer_right_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/steer_right_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ
+- ros_topic_name: /sim/act/left_front_wheel_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/left_front_wheel_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ
+- ros_topic_name: /sim/act/left_rear_wheel_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/left_rear_wheel_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ
+- ros_topic_name: /sim/act/right_front_wheel_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/right_front_wheel_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ
+- ros_topic_name: /sim/act/right_rear_wheel_cmd
+  publisher_queue: 1
+  subscriber_queue: 1
+  gz_topic_name: /sim/act/right_rear_wheel_cmd
+  ros_type_name: std_msgs/msg/Float64
+  gz_type_name: gz.msgs.Double
+  direction: ROS_TO_GZ

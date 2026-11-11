@@ -1,0 +1,42 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cfg_set_states",
+  "spec": ["4.10", "4.2", "4.13", "4.11"],
+  "description": "CFG 설정은 DISARMED에서만(ARMED, BENCH는 state), 조향 HOLD 중에는 busy. 순서는 state -> key -> range -> busy: ARMED에서 모르는 키 설정은 state, 조회는 key. HOLD 중 모르는 키는 key, 범위 밖은 range, 맞는 값은 busy. 조회는 HOLD 중에도 받는다. CRC가 없으면 nocrc.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 50, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 60, "text": "CFG kp*{crc}\n"},
+    {"tick": 70, "text": "CFG kp 245*{crc}\n"},
+    {"tick": 80, "text": "CFG zz 1*{crc}\n"},
+    {"tick": 90, "text": "CFG zz*{crc}\n"},
+    {"tick": 100, "text": "STOP\n"},
+    {"tick": 110, "text": "CFG zz 1*{crc}\n"},
+    {"tick": 120, "text": "CFG kp 0*{crc}\n"},
+    {"tick": 130, "text": "CFG kp 245*{crc}\n"},
+    {"tick": 140, "text": "CFG kp*{crc}\n"},
+    {"tick": 2200, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 2210, "text": "CFG kp 245*{crc}\n"},
+    {"tick": 2220, "text": "CFG kp*{crc}\n"},
+    {"tick": 2230, "text": "STOP\n"},
+    {"tick": 2300, "text": "CFG kp 245\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 60, "text": "A CFG kp 245*{crc}"},
+    {"type": "line", "tick": 70, "text": "N - state*{crc}"},
+    {"type": "line", "tick": 80, "text": "N - state*{crc}"},
+    {"type": "line", "tick": 90, "text": "N - key*{crc}"},
+    {"type": "line", "tick": 110, "text": "N - key*{crc}"},
+    {"type": "line", "tick": 120, "text": "N - range*{crc}"},
+    {"type": "line", "tick": 130, "text": "N - busy*{crc}"},
+    {"type": "line", "tick": 140, "text": "A CFG kp 245*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 2200, "to": 3},
+    {"type": "line", "tick": 2210, "text": "N - state*{crc}"},
+    {"type": "line", "tick": 2220, "text": "A CFG kp 245*{crc}"},
+    {"type": "line", "tick": 2300, "text": "N - nocrc*{crc}"},
+    {"type": "no_line", "window": [0, 2400], "kinds": ["F", "W", "P"]}
+  ],
+  "end": {"tick": 2400}
+}

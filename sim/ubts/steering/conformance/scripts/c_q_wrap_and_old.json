@@ -1,0 +1,42 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "c_q_wrap_and_old",
+  "spec": ["4.8"],
+  "description": "q 감김 규칙 d = (q - last_q) mod 65536, 1 <= d <= 32767만 새 명령. 부팅 뒤 last_q 0: q 0과 32768은 old, q 1을 받는다. 65535 다음 0을 받는다(d 1). 같은 q(d 0)와 d >= 32768은 old.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 0 300 0 0 0*{crc}\n"},
+    {"tick": 30, "text": "C 32768 300 0 0 0*{crc}\n"},
+    {"tick": 40, "text": "C 1 300 0 0 0*{crc}\n"},
+    {"tick": 50, "text": "C 1 300 0 0 0*{crc}\n"},
+    {"tick": 60, "text": "C 32768 300 0 0 0*{crc}\n"},
+    {"tick": 70, "text": "C 65535 300 0 0 0*{crc}\n"},
+    {"tick": 80, "text": "C 0 300 0 0 0*{crc}\n"},
+    {"tick": 90, "text": "C 65535 300 0 0 0*{crc}\n"},
+    {"tick": 100, "text": "C 0 300 0 0 0*{crc}\n"},
+    {"tick": 110, "text": "C 32767 300 0 0 0*{crc}\n"},
+    {"tick": 120, "text": "C 0 300 0 0 0*{crc}\n"},
+    {"tick": 130, "text": "C 65535 300 0 0 0*{crc}\n"},
+    {"tick": 140, "text": "C 32766 300 0 0 0*{crc}\n"},
+    {"tick": 150, "text": "C 32768 300 0 0 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 20, "text": "N 0 old*{crc}"},
+    {"type": "line", "tick": 30, "text": "N 32768 old*{crc}"},
+    {"type": "line", "tick": 50, "text": "N 1 old*{crc}"},
+    {"type": "line", "tick": 90, "text": "N 65535 old*{crc}"},
+    {"type": "line", "tick": 100, "text": "N 0 old*{crc}"},
+    {"type": "line", "tick": 120, "text": "N 0 old*{crc}"},
+    {"type": "line", "tick": 130, "text": "N 65535 old*{crc}"},
+    {"type": "line", "tick": 140, "text": "N 32766 old*{crc}"},
+    {"type": "status", "tick": 50, "fields": {"q": 1, "st": 2}},
+    {"type": "status", "tick": 100, "fields": {"q": 0}},
+    {"type": "status", "tick": 150, "fields": {"q": 32768}},
+    {"type": "status", "tick": 200, "fields": {"q": 32768, "fl": "0000"}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

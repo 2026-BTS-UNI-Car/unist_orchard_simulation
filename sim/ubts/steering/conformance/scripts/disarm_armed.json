@@ -1,0 +1,34 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "disarm_armed",
+  "spec": ["4.7", "6.4", "6.5", "8.2"],
+  "description": "ARMED 주행 중 DISARM(틱 615): 구동 release(목표 0, 255/s 감속, 틱 1010에 0), 조향 측정 위치 HOLD(hdis 2000) 뒤 틱 2615에 OFF, DISARMED. 615는 서보 틱이 아니라 조향 핀은 616에 0이 된다. 뒤의 C는 state, DISARMED에서 DISARM은 아무것도 바꾸지 않는다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 120*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 120*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 120*{crc}\n"},
+    {"tick": 320, "text": "C 4 300 100 100 120*{crc}\n"},
+    {"tick": 420, "text": "C 5 300 100 100 120*{crc}\n"},
+    {"tick": 520, "text": "C 6 300 100 100 120*{crc}\n"},
+    {"tick": 615, "text": "DISARM*88\n"},
+    {"tick": 650, "text": "C 7 300 100 100 120*{crc}\n"},
+    {"tick": 700, "text": "DISARM*88\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 614, "drive_l": 100, "steer_pwm": 115, "mcu_state": 2},
+    {"type": "pins", "tick": 615, "drive_l": 100, "mcu_state": 1, "steer_pwm": 115},
+    {"type": "pins", "tick": 620, "drive_l": 98},
+    {"type": "change", "channel": "steer_pwm", "tick": 616, "to": 0},
+    {"type": "change", "channel": "drive_l", "tick": 1010, "to": 0},
+    {"type": "line", "tick": 650, "text": "N 7 state*{crc}"},
+    {"type": "pins_window", "window": [616, 2614], "steer_en": 1, "steer_pwm": 0},
+    {"type": "change", "channel": "steer_en", "tick": 2615, "to": 0},
+    {"type": "status", "tick": 650, "fields": {"st": 1, "tl": 0, "tgt": 0, "cmd": 0}},
+    {"type": "no_line", "window": [0, 2700], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 2700}
+}

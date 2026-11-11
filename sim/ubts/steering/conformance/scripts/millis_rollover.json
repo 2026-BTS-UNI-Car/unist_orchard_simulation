@@ -1,0 +1,35 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "millis_rollover",
+  "spec": ["1", "5.3", "5.4", "6.2", "6.3", "7.1", "7.5", "8.2"],
+  "v2_map": "millis_rollover",
+  "description": "millis_start = 2^32 - 300: millis()가 틱 300에 0으로 감긴다. 램프, 휴지, TTL(틱 320, ms 20), watchdog(틱 521, ms 221), 서보 dt와 속도 제한(cmd), 상태 줄 위상(틱 50k)이 감김이 없을 때와 같다. 상태 줄 ms만 감긴 값이다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}, "millis_start": 4294966996},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 200*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 50, "fields": {"ms": 4294967046, "n": 0, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 15, "sp": 0, "fl": "0000", "wd": 30, "tl": 270}},
+    {"type": "status", "tick": 100, "fields": {"ms": 4294967096, "n": 1, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 39, "sp": 102, "fl": "0000", "wd": 80, "tl": 220}},
+    {"type": "status", "tick": 150, "fields": {"ms": 4294967146, "n": 2, "st": 2, "q": 1, "L": 10, "R": 10, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 78, "sp": 102, "fl": "0000", "wd": 130, "tl": 170}},
+    {"type": "status", "tick": 200, "fields": {"ms": 4294967196, "n": 3, "st": 2, "q": 1, "L": 22, "R": 22, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 126, "sp": 121, "fl": "0000", "wd": 180, "tl": 120}},
+    {"type": "status", "tick": 250, "fields": {"ms": 4294967246, "n": 4, "st": 2, "q": 1, "L": 35, "R": 35, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 174, "sp": 167, "fl": "0000", "wd": 230, "tl": 70}},
+    {"type": "status", "tick": 300, "fields": {"ms": 0, "n": 5, "st": 2, "q": 1, "L": 48, "R": 48, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 200, "sp": 191, "fl": "0000", "wd": 280, "tl": 20}},
+    {"type": "status", "tick": 350, "fields": {"ms": 50, "n": 6, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 200, "sp": 191, "fl": "0800", "wd": 330, "tl": 0}},
+    {"type": "status", "tick": 400, "fields": {"ms": 100, "n": 7, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 200, "sp": 191, "fl": "0800", "wd": 380, "tl": 0}},
+    {"type": "status", "tick": 450, "fields": {"ms": 150, "n": 8, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 200, "sp": 191, "fl": "0800", "wd": 430, "tl": 0}},
+    {"type": "status", "tick": 500, "fields": {"ms": 200, "n": 9, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 200, "cmd": 200, "sp": 191, "fl": "0800", "wd": 480, "tl": 0}},
+    {"type": "pins", "tick": 319, "drive_l": 51, "drive_r": 51},
+    {"type": "pins", "tick": 320, "drive_l": 0, "drive_r": 0, "mcu_state": 2},
+    {"type": "line", "tick": 320, "text": "F TTL 1 20*{crc}"},
+    {"type": "line", "tick": 521, "text": "W 221*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 521, "to": 1},
+    {"type": "change", "channel": "steer_pwm", "tick": 522, "to": 0},
+    {"type": "status", "tick": 550, "fields": {"ms": 250, "n": 10, "st": 1, "tgt": 0, "cmd": 0, "sp": 0, "fl": "1000", "wd": 530, "tl": 0}},
+    {"type": "no_line", "window": [0, 700], "kinds": ["N", "A", "P"]}
+  ],
+  "end": {"tick": 700}
+}

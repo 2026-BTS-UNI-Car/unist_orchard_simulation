@@ -1,0 +1,52 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cal_wear_limit",
+  "spec": ["9.5", "4.9", "4.2"],
+  "description": "한 부팅에 EEPROM commit은 8번까지: SAVE 8번(cal_id 8..15, commit 1..8) 뒤 아홉째 SAVE와 ERASE는 wear. MCU 리셋 뒤 계수가 다시 시작해 SAVE(cal_id 16)를 받는다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 110, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 120, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 130, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 140, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 150, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 160, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 170, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 180, "text": "CAL SAVE*{crc}\n"},
+    {"tick": 190, "text": "CAL ERASE*{crc}\n"},
+    {"tick": 250, "text": "CAL SAVE*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 200, "kind": "mcu_reset", "reason": 4}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "UBTS_STEER_V3 cal id=8 crc=5FAD6B7C left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 110, "text": "UBTS_STEER_V3 cal id=9 crc=80ABE6BE left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 120, "text": "UBTS_STEER_V3 cal id=10 crc=3AD176B9 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 130, "text": "UBTS_STEER_V3 cal id=11 crc=E5D7FB7B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 140, "text": "UBTS_STEER_V3 cal id=12 crc=955550F6 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 150, "text": "UBTS_STEER_V3 cal id=13 crc=4A53DD34 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 160, "text": "UBTS_STEER_V3 cal id=14 crc=F0294D33 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 170, "text": "UBTS_STEER_V3 cal id=15 crc=2F2FC0F1 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "eeprom_commits", "tick": 100, "to": 1},
+    {"type": "change", "channel": "eeprom_commits", "tick": 110, "to": 2},
+    {"type": "change", "channel": "eeprom_commits", "tick": 120, "to": 3},
+    {"type": "change", "channel": "eeprom_commits", "tick": 130, "to": 4},
+    {"type": "change", "channel": "eeprom_commits", "tick": 140, "to": 5},
+    {"type": "change", "channel": "eeprom_commits", "tick": 150, "to": 6},
+    {"type": "change", "channel": "eeprom_commits", "tick": 160, "to": 7},
+    {"type": "change", "channel": "eeprom_commits", "tick": 170, "to": 8},
+    {"type": "line", "tick": 180, "text": "N - wear*{crc}"},
+    {"type": "line", "tick": 190, "text": "N - wear*{crc}"},
+    {"type": "pins_window", "window": [170, 199], "eeprom_commits": 8},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=soft_restart hw=front_steer_v0 out=drive2,steer1 cal=15 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 cal id=15 crc=2F2FC0F1 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 250, "text": "UBTS_STEER_V3 cal id=16 crc=8C2EF883 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "eeprom_commits", "tick": 250, "to": 9},
+    {"type": "no_line", "window": [0, 300], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 300}
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "status_cadence_fields",
+  "spec": ["5.3", "5.4", "7.1", "4.8", "6.2"],
+  "description": "boot_delay 13, millis_start 1000: 상태 줄은 b + 50k(63, 113, ...)에, ms는 리셋 틱 기준 millis()(1063, ...), n은 0부터 1씩. 서보 틱은 b + 2k(홀수)라 틱 100의 ARM은 101에 조향 EN을 켠다. q는 받은 C, tl = ttl - (now - c_ms), wd = now - last_input, en은 D1 + 2·D2. STOP 뒤 tl 0, q 유지.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}, "boot_delay_ticks": 13, "millis_start": 1000},
+  "inputs": [
+    {"tick": 100, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 120, "text": "C 1 300 0 0 0*{crc}\n"},
+    {"tick": 170, "text": "C 2 200 0 0 0*{crc}\n"},
+    {"tick": 230, "text": "STOP\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 13, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 13, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 63, "fields": {"ms": 1063, "n": 0, "st": 1, "q": 0, "L": 0, "R": 0, "en": 1, "raw": 512, "pos": 0, "tgt": 0, "cmd": 0, "sp": 0, "fl": "4000", "wd": 50, "tl": 0}},
+    {"type": "pins", "tick": 100, "steer_en": 0, "mcu_state": 2},
+    {"type": "change", "channel": "steer_en", "tick": 101, "to": 1},
+    {"type": "status", "tick": 113, "fields": {"ms": 1113, "n": 1, "st": 2, "q": 0, "en": 3, "fl": "0000", "wd": 13, "tl": 0}},
+    {"type": "status", "tick": 163, "fields": {"ms": 1163, "n": 2, "st": 2, "q": 1, "tl": 257, "wd": 43}},
+    {"type": "status", "tick": 213, "fields": {"ms": 1213, "n": 3, "q": 2, "tl": 157, "wd": 43}},
+    {"type": "status", "tick": 263, "fields": {"ms": 1263, "n": 4, "st": 1, "q": 2, "tl": 0, "en": 3, "wd": 93}},
+    {"type": "no_line", "window": [0, 300], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 300}
+}

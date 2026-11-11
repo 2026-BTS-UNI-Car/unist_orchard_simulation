@@ -1,0 +1,27 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "hold_ended_by_fault",
+  "spec": ["6.5", "6.7", "6.4"],
+  "description": "STOP(틱 100) 뒤 측정 위치 HOLD(hstop 2000, OFF 예정 2100) 중 POT_JUMP(raw 512 -> 530, 틱 200 -> 판정 202)가 켜지면 조향은 그 틱에 바로 OFF다(HOLD를 일찍 끝내는 것은 ARM과 결함뿐). DISARMED에서도 가변저항 감시는 돈다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"nsd": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 0*{crc}\n"},
+    {"tick": 100, "text": "STOP\n"}
+  ],
+  "events": [
+    {"tick": 200, "kind": "adc_set", "raw": 530}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=C971995A left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 100, "to": 1},
+    {"type": "pins_window", "window": [100, 201], "steer_en": 1, "steer_pwm": 0},
+    {"type": "line", "tick": 202, "text": "F POT_JUMP 18 202*{crc}"},
+    {"type": "change", "channel": "steer_en", "tick": 202, "to": 0},
+    {"type": "change", "channel": "fault_bits", "tick": 202, "to": "0008"},
+    {"type": "pins_window", "window": [202, 2200], "steer_en": 0},
+    {"type": "no_line", "window": [0, 2200], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 2200}
+}

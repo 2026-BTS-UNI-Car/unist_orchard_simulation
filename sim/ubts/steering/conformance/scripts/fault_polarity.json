@@ -1,0 +1,25 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_polarity",
+  "spec": ["6.7", "6.4", "7.6"],
+  "description": "S 500으로 서보가 + 쪽(u >= minp 102)으로 미는 달리기가 틱 62부터 시작한다. raw 512 -> 492(틱 100)로 위치가 반대 쪽 -60 으로 간다(틱 102). runPol >= polt(100)가 되는 틱 162에 (P[162] - P[62]) x (+1) = -60 < -40 -> POLARITY (F POLARITY -60 162): brake, 조향 OFF, DISARMED.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"jmp": 100, "nsd": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 500*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 100, "kind": "adc_set", "raw": 492}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=2EECB96B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 161, "steer_en": 1, "steer_pwm": 123, "mcu_state": 2},
+    {"type": "line", "tick": 162, "text": "F POLARITY -60 162*{crc}"},
+    {"type": "pins", "tick": 162, "steer_en": 0, "steer_pwm": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 162, "to": "0020"},
+    {"type": "status", "tick": 200, "fields": {"st": 1, "fl": "0020", "pos": -60, "tgt": -60, "cmd": -60}},
+    {"type": "no_line", "window": [0, 300], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 300}
+}

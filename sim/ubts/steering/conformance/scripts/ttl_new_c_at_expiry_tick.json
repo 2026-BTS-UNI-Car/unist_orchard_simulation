@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "ttl_new_c_at_expiry_tick",
+  "spec": ["6.3", "7.1", "5.6"],
+  "description": "TTL 판정은 수신 뒤(5단계)다. 만료될 틱 320에 도착한 새 C(q 2)가 이어 받아 만료가 없다. 그 C의 만료(틱 620)가 첫 만료라 F TTL 1 620. 다음 C(틱 700)가 TTL 비트를 지우고 다시 움직인다(brake 뒤 120 ms 휴지: 틱 740 출발). 두 번째 만료 F TTL 2 1000.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 320, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 700, "text": "C 3 300 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 320, "drive_l": 53, "mcu_state": 2},
+    {"type": "pins_window", "window": [0, 619], "fault_bits": {"mask": "0800", "value": "0000"}},
+    {"type": "line", "tick": 620, "text": "F TTL 1 620*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 620, "to": 0},
+    {"type": "status", "tick": 650, "fields": {"st": 2, "fl": "0800", "tl": 0}},
+    {"type": "change", "channel": "fault_bits", "tick": 700, "to": "0000"},
+    {"type": "first_change", "channel": "drive_l", "after": 701, "tick": 740, "to": 2},
+    {"type": "status", "tick": 750, "fields": {"st": 2, "q": 3, "fl": "0000", "tl": 250}},
+    {"type": "line", "tick": 1000, "text": "F TTL 2 1000*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 1000, "to": 0},
+    {"type": "no_line", "window": [0, 1100], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 1100}
+}

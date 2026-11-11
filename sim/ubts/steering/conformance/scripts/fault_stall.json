@@ -1,0 +1,27 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_stall",
+  "spec": ["6.7", "6.4", "7.5", "7.6"],
+  "description": "S 1000(목표 935), 위치 고정(ADC 512). 정지 중 속도 제한 480/s로 cmd가 커지며 |u| >= stp 153이 틱 352부터. runStall >= stt(500)인 틱 852에 |P[852] - P[352]| = 0 < stm 20 -> STALL(F STALL 0 852): 조향 OFF, brake, DISARMED. TTL은 틱 320에 만료(조향 목표 유지). PING이 링크를 유지한다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 1000*{crc}\n"},
+    {"tick": 100, "text": "PING\n"},
+    {"tick": 300, "text": "PING\n"},
+    {"tick": 500, "text": "PING\n"},
+    {"tick": 700, "text": "PING\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "pins", "tick": 851, "steer_en": 1, "mcu_state": 2},
+    {"type": "line", "tick": 852, "text": "F STALL 0 852*{crc}"},
+    {"type": "pins", "tick": 852, "steer_en": 0, "steer_pwm": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 852, "to": "0100"},
+    {"type": "status", "tick": 900, "fields": {"st": 1, "fl": "0100"}},
+    {"type": "no_line", "window": [0, 950], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 950}
+}

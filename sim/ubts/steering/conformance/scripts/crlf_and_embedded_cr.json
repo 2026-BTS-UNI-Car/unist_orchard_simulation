@@ -1,0 +1,42 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "crlf_and_embedded_cr",
+  "spec": ["2.1", "2.2", "6.4", "8.2"],
+  "v2_map": "crlf_and_embedded_cr",
+  "description": "BENCH: D8 128\\r\\n은 받는다. D8 2\\r55는 CR 규칙 위반 N - ctrl이고 BENCH라 구동 즉시 정지(틱 710, 목표 0). 이어서 D8 64\\r\\n로 회복: brake 뒤 120 ms 휴지가 끝나는 틱 830에 출발, 틱 1080에 64.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 200, "text": "D8 128\r\n"},
+    {"tick": 300, "text": "PING\n"},
+    {"tick": 400, "text": "PING\n"},
+    {"tick": 500, "text": "PING\n"},
+    {"tick": 600, "text": "PING\n"},
+    {"tick": 700, "text": "PING\n"},
+    {"tick": 710, "text": "D8 2\r55\n"},
+    {"tick": 720, "text": "D8 64\r\n"},
+    {"tick": 800, "text": "PING\n"},
+    {"tick": 900, "text": "PING\n"},
+    {"tick": 1000, "text": "PING\n"},
+    {"tick": 1100, "text": "PING\n"},
+    {"tick": 1150, "text": "STOP\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "P D8 0 128*{crc}"},
+    {"type": "pins", "tick": 700, "drive_l": 128},
+    {"type": "pins", "tick": 709, "drive_l": 128},
+    {"type": "line", "tick": 710, "text": "N - ctrl*{crc}"},
+    {"type": "pins", "tick": 710, "drive_l": 0, "mcu_state": 3},
+    {"type": "line", "tick": 720, "text": "P D8 0 64*{crc}"},
+    {"type": "first_change", "channel": "drive_l", "after": 711, "tick": 830, "to": 2},
+    {"type": "pins", "tick": 1070, "drive_l": 63},
+    {"type": "pins", "tick": 1080, "drive_l": 64},
+    {"type": "status", "tick": 750, "fields": {"st": 3, "L": 0, "en": 1, "fl": "4000"}},
+    {"type": "change", "channel": "drive_l", "tick": 1150, "to": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 1150, "to": 1},
+    {"type": "no_line", "window": [0, 1200], "kinds": ["F", "W", "A"]}
+  ],
+  "end": {"tick": 1200}
+}

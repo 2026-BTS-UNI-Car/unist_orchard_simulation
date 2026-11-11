@@ -1,0 +1,25 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "servo_reversal_pause",
+  "spec": ["7.6", "7.7"],
+  "description": "서보 출력 +102(e 100)인 동안 위치가 300으로 뛴다(raw 611, 틱 300 -> f 302). e = -200이라 출력은 -191이어야 하지만 부호가 바뀌므로 마지막 0 아닌 출력(틱 300) 뒤 rev 20 ms가 지날 때까지 BRAKE(0), 틱 320부터 -191. kp 245: (245 x 200 + 128) >> 8 = 191.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"jmp": 1023, "nsd": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 100*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "adc_set", "raw": 611}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=96760738 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 301, "steer_pwm": 102, "steer_en": 1},
+    {"type": "pins_window", "window": [302, 319], "steer_pwm": 0, "steer_en": 1},
+    {"type": "change", "channel": "steer_pwm", "tick": 320, "to": -191},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "status", "tick": 350, "fields": {"st": 2, "pos": 300, "tgt": 100, "cmd": 100, "sp": -191}},
+    {"type": "no_line", "window": [0, 450], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 450}
+}

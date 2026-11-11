@@ -1,0 +1,25 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "boot_order",
+  "spec": ["8.3", "8.4", "5.4", "6.1", "10"],
+  "v2_map": "boot_order",
+  "description": "boot_delay 20틱: 리셋부터 setup()까지 핀이 뜬다(EN 0, mcu_state 255). setup() 뒤 구동 EN만 HIGH, 조향 EN은 DISARMED 동안 0. 핀 쓰기 14번(8.3 순서: 방향 4핀 x2, D6/D7 x2, D2, D1). 쓰기 순서는 lockstep v2 채널로 볼 수 없다. 상태 줄 위상은 부팅 틱 b=20에 묶인다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}, "boot_delay_ticks": 20},
+  "inputs": [],
+  "expect": [
+    {"type": "line", "tick": 20, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 20, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [0, 19], "mcu_state": 255, "drive_en": 0, "steer_en": 0, "drive_l": 0, "drive_r": 0, "steer_pwm": 0, "gpio_writes": 0, "fault_bits": "0000", "eeprom_commits": 0},
+    {"type": "pins", "tick": 20, "mcu_state": 1, "drive_en": 1, "steer_en": 0, "drive_l": 0, "drive_r": 0, "steer_pwm": 0, "gpio_writes": 14, "fault_bits": "4000", "eeprom_commits": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 20, "to": 1},
+    {"type": "change", "channel": "drive_en", "tick": 20, "to": 1},
+    {"type": "change", "channel": "gpio_writes", "tick": 20, "to": 14},
+    {"type": "change", "channel": "fault_bits", "tick": 20, "to": "4000"},
+    {"type": "pins_window", "window": [20, 400], "drive_en": 1, "steer_en": 0, "drive_l": 0, "drive_r": 0, "steer_pwm": 0, "gpio_writes": 14, "mcu_state": 1},
+    {"type": "status", "tick": 70, "fields": {"ms": 70, "n": 0, "st": 1, "q": 0, "L": 0, "R": 0, "en": 1, "raw": 512, "pos": 0, "tgt": 0, "cmd": 0, "sp": 0, "fl": "4000", "wd": 50, "tl": 0}},
+    {"type": "status", "tick": 120, "fields": {"ms": 120, "n": 1, "wd": 100}},
+    {"type": "status", "tick": 370, "fields": {"ms": 370, "n": 6, "wd": 350}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

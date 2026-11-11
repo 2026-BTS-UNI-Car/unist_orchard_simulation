@@ -1,0 +1,2 @@
+# Default build directory of build.py (binaries are never committed)
+_build/

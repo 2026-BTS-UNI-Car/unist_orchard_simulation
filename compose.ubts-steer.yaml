@@ -1,0 +1,209 @@
+# Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
+# GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0).
+# Never start together with the ubts-sim stack or the fullsensor stack. Reserve 6 GiB with docker_budget.py first:
+#   python -I <tools>/docker_budget.py acquire --label p6a-stack --gib 6
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml up -d        (UBTS_STEER_SCENE=w0_force|w1_force|field1010;
+#     field1010 needs UBTS_STEER_FIELD_SPEC = a field world spec as JSON text, and for a catalogue corridor the maps and
+#     the catalogue of UBTS_STEER_PATHS mounted read-only into the sim service by an override file)
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml run --rm --no-deps check python3 -B -m steering.verify_steer ...
+#     (--no-deps and the same UBTS_STEER_* values as at "up": otherwise compose may recreate the sim service, and the
+#     steer / recorder / check containers that share its network lose the ROS graph)
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml down -t 20   (no -v: the ubts-steer_* volumes stay; the
+#     sim supervisor needs about 6.5 s to stop its children, so every service has stop_grace_period 20 s and the
+#     stop / down commands get -t 20)
+#   python -I <tools>/docker_budget.py release --label p6a-stack
+# Memory (6 GiB budget): sim 3.5 + dashboard 1 + steer (emulator, bridge) 0.5 + recorder 0.5; 0.5 is kept for the
+# executor container of the next phase (the check service uses that slot in P6a and is not started by "up").
+# Camera: D3D12 / Ogre 1 on the WSLg GPU (as compose.ubts.gpu.yaml); LiDAR: the Embree CPU process. For software
+# rendering set UBTS_RENDER_ENGINE=ogre2 UBTS_HEADLESS_RENDERING=1 UBTS_LIBGL_SOFTWARE=1 UBTS_EGL_PLATFORM=surfaceless
+# UBTS_GALLIUM_DRIVER=llvmpipe. Placeholder-based SIM results only (자리값 기반 SIM 결과), never field validation.
+name: ubts-steer
+x-environment: &environment
+  ROS_DOMAIN_ID: "43"
+  ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+  ROS_STATIC_PEERS: 127.0.0.1
+  FASTRTPS_DEFAULT_PROFILES_FILE: /opt/ubts/sim/ubts/fastdds.xml
+  GZ_PARTITION: ubts-steer
+  DASHBOARD_MODE: simulation
+  ROVER_CONTROL_SOCKET: /run/ubts-steer/control.sock
+  UBTS_STEER_HOOK_SOCKET: /run/ubts-steer-emu/hooks.sock
+  TELEMETRY_FILE: /runtime/telemetry_snapshot.json
+  CAMERA_SETTINGS_FILE: /runtime/camera_settings.json
+  LIDAR_BRIDGE_STATUS_FILE: /runtime/lidar_bridge_status.json
+  CAMERA_BRIDGE_STATUS_FILE: /runtime/camera_bridge_status.json
+  CAMERA_DRIVER_STATUS_FILE: /runtime/camera_driver_status.json
+  IMU_BRIDGE_STATUS_FILE: /runtime/imu_bridge_status.json
+  IMU_DRIVER_STATUS_FILE: /runtime/imu_driver_status.json
+  GPS_BRIDGE_STATUS_FILE: /runtime/gps_bridge_status.json
+  ROVER_BRIDGE_STATUS_FILE: /runtime/rover_bridge_status.json
+  FAN_HOLD_INTERVAL_S: "0"
+  NETWORK_CONTROL_ENABLED: "0"
+  RECORDING_ARCHIVE_DIR: /runtime/recordings
+  DATA_RECORDER_STATUS_FILE: /runtime/data_recorder_status.json
+  RECORDER_API_URL: http://sim:8790
+  CAMERA_PREVIEW_LOCAL_FPS: "30"
+  SIM_MAPPING_STATE_DIR: /runtime/steer/dashboard/mapping
+  SIM_MAP_HISTORY_DIR: /runtime/steer/dashboard/map-history
+  PYTHONDONTWRITEBYTECODE: "1"
+  UBTS_STEER_SCENE: ${UBTS_STEER_SCENE:-w0_force}
+  UBTS_STEER_CLOCK: ${UBTS_STEER_CLOCK:-wall}
+  UBTS_STEER_SEED: ${UBTS_STEER_SEED:-0}
+  UBTS_STEER_NO_CAMERA: ${UBTS_STEER_NO_CAMERA:-0}
+  UBTS_STEER_REPORT_ADC: ${UBTS_STEER_REPORT_ADC:-0}
+  UBTS_STEER_LEAD_STEPS: ${UBTS_STEER_LEAD_STEPS:-1}
+  UBTS_STEER_PORT_OPEN_RESET: ${UBTS_STEER_PORT_OPEN_RESET:-1}
+  UBTS_STEER_S2_NODE: ${UBTS_STEER_S2_NODE:-}
+  UBTS_STEER_CLIP_NODE: ${UBTS_STEER_CLIP_NODE:-}
+  UBTS_STEER_FIELD_SPEC: ${UBTS_STEER_FIELD_SPEC:-}
+  UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
+  UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
+services:
+  sim:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    init: true
+    ipc: shareable
+    shm_size: 512mb
+    working_dir: /opt/ubts/sim/ubts
+    command: ["python3", "-B", "-m", "steering.supervisor_steer", "--role", "sim"]
+    environment:
+      <<: *environment
+      UBTS_RENDER_ENGINE: ${UBTS_RENDER_ENGINE:-ogre}
+      UBTS_HEADLESS_RENDERING: ${UBTS_HEADLESS_RENDERING:-0}
+      UBTS_LIDAR_BACKEND: embree
+      LIBGL_ALWAYS_SOFTWARE: ${UBTS_LIBGL_SOFTWARE:-0}
+      GALLIUM_DRIVER: ${UBTS_GALLIUM_DRIVER:-d3d12}
+      MESA_D3D12_DEFAULT_ADAPTER_NAME: ${UBTS_GPU_ADAPTER:-Intel}
+      DISPLAY: ":0"
+      EGL_PLATFORM: ${UBTS_EGL_PLATFORM:-x11}
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+    devices:
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - runtime:/runtime
+      - cache:/root/.gz
+      - type: bind
+        source: ${UBTS_WSL_LIB:-/usr/lib/wsl/lib}
+        target: /usr/lib/wsl/lib
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${UBTS_WSL_DRIVERS:-/usr/lib/wsl/drivers}
+        target: /usr/lib/wsl/drivers
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${UBTS_WSLG_SOCKET:-/mnt/host/wslg/.X11-unix}
+        target: /tmp/.X11-unix
+        read_only: true
+        bind:
+          create_host_path: false
+    mem_limit: 3584m
+    cpus: 4
+    stop_grace_period: 20s
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "python3", "/opt/ubts/sim/ubts/health.py"]
+      interval: 10s
+      timeout: 5s
+      start_period: 240s
+      retries: 6
+  steer:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    init: true
+    network_mode: "service:sim"
+    ipc: "service:sim"
+    depends_on:
+      sim:
+        condition: service_started
+    working_dir: /opt/ubts/sim/ubts
+    command: ["python3", "-B", "-m", "steering.supervisor_steer", "--role", "steer"]
+    environment:
+      <<: *environment
+    volumes:
+      - runtime:/runtime
+      - control:/run/ubts-steer
+      - hooks:/run/ubts-steer-emu
+    mem_limit: 512m
+    cpus: 1.5
+    stop_grace_period: 20s
+    restart: "no"
+  recorder:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    init: true
+    network_mode: "service:sim"
+    ipc: "service:sim"
+    depends_on:
+      sim:
+        condition: service_started
+    working_dir: /opt/ubts/dashboard
+    command: ["python3", "-B", "-m", "steering.supervisor_steer", "--role", "recorder"]
+    environment:
+      <<: *environment
+    volumes:
+      - runtime:/runtime
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 20s
+    restart: "no"
+  dashboard:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    init: true
+    working_dir: /opt/ubts/dashboard
+    command: ["python3", "-B", "-m", "dashboard_server"]
+    depends_on:
+      sim:
+        condition: service_started
+    environment:
+      <<: *environment
+      DASHBOARD_HOST: 0.0.0.0
+      DASHBOARD_PORT: "8080"
+      LIDAR_WS_UPSTREAM: ws://sim:8765/ws/lidar
+      CAMERA_WS_UPSTREAM: ws://sim:8770/ws/camera
+      IMU_WS_UPSTREAM: ws://sim:8775/ws/imu
+      GPS_WS_UPSTREAM: ws://sim:8778/ws/gps
+    ports:
+      - "127.0.0.1:18090:8080"
+    volumes:
+      - runtime:/runtime
+      - control:/run/ubts-steer
+    mem_limit: 1g
+    cpus: 1
+    stop_grace_period: 20s
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
+  # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
+  check:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    profiles: ["check"]
+    init: true
+    network_mode: "service:sim"
+    ipc: "service:sim"
+    working_dir: /opt/ubts/sim/ubts
+    command: ["python3", "-B", "-m", "steering.verify_steer", "--out", "/runs/verify"]
+    environment:
+      <<: *environment
+    volumes:
+      - runtime:/runtime
+      - control:/run/ubts-steer
+      - hooks:/run/ubts-steer-emu
+      - type: bind
+        source: ${UBTS_STEER_RUNS_DIR:-/nonexistent-ubts-steer-runs}
+        target: /runs
+        bind:
+          create_host_path: false
+    mem_limit: 512m
+    cpus: 1
+    stop_grace_period: 20s
+    restart: "no"
+volumes:
+  runtime:
+  control:
+  cache:
+  hooks:

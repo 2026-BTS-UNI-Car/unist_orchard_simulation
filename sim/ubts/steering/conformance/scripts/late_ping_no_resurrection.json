@@ -1,0 +1,28 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "late_ping_no_resurrection",
+  "spec": ["6.2", "4.4", "4.8"],
+  "v2_map": "late_ping_no_resurrection",
+  "description": "watchdog 판정은 수신 전(3단계)이다. 마지막 C 틱 20 -> 틱 521에 W. 같은 틱에 온 PING은 정지를 막지 못하지만 last_input은 바꾼다(틱 550 wd 29). 그 뒤 PING이 와도 DISARMED와 WATCHDOG 래치가 남고, C는 state로 거절된다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 521, "text": "PING\n"},
+    {"tick": 600, "text": "PING\n"},
+    {"tick": 650, "text": "C 2 300 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "line", "tick": 521, "text": "W 521*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 521, "to": 1},
+    {"type": "status", "tick": 550, "fields": {"st": 1, "fl": "1000", "wd": 29}},
+    {"type": "line", "tick": 650, "text": "N 2 state*{crc}"},
+    {"type": "status", "tick": 700, "fields": {"st": 1, "fl": "1000", "wd": 100, "L": 0, "R": 0}},
+    {"type": "pins_window", "window": [521, 800], "mcu_state": 1, "drive_l": 0},
+    {"type": "no_line", "window": [0, 800], "kinds": ["A", "P"]}
+  ],
+  "end": {"tick": 800}
+}

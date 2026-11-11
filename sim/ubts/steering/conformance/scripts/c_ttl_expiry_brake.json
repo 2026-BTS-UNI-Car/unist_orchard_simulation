@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "c_ttl_expiry_brake",
+  "spec": ["4.8", "6.3", "8.2", "5.3"],
+  "v2_map": "watchdog_active",
+  "description": "규격 13.11 예 그대로. C 하나(ttl 300)의 TTL 만료: 구동 brake, ARMED 유지, F TTL, TTL 비트.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "steer_en", "tick": 10, "to": 1},
+    {"type": "change", "channel": "mcu_state", "tick": 10, "to": 2},
+    {"type": "status", "tick": 50, "fields": {"ms": 50, "n": 0, "st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "raw": 512, "pos": 0, "tgt": 0, "cmd": 0, "sp": 0, "fl": "0000", "wd": 30, "tl": 270}},
+    {"type": "first_change", "channel": "drive_l", "after": 20, "tick": 120, "to": 2},
+    {"type": "status", "tick": 150, "fields": {"L": 10, "R": 10, "wd": 130, "tl": 170}},
+    {"type": "status", "tick": 300, "fields": {"ms": 300, "n": 5, "st": 2, "q": 1, "L": 48, "R": 48, "en": 3, "raw": 512, "pos": 0, "tgt": 0, "cmd": 0, "sp": 0, "fl": "0000", "wd": 280, "tl": 20}},
+    {"type": "pins", "tick": 319, "drive_l": 51, "drive_r": 51, "drive_en": 1, "steer_en": 1, "steer_pwm": "zero"},
+    {"type": "pins", "tick": 320, "drive_l": 0, "drive_r": 0, "drive_en": 1, "mcu_state": 2},
+    {"type": "line", "tick": 320, "text": "F TTL 1 320*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 320, "to": {"mask": "0800", "value": "0800"}},
+    {"type": "status", "tick": 350, "fields": {"st": 2, "L": 0, "R": 0, "fl": "0800", "wd": 330, "tl": 0}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_pot_open",
+  "spec": ["6.7", "6.4", "6.8", "4.6", "7.2", "5.6"],
+  "description": "표시 210/110/60인 기록(nsd 1000, jmp 1023: 잡음·튐 판정이 끼지 않게)으로 ADC 110(pos 0). 틱 250에 raw 0 -> 중앙값(5)이 틱 252에 0 < pvmin -> POT_OPEN(F POT_OPEN 0 252): 구동 brake, 조향 즉시 OFF, DISARMED. pos -2200이라 SOFTLIMIT 조건도 켜진다(0x0082). 조건이 남은 동안 ARM은 fault. raw를 되돌린 뒤 ARM이 래치를 푼다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 210, "raw_c": 110, "raw_r": 60, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"nsd": 1000, "jmp": 1023}}}, "adc": {"mode": "script", "raw": 110}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 0*{crc}\n"},
+    {"tick": 300, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 400, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 250, "kind": "adc_set", "raw": 0},
+    {"tick": 350, "kind": "adc_set", "raw": 110}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=6F8AFBB1 left=210 center=110 right=60 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 251, "drive_l": 35, "steer_en": 1, "mcu_state": 2},
+    {"type": "line", "tick": 252, "text": "F POT_OPEN 0 252*{crc}"},
+    {"type": "pins", "tick": 252, "drive_l": 0, "drive_r": 0, "steer_en": 0, "steer_pwm": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 252, "to": {"mask": "0002", "value": "0002"}},
+    {"type": "change", "channel": "steer_en", "tick": 252, "to": 0},
+    {"type": "line", "tick": 300, "text": "N - fault*{crc}"},
+    {"type": "status", "tick": 350, "fields": {"st": 1, "raw": 0, "pos": -2200, "fl": "0082"}},
+    {"type": "change", "channel": "fault_bits", "tick": 352, "to": "0002"},
+    {"type": "change", "channel": "mcu_state", "tick": 400, "to": 2},
+    {"type": "change", "channel": "fault_bits", "tick": 400, "to": "0000"},
+    {"type": "status", "tick": 450, "fields": {"st": 2, "fl": "0000", "raw": 110, "pos": 0}},
+    {"type": "no_line", "window": [0, 450], "kinds": ["W", "A", "P"]}
+  ],
+  "end": {"tick": 450}
+}

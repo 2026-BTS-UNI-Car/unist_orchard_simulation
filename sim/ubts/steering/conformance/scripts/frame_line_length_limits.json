@@ -1,0 +1,28 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "frame_line_length_limits",
+  "spec": ["2.2", "4.2", "6.6"],
+  "description": "내용 63 B는 줄로 읽는다(N - cmd), 64 B부터는 과길이(N - long). CR LF의 CR은 63 B에 세지 않는다. 한 틱에 64 B까지만 읽으므로 65 B 이상 줄의 N은 다음 틱(LF를 읽은 틱)에 나온다. 과길이 줄은 나쁜 줄이지만 사이의 좋은 줄이 계수를 0으로 돌려 CRC 결함은 없다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"},
+    {"tick": 200, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"},
+    {"tick": 300, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n"},
+    {"tick": 400, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n"},
+    {"tick": 500, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"},
+    {"tick": 700, "text": "PING\n"},
+    {"tick": 710, "text": "CFG kp*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "N - cmd*{crc}"},
+    {"type": "line", "tick": 201, "text": "N - long*{crc}"},
+    {"type": "line", "tick": 301, "text": "N - cmd*{crc}"},
+    {"type": "line", "tick": 401, "text": "N - long*{crc}"},
+    {"type": "line", "tick": 501, "text": "N - long*{crc}"},
+    {"type": "line", "tick": 710, "text": "A CFG kp 245*{crc}"},
+    {"type": "pins_window", "window": [0, 800], "fault_bits": "4000", "mcu_state": 1}
+  ],
+  "end": {"tick": 800}
+}

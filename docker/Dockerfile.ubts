@@ -1,0 +1,24 @@
+ARG UBTS_ROS_BASE=ros:jazzy-ros-base
+FROM ${UBTS_ROS_BASE}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-jazzy-ros-gz ros-jazzy-tf2-ros ros-jazzy-rviz2 ros-jazzy-rosbag2-storage-mcap \
+    python3-opencv python3-websockets python3-yaml python3-pytest python3-scipy \
+    libgl1-mesa-dri libegl1 mesa-utils ffmpeg g++ \
+    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip python3-av \
+    && python3 -m pip install --no-deps --target=/opt/ubts/raydeps trimesh==5.1.0 embreex==4.4.0 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/ubts
+COPY dashboard /opt/ubts/dashboard
+COPY sim/ubts /opt/ubts/sim/ubts
+COPY ros2_ws/src/orchard_gazebo /opt/ubts/ros2_ws/src/orchard_gazebo
+COPY ros2_ws/src/orchard_navigation /opt/ubts/ros2_ws/src/orchard_navigation
+COPY compose.ubts.yaml compose.ubts.gpu.yaml compose.ubts.gui.yaml compose.ubts.release-20261004.yaml compose.ubts.native-map.yaml compose.ubts.native-navigation.yaml compose.ubts.clean-build.yaml compose.ubts.camera-native1080.candidate.yaml compose.ubts.stage-timing.candidate.yaml /opt/ubts/
+ENV PYTHONPATH=/opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts
+RUN g++ -O3 -std=c++17 -shared -fPIC /opt/ubts/dashboard/dashboard_server/sensor_mapping/native_raster.cc \
+    -o /opt/ubts/dashboard/dashboard_server/sensor_mapping/_native_raster.so \
+    && python3 -c "import numpy,scipy,cv2; from dashboard_server.sensor_mapping.native_raster import KERNEL; assert KERNEL is not None"
+RUN mkdir -p /runtime /run/ubts-sim
+CMD ["python3", "/opt/ubts/sim/ubts/supervisor.py"]

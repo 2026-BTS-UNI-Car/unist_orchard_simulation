@@ -1,0 +1,30 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "reset_reasons",
+  "spec": ["10.1", "10.2", "10.3", "5.2"],
+  "description": "boot_seed 42, chip_id 00ABCD: 배너 dev는 앞 0을 둔 6자리, boot는 splitmix64 흐름의 0 아닌 값 차례(2FEB6E95, B266F103, 130F9F52, 0E4AE394). mcu_reset 원인 2, 5, 6은 rst=exception, deep_sleep, ext_sys.",
+  "setup": {"boot_seed": 42, "chip_id": "00ABCD", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 150, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 250, "text": "ARM B266F103*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 100, "kind": "mcu_reset", "reason": 2},
+    {"tick": 200, "kind": "mcu_reset", "reason": 5},
+    {"tick": 300, "kind": "mcu_reset", "reason": 6}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=00ABCD boot=2FEB6E95 rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=00ABCD boot={boot} rst=exception hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=00ABCD boot={boot} rst=deep_sleep hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 200, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=00ABCD boot={boot} rst=ext_sys hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 150, "to": 2},
+    {"type": "line", "tick": 250, "text": "N - boot*{crc}"},
+    {"type": "no_line", "window": [0, 400], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

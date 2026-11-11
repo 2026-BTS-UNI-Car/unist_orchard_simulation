@@ -1,0 +1,33 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "stall_catchup_capped",
+  "spec": ["8.2", "7.1", "5.4", "7.5"],
+  "v2_map": "stall_catchup_capped",
+  "description": "mcu_stall 200틱(틱 131..330, loop() 없음). 돌아온 첫 틱 331의 램프 갱신은 50 ms분만(5 -> 17, +12), 다음 갱신(341)도 보통(+3). 서보 dt는 50으로 잘려 cmd가 59 -> 107(+48)이다(잘리지 않으면 +193). 서보 틱은 333, 335, ...로 다시 맞춘다. 밀린 상태 줄을 몰아서 내지 않는다: 틱 331에 n 2 한 줄, 다음은 381.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 255 255 120*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 255 255 120*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 131, "kind": "mcu_stall", "ticks": 200}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 130, "drive_l": 5, "drive_r": 5, "steer_pwm": 102},
+    {"type": "pins_window", "window": [131, 330], "drive_l": 5, "drive_r": 5, "mcu_state": 2},
+    {"type": "pins", "tick": 331, "drive_l": 17, "drive_r": 17, "steer_pwm": 102},
+    {"type": "pins", "tick": 341, "drive_l": 20},
+    {"type": "status", "tick": 331, "fields": {"ms": 331, "n": 2, "st": 2, "q": 2, "L": 17, "R": 17, "en": 3, "raw": 512, "pos": 0, "tgt": 120, "cmd": 107, "sp": 102, "fl": "0000", "wd": 211, "tl": 89}},
+    {"type": "status", "tick": 381, "fields": {"ms": 381, "n": 3, "L": 30, "cmd": 120, "sp": 115, "wd": 261, "tl": 39}},
+    {"type": "count", "window": [132, 380], "min": 1, "max": 1, "kinds": ["S"]},
+    {"type": "line", "tick": 420, "text": "F TTL 1 420*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 420, "to": 0},
+    {"type": "line", "tick": 621, "text": "W 621*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 621, "to": 1},
+    {"type": "no_line", "window": [0, 650], "kinds": ["N", "A", "P"]}
+  ],
+  "end": {"tick": 650}
+}

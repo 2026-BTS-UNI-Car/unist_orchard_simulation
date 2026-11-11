@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "nul_rejected",
+  "spec": ["2.2", "6.2", "6.4"],
+  "v2_map": "nul_rejected",
+  "description": "ARMED에서 PING\\0junk는 N - ctrl. 출력은 그대로(틱 250, 251 drive 35), watchdog을 갱신하지 않는다: 마지막 C(틱 220) 기준 TTL 520, watchdog 721. 갱신했다면 751이었다. BENCH에서의 brake는 crlf_and_embedded_cr 대본이다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 0*{crc}\n"},
+    {"tick": 250, "hex": "50494E47006A756E6B0A"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 250, "text": "N - ctrl*{crc}"},
+    {"type": "pins", "tick": 250, "drive_l": 35, "mcu_state": 2},
+    {"type": "pins", "tick": 251, "drive_l": 35},
+    {"type": "line", "tick": 520, "text": "F TTL 1 520*{crc}"},
+    {"type": "change", "channel": "drive_l", "tick": 520, "to": 0},
+    {"type": "line", "tick": 721, "text": "W 721*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 721, "to": 1},
+    {"type": "status", "tick": 750, "fields": {"st": 1, "fl": "1000", "wd": 530, "L": 0, "en": 3}},
+    {"type": "no_line", "window": [0, 800], "kinds": ["A", "P"]}
+  ],
+  "end": {"tick": 800}
+}

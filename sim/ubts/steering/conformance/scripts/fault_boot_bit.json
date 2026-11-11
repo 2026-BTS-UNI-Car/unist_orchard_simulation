@@ -1,0 +1,35 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_boot_bit",
+  "spec": ["5.3", "6.8", "4.11", "6.4", "10.3", "8.4"],
+  "description": "BOOT 비트(0x4000)는 부팅에 켜지고 받은 ARM만 지운다(BENCH, STOP은 지우지 않는다). ARM의 첫 서보 틱에 조향 EN 쓰기 1번 (GPIO 14 -> 15). MCU 리셋(틱 300, soft_wdt)은 새 boot_id, BOOT 비트, millis와 상태 줄 번호를 0부터 다시, DISARMED. setup()의 쓰기 14번이 더해진다(29).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 50, "text": "BENCH {boot}*{crc}\n"},
+    {"tick": 120, "text": "STOP\n"},
+    {"tick": 150, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 360, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 300, "kind": "mcu_reset", "reason": 3}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "status", "tick": 100, "fields": {"st": 3, "fl": "4000"}},
+    {"type": "change", "channel": "mcu_state", "tick": 120, "to": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 150, "to": "0000"},
+    {"type": "pins", "tick": 150, "gpio_writes": 15, "steer_en": 1, "mcu_state": 2},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=soft_wdt hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 300, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 300, "to": "4000"},
+    {"type": "change", "channel": "mcu_state", "tick": 300, "to": 1},
+    {"type": "change", "channel": "steer_en", "tick": 300, "to": 0},
+    {"type": "pins", "tick": 300, "gpio_writes": 29, "drive_en": 1},
+    {"type": "status", "tick": 350, "fields": {"ms": 50, "n": 0, "st": 1, "fl": "4000", "wd": 50, "q": 0}},
+    {"type": "change", "channel": "fault_bits", "tick": 360, "to": "0000"},
+    {"type": "status", "tick": 400, "fields": {"ms": 100, "n": 1, "st": 2, "fl": "0000", "wd": 40}},
+    {"type": "no_line", "window": [0, 450], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 450}
+}

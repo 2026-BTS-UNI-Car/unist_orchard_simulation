@@ -1,0 +1,24 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_drv_stuck",
+  "spec": ["6.7", "6.4", "7.6"],
+  "description": "db 200이라 서보가 데드밴드 안 BRAKE(EN 1, PWM 0)를 유지한다(ARM 틱 10부터 runStuck). raw 512 -> 545(틱 100)로 위치가 100 ‰ 움직인다. runStuck >= dst(300)인 틱 310에 |P[310] - P[10]| = 100 > dsm 80 -> DRV_STUCK(F DRV_STUCK 100 310): 조향 OFF, brake, DISARMED.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"db": 200, "jmp": 100, "nsd": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 100, "kind": "adc_set", "raw": 545}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=0A20BA4A left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins_window", "window": [10, 309], "steer_en": 1, "steer_pwm": 0, "mcu_state": 2},
+    {"type": "line", "tick": 310, "text": "F DRV_STUCK 100 310*{crc}"},
+    {"type": "pins", "tick": 310, "steer_en": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 310, "to": "0040"},
+    {"type": "status", "tick": 350, "fields": {"st": 1, "fl": "0040", "pos": 100}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

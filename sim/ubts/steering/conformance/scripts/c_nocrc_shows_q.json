@@ -1,0 +1,31 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "c_nocrc_shows_q",
+  "spec": ["4.2", "4.8", "12.1"],
+  "description": "CRC 없는 C의 거절 줄(결정 12.1-53): CRC 필드가 없는 줄도 틀·CRC 검사를 통과한 줄로 보고, 둘째 토큰이 부호 없는 정수 0..65535이면 N <q> nocrc, 아니면 N - nocrc(4.2절 순서에서 nocrc가 state보다 먼저라 DISARMED에서도 nocrc다). 거절된 C는 last_q를 바꾸지 않는다(상태 줄 q 7).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "C 5 300 0 0 0\n"},
+    {"tick": 110, "text": "C x 300 0 0 0\n"},
+    {"tick": 120, "text": "C 70000 300 0 0 0\n"},
+    {"tick": 200, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 210, "text": "C 6 300 0 0 0\n"},
+    {"tick": 220, "text": "C 7 300 0 0 0*{crc}\n"},
+    {"tick": 230, "text": "C 8 300 0 0 0\n"},
+    {"tick": 260, "text": "STOP\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 100, "text": "N 5 nocrc*{crc}"},
+    {"type": "line", "tick": 110, "text": "N - nocrc*{crc}"},
+    {"type": "line", "tick": 120, "text": "N - nocrc*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 200, "to": 2},
+    {"type": "line", "tick": 210, "text": "N 6 nocrc*{crc}"},
+    {"type": "line", "tick": 230, "text": "N 8 nocrc*{crc}"},
+    {"type": "status", "tick": 250, "fields": {"st": 2, "q": 7, "L": 0, "R": 0, "tl": 270}},
+    {"type": "change", "channel": "mcu_state", "tick": 260, "to": 1},
+    {"type": "no_line", "window": [0, 300], "kinds": ["F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 300}
+}

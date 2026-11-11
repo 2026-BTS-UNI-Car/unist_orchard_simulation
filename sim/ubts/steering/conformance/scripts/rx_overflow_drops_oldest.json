@@ -1,0 +1,21 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "rx_overflow_drops_oldest",
+  "spec": ["2.2", "11.3", "12.1"],
+  "description": "DISARMED에서 한 틱(100)에 260 B: INFO, PING 50개, INFO. 코어 RX 고리는 255 B를 담고 넘치면 가장 옛 바이트를 버린다(ESP8266 코어 3.1.2, 12.1-67). 그래서 앞 INFO 5 B가 사라지고 남은 255 B = PING 50개 + INFO다. 틱마다 64 B를 읽으므로 마지막 INFO의 LF는 넷째 틱(103, 64 x 3 = 192, 남은 63 B)에 읽혀 배너와 보정 줄이 틱 103에 나온다. 틱 100에는 배너가 없다. (옛 흉내 층은 새 바이트를 버려 앞 INFO를 틱 100에 처리했다.)",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 100, "text": "INFO\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nPING\nINFO\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "count", "window": [1, 102], "min": 0, "max": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 103, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 103, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "count", "window": [1, 200], "min": 1, "max": 1, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "status", "tick": 150, "fields": {"st": 1, "wd": 47}},
+    {"type": "no_line", "window": [0, 200], "kinds": ["N", "F", "W", "A", "P"]}
+  ],
+  "end": {"tick": 200}
+}

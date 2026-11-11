@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "fault_pot_jump_and_noise_same_tick",
+  "spec": ["6.7", "5.6", "5.10", "7.2"],
+  "description": "기본 변수에서 raw 512 -> 536(틱 260). 틱 262에 중앙값이 24 튀고(POT_JUMP), raw 창의 536 세 개로 분산 32.49 > 25(POT_NOISE, arg 3248). 같은 틱에 켜진 두 결함은 비트 순(3, 4)으로 F를 낸다: LF가 끝나는 틱(done)이 POT_JUMP 263, POT_NOISE 265. 1, 2표본일 때 분산(11.29, 22.12)은 문턱 아래.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 100 100 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 100 100 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 100 100 0*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 260, "kind": "adc_set", "raw": 536}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 261, "drive_l": 38, "steer_en": 1, "mcu_state": 2},
+    {"type": "line", "tick": 262, "text": "F POT_JUMP 24 262*{crc}"},
+    {"type": "line", "tick": 262, "text": "F POT_NOISE 3248 262*{crc}"},
+    {"type": "line", "tick": 263, "text": "F POT_JUMP 24 262*{crc}", "at": "done"},
+    {"type": "line", "tick": 265, "text": "F POT_NOISE 3248 262*{crc}", "at": "done"},
+    {"type": "pins", "tick": 262, "drive_l": 0, "steer_en": 0, "mcu_state": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 262, "to": "0018"},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "W", "A", "P"]}
+  ],
+  "end": {"tick": 400}
+}

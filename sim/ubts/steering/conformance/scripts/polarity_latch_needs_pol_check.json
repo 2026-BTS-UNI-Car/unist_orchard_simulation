@@ -1,0 +1,41 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "polarity_latch_needs_pol_check",
+  "spec": ["6.7", "6.8", "4.6", "7.10", "12.1"],
+  "description": "fault_polarity와 같은 POLARITY(틱 162, raw 512 -> 492). raw를 512로 되돌린 뒤(틱 300) ARM(틱 400)은 pol이다: POLARITY·DRV_STUCK 래치는 ARM으로 풀지 않는다(12.1-71). CAL POL(틱 500): f[500] = 512, D6 단계에 raw 516(600), 520(650) -> f[1000] = 520(d1 = +8), D7 단계에 516(1100), 512(1150), 508(1200) -> f[1500] = 508(d2 = -12). 통과하면 mdir = sign(d1)·sign(raw_l - raw_c) = +1(R과 같음), pol_ok 1이고 POLARITY 래치를 지운다(fl 0020 -> 0000, BOOT는 이미 첫 ARM이 지웠다). 그 뒤 ARM(틱 1600)을 받는다. 옛 펌웨어는 틱 400의 ARM을 받았다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"jmp": 100, "nsd": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 0 0 500*{crc}\n"},
+    {"tick": 400, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 500, "text": "CAL POL*{crc}\n"},
+    {"tick": 1600, "text": "ARM {boot}*{crc}\n"}
+  ],
+  "events": [
+    {"tick": 100, "kind": "adc_set", "raw": 492},
+    {"tick": 300, "kind": "adc_set", "raw": 512},
+    {"tick": 600, "kind": "adc_set", "raw": 516},
+    {"tick": 650, "kind": "adc_set", "raw": 520},
+    {"tick": 1100, "kind": "adc_set", "raw": 516},
+    {"tick": 1150, "kind": "adc_set", "raw": 512},
+    {"tick": 1200, "kind": "adc_set", "raw": 508}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=2EECB96B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 162, "text": "F POLARITY -60 162*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 162, "to": "0020"},
+    {"type": "line", "tick": 400, "text": "N - pol*{crc}"},
+    {"type": "status", "tick": 450, "fields": {"st": 1, "fl": "0020"}},
+    {"type": "pins", "tick": 500, "steer_en": 1, "steer_pwm": 153, "mcu_state": 1},
+    {"type": "pins", "tick": 1000, "steer_en": 1, "steer_pwm": -153},
+    {"type": "line", "tick": 1500, "text": "A POL ok 8 -12*{crc}"},
+    {"type": "line", "tick": 1500, "text": "UBTS_STEER_V3 cal id=7 crc=2EECB96B left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "change", "channel": "fault_bits", "tick": 1500, "to": "0000"},
+    {"type": "change", "channel": "mcu_state", "tick": 1600, "to": 2},
+    {"type": "status", "tick": 1650, "fields": {"st": 2, "fl": "0000", "en": 3}},
+    {"type": "count", "window": [0, 1700], "min": 1, "max": 1, "text": "N - pol*{crc}"},
+    {"type": "no_line", "window": [0, 1700], "kinds": ["W", "P"]}
+  ],
+  "end": {"tick": 1700}
+}

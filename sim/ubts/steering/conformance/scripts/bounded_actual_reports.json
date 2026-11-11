@@ -1,0 +1,39 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "bounded_actual_reports",
+  "spec": ["5.3", "5.4", "5.1"],
+  "v2_map": "bounded_actual_reports",
+  "description": "ARMED에서 0 -> 255 가속하는 동안 상태 줄은 틱 50k에만 나온다(틱 50..2000에 40줄). 램프 중간의 핀 보고 줄(V2)은 없다. 줄 길이 85 B 이하는 실행기가 모든 줄에서 본다(5.1).",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 300 255 255 0*{crc}\n"},
+    {"tick": 120, "text": "C 2 300 255 255 0*{crc}\n"},
+    {"tick": 220, "text": "C 3 300 255 255 0*{crc}\n"},
+    {"tick": 320, "text": "C 4 300 255 255 0*{crc}\n"},
+    {"tick": 420, "text": "C 5 300 255 255 0*{crc}\n"},
+    {"tick": 520, "text": "C 6 300 255 255 0*{crc}\n"},
+    {"tick": 620, "text": "C 7 300 255 255 0*{crc}\n"},
+    {"tick": 720, "text": "C 8 300 255 255 0*{crc}\n"},
+    {"tick": 820, "text": "C 9 300 255 255 0*{crc}\n"},
+    {"tick": 920, "text": "C 10 300 255 255 0*{crc}\n"},
+    {"tick": 1020, "text": "C 11 300 255 255 0*{crc}\n"},
+    {"tick": 1120, "text": "C 12 300 255 255 0*{crc}\n"},
+    {"tick": 1220, "text": "C 13 300 255 255 0*{crc}\n"},
+    {"tick": 1320, "text": "C 14 300 255 255 0*{crc}\n"},
+    {"tick": 1420, "text": "C 15 300 255 255 0*{crc}\n"},
+    {"tick": 1520, "text": "C 16 300 255 255 0*{crc}\n"},
+    {"tick": 1620, "text": "C 17 300 255 255 0*{crc}\n"},
+    {"tick": 1720, "text": "C 18 300 255 255 0*{crc}\n"},
+    {"tick": 1820, "text": "C 19 300 255 255 0*{crc}\n"},
+    {"tick": 1920, "text": "C 20 300 255 255 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=61AEB1A4 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "count", "window": [1, 2000], "min": 40, "max": 40, "kinds": ["S"]},
+    {"type": "no_line", "window": [1, 2000], "kinds": ["BANNER", "CAL", "N", "F", "W", "A", "P", "OTHER"]},
+    {"type": "status", "tick": 2000, "fields": {"n": 39, "st": 2, "L": 255, "R": 255}}
+  ],
+  "end": {"tick": 2000}
+}

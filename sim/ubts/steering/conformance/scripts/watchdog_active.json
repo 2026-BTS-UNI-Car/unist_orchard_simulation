@@ -1,0 +1,27 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "watchdog_active",
+  "spec": ["6.2", "6.4", "6.5", "5.7", "4.10"],
+  "v2_map": "watchdog_active",
+  "description": "링크 watchdog(나): ttlmax 1000, C ttl 1000이라 TTL보다 watchdog이 먼저. 마지막 입력 틱 20 -> 틱 521에 구동 brake, DISARMED, WATCHDOG 래치, W 521. 조향은 측정 위치 HOLD(hloss 2000) 뒤 틱 2521에 OFF.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"ttlmax": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 10, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 20, "text": "C 1 1000 100 100 0*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=1000 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=CA2B9EFE left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "pins", "tick": 520, "drive_l": 100, "drive_r": 100, "mcu_state": 2},
+    {"type": "line", "tick": 521, "text": "W 521*{crc}"},
+    {"type": "pins", "tick": 521, "drive_l": 0, "drive_r": 0, "mcu_state": 1, "steer_en": 1, "drive_en": 1},
+    {"type": "change", "channel": "mcu_state", "tick": 521, "to": 1},
+    {"type": "change", "channel": "fault_bits", "tick": 521, "to": "1000"},
+    {"type": "status", "tick": 550, "fields": {"st": 1, "q": 1, "L": 0, "R": 0, "en": 3, "fl": "1000", "wd": 530, "tl": 0}},
+    {"type": "pins_window", "window": [521, 2520], "steer_en": 1, "steer_pwm": 0},
+    {"type": "change", "channel": "steer_en", "tick": 2521, "to": 0},
+    {"type": "status", "tick": 2550, "fields": {"st": 1, "en": 1, "fl": "1000"}},
+    {"type": "no_line", "window": [0, 2600], "kinds": ["N", "F", "A", "P"]}
+  ],
+  "end": {"tick": 2600}
+}
