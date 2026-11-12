@@ -62,9 +62,13 @@ GNSS_CONDITIONS = (
 )
 
 
-def episode(condition, seed, variant, gnss_spec=None):
+def episode(condition, seed, variant, gnss_spec=None, stream_condition=None):
+    """The follow_matrix episode of (condition, seed) with the variant's configuration. The random streams keep the
+    follow_matrix key of (stream_condition or condition, seed), so every variant (and a GNSS condition's 'off' run) sees
+    the same plant and sensor noise as the registered follow_matrix run."""
     ep = FM.spec(condition, seed)
     v = VARIANTS[variant]
+    ep['stream_key'] = 'steer_exec_follow_%s_s%d' % (stream_condition or condition['name'], seed)
     ep['name'] = '%s__%s' % (ep['name'], variant)
     ep['config'] = dict(v['config'])
     if v['gnss']:
@@ -99,6 +103,31 @@ def layer_blocks(ticks):
     return out
 
 
+def truth_errors(ticks, arrays):
+    """Accuracy against the SIM truth (evaluation only) of L0 (the tick record's lat / head) and of the grid fit
+    (its lateral / heading at the same tick, fit not older than 1 s) on the ticks where both exist: |error| p50 / p90.
+    W0: the centre line is y = 0 along +x, so the true lateral offset is truth_y and the true heading error -truth_yaw."""
+    t = np.asarray(arrays['t_s'], dtype=float)
+    y = np.asarray(arrays['truth_y_m'], dtype=float)
+    yaw = np.asarray(arrays['truth_yaw_rad'], dtype=float)
+    rows = []
+    for r in ticks:
+        fit = (r.get('grid') or {}).get('fit')
+        if not fit or fit.get('lateral_m') is None or fit.get('age_s', 9.) > 1. or r.get('lat') is None                 or r.get('head') is None or not r.get('T'):
+            continue
+        ty = float(np.interp(r['t'], t, y))
+        th = -math.degrees(float(np.interp(r['t'], t, yaw)))
+        rows.append((r['lat'] - ty, r['head'] - th, fit['lateral_m'] - ty, fit['heading_deg'] - th))
+    if not rows:
+        return None
+    a = np.abs(np.asarray(rows))
+
+    def q(col):
+        return [round(float(np.percentile(a[:, col], p)), 4) for p in (50, 90)]
+    return dict(ticks=len(rows), l0_lateral_abs_m=q(0), l0_heading_abs_deg=q(1), grid_lateral_abs_m=q(2),
+                grid_heading_abs_deg=q(3))
+
+
 def _vs_l0(ticks):
     d = [abs(r['grid']['fit']['lateral_m'] - r['lat']) for r in ticks
          if 'grid' in r and r['grid'].get('fit') and r['grid']['fit'].get('lateral_m') is not None
@@ -107,10 +136,10 @@ def _vs_l0(ticks):
 
 
 def run_one(item):
-    condition, seed, variant, gnss_spec, out_root = item
+    condition, seed, variant, gnss_spec, out_root, stream_condition = item
     S = A._sim_in_loop()
     started = time.perf_counter()
-    ep = episode(condition, seed, variant, gnss_spec)
+    ep = episode(condition, seed, variant, gnss_spec, stream_condition)
     result, facade = S.run_episode(ep, None, keep=True)
     try:
         if out_root is not None:
@@ -120,6 +149,7 @@ def run_one(item):
         metrics = FM.measure(arrays, ticks, facade.summary(), ep['world']['markers'], condition.get('settle_m', 0.))
         metrics['after_terminal'] = FM.terminal_window(M.artefacts(facade, FM.printable(ep, condition)), metrics)
         receiver = facade.rig.gnss_report()
+        accuracy = truth_errors(ticks, arrays)
         timing = facade.summary()['timing']
     finally:
         facade.rig.close()
@@ -127,7 +157,7 @@ def run_one(item):
     cmd = commands(ticks)
     return dict(condition=condition['name'], seed=seed, variant=variant, name=ep['name'], expect=condition['expect'],
                 ok=all(c['ok'] for c in checks), failed=[c['check'] for c in checks if not c['ok']], metrics=metrics,
-                layers=layer_blocks(ticks), receiver=None if receiver is None else dict(
+                layers=layer_blocks(ticks), accuracy=accuracy, receiver=None if receiver is None else dict(
                     counts=receiver['counts'], jump_stamps=receiver['jump_stamps']),
                 commands_sha256=hashlib.sha256(json.dumps(cmd, separators=(',', ':')).encode('ascii')).hexdigest(),
                 digests=result['digests'], step_ms=timing['step_ms'], wall_s=round(time.perf_counter() - started, 1))
@@ -140,10 +170,7 @@ def items(variants, only, gnss_seeds, out_dir):
             continue
         for seed in condition['seeds']:
             for variant in variants:
-                if variant in ('gnss_log', 'all'):
-                    out.append((condition, seed, variant, {}, out_dir))
-                else:
-                    out.append((condition, seed, variant, None, out_dir))
+                out.append((condition, seed, variant, {} if variant in ('gnss_log', 'all') else None, out_dir, None))
     nominal = FM.CONDITIONS[0]
     for gc in GNSS_CONDITIONS:
         if only and gc['name'] not in only:
@@ -152,7 +179,7 @@ def items(variants, only, gnss_seeds, out_dir):
         for seed in gnss_seeds:
             for variant in ('off', 'gnss_log', 'all'):
                 if variant in variants:
-                    out.append((cond, seed, variant, None if variant == 'off' else gc['gnss'], out_dir))
+                    out.append((cond, seed, variant, None if variant == 'off' else gc['gnss'], out_dir, nominal['name']))
     return out
 
 
@@ -196,8 +223,19 @@ def summarise(rows):
                             commands_differ_off=[r['commands_equal_off'] for r in part].count(False),
                             lateral_rmse_m_mean=None if not rm else round(float(np.mean(rm)), 4),
                             lateral_rmse_m_max=None if not rm else round(float(np.max(rm)), 4),
-                            step_ms_p99_max=max((r['step_ms'].get('p99') or 0.) for r in part))
+                            step_ms_p99_max=max((r['step_ms'].get('p99') or 0.) for r in part),
+                            accuracy=_accuracy_summary(part))
     return out
+
+
+def _accuracy_summary(part):
+    """Median over the runs of the per-run p50 / p90 truth errors (runs with grid fits only)."""
+    rows = [r['accuracy'] for r in part if r.get('accuracy')]
+    if not rows:
+        return None
+    keys = ('l0_lateral_abs_m', 'l0_heading_abs_deg', 'grid_lateral_abs_m', 'grid_heading_abs_deg')
+    return dict(runs=len(rows), **{k: [round(float(np.median([x[k][i] for x in rows])), 4) for i in (0, 1)]
+                                   for k in keys})
 
 
 def main(argv=None):
