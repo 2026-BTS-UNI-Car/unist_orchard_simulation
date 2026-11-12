@@ -5,10 +5,11 @@ One supervisor per container role of compose.ubts-steer.yaml (the old sim/ubts/s
   sim        assemble the scene (gz_assemble: w0_force, w1_force or field1010 with a field world spec) -> gz sim
              (server; GUI is a separate optional client) -> ros_gz_bridge with bridge_steer.yaml (checked against the
              scene manifest topics) -> Embree LiDAR (pinned cpu_lidar.py: /sim/scan from /ground_truth/odom) ->
-             [clip node: field1010 scenes, steering.scan_unobserved_clip by default] -> [S2 format node hook: the next
-             phase; until then /scan is absent] -> sensor contract (sensor_contract_steer: IMU error model
-             /imu/data_raw, virtual GPS, static TF, status files) -> WebSocket bridges of the dashboard (camera, lidar
-             on /scan, imu, gps)
+             [clip node: field1010 scenes, steering.scan_unobserved_clip by default] -> S2 format node
+             (steering.s2_format_node by default, WF-4: /sim/scan or /sim/scan_clipped -> /scan in the real S2 format;
+             --s2-node none leaves /scan absent as in P6a) -> sensor contract (sensor_contract_steer: IMU error model
+             /imu/data_raw, virtual GPS, static TF, status files; --s2-present when the S2 node runs) -> WebSocket
+             bridges of the dashboard (camera, lidar on /scan, imu, gps)
   steer      waits for the sim role of this run (READY stamp and a fresh simulation_status.json with a live /clock and
              the same run token) -> host profile JSON (host_profile_export) -> ESP emulator (gz_esp_emulator: pty
              /run/ubts-steer/esp-tty, MCU firmware + actuator model on the SIM clock) -> bridge wrapper
@@ -29,14 +30,29 @@ SIGINT stops the children in reverse order (SIGTERM to the process group, SIGKIL
 supervisor exits 0. Child output goes to <runtime>/steer/logs/<role>_<name>.log; the supervisor state to
 <runtime>/steer/supervisor_<role>.json.
 
-Hooks: --s2-node MODULE (next phase; run as python3 -B -m MODULE --input <topic> --output /scan; it makes 'scan'
-part of sensors_alive) and --clip-node MODULE (field1010 only; default steering.scan_unobserved_clip; run as
-python3 -B -m MODULE --input /sim/scan --output /sim/scan_clipped --raster <scene>/field_world/raster.npz
---status-file <runtime>/scan_clip_status.json --noise-sd SD --noise-seed N; the S2 node then reads the clipped
-topic). With the clip node, cpu_lidar runs on a runtime copy of rover.yaml with lidar.noise_stddev_m 0 and the clip
-node adds the rover.yaml range noise after the clip: the F-SIM order (UNOBSERVED end on exact ranges, then noise;
-review RW-04). The executor container is not started here (its compose service comes with the next phase; 0.5 GiB of
-the 6 GiB budget is kept for it).
+Hooks: --s2-node MODULE (default steering.s2_format_node, WF-4; 'none' runs no S2 node; run as python3 -B -m MODULE
+--input <topic> --output /scan --status-file <runtime>/s2_node_status.json --run-token T [--profile P]; ready when its
+status file of this run token says waiting or running; it makes 'scan' part of sensors_alive) and --clip-node MODULE
+(field1010 only; default steering.scan_unobserved_clip; run as python3 -B -m MODULE --input /sim/scan --output
+/sim/scan_clipped --raster <scene>/field_world/raster.npz --status-file <runtime>/scan_clip_status.json --noise-sd SD
+--noise-seed N; the S2 node then reads the clipped topic). With the clip node, cpu_lidar runs on a runtime copy of
+rover.yaml with lidar.noise_stddev_m 0 and the clip node adds the rover.yaml range noise after the clip: the F-SIM
+order (UNOBSERVED end on exact ranges, then noise; review RW-04). The W2 sensing chain is cpu_lidar -> clip node -> S2
+node -> /scan (three ROS nodes, each scan keeps its header stamp).
+The executor container is not started here: it is its own compose service (profile executor, WF-4,
+steering.exec_container_main; 0.5 GiB of the 6 GiB budget).
+
+Stale status files (audit G06; the runtime volume is kept between runs): every role moves the status files of its own
+children (ROLE_STATUS_FILES) that a run left behind into <runtime>/steer/retired/<run token of this start>/ before it
+starts its children, so a file of a node that this scene does not run (the clip node in W0, the S2 node with --s2-node
+none) or of an earlier run is never read as this run's (readiness probes, checks). The newest RETIRED_KEEP folders stay.
+
+Supervisor hooks (steer role, SIM only, WF-4 A17(G) with the executor): a Unix socket in the hooks volume
+(--supervisor-hook-socket, default /run/ubts-steer-emu/supervisor.sock; the executor container does not mount it), one
+JSON line per connection: {"op": "status"} -> the children and their pids; {"op": "signal", "child": "bridge",
+"signal": "KILL" | "TERM" | "STOP" | "CONT", "resume_after_s": s (STOP only, optional)} -> the signal to the bridge
+wrapper process (the 09-19 tests 'bridge forced kill' and a stalled bridge loop); a killed bridge is restarted by the
+supervisor as before (BRIDGE_RESTARTS).
 Placeholder-based SIM results, not field validation. CLI: python3 -B -m steering.supervisor_steer --help.
 """
 from __future__ import annotations
@@ -46,9 +62,11 @@ import copy
 import json
 import os
 from pathlib import Path
+import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -62,11 +80,29 @@ ROLES = ('sim', 'steer', 'recorder')
 SCENES = ('w0_force', 'w1_force', 'field1010')
 FIELD_SCENES = ('field1010',)
 DEFAULT_CLIP_NODE = 'steering.scan_unobserved_clip'
+DEFAULT_S2_NODE = 'steering.s2_format_node'
+S2_NODE_OFF = ('none', 'off', '0')                          # --s2-node none: no S2 node, /scan absent (P6a)
+S2_STATUS = 's2_node_status.json'
 GRACE_S = 6.
 STATUS_FRESH_S = 3.                                         # simulation_status.json age for a live sim role
 BRIDGE_RESTARTS = (5, 60.)                                  # at most 5 restarts in 60 s
 SCHEMA = 'ubts.steer_supervisor.v1'
 ACT_PREFIX = '/sim/act/'
+# Status files of each role's children in the runtime folder (audit G06: moved away at the role's start).
+ROLE_STATUS_FILES = {
+    'sim': ('simulation_status.json', 'cpu_lidar_status.json', 'scan_clip_status.json', S2_STATUS,
+            'camera_driver_status.json', 'imu_driver_status.json', 'lidar_bridge_status.json',
+            'camera_bridge_status.json', 'imu_bridge_status.json', 'gps_bridge_status.json'),
+    'steer': ('steering_status.json', 'rover_bridge_status.json'),
+    'recorder': ('data_recorder_status.json',),
+}
+RETIRED_DIR = 'retired'                                     # <runtime>/steer/retired/<run token>/
+RETIRED_KEEP = 5
+SUPERVISOR_HOOK_SOCKET = '/run/ubts-steer-emu/supervisor.sock'
+HOOK_CHILDREN = ('bridge',)
+HOOK_SIGNALS = {'KILL': signal.SIGKILL, 'TERM': signal.SIGTERM, 'STOP': signal.SIGSTOP, 'CONT': signal.SIGCONT} \
+    if hasattr(signal, 'SIGKILL') else {}
+HOOK_MAX_STALL_S = 30.
 
 
 class SupervisorError(RuntimeError):
@@ -168,6 +204,7 @@ class Supervisor:
     def write_state(self, final=None):
         payload = dict(schema=SCHEMA, role=self.role, updated_at=time.time(), pid=os.getpid(),
                        run_token=getattr(self, 'run_token', None), all_ready=getattr(self, 'all_ready', False),
+                       retired_status_files=getattr(self, 'retired_status_files', None),
                        children=[c.describe() for c in self.children], events=self.events[-40:], final=final,
                        source_commit=os.environ.get('UBTS_STEER_SOURCE_COMMIT'),
                        source_status_sha256=os.environ.get('UBTS_STEER_SOURCE_STATUS_SHA256'))
@@ -249,6 +286,7 @@ class Supervisor:
             if p is not None and p.poll() is None:
                 try:
                     os.killpg(p.pid, signal.SIGTERM)
+                    os.killpg(p.pid, signal.SIGCONT)     # a child stopped by a hook gets the TERM too
                 except ProcessLookupError:
                     pass
         deadline = time.monotonic() + GRACE_S
@@ -266,6 +304,106 @@ class Supervisor:
                 p.wait()
                 self.note('KILLED', child=child.name)
             self.note('STOPPED', child=child.name, code=p.returncode)
+
+
+class SupervisorHooks:
+    """Steer-role fault hooks (module docstring 'Supervisor hooks'): signal the bridge wrapper child. SIM only."""
+
+    def __init__(self, supervisor, path, children=HOOK_CHILDREN, signals=None):
+        self.supervisor = supervisor
+        self.path = str(path)
+        self.children = tuple(children)
+        self.signals = dict(HOOK_SIGNALS if signals is None else signals)
+        self.server = None
+
+    def _child(self, name):
+        for child in self.supervisor.children:
+            if child.name == name:
+                return child
+        return None
+
+    def handle(self, request):
+        """One hook request (dict) -> reply (dict). Never raises for a bad request."""
+        op = request.get('op') if isinstance(request, dict) else None
+        if op == 'status':
+            return dict(ok=True, role=self.supervisor.role, run_token=getattr(self.supervisor, 'run_token', None),
+                        children=[c.describe() for c in self.supervisor.children])
+        if op != 'signal':
+            return dict(ok=False, error='unknown_op')
+        name, sig = request.get('child'), request.get('signal')
+        if name not in self.children:
+            return dict(ok=False, error='child_not_allowed', allowed=list(self.children))
+        if sig not in self.signals:
+            return dict(ok=False, error='signal_not_allowed', allowed=sorted(self.signals))
+        resume = request.get('resume_after_s')
+        if resume is not None:
+            if sig != 'STOP' or isinstance(resume, bool) or not isinstance(resume, (int, float)) or \
+                    not 0. < float(resume) <= HOOK_MAX_STALL_S:
+                return dict(ok=False, error='resume_after_s_only_with_STOP_in_(0,%g]' % HOOK_MAX_STALL_S)
+        child = self._child(name)
+        if child is None or child.process is None or child.process.poll() is not None:
+            return dict(ok=False, error='child_not_running')
+        pid = child.process.pid
+        wall, mono = time.time(), time.monotonic()
+        try:
+            os.kill(pid, self.signals[sig])
+        except ProcessLookupError:
+            return dict(ok=False, error='child_not_running')
+        self.supervisor.note('HOOK_SIGNAL', child=name, signal=sig, pid=pid, resume_after_s=resume)
+        if resume is not None:
+            timer = threading.Timer(float(resume), self._resume, (pid, name))
+            timer.daemon = True
+            timer.start()
+        return dict(ok=True, child=name, pid=pid, signal=sig, wall=wall, mono=mono, resume_after_s=resume)
+
+    def _resume(self, pid, name):
+        try:
+            os.kill(pid, self.signals.get('CONT', signal.SIGCONT))
+            self.supervisor.note('HOOK_SIGNAL', child=name, signal='CONT', pid=pid, timer=True)
+        except (ProcessLookupError, AttributeError):
+            pass
+
+    def start(self):
+        import socketserver
+        hooks = self
+
+        class Handler(socketserver.StreamRequestHandler):
+            def handle(self):
+                self.connection.settimeout(2.)
+                try:
+                    line = self.rfile.readline(4097)
+                    if len(line) > 4096:
+                        raise ValueError('request_too_large')
+                    request = json.loads(line)
+                    if not isinstance(request, dict):
+                        raise ValueError('object_required')
+                    reply = hooks.handle(request)
+                except (ValueError, OSError) as exc:
+                    reply = dict(ok=False, error=str(exc))
+                try:
+                    self.wfile.write((json.dumps(reply, default=str) + '\n').encode('utf-8'))
+                except OSError:
+                    pass
+
+        class Server(socketserver.ThreadingUnixStreamServer):
+            daemon_threads = True
+
+        os.makedirs(os.path.dirname(self.path) or '.', exist_ok=True)
+        if os.path.exists(self.path):
+            os.unlink(self.path)
+        self.server = Server(self.path, Handler)
+        threading.Thread(target=self.server.serve_forever, name='supervisor-hooks', daemon=True).start()
+        return self
+
+    def close(self):
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+        try:
+            os.unlink(self.path)
+        except OSError:
+            pass
 
 
 # --- readiness probes ---------------------------------------------------------------------------------------------------
@@ -315,6 +453,51 @@ def lidar_config_without_noise(source, target):
     tmp.write_bytes(yaml.safe_dump(out, sort_keys=False).encode('utf-8'))
     tmp.replace(target)
     return target, noise
+
+
+def retire_stale_status(runtime_dir, role, token, keep=RETIRED_KEEP, names=None):
+    """Move the status files of the role's children (ROLE_STATUS_FILES) that an earlier run left in the runtime folder
+    to <runtime>/steer/retired/<token>/ (audit G06). Keeps the newest `keep` retired folders. Returns the moved names."""
+    runtime = Path(runtime_dir)
+    names = ROLE_STATUS_FILES.get(role, ()) if names is None else tuple(names)
+    target = runtime / 'steer' / RETIRED_DIR / str(token)
+    moved = []
+    for name in names:
+        source = runtime / name
+        if not source.is_file():
+            continue
+        target.mkdir(parents=True, exist_ok=True)
+        os.replace(source, target / name)
+        moved.append(name)
+    folders = runtime / 'steer' / RETIRED_DIR
+    if folders.is_dir():
+        old = sorted((p for p in folders.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
+        for path in old[:max(0, len(old) - int(keep))]:
+            shutil.rmtree(path, ignore_errors=True)
+    return moved
+
+
+def s2_node_of(args):
+    """The S2 format node module of this run (default DEFAULT_S2_NODE), or None for --s2-node none."""
+    module = (getattr(args, 's2_node', None) or DEFAULT_S2_NODE).strip()
+    return None if module.lower() in S2_NODE_OFF else module
+
+
+def s2_node_command(module, scan_input, runtime, run_token=None, profile=None):
+    """The S2 format node's command line (the contract of steering.s2_format_node)."""
+    command = py_module(module, '--input', scan_input, '--output', '/scan', '--status-file',
+                        Path(runtime) / S2_STATUS)
+    if run_token:
+        command += ['--run-token', str(run_token)]
+    if profile:
+        command += ['--profile', str(profile)]
+    return command
+
+
+def s2_node_ready(path, run_token):
+    """Ready: the S2 node's status file of this run token says waiting or running (fresh)."""
+    return json_file_ready(path, lambda d: d.get('state') in ('waiting', 'running') and
+                           (run_token is None or d.get('run_token') == run_token))
 
 
 def clip_node_command(module, scene_dir, runtime, noise_sd, seed):
@@ -370,15 +553,18 @@ def sim_children(args, scene_dir, manifest):
                                                     lambda d: d.get('state') in ('waiting', 'running')),
                               ready_timeout_s=120.))
         scan_input = '/sim/scan_clipped'
-    if args.s2_node:
-        children.append(Child('s2_node', py_module(args.s2_node, '--input', scan_input, '--output', '/scan'),
-                              ready=alive_after(2.)))
+    s2_node = s2_node_of(args)
+    run_token = getattr(args, 'run_token', None)
+    if s2_node:
+        children.append(Child('s2_node', s2_node_command(s2_node, scan_input, runtime, run_token, args.profile),
+                              cwd=str(SIM_ROOT), env=lidar_env, ready=s2_node_ready(runtime / S2_STATUS, run_token),
+                              ready_timeout_s=60.))
     contract = ['--scene-dir', scene_dir, '--seed', args.seed, '--runtime-dir', runtime]
-    if getattr(args, 'run_token', None):
-        contract += ['--run-token', args.run_token]
+    if run_token:
+        contract += ['--run-token', run_token]
     if args.profile:
         contract += ['--profile', args.profile]
-    if args.s2_node:
+    if s2_node:
         contract.append('--s2-present')
     if clip_node:
         contract.append('--clip-present')
@@ -571,8 +757,12 @@ def build_parser():
     p.add_argument('--pty-link', default='/run/ubts-steer/esp-tty')
     p.add_argument('--control-socket', default=os.environ.get('ROVER_CONTROL_SOCKET', '/run/ubts-steer/control.sock'))
     p.add_argument('--hook-socket', default=os.environ.get('UBTS_STEER_HOOK_SOCKET', '/run/ubts-steer-emu/hooks.sock'))
-    p.add_argument('--s2-node', default=os.environ.get('UBTS_STEER_S2_NODE') or None,
-                   help='module of the S2 format node (next phase): python3 -m MODULE --input T --output /scan')
+    p.add_argument('--s2-node', default=os.environ.get('UBTS_STEER_S2_NODE') or DEFAULT_S2_NODE,
+                   help='module of the S2 format node (default %s; none: no S2 node, /scan absent): python3 -m '
+                        'MODULE --input T --output /scan --status-file F --run-token T' % DEFAULT_S2_NODE)
+    p.add_argument('--supervisor-hook-socket', default=os.environ.get('UBTS_STEER_SUPERVISOR_HOOK_SOCKET',
+                                                                      SUPERVISOR_HOOK_SOCKET),
+                   help='steer role: Unix socket of the supervisor fault hooks (SIM only; empty: none)')
     p.add_argument('--clip-node', default=os.environ.get('UBTS_STEER_CLIP_NODE') or None,
                    help='module of the unobserved clip node (field1010 only; default %s there)' % DEFAULT_CLIP_NODE)
     p.add_argument('--field-spec', default=os.environ.get('UBTS_STEER_FIELD_SPEC') or None,
@@ -594,7 +784,21 @@ def main(argv=None):
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, stop)
     final, code = None, 0
+    hooks = None
     try:
+        supervisor.retired_status_files = retire_stale_status(args.runtime_dir, args.role, args.run_token)
+        supervisor.note('RETIRED_STATUS', files=supervisor.retired_status_files,
+                        folder='%s/%s' % (RETIRED_DIR, args.run_token))
+    except OSError as exc:                    # never block a start on the clean-up; the checks see the note
+        supervisor.note('RETIRE_FAILED', error=str(exc))
+    try:
+        if args.role == 'steer' and args.supervisor_hook_socket:
+            try:
+                hooks = SupervisorHooks(supervisor, args.supervisor_hook_socket).start()
+                supervisor.note('HOOKS', socket=args.supervisor_hook_socket)
+            except OSError as exc:
+                supervisor.note('HOOKS_UNAVAILABLE', error=str(exc))
+                hooks = None
         if args.role == 'recorder':
             children = recorder_children(args)
         else:
@@ -613,6 +817,8 @@ def main(argv=None):
         supervisor.note('FAILED', error=str(exc))
         final, code = 'failed: %s' % exc, 1
     finally:
+        if hooks is not None:
+            hooks.close()
         supervisor.stop_all()
         if args.role == 'sim':
             clear_scene_stamp(args.scene_dir)

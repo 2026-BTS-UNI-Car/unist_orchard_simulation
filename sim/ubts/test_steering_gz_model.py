@@ -1064,11 +1064,17 @@ class TestReviewFixes(TempDirCase):
         self.assertIn('!firmware/**', ignore)
         dockerfile = (root / 'docker' / 'Dockerfile.ubts-steer').read_bytes().decode('utf-8')
         self.assertIn('COPY firmware /opt/ubts/firmware', dockerfile)
-        self.assertIn("'firmware'); \\", dockerfile)                              # in the manifest roots
+        # in the manifest roots (WF-4 added tools/row_executor to that tuple, so the tuple is matched, not one line)
+        import re
+        roots = re.search(r"roots = \(([^)]*)\)", dockerfile)
+        self.assertIsNotNone(roots)
+        self.assertIn("'firmware'", roots.group(1))
         self.assertIn('firmware_build_id missing in BUILD_RESULT.json', dockerfile)
-        # phase 3: the manifest names the image tag of the build (default ubts-steer-sim:p6a, the P6a headless stack;
-        # wf3 was built with --build-arg IMAGE_TAG_HINT), no fixed p5 hint; the image imports the P6a modules
-        self.assertIn('ARG IMAGE_TAG_HINT=ubts-steer-sim:p6a', dockerfile)
+        # phase 3: the manifest names the image tag of the build (a build argument; the default moves with the newest
+        # stack image, WF-4 switches it), no fixed p5 hint; the image imports the P6a modules
+        hint = re.search(r'ARG IMAGE_TAG_HINT=ubts-steer-sim:(\w+)', dockerfile)
+        self.assertIsNotNone(hint)
+        self.assertNotEqual(hint.group(1), 'p5')
         self.assertIn('from steering import gz_esp_emulator, supervisor_steer, sensor_contract_steer', dockerfile)
         self.assertIn("image_tag_hint='${IMAGE_TAG_HINT}'", dockerfile)
         self.assertNotIn("image_tag_hint='ubts-steer-sim:p5'", dockerfile)

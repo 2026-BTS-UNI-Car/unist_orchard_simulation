@@ -12,8 +12,17 @@
 #     sim supervisor needs about 6.5 s to stop its children, so every service has stop_grace_period 20 s and the
 #     stop / down commands get -t 20)
 #   python -I <tools>/docker_budget.py release --label p6a-stack
-# Memory (6 GiB budget): sim 3.5 + dashboard 1 + steer (emulator, bridge) 0.5 + recorder 0.5; 0.5 is kept for the
-# executor container of the next phase (the check service uses that slot in P6a and is not started by "up").
+# Memory (6 GiB budget, design 8.3 P6a): sim 3.5 + dashboard 1 + steer (emulator, bridge) 0.5 + recorder 0.5 +
+# executor 0.5 = 6.0. The executor service (WF-4, profile executor) is not started by a plain "up":
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor up -d          (the whole stack, 6.0)
+# The check service (profile check, 0.5) takes a slot of its own: with the executor running, start the stack without
+# the dashboard (sim + steer + recorder + executor 5.0, + check 0.5):
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor up -d sim steer recorder executor
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor run --rm --no-deps check \
+#     python3 -B -m steering.exec_checks <check> --out /runs/<folder>
+# The S2 format node (steering.s2_format_node) runs in the sim service by default (UBTS_STEER_S2_NODE=none: none, the
+# P6a stack without /scan). The executor image needs tools/row_executor at /opt/ubts/tools/row_executor (the
+# Dockerfile copies it from WF-4 on; with an older image an override file mounts it). docs/steering/S2_NODE_EXEC_KO.md.
 # Camera: D3D12 / Ogre 1 on the WSLg GPU (as compose.ubts.gpu.yaml); LiDAR: the Embree CPU process. For software
 # rendering set UBTS_RENDER_ENGINE=ogre2 UBTS_HEADLESS_RENDERING=1 UBTS_LIBGL_SOFTWARE=1 UBTS_EGL_PLATFORM=surfaceless
 # UBTS_GALLIUM_DRIVER=llvmpipe. Placeholder-based SIM results only (자리값 기반 SIM 결과), never field validation.
@@ -177,6 +186,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+  # Executor container (WF-4; design 2.5, 8.3 P6a; steering.exec_container_main): the row executor of
+  # tools/row_executor with a SIM scripted controller in its controller slot (the row controller is P8), MOTOR mode,
+  # the operator page on 127.0.0.1:8097 inside the sim network namespace, files (config, status, JSONL log, operator
+  # token, SIM fault hooks) in /run/ubts-steer/exec. It joins the sim network and IPC (ROS domain 43, FastDDS shared
+  # memory) and mounts the control volume only: no runtime volume (SIM status files) and no emulator hooks. Clock
+  # mode = UBTS_STEER_CLOCK (wall | sim, the same value as the bridge wrapper). Profile executor (not started by "up").
+  executor:
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:p6a}
+    profiles: ["executor"]
+    init: true
+    network_mode: "service:sim"
+    ipc: "service:sim"
+    depends_on:
+      steer:
+        condition: service_started
+    working_dir: /opt/ubts/sim/ubts
+    command: ["python3", "-B", "-m", "steering.exec_container_main"]
+    environment:
+      ROS_DOMAIN_ID: "43"
+      ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+      ROS_STATIC_PEERS: 127.0.0.1
+      FASTRTPS_DEFAULT_PROFILES_FILE: /opt/ubts/sim/ubts/fastdds.xml
+      ROVER_CONTROL_SOCKET: /run/ubts-steer/control.sock
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: /opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts:/opt/ubts/tools
+      UBTS_STEER_CLOCK: ${UBTS_STEER_CLOCK:-wall}
+      UBTS_STEER_EXEC_CONTROLLER: ${UBTS_STEER_EXEC_CONTROLLER:-}
+      UBTS_STEER_EXEC_OVERRIDES: ${UBTS_STEER_EXEC_OVERRIDES:-}
+      UBTS_STEER_EXEC_SKIP_SOURCE_CHECK: ${UBTS_STEER_EXEC_SKIP_SOURCE_CHECK:-0}
+      UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
+      UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
+    volumes:
+      - control:/run/ubts-steer
+    mem_limit: 512m
+    cpus: 1.5
+    stop_grace_period: 20s
+    restart: "no"
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
   # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
   check:

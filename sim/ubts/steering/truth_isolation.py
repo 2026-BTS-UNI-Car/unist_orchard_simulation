@@ -126,7 +126,7 @@ TRUTH_MODULES = (
     'steering.gz_direct_drive', 'steering.sim_in_loop_steer',
     'steering.procedural_orchard', 'steering.scan_unobserved_clip', 'steering.gz_esp_emulator',
     'steering.t1_rig', 'steering.safety_scripts', 'steering.supervisor_steer', 'steering.sensor_contract_steer',
-    'steering.verify_steer', 'steering.p6a_checks', 'steering.p6a_imu_model', 'steering.ident.rig',
+    'steering.verify_steer', 'steering.p6a_checks', 'steering.exec_checks', 'steering.p6a_imu_model', 'steering.ident.rig',
     'steering.ident.yard', 'steering.ident.instruments', 'steering.ident.recorder', 'steering.ident.procedures',
     'steering.ident.bench',
     'closed_loop.harness', 'closed_loop.world', 'closed_loop.raster_corridor', 'closed_loop.raster_catalogue',
@@ -205,6 +205,8 @@ ROLE_TABLE = {
                                                                'status files from the SIM truth (plant side)'),
     'sim/ubts/steering/verify_steer.py': (ROLE_EVALUATOR, 'G-SIM integration check (reads the truth for evaluation)'),
     'sim/ubts/steering/p6a_checks.py': (ROLE_EVALUATOR, 'P6a checks (evaluation)'),
+    'sim/ubts/steering/exec_checks.py': (ROLE_EVALUATOR, 'executor-in-the-stack checks of the G-SIM stack (A5(G), A13(G) R6, '
+                                         'A17(G) executor items, W2 chain; evaluation)'),
     'sim/ubts/steering/p6a_client.py': (ROLE_DRIVER, 'P6a scripted clients of the control socket (SIM test driver)'),
     'sim/ubts/steering/p6a_graph.py': (ROLE_TOOL, 'ROS graph rules of A13 (G): names the truth topics as data'),
     'sim/ubts/steering/p6a_imu_model.py': (ROLE_PLANT, 'G-SIM IMU error model (plant side)'),

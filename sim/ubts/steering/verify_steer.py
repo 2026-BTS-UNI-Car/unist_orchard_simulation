@@ -6,9 +6,10 @@ and reads the truth for evaluation. Run in the check service of compose.ubts-ste
 
   python3 -B -m steering.verify_steer --out /runs/verify [--circle-s 20] [--throttle 40] [--steer-mrad 175]
 
-  health         simulation_status.json: every sensors_alive value true (the pinned health.py rule), /scan absent
+  health         simulation_status.json: every sensors_alive value true (the pinned health.py rule)
   sensors        /imu/data_raw rate and frame, orientation not provided (covariance[0] -1); /sim/scan from the
-                 Embree LiDAR; virtual GPS origin 0 N 0 E; static TF only (no /tf, no /odom publisher)
+                 Embree LiDAR; /scan from the S2 format node (WF-4: 3240 beams, frame laser, 10 Hz; absent with
+                 --s2-node none); virtual GPS origin 0 N 0 E; static TF only (no /tf, no /odom publisher)
   arm            arm with vehicle_profile front_steer, MCU confirmation (st ARMED)
   circle         fixed steering angle +/-steer_mrad at the throttle: rear-axle-centre circle fit (8 s .. end), the
                  radius against L / tan(delta) of the commanded and of the true angle (G-SIM force mode; A1(G) gives
@@ -130,20 +131,35 @@ def run(args):
         healthy, status = wait_health()
         criteria.append(criterion('health_all_sensors_alive', None if status is None else status['sensors_alive'],
                                   'all true', healthy))
-        criteria.append(criterion('scan_absent_until_s2_node', None if status is None else
-                                  status['scan_contract']['/scan'], 'absent (next phase)', None))
+        s2_present = status is not None and 'scan' in (status.get('sensors_alive') or {})
+        report['scan_contract'] = None if status is None else status.get('scan_contract')
         # sensors
         from sensor_msgs.msg import Imu, LaserScan, NavSatFix
         from rclpy.qos import qos_profile_sensor_data
-        seen = dict(imu=[], scan=[], fix=[])
+        seen = dict(imu=[], scan=[], fix=[], s2=[])
         ctx.obs.node.create_subscription(Imu, '/imu/data_raw', lambda m: seen['imu'].append(
             (m.header.stamp.sec + m.header.stamp.nanosec * 1e-9, m.header.frame_id, m.orientation_covariance[0])),
             qos_profile_sensor_data)
         ctx.obs.node.create_subscription(LaserScan, '/sim/scan', lambda m: seen['scan'].append(len(m.ranges)),
                                          qos_profile_sensor_data)
+        ctx.obs.node.create_subscription(LaserScan, '/scan', lambda m: seen['s2'].append(
+            (m.header.stamp.sec + m.header.stamp.nanosec * 1e-9, len(m.ranges), m.header.frame_id)),
+            qos_profile_sensor_data)
         ctx.obs.node.create_subscription(NavSatFix, '/gps/fix', lambda m: seen['fix'].append(
             (m.latitude, m.longitude)), qos_profile_sensor_data)
         ctx.obs.spin_sim_for(5.)
+        # /scan of the S2 format node (WF-4; exec_checks 'scan' checks every A5 item): 3240 beams, frame laser, about
+        # 10 Hz of SIM time; without an S2 node (--s2-node none) /scan is absent as in P6a (report)
+        s2 = seen['s2']
+        s2_hz = (len(s2) - 1) / (s2[-1][0] - s2[0][0]) if len(s2) > 2 and s2[-1][0] > s2[0][0] else None
+        if s2_present:
+            criteria.append(criterion('scan_from_s2_node', None if not s2 else dict(beams=s2[-1][1], frame=s2[-1][2],
+                                                                                    sim_hz=s2_hz),
+                                      '3240 beams, frame laser, 10 Hz +-10 %',
+                                      bool(s2) and s2[-1][1] == 3240 and s2[-1][2] == 'laser' and s2_hz is not None
+                                      and abs(s2_hz - 10.) <= 1.))
+        else:
+            criteria.append(criterion('scan_absent_without_s2_node', len(s2), 'absent (--s2-node none)', None))
         imu = seen['imu']
         imu_hz = (len(imu) - 1) / (imu[-1][0] - imu[0][0]) if len(imu) > 2 and imu[-1][0] > imu[0][0] else None
         criteria.append(criterion('imu_rate_hz', imu_hz, '%s +-10 %%' % profile.value('imu_rate_hz'),
