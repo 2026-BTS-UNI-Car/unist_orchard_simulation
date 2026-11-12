@@ -2343,7 +2343,10 @@ def host_timing(ctx, case, latch, rule):
             expected_line = None
             for received, m in rows:
                 known = m.get('target_mrad') is not None and m.get('angle_mrad') is not None
-                error = (known and m.get('state') in ('ARMED', 'armed', 2)
+                # amendment 43: the bridge counts only lines whose MCU servo ramp has settled (cmd == tgt; the soft
+                # limit clip of the goal is not in the published state, requests stay inside the soft limits)
+                settled = m.get('cmd_permille') is not None and m.get('cmd_permille') == m.get('target_permille')
+                error = (known and settled and m.get('state') in ('ARMED', 'armed', 2)
                          and abs(m['target_mrad'] - m['angle_mrad']) > faults['track_error_mrad'])
                 if since is not None and received - since >= faults['track_duration_s']:
                     if error or m.get('target_mrad') is None:

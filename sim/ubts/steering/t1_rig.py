@@ -95,7 +95,7 @@ STOP_STATE_CODES = {'none': 0, 'pending': 1, 'unconfirmed': 2, 'confirmed': 3}
 HOST_STATE_CODES = {'starting': 0, 'disarmed': 1, 'armed_manual': 2, 'fault': 3}   # snapshot 'state' (-1: other)
 # v1 actuator / potentiometer injections (construction time; LOCKSTEP 9) and rig aliases
 MODEL_FAULTS = ('jam', 'slow', 'driver_dead', 'driver_stuck_on', 'polarity_reversed', 'pot_open', 'pot_short',
-                'pot_stuck', 'pot_noise_x10', 'pot_jump', 'pot_slip', 'pot_drift', 'pot_reversed')
+                'pot_stuck', 'pot_noise_x10', 'pot_jump', 'pot_slip', 'pot_drift', 'pot_reversed', 'steer_torque')
 # 'thermal': an overloaded (slow) steering actuator keeps the servo output above the THERMAL proxy level; at 0.3 x the
 # rate it still moves more than the STALL / TRACK thresholds (spec 6.7), so the MCU's THERMAL proxy is what trips.
 MODEL_FAULT_ALIASES = {'stall': ('jam', {}), 'pot_noise': ('pot_noise_x10', {'scale': 10.}),

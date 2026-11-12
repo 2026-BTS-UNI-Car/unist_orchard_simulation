@@ -86,7 +86,7 @@ flowchart LR
 | `calibration_mismatch` | 배너·보정 줄의 `cal_id` ≠ 호스트 프로필 `cal_id` |
 | `hardware_profile_mismatch` | 배너 `hw` ≠ 호스트 프로필 |
 | `sim_identity_mismatch` | 신원 규칙 위반(5절) |
-| `steering_not_following` | 요청각과 측정각 차 > 3°가 1.5 s 지속(`host_track_mismatch`) |
+| `steering_not_following` | 요청각과 측정각 차 > 3°가 1.5 s 지속(`host_track_mismatch`). 2026-11-13(개정 43): MCU 서보 램프가 목표에 닿은 상태 줄(`cmd` = 소프트 한계로 자른 `tgt`)만 센다. 램프가 도는 동안의 뒤처짐은 MCU TRACK(진행 확인 규칙)이 본다 |
 | `steering_ineffective` | 움직임 입력이 있을 때만: v > 0.2 m/s, \|δ_pot\| > 3°에서 \|r_gyro − v·tan δ_pot / L\| > max(3°/s, 0.5 × 예측)이 1.5 s 지속 |
 | `status_seq_gap` | 1 s 창 안에 빠진 상태 번호 n이 5개 넘음 |
 | `stop_unconfirmed` | STOP 확인 실패(4절 시간) |
@@ -241,7 +241,7 @@ steer_mrad ↔ 천분율(보정표): δ ≥ 0이면 S = round(1000·δ / mark_le
 - P3 통합에서 바꾼 것: STOP 재전송을 t0에 묶은 고정 격자로 했다(20 ms 루프에서 60 ms 간격, 래치 t0 + 440 ms가 되던 것). 배너 없이 상태 줄로 MCU 리셋을 알면 `INFO`로 배너를 받는다(예전에는 옛 boot_id로 ARM을 보내 `N - boot`를 받았고 링크를 다시 열기 전에는 재무장할 수 없었다). 상태 줄 `n` 재시작도 MCU 리셋으로 본다. 배너 직후 보정 줄을 기다리는 0.1 s 유예로 중복 `CAL GET`을 없앴다. lease 동안에는 `INFO`·`CAL GET`을 보내지 않는다.
 - `steering_ineffective`의 움직임 공급원: 2026-11-09 3단계에서 op `motion`을 더했다(실행기가 보낸다). 시험: `test_steer_bridge_core.py::test_motion_op_of_the_lease_holder`, `test_steering_ineffective_through_the_motion_op`, T1 `test_steering_t1_rig.py::MotionSourceTest`. 실행기가 실제로 보내는 일은 p4_exec, G-SIM은 P6a다.
 - `mcu_state_mismatch`(호스트 lease·대기 STOP·대기 ARM이 없는데 MCU가 ARMED·BENCH)를 일으키는 시험: `test_steer_bridge_core.py::test_mcu_armed_or_bench_without_a_host_lease_latches_and_stops`(가짜 MCU), `test_steering_t1_rig.py::McuStateMismatchTest`(실제 펌웨어에 다른 쓰는 쪽이 ARM). 2026-11-09 3단계(P3 열린 항목 1, A19 호스트 부분).
-- 큰 조향 계단(정지 중 약 21° 넘게 한 번에)은 MCU 속도 제한(정지 중 12°/s) 때문에 `steering_not_following`(3°, 1.5 s)을 걸 수 있다. 정의대로 요청각과 비교한다. 실행기는 변화율 상한으로 막는다(설계 6.2).
+- 큰 조향 계단(정지 중 약 21° 넘게 한 번에)은 MCU 속도 제한(정지 중 12°/s) 때문에 `steering_not_following`(3°, 1.5 s)을 걸 수 있었다. 2026-11-13(개정 43, 프로필 v0.2 정상 대본 N5에서 10/10)부터는 MCU 램프가 목표에 닿은 뒤부터만 센다(`steer_bridge_core._track_monitor`, `_ramp_goal`). 시험: `test_not_following_counts_only_after_the_mcu_ramp_settles`, `test_slewing_that_never_settles_does_not_latch`. 같은 규칙을 평가 쪽 재계산(`safety_scripts/states.py`, `p6a_checks.host_timing`)에도 넣었다. 실행기는 여전히 변화율 상한으로 큰 계단을 막는다(설계 6.2).
 - 보정(CAL)·설정(CFG)·BENCH 명령은 줄 만들기만 있다. 브리지 op로 열지 않았다(정비 도구에서 쓸 것).
 - 실차 저장소로 옮길 때(P9) A26 SHA 비교를 한다. 기반 파일: `rover_control_core.py`, `rover_api.py`, `motor_pwm.py`, `esp_wheel_controller.py`(설계 2.4).
 - fix_p3(2026-11-09)에서 바꾼 것(검토 RH-01~RH-12): 래치는 MCU가 ARM을 확인할 때만 지운다(12.1-75). ARM에 온 `N - boot`를 MCU 리셋으로 본다(12.1-76). ARM 확인 전 STOP의 확인 줄 번호(12.1-77). arm 조건 `config_unsaved`(12.1-74)와 POLARITY·DRV_STUCK 비트의 `polarity_check_missing`(12.1-71). 예외를 `internal_error` 래치로 잡는다. 시계·소켓·`cal_id`를 래퍼 역할에 묶었다. `/rover/steering/state`를 상태 줄마다 낸다. 호스트 프로필 값 관계 검사. pty 열기 전 장치 검사. 주석의 결정 번호(12.1-60). 고치기 전 호스트 코드(저장소 밖 복사본)로 새 시험 12개(하위 시험 포함)를 돌리면 실패 19건, 오류 2건이었다. 고친 뒤 Windows 3.13 112개(10개 건너뜀), WSL 3.10 112개, 기반 이미지 3.12 112개 통과.

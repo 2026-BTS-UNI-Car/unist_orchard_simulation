@@ -18,6 +18,9 @@ namespace ubts_steer {
 const uint64_t kStreamPotNoise = 0x706f745f6e6f6973ULL;     // ADC sample noise
 const uint64_t kStreamBacklashWander = 0x77616e6465725f62ULL;  // link wander inside the play
 const uint64_t kStreamReleaseNoise = 0x72656c656173655fULL;   // free-wheeling road noise
+const uint64_t kStreamBeltSlip = 0x62656c745f736c70ULL;       // steer_ext: belt creep and tooth skips
+const uint64_t kStreamImpact = 0x696d706163745f74ULL;         // steer_ext: ground impacts
+const uint64_t kStreamPush = 0x707573685f746f72ULL;           // steer_ext: pushing torque
 
 inline uint64_t splitmix64_next(uint64_t *state) {
   uint64_t z = (*state += 0x9e3779b97f4a7c15ULL);

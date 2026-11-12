@@ -31,6 +31,7 @@ enum InjectionKind {
   kInjPotSlip,
   kInjPotDrift,
   kInjPotReversed,
+  kInjSteerTorque,  // external torque on the steering axis (steer_ext disturbance model, ST-11)
   kInjKindCount
 };
 
@@ -71,8 +72,8 @@ struct Injection {
   Injection() : kind(0), at_s(0.0), value(0.0), duration_s(0.0), counts(0) {}
   int kind;           // InjectionKind
   double at_s;        // activation time after RESET (s)
-  double value;       // rate_scale, pwm, scale, offset_rad or rate_rad_per_s (by kind)
-  double duration_s;  // pot_jump only
+  double value;       // rate_scale, pwm, scale, offset_rad, rate_rad_per_s or torque_nm (by kind)
+  double duration_s;  // pot_jump and steer_torque only
   long counts;        // pot_jump only
 };
 
@@ -110,6 +111,35 @@ struct FirmwareConfig {
   bool report_servo;         // servo state channels 11..14 (SIM evaluation only, LOCKSTEP 11.6)
 };
 
+// Optional startup block "steer_ext" (vehicle profile schema v3: belt potentiometer, steering supply, external torque;
+// docs/steering/STEER_EXT_MODEL_KO.md). Absent: every term is off and the model is bit-identical to a run without it.
+struct ExtConfig {
+  ExtConfig()
+      : present(false),
+        belt_play_rad(0.0),
+        belt_creep_sd_rad_per_sqrt_rad(0.0),
+        belt_skip_per_rad(0.0),
+        belt_tooth_step_rad(0.0),
+        supply_rate_scale(1.0),
+        backdrive_coast_gain(1.0),
+        self_lock_breakaway_nm(0.0),
+        impact_rate_per_m(0.0),
+        impact_torque_sd_nm(0.0),
+        impact_duration_s(0.0),
+        push_sd_nm(0.0),
+        push_corr_length_m(1.0) {}
+  bool present;
+  double belt_play_rad;                   // measurement-side play between the measured member and the pot shaft
+  double belt_creep_sd_rad_per_sqrt_rad;  // friction-belt creep: random walk of the pot zero per sqrt(travel)
+  double belt_skip_per_rad;               // tooth skips per rad of pot-side travel (Poisson)
+  double belt_tooth_step_rad;             // zero shift of one tooth skip (steering scale)
+  double supply_rate_scale;               // steering rate x this (shared battery voltage scale)
+  double backdrive_coast_gain;            // back-driven speed x this with the driver off (no electrical braking)
+  double self_lock_breakaway_nm;          // self-locking gear: external torque needed to back-drive it
+  double impact_rate_per_m, impact_torque_sd_nm, impact_duration_s;  // ground impacts (Poisson in distance)
+  double push_sd_nm, push_corr_length_m;                             // pushing torque (OU in distance)
+};
+
 struct Config {
   Config() : protocol(1), mode(0), seed(0), tick_hz(0), mcu_baud(0) {}
   int protocol;  // 1 or 2 (startup protocol string; frame header version)
@@ -122,6 +152,7 @@ struct Config {
   PotConfig pot;
   ServoConfig servo;
   std::vector<Injection> injections;
+  ExtConfig ext;         // optional steer_ext block
   uint32_t mcu_baud;     // v2 firmware mode: mcu.baud (checked against the compiled firmware baud)
   FirmwareConfig fw;     // v2 firmware mode
 };
