@@ -1,0 +1,59 @@
+{
+ "based_on": "steer_follow_v1 (the same limits)",
+ "controller": {
+  "kind": "row_follow"
+ },
+ "criteria": {
+  "after_terminal_window_s": 3.0,
+  "heading_max_deg": 15.0,
+  "heading_rmse_deg": 5.0,
+  "lateral_max_m": 0.5,
+  "lateral_p95_m": 0.35,
+  "lateral_rmse_m": 0.2,
+  "min_clearance_m": 0.0,
+  "rest_speed_m_s": 0.02,
+  "row_end_error_m": 1.0,
+  "speed_max_m_s": 0.5
+ },
+ "geometry": {
+  "front_bumper_m": 0.61,
+  "half_width_m": 0.35,
+  "post_radius_m": 0.0707
+ },
+ "limits": {
+  "invalid_reruns": 2,
+  "pause_give_up_s": 15.0,
+  "run_limit_s": 300.0
+ },
+ "prereg_id": "steer_follow_gsim_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "runs": [
+  {
+   "expect": "row_end",
+   "name": "nominal_1",
+   "start": "spawn"
+  },
+  {
+   "expect": "row_end",
+   "name": "nominal_2",
+   "start": "spawn"
+  },
+  {
+   "expect": "row_end",
+   "name": "nominal_3",
+   "start": "spawn"
+  },
+  {
+   "expect": "row_end",
+   "lateral_offset_m": 0.4,
+   "name": "lateral_p040",
+   "settle_m": 6.0,
+   "start": "set_pose"
+  }
+ ],
+ "scene": "w1_force",
+ "schema": "ubts.steer_sim.gsim_follow.v1.prereg",
+ "settle_m": 6.0,
+ "validity": "A10 rule of the wall clock mode: a run is invalid when the /clock RTF of the run is below 0.9, the emulator saw a /clock wall gap above 100 ms in the run, or the host latched because of a SIM stall; an invalid run is recorded, not judged, and replaced",
+ "world": "W1: orchard_gazebo.world_gen, preset original, quality lite, seed 7 (rover.yaml)"
+}
