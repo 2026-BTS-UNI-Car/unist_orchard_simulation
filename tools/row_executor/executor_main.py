@@ -1685,6 +1685,8 @@ class ExecutorLoop:
                                 base=sr.get('base_duty_pct'), vt=sr.get('target_speed_m_s'),
                                 rem=sr.get('end_remaining_m'), conf=(sr.get('confidence') or {}).get('level'),
                                 cat=sr.get('stop_category'))
+            if sr.get('speed_cap') is not None:                 # speed governor (PC-10): binding cap and tau_loop
+                record['sr'].update(cap=sr.get('speed_cap'), tau=sr.get('tau_loop_s'))
         if self.steering:                                       # front_steer: the output and the steering feedback
             st = s.get('steering') or {}
             record.update(T=d.throttle, S=d.steer_mrad,

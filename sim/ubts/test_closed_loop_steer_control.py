@@ -13,7 +13,9 @@ from closed_loop.steer_control import RowFollowController, SteerFollowConfig
 
 READ_KEYS = {'lidar_age_s', 'imu_age_s', 'scan_count', 'speed', 'still', 'still_s', 'corridor_valid', 'corridor_reason',
              'corridor_age_s', 'heading_error', 'lateral_offset', 'row_end_ahead_m', 'front_clearance_m', 'yaw_rate',
-             'steer_command_mrad', 'steer_measured_mrad'}
+             'steer_command_mrad', 'steer_measured_mrad',
+             # speed governor (PC-10): the estimator's actuator prior block, the odometry flag and the map age hook
+             'actuator_prior', 'odom_valid', 'map_age_s'}
 TABLE = ((20., .2), (40., .4), (60., .6))            # test table: 1 % duty = 0.01 m/s
 
 
@@ -203,6 +205,77 @@ def test_speed_caps():
     fast = RowFollowController(config(cruise_speed_m_s=.5))
     assert reference(fast)[0] == .5 and RowFollowController(config()).stopping_distance(.4) == pytest.approx(
         .4 * .25 + .16 / 2.14)
+
+
+def test_governor_caps_of_pc10():
+    """Every new cap of the speed governor (design v2 V2-4, PC-10) on its own, and its name as the limit reason."""
+    ctl = RowFollowController(config())
+    assert 'map' not in reference(ctl)[2]                                              # hook off without a map age
+    assert reference(ctl, map_age_s=.8)[:2] == (pytest.approx(.25), 'map')            # 0.20 m / 0.8 s
+    ctl.curvature = .3 / .35 ** 2                                                     # sqrt(0.3 / k) = 0.35 m/s
+    assert reference(ctl)[:2] == (pytest.approx(.35), 'curvature')
+    ctl.curvature = 0.
+    ctl.demand = .9                                                                   # half way from 0.8 to 1.0
+    assert reference(ctl)[:2] == (pytest.approx(.30), 'steer')
+    ctl.demand = 1.3
+    assert reference(ctl)[:2] == (pytest.approx(.20), 'steer')
+    ctl.demand = .8
+    assert reference(ctl)[1] == 'cruise'
+    ctl.demand = 0.
+    assert reference(ctl, lidar_age_s=.31)[:2] == (.20, 'fresh')
+    assert reference(ctl, lidar_age_s=.29)[1] == 'cruise'
+    assert reference(ctl, actuator_prior=dict(predicting=True))[:2] == (.20, 'quality')
+    assert reference(ctl, actuator_prior=dict(predicting=False))[1] == 'cruise'
+
+
+def test_steering_demand_and_curvature_come_from_the_steering_target():
+    ctl = RowFollowController(config())
+    k = driving(ctl)
+    run(ctl, 20, start=k, speed=.4, still=False, heading_error=.3)          # no lateral offset: no lateral cap
+    assert ctl.demand > 1. and ctl.curvature == pytest.approx(math.tan(math.radians(12.)) / .76)
+    assert ctl._telemetry['steer_demand'] > 1. and ctl._telemetry['cap'] == 'steer'
+    assert ctl._telemetry['caps']['curvature'] == pytest.approx(math.sqrt(.3 / ctl.curvature), abs=1e-3)
+
+
+def test_late_ticks_lengthen_tau_loop():
+    ctl = RowFollowController(config())
+    k = driving(ctl)
+    t = k * .05
+    for i in range(40):                                    # the controller steps every 0.1 s (every second tick lost)
+        t += .1
+        ctl.step(t, snap(0, scan_count=20 + i, lidar_age_s=.08, speed=.4, still=False))
+    assert ctl._telemetry['tau_loop_s'] == pytest.approx(.08 + .24 + .05)
+    assert ctl.caps['blind'] == pytest.approx(.15 / (.08 + .24 + .05), abs=1e-3)
+
+
+def test_overspeed_cuts_the_duty_then_pauses():
+    ctl = RowFollowController(config())
+    k = driving(ctl)
+    run(ctl, 40, start=k, speed=.4, still=False)
+    c = ctl.step((k + 40) * .05, snap(0, speed=.6, still=False))
+    assert c.state == 'FOLLOW' and c.throttle == 20 and ctl._telemetry['overspeed'] is True    # table^-1(0.2) = 20 %
+    out = run(ctl, 25, start=k + 41, speed=.6, still=False)
+    assert ('STOP_REQUESTED', 'stopping_overspeed') in [(c.state, c.reason) for c in out]
+    assert ctl.pending == ('hold', 'overspeed')
+    c = ctl.step(10., snap(0, speed=0., still=True, still_s=1.))
+    assert (c.state, c.reason, c.recoverable) == ('HOLD', 'overspeed', True)
+    again = RowFollowController(config())
+    k = driving(again)
+    out = run(again, 10, start=k, speed=.6, still=False) + run(again, 30, start=k + 10, speed=.4, still=False)
+    assert again.pending is None and again.over_since is None                         # a short excess only slows
+
+
+def test_recoverable_flag_of_the_holds():
+    assert set(SC.RECOVERABLE_HOLDS) == {'speed_cap_below_min', 'overspeed', 'stale_lidar', 'stale_imu'}
+    ctl = RowFollowController(config())
+    k = driving(ctl)
+    c = ctl.step(k * .05, snap(k, lidar_age_s=.5, speed=.4, still=False))
+    assert (c.state, c.reason, c.recoverable) == ('HOLD', 'stale_lidar', True)
+    end = RowFollowController(config())
+    k = driving(end)
+    run(end, 5, start=k, speed=.4, still=False, row_end_ahead_m=.7)
+    c = end.step(9., snap(0, speed=0., still=True, still_s=1., row_end_ahead_m=.7))
+    assert (c.state, c.reason, c.recoverable) == ('HOLD', 'row_end', False)
 
 
 def test_loop_timing_is_measured_from_the_scan_stamps():

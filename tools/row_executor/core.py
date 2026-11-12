@@ -205,6 +205,8 @@ SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'reacquire_needs_press': 'PERCEPTION_OR_LOCALISATION',   # corridor re-acquisition wait (Runner pause)
     'stall_guard': 'SENSOR',                                 # loop stall pause (the repeat limit is SENSOR in the table)
     'prediction_limit': 'SENSOR',                            # actuator prior bound reached (a proposal; design v2 5)
+    'speed_cap_below_min': 'SENSOR',                         # speed governor: a cap below the minimum speed (PC-10)
+    'overspeed': 'DRIVE',                                    # speed governor: LiDAR speed above the locked maximum
     'native_cross_check_cost_occupied': 'OBSTACLE',          # optional native cross-check veto (executor_main)
     'bridge_error': 'SYSTEM_FAULT', 'bridge_latched': 'SYSTEM_FAULT', 'bridge_arm_failed': 'SYSTEM_FAULT',
     'shutdown': 'SYSTEM_FAULT', 'loop_exception': 'SYSTEM_FAULT',
@@ -222,7 +224,8 @@ SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'link_identity_mismatch': 'SYSTEM_FAULT', 'bridge_internal_error': 'SYSTEM_FAULT', 'mcu_disarmed': 'SYSTEM_FAULT',
 }
 # pauses counted together against max_stale_events (design v2 V2-2 item 5; the reason names of the steering controller)
-COUNTED_PAUSES = ('stale_lidar', 'stale_imu', 'operator_link_lost', 'prediction_limit')
+COUNTED_PAUSES = ('stale_lidar', 'stale_imu', 'operator_link_lost', 'prediction_limit', 'speed_cap_below_min',
+                  'overspeed')
 SINGLE_ROW_SUB_LABELS = dict(DRIVE='CONTROL_AUTHORITY', SENSOR='PERCEPTION_OR_LOCALISATION')   # PREREG sub-labels
 SINGLE_ROW_NOT_STOPS = ('await_hold', 'resumed', 'no_run', 'press_ignored_inputs_not_fresh',
                         'press_ignored_not_standstill', 'press_ignored_steering_feedback')
@@ -1391,8 +1394,10 @@ class Runner:
         ctrl_state, ctrl_reason = command.state, command.reason
         ctrl = dict(controller_state=ctrl_state, controller_reason=ctrl_reason)
         if command.state == 'HOLD':
-            if command.reason in self.recoverable_holds:
-                self._pause(command.reason)      # same single stale rule
+            # recoverable: the vendored stale holds, or a hold the steering controller marks recoverable (its speed
+            # governor: speed_cap_below_min, overspeed; design v2 V2-4 items 5-6): a pause, a new go / press resumes
+            if command.reason in self.recoverable_holds or getattr(command, 'recoverable', False) is True:
+                self._pause(command.reason)
             else:
                 self._end(command.reason)        # terminal holds (and unknown reasons) end the run
             return self._decision(0, 0, s, ctrl)
@@ -1677,7 +1682,8 @@ class Runner:
             base_duty_pct=_finite_or_none(t.get('base_duty_pct'), 2),
             target_speed_m_s=_finite_or_none(t.get('target_speed_m_s'), 3),
             speed_cap=t.get('cap'), cruise_speed_m_s=_finite_or_none((t.get('caps') or {}).get('cruise'), 3),
-            speed_caps=t.get('caps'),
+            speed_caps=t.get('caps'), tau_loop_s=_finite_or_none(t.get('tau_loop_s'), 3),
+            steer_demand=_finite_or_none(t.get('steer_demand'), 3),
             target_yaw_rate_deg_s=_finite_or_none(t.get('target_yaw_rate_deg_s'), 3),
             measured_yaw_rate_deg_s=_finite_or_none(math.degrees(s.get('yaw_rate', 0.) or 0.), 3),
             row_end_ahead_m=_finite_or_none(end, 3), end_remaining_m=_finite_or_none(remaining, 3),
