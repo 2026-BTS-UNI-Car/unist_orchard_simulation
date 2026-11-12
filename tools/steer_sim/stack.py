@@ -18,7 +18,8 @@ The rules are docs/steering/STACK_OPERATIONS_KO.md (DECISIONS R22). This helper 
 
 Commands (every docker call names the project with -p; the docker program is UBTS_STEER_DOCKER or 'docker'):
   python -I tools/steer_sim/stack.py up     --project ubts-steer-<job> [--profile executor] [--gib 6]
-                                            [--budget-wait-s 600] [--load-check FILE] [SERVICE ...]
+                                            [--budget-wait-s 600] [--load-check FILE] [--override FILE ...]
+                                            [SERVICE ...]
   python -I tools/steer_sim/stack.py run    --project ubts-steer-<job> -- COMMAND ...   (compose run --rm --no-deps check)
   python -I tools/steer_sim/stack.py ps     --project ubts-steer-<job>
   python -I tools/steer_sim/stack.py down   --project ubts-steer-<job> [--receipt FILE]
@@ -26,7 +27,8 @@ Commands (every docker call names the project with -p; the docker program is UBT
 Folders: --state-dir or UBTS_STEER_STACK_STATE (the lock); --budget-tool or UBTS_STEER_BUDGET_TOOL (docker_budget.py,
 outside the repository). The compose environment (UBTS_STEER_SCENE, UBTS_STEER_CLOCK, UBTS_STEER_IMAGE, ...) is taken
 from the caller's environment at "up" and stored in the lock, so "run" and "down" use the same values (compose must
-not recreate the sim service). Exit codes: 0 ok, 2 usage, 3 budget timeout, 4 refused by a rule, 5 docker failed.
+not recreate the sim service). --override adds compose override files after the stack file (repeatable; e.g. the
+read-only data mounts of a field1010 scene, kept outside the repository); they are stored in the lock too. Exit codes: 0 ok, 2 usage, 3 budget timeout, 4 refused by a rule, 5 docker failed.
 Placeholder-based SIM tooling; it never touches a vehicle.
 """
 from __future__ import annotations
@@ -134,6 +136,8 @@ def write_json(path, payload):
 
 def compose_args(lock):
     args = ['compose', '-p', lock['project'], '-f', lock['compose_file']]
+    for path in lock.get('overrides') or ():
+        args += ['-f', path]
     for profile in lock.get('profiles') or ():
         args += ['--profile', profile]
     return args
@@ -177,6 +181,12 @@ def cmd_up(args):
         if not path.is_file():
             raise Refused('host-load check file %s not found (rules 2: check the host before the start)' % path)
         load = dict(path=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+    overrides = []
+    for item in args.override or ():
+        path = Path(item)
+        if not path.is_file():
+            raise Refused('override file %s not found' % path)
+        overrides.append(str(path.resolve()))
     tool = budget_tool(args)
     code, text = budget(tool, 'acquire', project, args.gib, args.budget_wait_s, args.budget_ttl_s)
     if code != 0:
@@ -184,7 +194,7 @@ def cmd_up(args):
         print('budget not reserved within %g s (exit %d): nothing started' % (args.budget_wait_s, code))
         return EXIT_BUDGET
     lock = dict(schema=SCHEMA, project=project, compose_file=str(Path(args.compose_file).resolve()),
-                profiles=list(args.profile or ()), services=list(args.services or ()), env=stack_env(),
+                overrides=overrides, profiles=list(args.profile or ()), services=list(args.services or ()), env=stack_env(),
                 budget=dict(tool=str(tool), label=project, gib=args.gib), load_check=load, pid=os.getpid(),
                 started_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
     write_json(folder / LOCK_NAME, lock)
@@ -273,6 +283,7 @@ def build_parser():
     up.add_argument('--budget-ttl-s', type=float, default=DEFAULT_BUDGET_TTL_S)
     up.add_argument('--compose-file', default=str(COMPOSE_FILE))
     up.add_argument('--load-check', default=None, help='host-load check record of this start (rules 2)')
+    up.add_argument('--override', action='append', help='compose override file after the stack file (repeatable)')
     up.add_argument('services', nargs='*')
     for name in ('run', 'ps', 'down'):
         sp = sub.add_parser(name, parents=[common])

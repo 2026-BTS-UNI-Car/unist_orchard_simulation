@@ -138,6 +138,23 @@ class StackRulesTest(unittest.TestCase):
             if call[:1] == ['compose']:
                 self.assertEqual(call[1:3], ['-p', 'ubts-steer-a'])
 
+    def test_override_files_follow_the_stack_file_in_every_command(self):
+        override = self.tmp / 'compose.field.yaml'
+        override.write_bytes(b'services: {}' + bytes([10]))
+        self.assertEqual(self.main('up', '--project', 'ubts-steer-a', '--override', str(self.tmp / 'missing.yaml')),
+                         stack.EXIT_REFUSED)
+        self.assertEqual(self.compose_calls(), [])
+        self.assertEqual(self.main('up', '--project', 'ubts-steer-a', '--override', str(override)), 0)
+        self.assertEqual(self.main('run', '--project', 'ubts-steer-a', '--', 'true'), 0)
+        self.assertEqual(self.main('down', '--project', 'ubts-steer-a'), 0)
+        calls = self.compose_calls()
+        self.assertEqual(len(calls), 3)
+        for call in calls:
+            files = [call[i + 1] for i, a in enumerate(call) if a == '-f']
+            self.assertEqual(len(files), 2)
+            self.assertTrue(files[0].endswith('compose.ubts-steer.yaml'))
+            self.assertEqual(files[1], str(override.resolve()))
+
     def test_one_stack_at_a_time(self):
         self.assertEqual(self.main('up', '--project', 'ubts-steer-a'), 0)
         self.assertEqual(self.main('up', '--project', 'ubts-steer-b'), stack.EXIT_REFUSED)
