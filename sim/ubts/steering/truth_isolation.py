@@ -196,6 +196,8 @@ ROLE_TABLE = {
     # --- 3rd phase (P4 executor in the loop; WF-3a) -------------------------------------------------------------------
     'sim/ubts/steering/t1_rig.py': (ROLE_PLANT, 'T1 rig: host bridge + MCU + plant + sensors; an executor gets only the '
                                                 'RigClient replies, poll_sensors() and clock()'),
+    'sim/ubts/steering/gnss_sim.py': (ROLE_PLANT, 'virtual GNSS of the T1 rig from the true antenna position (sensor '
+                                                  'synthesis, PC-12); the executor gets the fix packets only'),
     'sim/ubts/steering/scripted_control.py': (ROLE_DECISION, 'SIM scripted controllers of the executor slot: the '
                                                              'estimator snapshot and the steering status only'),
     'sim/ubts/steering/s2_format.py': (ROLE_SHARED, 'real S2 LaserScan format of a SIM scan (sensor data)'),
@@ -260,6 +262,12 @@ DYNAMIC_IMPORT_EXEMPTIONS = {
 # A13: the executor node subscribes to these topics only (design 2.6).
 EXECUTOR_TOPIC_ALLOWLIST = ('/scan', '/imu/data_raw', '/rover/control/requested')
 EXECUTOR_SUBSCRIPTION_FILES = ('tools/row_executor/executor_main.py',)
+# A13 revision 30 (design v2 V2-1 3, PC-12): with gnss_mode not 'off' the executor node may also subscribe the GNSS fix.
+# The topic string is allowed in these executor files only (its value goes to gnss_layer, never to the estimator or a
+# command; tools/row_executor/tests/test_perception_runner.py checks that log_only changes no decision). Any other
+# /gps/* string in decision code stays an error.
+EXECUTOR_GNSS_TOPICS = ('/gps/fix',)
+EXECUTOR_GNSS_TOPIC_FILES = ('tools/row_executor/executor_main.py',)
 # Pattern roles (fnmatch on the repository-relative path), checked after ROLE_TABLE, first match wins.
 ROLE_PATTERNS = (
     ('sim/ubts/test_*.py', ROLE_TEST, 'unit test'),
@@ -681,6 +689,8 @@ def check_source(source, rel, role):
         errors, exempted = [], []
         for f in reads:
             reason = DYNAMIC_IMPORT_EXEMPTIONS.get((rel, f.get('function'))) if f['rule'] == 'dynamic_import' else None
+            if f['rule'] == 'truth_topic' and f.get('detail') in EXECUTOR_GNSS_TOPICS                     and rel in EXECUTOR_GNSS_TOPIC_FILES:
+                reason = 'A13 revision 30: GNSS layer input topic of the executor node (gnss_mode not off)'
             (exempted if reason else errors).append(dict(f, exempted=reason) if reason else f)
         return errors, [dict(f, rule='exempted:' + f['rule']) for f in exempted]
     errors = sink_findings(tree) if role in SINK_ROLES or role is None else []
@@ -718,7 +728,8 @@ def _topic_default(function, name):
     return None
 
 
-def subscription_check(root=None, files=EXECUTOR_SUBSCRIPTION_FILES, allowlist=EXECUTOR_TOPIC_ALLOWLIST):
+def subscription_check(root=None, files=EXECUTOR_SUBSCRIPTION_FILES,
+                       allowlist=EXECUTOR_TOPIC_ALLOWLIST + EXECUTOR_GNSS_TOPICS):
     """A13: every topic the executor node subscribes to (create_subscription calls; a topic given by a parameter is
     resolved to that parameter's default) and every --*-topic command-line default lies in the allowlist. A topic that
     cannot be resolved is a problem. A run-time override (--scan-topic ...) is an operator setting at launch; the ROS

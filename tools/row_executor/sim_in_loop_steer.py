@@ -191,6 +191,13 @@ def scan_message(packet, real_format):
                angle_increment=RAW_INC, range_min=.05, range_max=30., scan_time=.1, time_increment=0.)
 
 
+def gnss_message(packet):
+    """A rig GNSS packet -> the executor's GNSS message (local metres of the virtual receiver; no latitude /
+    longitude in the SIM)."""
+    return _ns(header=_header(packet['stamp_s']), east_m=float(packet['east_m']), north_m=float(packet['north_m']),
+               hacc_m=packet['hacc_m'], fix_ok=bool(packet['fix_ok']))
+
+
 def imu_message(packet):
     """A rig IMU packet -> sensor_msgs/Imu-like fields (the raw IMU axes; the executor projects the gyro itself)."""
     acc = packet['accel_m_s2']
@@ -332,6 +339,9 @@ class SteerExecutorInTheLoop:
                 if len(self.inputs['scans']) < self.capture_inputs:
                     self.inputs['scans'].append(dict(receipt=receipt, header=packet['stamp_s'], msg=msg))
                 self.executor.on_scan_msg(receipt, msg)
+            elif packet['kind'] == 'gnss':
+                self.input_counts['gnss'] += 1
+                self.executor.on_gnss_msg(receipt, gnss_message(packet))
             else:
                 msg = imu_message(packet)
                 self.input_counts['imus'] += 1
