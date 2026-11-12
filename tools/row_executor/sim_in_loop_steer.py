@@ -266,13 +266,16 @@ class SteerExecutorInTheLoop:
         self.socket = RigSocket(self.client, on_motion=lambda yaw, speed: self.motion_log.append(
             (round(rig.now, 4), float(yaw), float(speed))))
         self.log = CaptureLog()
-        factory = SCRIPT.make_factory(self.controller_spec, cfg)
+        SCRIPT.make_factory(self.controller_spec, cfg)           # refuses a bad spec before anything starts
+        # the controller factory gets the loop's effective config (the field tuning values the loop loaded, PW-08)
         self.executor = XM.ExecutorLoop(
             cfg, motor_output_flag=True, clock=rig.clock, wall=rig.wall_clock, log=self.log,
             bridge_factory=lambda: SteerBridgeClient.from_config(cfg, transport=self.socket, owner=OWNER,
                                                                  clock=rig.clock, wall=rig.wall_clock),
             stop_transport=self.socket,
-            runner_factory=lambda c: XCORE.Runner(c, vendor_modules=(SE, SC), controller_factory=factory))
+            runner_factory=lambda c: XCORE.Runner(c, vendor_modules=(SE, SC),
+                                                  controller_factory=SCRIPT.make_factory(self.controller_spec, c)))
+        self.cfg = cfg = self.executor.config
         self.real_format = RealFormat(cfg.lidar_yaw_offset_deg)
         self.actions = sorted((dict(a) for a in actions), key=lambda a: (float(a['at_s']), a['op']))
         for action in self.actions:
@@ -660,6 +663,7 @@ class SteerExecutorInTheLoop:
                                 windows_ms=[list(w) for w in getattr(self.rig, 'executor_stall_windows', ())]),
             events=[list(e) for e in self.events], client2=self.client2_replies,
             start_mode=XC.effective_start_mode(self.cfg), go_refused=[list(g) for g in self.go_refused],
+            tuning=None if self.executor.tuning is None else self.executor.tuning.brief(),
             other_screen=list(self.other_screen),
             host_latches=[list(item) for item in self.latch_log],
             late_drive=[dict(t=item['t'], reply=dict((k, item.get('reply', {}).get(k)) for k in ('ok', 'error')))

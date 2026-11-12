@@ -27,7 +27,9 @@ API (all JSON; the autonomy contract of the front-steer executor is docs/steerin
   POST /api/end      {}                     end the run normally (no latch)
   POST /api/arm      {}                     MOTOR only: take the bridge lease for the current run
   POST /api/ack      {}                     acknowledge a LATCHED bridge client (does not arm)
-  POST /api/params   {base_duty_pct, reduce_duty_pct, max_differential_pct}  bounded on-site values
+  POST /api/params   differential: {base_duty_pct, reduce_duty_pct, max_differential_pct}  bounded on-site values;
+                     front_steer: the field tuning (field_tuning.py): basic keys {name: value, ...}, or {"preset": n},
+                     or {"save": true} / {"save_preset": n, "note": t}; at rest only (409), refused values 400
   POST /api/calib_start {"kind": "arc"|"rolldown"|"stop", "params": {...}}   calibration run (calib_runs.py; MOTOR
                                             with calib_motor_output_enabled only; params bounded by make_plan:
                                             arc: arc_set, step_s; rolldown: step_pct, hold_s, floor_pct; stop (C7):
@@ -213,6 +215,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._deny(400, 'unknown_parameter')
             return self._result(loop.request('turn_observe', params=body))
         if route == '/api/params':
+            if getattr(loop, 'tuning', None) is not None:
+                # front_steer field tuning (docs/steering/OPERATOR_API_KO.md): basic keys / preset / save; 400 for a
+                # value or key the tuning refuses, 409 while a run is open, the lease is held or the vehicle moves
+                result = loop.request('params', params=body)
+                code = result.pop('http', None) or (200 if result.get('ok') else 409)
+                return self._send(code, result)
             params = {k: body[k] for k in ('base_duty_pct', 'reduce_duty_pct', 'max_differential_pct') if k in body}
             if set(body) - set(params):
                 return self._deny(400, 'unknown_parameter')
@@ -303,9 +311,12 @@ table.stale{opacity:.35}
 </div>
 <div class="card"><table id="tab"></table></div>
 <div class="card"><div>현장 설정 (run 없음·disarmed일 때만)</div>
-<div>base <input id="p_base" type="number" step="1"> reduce <input id="p_reduce" type="number" step="1">
+<div id="diffparams"><div>base <input id="p_base" type="number" step="1"> reduce <input id="p_reduce" type="number" step="1">
 diff <input id="p_diff" type="number" step="1"> <button class="small" id="params">적용</button></div>
-<div id="limits" style="color:var(--dim)"></div><div id="feas"></div></div>
+<div id="limits" style="color:var(--dim)"></div></div>
+<div id="tuning" hidden><div id="tuninginfo" style="color:var(--dim)"></div><div id="tuningform"></div>
+<div><button class="small" id="tnapply">값 적용</button> 프리셋 <select id="tnpreset"></select>
+<button class="small" id="tnload">불러오기</button></div></div><div id="feas"></div></div>
 <div class="card" id="calibcard" hidden><div><b>보정 run (C5 arc / C3b rolldown / C7 stop) · MOTOR · 열 밖 넓은 곳</b></div>
 <div>종류 <select id="c_kind"><option value="arc">arc (C5: 차등별 yaw)</option>
 <option value="rolldown">rolldown (C3b: 굴러가는 중 최저 duty)</option>
@@ -485,6 +496,32 @@ $("turnstart").addEventListener("click", () => {
   }
   api("/api/turn_observe", p).then(show);
 });
+// front_steer field tuning (status.tuning): the basic keys only, at rest only (the executor refuses otherwise)
+let tuningFilled = false;
+function tuningCard(s) {
+  const t = s.tuning, has = !!(t && t.basic);
+  $("tuning").hidden = !has; $("diffparams").hidden = has;
+  if (!has) return;
+  if (!tuningFilled) {
+    $("tuningform").innerHTML = t.basic.map(k => "<div>" + esc(k.name) + " <input id='tn_" + esc(k.name) +
+      "' type='number' step='any'> <span style='color:var(--dim)'>" + k.low + "–" + k.high + " " + esc(k.unit) + "</span></div>").join("");
+    for (const k of t.basic) $("tn_" + k.name).value = k.value;
+    $("tnpreset").innerHTML = (t.presets || []).map(p => "<option>" + esc(p) + "</option>").join("");
+    tuningFilled = true;
+  }
+  $("tuninginfo").textContent = "조정 파일 " + (t.preset || "-") + " · rev " + t.revision + " · " +
+    (t.editable ? "변경 가능(정지 상태)" : "변경 불가: " + (t.not_editable_because || "")) + " · digest " + String(t.digest || "").slice(0, 12);
+}
+$("tnapply").addEventListener("click", () => {
+  const t = lastStatus && lastStatus.tuning, body = {};
+  for (const k of (t && t.basic) || []) {
+    const v = parseFloat($("tn_" + k.name).value);
+    if (isFinite(v) && v !== k.value) body[k.name] = v;
+  }
+  if (!Object.keys(body).length) { msg("바뀐 값이 없다", "bad"); return; }
+  api("/api/params", body).then(r => { show(r); tuningFilled = false; });
+});
+$("tnload").addEventListener("click", () => api("/api/params", {preset: $("tnpreset").value}).then(r => { show(r); tuningFilled = false; }));
 $("params").addEventListener("click", () => {
   const body = {base_duty_pct: parseInt($("p_base").value, 10), reduce_duty_pct: parseInt($("p_reduce").value, 10),
                 max_differential_pct: parseInt($("p_diff").value, 10)};
@@ -654,6 +691,7 @@ function render(s) {
     ", diff " + (lim.max_differential_pct || []).join("–") + " (cap·안쪽 바퀴 규칙으로 추가 제한). diff를 낮추면 yaw 권한(측정 × 새 diff / 파일 diff)과 " +
     "max_yaw가 함께 낮아진다: 지금 yaw 권한 " + fmt(yp.measured_yaw_at_max_diff_deg_s, 2) + " °/s, max_yaw " + fmt(yp.max_yaw_rate_deg_s, 1) + " °/s.";
   calibCard(s);
+  tuningCard(s);
   $("turncard").hidden = !s.turn_observe_available;
   const o = s.turn_observe, om = o && o.measurements || {};
   $("turnstart").disabled = !s.turn_observe_available || s.state === "ACTIVE" || s.state === "PAUSED";

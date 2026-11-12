@@ -483,9 +483,16 @@ class RowFollowController:
 
 def controller_config(spec, executor_cfg):
     """SteerFollowConfig from a JSON-able spec {'kind': 'row_follow', <SteerFollowConfig fields>...} and the executor
-    configuration (slew and soft limits, freshness limits, duty cap: never above the executor's own)."""
+    configuration: the field tuning values the executor loaded (executor config tuning_values, design v2 V2-5; {} =
+    the defaults above), then the spec's own fields on top (SIM experiments), then the executor's limits (slew and soft
+    limits, freshness limits, duty cap: never above the executor's own)."""
     known = {f.name for f in fields(SteerFollowConfig)}
-    values = {k: v for k, v in dict(spec).items() if k != 'kind'}
+    tuning = dict(getattr(executor_cfg, 'tuning_values', None) or {})
+    unknown = sorted(set(tuning) - known)
+    if unknown:
+        raise ValueError('unknown field tuning values: %s' % ', '.join(unknown))
+    values = dict(tuning)
+    values.update({k: v for k, v in dict(spec).items() if k != 'kind'})
     unknown = sorted(set(values) - known)
     if unknown:
         raise ValueError('unknown row_follow settings: %s' % ', '.join(unknown))

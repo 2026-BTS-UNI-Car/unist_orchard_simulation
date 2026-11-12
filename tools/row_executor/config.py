@@ -129,7 +129,7 @@ an untouched single-row block is left out of to_dict()/digest() (existing config
                 observed end of the row support) and the steering GO rule of the continuous modes (max_differential 10-20,
                 measured authority >= 4.0 deg/s).
 """
-from dataclasses import asdict, dataclass, field, fields, replace
+from dataclasses import MISSING, asdict, dataclass, field, fields, replace
 import hashlib
 import ipaddress
 import json
@@ -354,6 +354,11 @@ class ExecutorConfig:
                                                  # or explicitly 'one_press' / 'hold_to_run'
     operator_timeout_s: float = .5               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
                                                  # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31)
+    tuning_file: object = None                   # front_steer: the field tuning file (field_tuning.py, design v2 V2-5);
+                                                 # None = the package default field_tuning.default.json
+    tuning_values: dict = field(default_factory=dict)   # front_steer: the steering controller values of the loaded field
+                                                 # tuning (written by the executor loop from tuning_file, never by hand:
+                                                 # with_tuning); {} = the controller's own defaults
 
     # --- actuator priors and estimator outputs of design v2 (V2-1 item 2, layer L1; front_steer only). Opt-in: with the
     # defaults nothing is fed and nothing changes; an untouched block is left out of to_dict()/digest() (existing
@@ -454,6 +459,7 @@ class ExecutorConfig:
         data['bench_pattern'] = [list(step) for step in self.bench_pattern]
         data['body_mask'] = [list(seg) for seg in self.body_mask]
         data['controller_overrides'] = dict(sorted(self.controller_overrides.items()))
+        data['tuning_values'] = {k: _plain(v) for k, v in sorted(self.tuning_values.items())}
         if all(data[k] == _TURN_DEFAULTS[k] for k in TURN_KEYS):
             for k in TURN_KEYS:        # untouched turn block: digest and dump of existing configs unchanged
                 del data[k]
@@ -543,8 +549,9 @@ SINGLE_ROW_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startsw
 _SINGLE_ROW_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in SINGLE_ROW_KEYS}
 STEER_KEYS = ('vehicle_profile',) + tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('steer_'))
 _STEER_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in STEER_KEYS}
-AUTONOMY_KEYS = ('start_mode', 'operator_timeout_s')
-_AUTONOMY_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in AUTONOMY_KEYS}
+AUTONOMY_KEYS = ('start_mode', 'operator_timeout_s', 'tuning_file', 'tuning_values')
+_AUTONOMY_DEFAULTS = {f.name: (f.default_factory() if f.default_factory is not MISSING else f.default)
+                      for f in fields(ExecutorConfig) if f.name in AUTONOMY_KEYS}
 ONE_PRESS, HOLD_TO_RUN = 'one_press', 'hold_to_run'
 START_MODES = (ONE_PRESS, HOLD_TO_RUN)
 PRIOR_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('prior_')) + ('corridor_quality',)
@@ -666,6 +673,7 @@ _SPEC.update({
 # Autonomous start and operator link (design v2 V2-2): separate block for the same reason.
 _SPEC.update({
     'start_mode': (str, None, None, 'nullable'), 'operator_timeout_s': (_REAL, .5, 3.),
+    'tuning_file': (str, None, None, 'nullable'), 'tuning_values': ('tuning',),
 })
 # Actuator priors and estimator outputs (design v2 V2-1): separate block for the same reason.
 _SPEC.update({
@@ -730,9 +738,50 @@ def _type_problems(cfg):
             problems += _overrides_problems(value)
         elif kind == 'speed_table':
             problems += _speed_table_shape(value)
+        elif kind == 'tuning':
+            problems += _tuning_shape(value)
         else:
             problems += _check_scalar(name, value, spec)
     return problems
+
+
+def _plain(value):
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    return value
+
+
+def _tuning_shape(value):
+    """tuning_values: {} or the controller values of field_tuning.controller_fields (every key known, finite numbers, the
+    speed table a list of [duty, speed]); the ranges and rules are field_tuning's (the loop loads the file)."""
+    from .field_tuning import controller_field_names
+    if not isinstance(value, dict):
+        return ['tuning_values: must be an object']
+    problems = ['tuning_values: %r is not a tuning value' % k for k in sorted(set(value) - controller_field_names())]
+    for name, v in value.items():
+        if name == 'speed_table':
+            if not isinstance(v, (list, tuple)) or not all(isinstance(p, (list, tuple)) and len(p) == 2
+                                                           and all(_is_real(x) for x in p) for p in v):
+                problems.append('tuning_values.speed_table: a list of [duty, speed]')
+        elif not _is_real(v):
+            problems.append('tuning_values.%s: must be a finite number' % name)
+    return problems
+
+
+def with_tuning(cfg, values):
+    """The executor config with the resolved field tuning values (field_tuning): tuning_values (the steering controller)
+    and the actuator prior's table and scale. Locked values that live in the executor config must equal it."""
+    from . import field_tuning as T
+    problems = T.lock_problems(values, cfg)
+    if problems:
+        raise ConfigError(problems)
+    prior = T.config_fields(values)
+    # an explicit prior table / scale of the executor config wins (a SIM experiment, e.g. prior_checks' table x 1.3)
+    if cfg.prior_speed_table:
+        del prior['prior_speed_table']
+    if cfg.prior_speed_scale != _PRIOR_DEFAULTS['prior_speed_scale']:
+        del prior['prior_speed_scale']
+    return replace(cfg, tuning_values=T.controller_fields(values), **prior).validate()
 
 
 def _speed_table_shape(value):
@@ -1289,6 +1338,8 @@ def from_dict(data):
         values['prior_speed_table'] = _tuple_of_tuples(values['prior_speed_table'], 'prior_speed_table', problems)
     if 'controller_overrides' in values and isinstance(values['controller_overrides'], dict):
         values['controller_overrides'] = dict(values['controller_overrides'])
+    if 'tuning_values' in values and isinstance(values['tuning_values'], dict):
+        values['tuning_values'] = dict(values['tuning_values'])
     if problems:
         raise ConfigError(problems)
     return ExecutorConfig(**values).validate()

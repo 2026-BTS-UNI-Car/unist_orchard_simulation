@@ -101,6 +101,7 @@ import numpy as np
 
 from . import calib_runs as CR
 from . import config as C
+from . import field_tuning as T
 from .bridge_client import (ARMED, LATCHED, BridgeClient, BridgeError, SteerBridgeClient, UnixSocketTransport,
                             recovery_hint)
 from .core import (ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, SINGLE_ROW_NOT_STOPS, Runner, ScanStamper,
@@ -718,6 +719,15 @@ class ExecutorLoop:
                  navigation_test_mode=False):
         cfg.validate()
         self.file_config = cfg
+        # front_steer: the field tuning file (field_tuning.py, design v2 V2-5) is loaded here and written into the
+        # config the Runner and the steering controller use (tuning_values, the prior's table and scale)
+        self.tuning = None
+        if C.is_front_steer(cfg):
+            try:
+                self.tuning = T.State(T.load(cfg.tuning_file))
+                cfg = C.with_tuning(cfg, self.tuning.values)
+            except (T.TuningError, C.ConfigError) as exc:
+                raise ValueError('field tuning refused: %s' % '; '.join(exc.problems)) from None
         self.config = cfg
         if navigation_gate is not None and type(navigation_gate) is not NativeNavigationGate:
             raise ValueError('memory_only_typed_native_navigation_gate')
@@ -797,7 +807,8 @@ class ExecutorLoop:
         self._calib_stop_logged = None          # run id of the last 'calib_stop' event (C7)
         self._event('config', config=cfg.to_dict(), config_digest=cfg.digest(), motor_allowed=self.motor_allowed,
                     shadow_auto=self.shadow_auto, feasibility=cfg.feasibility(), source_digest=source_digest,
-                    vendor_commit=self.runner.vendor_commit)
+                    vendor_commit=self.runner.vendor_commit, start_mode=self.start_mode,
+                    tuning=None if self.tuning is None else self.tuning.brief())
 
     # --- logging -----------------------------------------------------------------------------------
     def _event(self, name, **fields):
@@ -1256,7 +1267,9 @@ class ExecutorLoop:
         self._ending_since = None
         self._ended_at = None
         self._event('start', run_id=run_id, row_len_m=row_len_m, source=source,
-                    backstop=self.runner.backstop.summary() if self.runner.backstop else None)
+                    backstop=self.runner.backstop.summary() if self.runner.backstop else None,
+                    config_digest=self._config_digest,
+                    tuning=None if self.tuning is None else self.tuning.brief())    # the run's tuning (PC-13)
         return dict(ok=True, run_id=run_id)
 
     def _req_start(self, now, row_len_m=None):
@@ -1365,7 +1378,66 @@ class ExecutorLoop:
         state = None if self.bridge is None else self.bridge.acknowledge_latch()
         return dict(ok=True, bridge=state)
 
+    def _tuning_lock(self):
+        """Why the field tuning can not change now (None: it can): R35 / design v2 V2-5 item 4 'at rest only'."""
+        if self.tuning is None:
+            return 'no_field_tuning'
+        if self.runner.state in (PAUSED, ACTIVE):
+            return 'tuning_locked_while_running'
+        if self.bridge is not None and self.bridge.state == ARMED:
+            return 'tuning_locked_while_armed'
+        s = self.runner.last_snapshot or {}
+        speed = s.get('speed')
+        if (s.get('still') is not True and isinstance(speed, (int, float)) and not isinstance(speed, bool)
+                and math.isfinite(speed) and abs(speed) >= GO_STILL_SPEED_M_S):
+            return 'tuning_locked_vehicle_moving'
+        return None
+
+    def _req_tuning(self, now, params):
+        """front_steer POST /api/params (docs/steering/OPERATOR_API_KO.md 'field tuning'): basic keys, a preset, or a
+        save; at rest only; the change log is one 'tuning_change' event per key with the digests."""
+        lock = self._tuning_lock()
+        if lock is not None:
+            return dict(ok=False, error=lock, http=409)
+        try:
+            values, preset, changes, action = self.tuning.change(params)
+            new = C.with_tuning(self._base_config(), values) if action in ('set', 'load_preset') else self.config
+            runner = self._runner_factory(new) if new is not self.config else None
+        except (T.TuningError, C.ConfigError) as exc:
+            return dict(ok=False, error='invalid_params', problems=exc.problems, http=400)
+        except ValueError as exc:           # the steering controller refused the values (SteerFollowConfig rules)
+            return dict(ok=False, error='invalid_params', problems=[str(exc)], http=400)
+        before = self.tuning.digest
+        if action in ('save', 'save_preset'):
+            try:
+                sha = self.tuning.save(params.get('save_preset'), params.get('note', ''))
+            except (OSError, T.TuningError) as exc:
+                return dict(ok=False, error='tuning_save_failed', problems=[str(exc)], http=409)
+            self._event('tuning_save', file=self.tuning.file.path, file_sha256=sha, preset=self.tuning.preset,
+                        revision=self.tuning.revision, digest=self.tuning.digest)
+            return dict(ok=True, action=action, tuning=self.tuning.brief())
+        self.tuning.commit(values, preset)
+        run_id = self.runner.run_id
+        self.runner = runner
+        self.runner.run_id = run_id                 # run ids stay unique in the log across a tuning change
+        self.config = new
+        self._config_digest = new.digest()
+        for change in changes:
+            self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
+                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest,
+                        **change)
+        if not changes:
+            self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
+                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest)
+        return dict(ok=True, action=action, changes=changes, tuning=self.tuning.brief(), config_digest=self._config_digest)
+
+    def _base_config(self):
+        """The executor config before the field tuning (the file config of this process)."""
+        return self.file_config
+
     def _req_params(self, now, params=None):
+        if self.tuning is not None:
+            return self._req_tuning(now, params)
         if self.runner.state in (PAUSED, ACTIVE):
             return dict(ok=False, error='end_the_run_first')
         if self.bridge is not None and self.bridge.state == ARMED:
@@ -1774,8 +1846,12 @@ class ExecutorLoop:
                     caps=None)
 
     def _tuning_status(self):
-        """The tuning block of the contract (preset, revision, editable): the field tuning file is not loaded yet."""
-        return dict(preset=None, revision=0, editable=False)
+        """The tuning block of the contract (preset, revision, editable) and the values for the screen; the
+        differential profile has no field tuning file (its three on-site keys are 'params')."""
+        if self.tuning is None:
+            return dict(preset=None, revision=0, editable=False)
+        lock = self._tuning_lock()
+        return self.tuning.status(lock is None, lock)
 
     def _run_end_event(self, d):
         """review_correctness_day2 R6: one 'run_end' event per run with everything needed to read the end from the log
