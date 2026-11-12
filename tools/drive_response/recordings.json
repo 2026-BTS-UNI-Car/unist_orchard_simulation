@@ -1,0 +1,38 @@
+{
+ "_about": "The 14 recordings with motor (PWM) timelines, their surface label and the evidence for it (one line each). Surface labels are analysis decisions, not data paths; the paths are in config.json. 'analysed': false = opened and listed, no drive analysis (no driving / no LiDAR extract).",
+ "grounds": {
+  "road": "도로·포장",
+  "orchard": "과수원",
+  "unknown": "미정"
+ },
+ "recordings": [
+  {"rid": "20261003T072238Z_both", "day": "1003", "ground": "road", "analysed": true,
+   "evidence": "카메라 표본(review/…072238Z_both/contact-00): 밤, 가로등 아래 보도·포장 광장. 기존 라벨(10/3 감사, 10/4 검토)과 같음."},
+  {"rid": "20261003T072329Z_both", "day": "1003", "ground": "road", "analysed": true,
+   "evidence": "카메라 표본(contact-00, 10장): 벽돌 포장 광장, 건물 앞. 기존 라벨과 같음."},
+  {"rid": "20261003T072530Z_both", "day": "1003", "ground": "road", "analysed": true,
+   "evidence": "카메라 표본(contact-00~02, 52장) 직접 확인: 2~360 s 벽돌 보도블록 보도, 364~515 s 아스팔트 차도(중앙선, 주차 차량, 버스). 과수원 장면 없음."},
+  {"rid": "20261003T073551Z_both", "day": "1003", "ground": "road", "analysed": true,
+   "evidence": "카메라 표본(contact-00): 밤, 보도블록 광장. 기존 라벨과 같음."},
+  {"rid": "20261003T080351Z_both", "day": "1003", "ground": "orchard", "analysed": true,
+   "evidence": "카메라 표본(contact-00): 시작 맨땅 공터, 이후 과수원 풀밭과 과수 줄. 기존 라벨과 같음."},
+  {"rid": "20261003T080909Z_both", "day": "1003", "ground": "orchard", "analysed": true,
+   "evidence": "카메라 표본(contact-00): 과수원 행간 풀밭, 과수 줄, 일부 모래땅. 기존 라벨과 같음."},
+  {"rid": "20261003T081934Z_both", "day": "1003", "ground": "road", "analysed": true,
+   "evidence": "카메라 표본(contact-00~02, 55장) 직접 확인: 붉은 아스팔트 자전거길과 벽돌 보도(가로수·생울타리), 380~460 s 도로변, 끝은 상가 앞 보도와 주차장. 과수원 열 없음."},
+  {"rid": "20261010T035952Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행(열 사이 풀밭, 열 끝 공간, 콘크리트 농로가 섞임; ENCODERLESS_DRIVE_RESPONSE 3절). 열 안/밖은 Cartographer 궤적과 회랑 카탈로그로 구간마다 계산."},
+  {"rid": "20261010T040927Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행. 열 안/밖은 Cartographer 궤적과 회랑 카탈로그로 계산."},
+  {"rid": "20261010T042151Z_both", "day": "1010", "ground": "orchard", "analysed": false,
+   "evidence": "10/10 과수원, 3초 기록, 무장 해제 상태로 주행 없음(모터 줄 6, 전부 disarmed). LiDAR 추출본 없음."},
+  {"rid": "20261010T042200Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행. Cartographer 궤적이 없어 열 안/밖은 미구분."},
+  {"rid": "20261010T042301Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행. 열 안/밖은 Cartographer 궤적과 회랑 카탈로그로 계산."},
+  {"rid": "20261010T045553Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행. 열 안/밖은 Cartographer 궤적과 회랑 카탈로그로 계산."},
+  {"rid": "20261010T051127Z_both", "day": "1010", "ground": "orchard", "analysed": true,
+   "evidence": "10/10 과수원 수동 주행. 열 안/밖은 Cartographer 궤적과 회랑 카탈로그로 계산."}
+ ]
+}

@@ -37,3 +37,6 @@ credentials*.json
 secrets*.json
 *.private.json
 *-private.json
+# Drive-response analysis: local data locations and default output
+tools/drive_response/config.json
+tools/out/

@@ -26,9 +26,33 @@ UNIST BTS 유니주행차 팀의 과수원 로버 시뮬레이션 저장소입�
 | `dashboard/` | 조향 스택이 실행 때 쓰는 대시보드 사본(서버, 브리지, 정적 파일)과 조향 V3 호스트 브리지 |
 | `ros2_ws/src/orchard_gazebo/`, `ros2_ws/src/orchard_navigation/` | 원본 프로젝트의 과수원 월드 생성기와 제어 참조 |
 | `tools/row_executor/`, `tools/field_calib/` | 한 열 실행기와 현장 보정 도구 |
+| `tools/drive_response/` | 수동 주행 기록으로 PWM duty와 속도·출발·정지·이동거리를 정리하는 분석 도구 |
 | `tools/steer_sim/` | 저장소 검사 도구(고정 파일, vendor 동기, 출처표) |
 | `docker/`, `compose.ubts-steer.yaml` | 조향 SIM 이미지와 스택 정의 |
-| `docs/steering/`, `docs/provenance/` | 조향 문서, 반입 출처 기록 |
+| `docs/steering/`, `docs/provenance/`, `docs/drive_response/` | 조향 문서, 반입 출처 기록, 구동 응답 분석 결과 |
+
+## 구동 응답: PWM duty와 속도
+
+조향 장치를 달기 전 차(좌우 차동 구동)의 2026-10-03·10-10 수동 주행 14개에서 잰 값입니다. 조향 장치를 단 차의 값은
+아직 없고, 현장 재보정 뒤에 바꿔 씁니다. 바퀴 엔코더가 없어 속도는 LiDAR 스캔 정합으로 쟀고 GNSS 속도와 Cartographer
+경로로 교차 확인했습니다. 자세한 방법, 표, 한계는 [`docs/drive_response/README_KO.md`](docs/drive_response/README_KO.md)에
+있습니다.
+
+![duty → 정상 직진 속도](docs/drive_response/figures/fig01_duty_speed.png)
+
+![지면 묶음별 duty → 정상 직진 속도](docs/drive_response/figures/fig02_duty_speed_by_ground.png)
+
+| duty | 속도 m/s | 등급 |
+|---|---|---|
+| 40 | 0.373 | 참고(구간 1) |
+| 70 | 0.641 | 측정(GNSS) |
+| 88 | 0.771 | 측정 |
+| 95 | 0.864 | 측정 |
+| 100 | 0.928 | 측정(322구간) |
+
+- 자율 주행에 쓸 25~60 %는 duty마다 구간 1~3개뿐이고 40 % 미만은 자료가 없습니다(그림의 회색 띠). 그 칸은 외삽이며
+  ±20 % 넘게 틀릴 수 있습니다.
+- 정지에서 100 %로 출발하면 1초에 0.34 m, 2초에 1.29 m를 갑니다. 0.8~0.9 m/s에서 키를 놓으면 약 0.55 m 더 갑니다.
 
 ## 확인 명령
 

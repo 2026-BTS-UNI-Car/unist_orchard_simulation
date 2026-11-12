@@ -1,0 +1,12 @@
+{
+ "_about": "Example only. Copy to a file outside the repository (or to config.json next to this file, which git ignores), set data_root to the folder that holds the field data, and pass it with --config or the environment variable UBTS_DRIVE_RESPONSE_CONFIG. Relative entries are resolved against data_root; an absolute entry is used as it is.",
+ "data_root": "<folder that holds the field data>",
+ "day1003_full_extract": "<folder or file under data_root for day1003_full_extract>",
+ "day1003_drive_extract": "<folder or file under data_root for day1003_drive_extract>",
+ "day1003_lidar": "<folder or file under data_root for day1003_lidar>",
+ "day1010_drive_extract": "<folder or file under data_root for day1010_drive_extract>",
+ "day1010_lidar": "<folder or file under data_root for day1010_lidar>",
+ "cartographer_maps": "<folder or file under data_root for cartographer_maps>",
+ "corridor_catalogue": "<folder or file under data_root for corridor_catalogue>",
+ "inventory_probe_output": "<folder or file under data_root for inventory_probe_output>"
+}
