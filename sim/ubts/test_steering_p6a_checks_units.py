@@ -132,7 +132,9 @@ class HostTimingTest(unittest.TestCase):
         rows = []
         for k in range(60):                                  # every 50 ms; the target steps at line 10
             target = 300 if k >= 10 else 0
-            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED'))
+            # cmd_permille == target_permille: the MCU servo ramp has reached its goal (amendment 43)
+            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED',
+                             target_permille=target, cmd_permille=target))
         since = 20. + .05 * 10
         expected = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - since >= 1.5 - 1e-9)
         self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102., expected + .004, ['steering_not_following'])])
@@ -165,6 +167,17 @@ class HostTimingTest(unittest.TestCase):
         checks.host_timing(self.ctx(ended), case, 'steering_not_following', 'not_following')
         self.assertFalse(case['passed'])
         self.assertIsNone(case['host_timing'].get('reference_t'))
+        # amendment 43: while the MCU ramp slews (cmd != tgt, lines 10..19) the bridge does not count; the rule time
+        # starts at line 20, so the reference moves by 0.5 s
+        slewing = [dict(r) for r in rows]
+        for r in slewing[10:20]:
+            r['cmd_permille'] = r['target_permille'] - 100
+        later = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - (20. + .05 * 20) >= 1.5 - 1e-9)
+        self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102.5, later + .004, ['steering_not_following'])])
+        case = self.case()
+        checks.host_timing(self.ctx(slewing), case, 'steering_not_following', 'not_following')
+        self.assertTrue(case['passed'], case['criteria'])
+        self.assertAlmostEqual(case['host_timing']['reference_t'], later, places=6)
 
     def test_n_line_and_banner_in_both_clocks(self):
         self.write('emulator.jsonl', [dict(kind='m2h', session=1, tick=500, done=501, t=5.5, mono=30.0,

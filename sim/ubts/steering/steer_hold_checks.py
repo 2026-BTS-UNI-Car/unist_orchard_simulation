@@ -37,18 +37,22 @@ from .safety_scripts import measure as M
 SCHEMA = 'ubts.steer_hold_checks.v1'
 RESULT_KIND = '자리값 기반 SIM 결과'
 PROFILE_V02 = vp.PROFILES_DIR / 'front_steer_v0_2_placeholder.yaml'
+PROFILE_V03 = vp.PROFILES_DIR / 'front_steer_v0_3_placeholder.yaml'
 STEP_S = 0.1                   # control period of the cases (drive / steering command)
 THROTTLE = 60                  # amendment 41: throttle 60 %
 T0 = 6.0                       # disturbance onset (amendment 41)
-SEEDS = dict(
-    disturbance=dict(judgement=(1000, 1001, 1002, 1003, 1004), dev=(0, 1, 2)),
-    normal=dict(judgement=tuple(range(1100, 1110)), dev=(0, 1)),
-    faults=dict(judgement=(1200, 1201, 1202), dev=(0,)),
+SEEDS = dict(        # 'judgement': amendments 40-42 (profile v0.2); 'judgement43': amendment 43 (profile v0.3)
+    disturbance=dict(judgement=(1000, 1001, 1002, 1003, 1004), judgement43=(1500, 1501, 1502, 1503, 1504),
+                     dev=(0, 1, 2)),
+    normal=dict(judgement=tuple(range(1100, 1110)), judgement43=tuple(range(1300, 1310)), dev=(0, 1)),
+    faults=dict(judgement=(1200, 1201, 1202), judgement43=(1400, 1401, 1402), dev=(0,)),
 )
+JUDGEMENT_KINDS = {'judgement': None, 'judgement43': 43}
 STEER_FAULTS = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'TRACK', 'THERMAL')
 NORMAL_FORBIDDEN = ('POLARITY', 'DRV_STUCK', 'THERMAL', 'TRACK')
 ABOVE_DEFINED = ('STALL', 'TRACK', 'DRV_STUCK')       # amendment 42 (amendment 41: STALL, TRACK)
 ABOVE_DEFINED_41 = ('STALL', 'TRACK')
+ABOVE_DEFINED_43 = ('STALL', 'TRACK', 'DRV_STUCK', 'POLARITY')   # amendment 43: an overpowering push looks like POLARITY
 RECOVERY_HOLD_S = 0.5
 RECOVERY_LIMIT_S = 2.0
 
@@ -309,6 +313,8 @@ def _job(item):
 def run(set_name, out_dir, profile_path=None, seeds='judgement', only=None, workers=1, build_dir=None):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    if profile_path is None and seeds == 'judgement43':
+        profile_path = PROFILE_V03                  # amendment 43 judges profile v0.3
     profile = vp.load_profile(profile_path) if profile_path else vp.load_profile(PROFILE_V02)
     names = [n for n in cases_of(set_name, profile) if only is None or n in only]
     seed_list = _seeds(set_name, seeds)
@@ -328,7 +334,8 @@ def run(set_name, out_dir, profile_path=None, seeds='judgement', only=None, work
                   seed_kind=seeds if seeds in SEEDS[set_name] else 'list', cases=names,
                   profile=profile.result_label(), profile_path=str(profile_path or PROFILE_V02),
                   native_binary_sha256=built.binary_sha256, firmware_build_id=built.firmware_build_id,
-                  amendment=dict(normal=40, faults=40, disturbance=41)[set_name], workers=workers,
+                  amendment=43 if seeds == 'judgement43' else dict(normal=40, faults=40, disturbance=41)[set_name],
+                  workers=workers,
                   wall_s=round(time.perf_counter() - started, 1), episodes=episodes)
     data = json.dumps(result, ensure_ascii=False, indent=1, sort_keys=True).encode('utf-8')
     (out_dir / 'RESULTS.json').write_bytes(data)
@@ -338,7 +345,8 @@ def run(set_name, out_dir, profile_path=None, seeds='judgement', only=None, work
 def check(result):
     """Judgement of a RESULTS.json dict (amendments 40, 41). Returns (passed, items)."""
     items = []
-    judgement = result.get('seed_kind') == 'judgement'
+    judgement = result.get('seed_kind') in JUDGEMENT_KINDS
+    above_defined = ABOVE_DEFINED_43 if result.get('amendment') == 43 else ABOVE_DEFINED
     for ep in result['episodes']:
         group, name, seed = ep['group'], ep['case'], ep['seed']
         codes = [c for c, _ in ep['f_lines']]
@@ -348,13 +356,13 @@ def check(result):
             why = 'forbidden F %s, latches %s' % (bad, ep['latches'])
         elif group in ('faults', 'above'):
             first = ep.get('first_steer_fault')
-            exp_codes = ABOVE_DEFINED if group == 'above' else _fault_cases()[name]['expect']
+            exp_codes = above_defined if group == 'above' else _fault_cases()[name]['expect']
             tick_ok = ep.get('tick_diff') is not None and abs(ep['tick_diff']) <= 1
             ok = first is not None and first[0] in exp_codes and tick_ok and ep['armed']
             if group == 'faults' and first is not None:
                 ok = ok and first[1] - int(_fault_cases()[name]['onset_s'] * 1000) <= 3000
             why = 'first %s, tick diff %s' % (first, ep.get('tick_diff'))
-            if group == 'above':
+            if group == 'above' and result.get('amendment') != 43:
                 items.append(dict(case=name, seed=seed, group='above_original_41', report_only=True,
                                   passed=bool(first is not None and first[0] in ABOVE_DEFINED_41 and tick_ok),
                                   detail=why))

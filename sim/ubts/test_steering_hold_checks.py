@@ -68,6 +68,18 @@ def test_check_rules():
     assert not shc.check(dict(seed_kind='list', episodes=[_ep('D1', 'within')]))[0]   # only judgement seeds judge
 
 
+def test_check_rules_of_amendment_43():
+    pol = _ep('D6', 'above', first_steer_fault=['POLARITY', 6266], tick_diff=0)
+    assert not shc.check(dict(seed_kind='judgement', amendment=41, episodes=[pol]))[0]
+    passed, items = shc.check(dict(seed_kind='judgement43', amendment=43, episodes=[pol]))
+    assert passed and all(i['group'] != 'above_original_41' for i in items)
+    soft = _ep('D6', 'above', first_steer_fault=['SOFTLIMIT', 6266], tick_diff=0)
+    assert not shc.check(dict(seed_kind='judgement43', amendment=43, episodes=[soft]))[0]
+    assert shc.SEEDS['disturbance']['judgement43'] == (1500, 1501, 1502, 1503, 1504)
+    assert shc.SEEDS['normal']['judgement43'] == tuple(range(1300, 1310))
+    assert shc.SEEDS['faults']['judgement43'] == (1400, 1401, 1402)
+
+
 @pytest.fixture(scope='module')
 def native(tmp_path_factory):
     try:

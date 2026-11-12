@@ -366,3 +366,11 @@ def test_supply_rate_scale(native, v02):
             b.close()
     assert rates[0] == pytest.approx(30.0, rel=.02)
     assert rates[1] == pytest.approx(27.0, rel=.02)
+
+
+def test_v03_has_the_values_of_v02(v02):
+    """v0.3 is v0.2 judged under amendment 43 (host rule after the MCU ramp, POLARITY above the disturbance size)."""
+    v03 = vp.load_profile(PROFILES / 'front_steer_v0_3_placeholder.yaml')
+    assert v03.schema == vp.SCHEMA_V3 and v03.names() == v02.names()
+    assert all(v03.value(n) == v02.value(n) for n in v02.names())
+    assert v03.warnings() == [] and v03.sha256 != v02.sha256

@@ -936,10 +936,26 @@ class SteerBridgeCore:
         cal = self.link.cal
         return cal is not None and None not in (cal['left'], cal['center'], cal['right'])
 
+    def _ramp_goal(self, s, cal):
+        """The goal of the MCU servo ramp: the target of the status line, clipped to the soft limits of the
+        calibration (spec 7.1; the same goal as the servo state 'slewing')."""
+        goal = s['tgt']
+        if cal is not None and cal['soft_set']:
+            goal = min(cal['soft_l'], max(cal['soft_r'], goal))
+        return goal
+
     def _track_monitor(self, t, s):
+        """steering_not_following: |requested - measured| > track_error for track_duration, counted only while the
+        MCU servo ramp has reached its goal (status cmd == the soft-limited tgt). While the MCU still slews toward
+        the request at its configured rate (rmov / rstd), the lag is the designed one and the MCU's own TRACK rule
+        (progress-aware, spec 6.7, decision 12.1-69) watches it; a large standstill step (about 40 deg at 12 deg/s)
+        used to latch here (SIM_ACCEPTANCE amendment 40, normal script N5; amendment 43)."""
         control = self.control
         if not (control.lease and self._arm_confirmed and s['st'] == 2 and control.steer_mrad is not None
                 and self._marks_valid()):
+            self._track_since = None
+            return
+        if s['cmd'] != self._ramp_goal(s, self.link.cal):
             self._track_since = None
             return
         measured = self.hp.mrad_from_permille(s['pos'])
@@ -1100,10 +1116,7 @@ class SteerBridgeCore:
             return 'hold'
         if s['st'] != 2:
             return 'off'
-        goal = s['tgt']
-        if cal is not None and cal['soft_set']:
-            goal = min(cal['soft_l'], max(cal['soft_r'], goal))
-        if s['cmd'] != goal:
+        if s['cmd'] != self._ramp_goal(s, cal):
             return 'slewing'
         return 'tracking' if s['sp'] else 'settled'
 

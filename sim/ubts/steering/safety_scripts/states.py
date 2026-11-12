@@ -11,7 +11,9 @@ step when it held a lease: STOP written then, no lease and the 'fault' state aft
     status_seq_gap          the step that read the status line whose missing numbers push the 1 s window sum over
                             seq_gap_missing
     steering_not_following  the step that read the status line ending track_duration_s of |requested - measured| >
-                            track_error (lease, ARM confirmed, st ARMED; requested = the host request before that step)
+                            track_error (lease, ARM confirmed, st ARMED; requested = the host request before that step),
+                            counted only on lines whose servo ramp has settled (cmd == tgt clipped to the calibration soft
+                            limits; amendment 43, steer_bridge_core._track_monitor)
     steering_ineffective    the same with |gyro - v tan(delta_pot) / L| > max(rate_error, frac |pred|) for duration_s
                             (lease holder's op motion samples, at most MOTION_FRESH_S old; v > min_speed, |delta| >
                             min_steer)
@@ -283,8 +285,13 @@ def _monitor_design_ms(name, art, latch_ms):
         measured = _mrad_from_permille(art, f.get('pos'))
         if name == 'steering_not_following':
             requested = _trace(art, 'cmd_steer_target_mrad', t, float('nan'))
-            condition = ok and requested is not None and np.isfinite(requested) and measured is not None and \
-                abs(float(requested) - measured) > host['track_error_mrad']
+            cal = art.get('cal') or {}
+            goal = f.get('tgt')
+            if goal is not None and cal.get('soft_l') is not None and cal.get('soft_r') is not None:
+                goal = min(cal['soft_l'], max(cal['soft_r'], goal))
+            settled = f.get('cmd') is not None and f.get('cmd') == goal
+            condition = ok and settled and requested is not None and np.isfinite(requested) and measured is not None \
+                and abs(float(requested) - measured) > host['track_error_mrad']
             duration = host['track_duration_s']
         else:
             cfg = host['ineffective']
