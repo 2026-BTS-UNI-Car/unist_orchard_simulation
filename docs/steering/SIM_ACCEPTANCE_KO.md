@@ -236,3 +236,63 @@
   - τ_loop 구성: 스캔 나이, 틱 기다림, 실행기 한 걸음, 송신 기다림의 p50 / p90 / p99 / 최대와 그 합.
   - 속도 조절기가 묶인 상한 이름별 시간 비율.
 - 비교 기준은 `TIMING_BASELINE_KO.md`다. SIM 값은 자리값 기반이며 Jetson 값이 아니다.
+
+### 개정 40 — 프로필 v0.2 자격 검사 (2026-11-13, ST-10, 측정 전 등록. 묶음 S3는 40번대를 쓴다)
+
+- 대상: `sim/ubts/steering/profiles/front_steer_v0_2_placeholder.yaml`(스키마 v3). 모형: `STEER_EXT_MODEL_KO.md`. 바꾼 값과 이유: 그 파일의 note와 `STEER_PROFILE_V02_KO.md`.
+- ① A2, A3(F), A8: `sim/ubts/test_steering_native.py`를 환경 변수 `UBTS_STEER_TEST_PROFILE=<v0.2 파일>`로 그대로 돈다. 합격: 아래 시험이 모두 통과. 그 밖의 시험이 v0.1 값에 묶여 실패하면 이름과 까닭을 보고한다(판정에 넣지 않는다).
+  - A2: `test_rate_limit_and_lag`, `test_min_pwm_deadband_and_standstill_friction`, `test_backlash_play_on_reversal`, `test_end_stops_per_wheel_and_equivalent_limit`
+  - A3(F): `test_pot_quantization_and_lsb`, `test_pot_noise_sd`, `test_pot_faults_open_short_stuck`, `test_pot_faults_noise_jump_slip_drift_reversed`
+  - A8: `test_determinism_same_seed_same_bytes`, `test_reset_restarts_the_noise_streams`
+- ② 정상 대본 오검출(T1 장치, 실행기 없이 조종 API로 직접 몬다. 도구 `steering.steer_hold_checks --set normal`): N1 직진 60 % 20 s, N2 지그재그 ±6°(60 %, 4 s 주기 3회), N3 S자(10° 왼쪽 3 s, 0° 2 s, 10° 오른쪽 3 s, 60 %), N4 정지 중 ±5° 계단 6번(2.5 s 간격), N5 정지 중 전폭 쓸기(±20°, 끝마다 3 s, 왕복 3번), N6 주행 중 15° 6 s 유지 뒤 0° 6 s. 판정 seed 1100~1109(대본마다 10개). 합격(v0.2): MCU F 줄 POLARITY·DRV_STUCK·THERMAL·TRACK 0, 호스트 래치 `steering_not_following` 0. 그 밖의 결함 줄·래치는 개수를 보고한다. 같은 대본·seed를 v0.1로도 돌려 보고한다(판정 아님).
+- ③ 고장 검출 유지(v0.2, 같은 도구 `--set faults`): G1 `polarity_reversed` 뒤 정지 중 5° 계단 → POLARITY, G2 주행 중 `driver_stuck_on`(pwm 0.6) → DRV_STUCK, G3 `jam` 뒤 5° 계단 → STALL 또는 TRACK. 판정 seed 1200~1202. 합격: 기대 코드가 주입 뒤 3 s 안에 F 줄로 나오고, 그 틱이 규칙 재계산(`safety_scripts.measure.expected_fault_tick`)과 ±1틱.
+- ④ 프로필 읽기: 벨트 비 0.3·5.5(범위 밖) 거부, 0.5(보정 반쪽 폭 50 count 미만)·4.5·5.0(보정 창 밖) 거부, 0.55·1·2·4 받음, 리밋 스위치 both 거부 — `test_steering_profile_v3.py`(합격: 모두 통과).
+- 펌웨어 소스는 바꾸지 않는다. 문턱은 프로필 → CFG(`fw_eeprom.params_from_profile`)로 들어간다. v0.1 결과는 그대로 둔다. 모든 값은 자리값이고 결과는 자리값 기반 SIM 결과다.
+
+### 개정 41 — 외란 아래 직진 유지(ST-11) (2026-11-13, 측정 전 등록)
+
+- 장치: T1(실제 펌웨어 V3, 호스트 브리지, L1 구동기·가변저항, 플랜트), 프로필 v0.2, W0 평지. 조종 API로 throttle 60 %, 조향 0 mrad를 0.1 s마다 보낸다. 외란 시작 t0 = 6.0 s. 도구 `steering.steer_hold_checks --set disturbance`. 외란은 조향축 토크 주입 `steer_torque`(N·m, + 왼쪽, `STEER_EXT_MODEL_KO.md`)다.
+- 판정 seed 1000~1004(대본마다 5개). 개발 seed 0~2는 도구 확인용이며 판정에 쓰지 않는다.
+- 설계 외란 크기: 프로필 `steer_disturbance_design_nm`(v0.2 2.5 N·m).
+- 대본:
+
+| 이름 | 외란 | 묶음 |
+|---|---|---|
+| D1 | +2.5 N·m 계단 3 s | 크기 안 |
+| D2 | −2.5 N·m 계단 3 s | 크기 안 |
+| D3 | +2.5 N·m 충격 0.1 s | 크기 안 |
+| D4 | +2.0 N·m 이어지는 힘 10 s | 크기 안 |
+| D5 | +5.0 N·m 계단 5 s | 크기 밖 |
+| D6 | −5.0 N·m 계단 5 s | 크기 밖 |
+| R1 | +3.5 N·m 계단 3 s | 보고(경계) |
+| R2 | 지면 충격 과정(1/m, sd 1.0 N·m, 0.05 s) + 미는 토크(sd 0.5 N·m, 2 m) 15 s | 보고 |
+| R3 | +2.5 N·m 계단 3 s + t0 + 1 s에 벨트 이 하나 건너뜀(−1, 18°) | 보고 |
+| R4 | t0에 조향 모터 전원 끊김(`motor_power_off`) + +2.5 N·m 3 s | 보고(되밀림) |
+
+- 재는 것(대본·seed마다): 기준각 δ_base(t0 앞 1 s 참 등가각 평균), 최대 |δ − δ_base|(°), 복귀 시간(외란이 끝난 때부터 |δ − δ_base| ≤ 허용폭이 0.5 s 이어지기 시작하는 때까지; 허용폭 = 백래시/2 + 서보 데드밴드 + 벨트 유격/2 + 0.5° = v0.2에서 2.15°), 그동안 옆 벗어남(t0 앞 2 s 궤적 직선에서 잰 최대 거리, 복귀 + 2 s까지), MCU F 줄과 호스트 래치, 열 예산 사용(30 s 창 안 |PWM| ≥ 80 % 누적 / 프로필 누적 한도).
+- 합격:
+  - 크기 안(D1~D4): 모든 판정 seed에서 MCU F 줄 0, 호스트 래치 0, 복귀 시간 ≤ 2.0 s.
+  - 크기 밖(D5, D6): 모든 판정 seed에서 첫 조향 결함 F 줄이 STALL 또는 TRACK이고, 그 틱이 규칙 재계산(`expected_fault_tick`)과 ±1틱.
+  - 보고(R1~R4): 합격선 없이 값을 남긴다.
+- 토크 값과 모형은 가정이라 결과는 민감도로만 읽는다(ST-11 위험). 자리값 기반 SIM 결과이며 현장 검증이 아니다.
+
+### 개정 42 — 개정 41 D5·D6의 정해진 결함에 DRV_STUCK 포함 (2026-11-13, 개발 seed 확인 뒤, 판정 seed 전)
+
+- 이 개정은 개정 41을 커밋(ed4a41c)한 뒤 개발 seed 0~2로 도구를 확인하다가 본 것에 따른다. 판정 seed(1000~1004)는 아직 돌리지 않았다. 결과를 본 뒤 기준을 바꾸는 것이므로 두 판정을 모두 적는다.
+- 본 것: D5(+5 N·m)에서 개발 seed 3개 모두 첫 조향 결함이 DRV_STUCK이었다(t0 뒤 약 0.2 s, 규칙 재계산과 틱 차 0). 펌웨어의 데드밴드 안 제동 유지(0.2 s, 출력 0) 동안 외력이 바퀴를 약 30 °/s로 밀어 DRV_STUCK 문턱(3°, 0.3 s)을 먼저 넘는다(모형 식: (1.0 − 0.25) / 0.75 × 30 °/s). 출력 0인데 한 방향으로 움직이는 것은 DRV_STUCK의 정의 그대로다.
+- 바꾸는 것: D5·D6의 정해진 결함을 {STALL, TRACK}에서 {STALL, TRACK, DRV_STUCK}로 넓힌다. 틱 조건(규칙 재계산 ±1틱)은 그대로다.
+- 보고: 결과 문서에 개정 41 원래 기준(STALL·TRACK만)의 판정도 함께 적는다.
+
+### 개정 43 — 프로필 v0.3 자격(ST-10·ST-11 다시) (2026-11-13, 측정 전 등록, 새 판정 seed)
+
+- 까닭: 개정 40 ②(정상 대본 N5의 호스트 래치)와 개정 41·42(D6 seed 1004의 POLARITY)가 불합격이었다. 두 원인을 갈랐다.
+  - N5: 호스트 `steering_not_following`이 MCU 서보 램프(정지 12 °/s)가 40° 쓸기를 끝내기 전에 요청각과 비교해 래치했다. 브리지를 고쳤다: MCU 램프가 목표에 닿은 상태 줄(`cmd` = 소프트 한계로 자른 `tgt`)만 센다(`steer_bridge_core._track_monitor`). 평가 쪽 재계산(`safety_scripts/states.py`, `p6a_checks.host_timing`)도 같은 규칙이다.
+  - D6 POLARITY: 외력이 서보 출력(최소 45 %, 바른 쪽)을 이겨 바퀴가 명령에서 멀어진다. 펌웨어 POLARITY 규칙(출력 ≥ 최소인데 2° / 0.2 s 넘게 멀어짐) 그대로이고, 전류를 모르는 MCU는 극성 반대와 구별할 수 없다. 개시 위상을 0~38 ms 바꾼 100회에서 seed 1000~1003은 모두 DRV_STUCK, 1004는 모두 POLARITY였다(틱 차 모두 0). 위상이 아니라 run별 조건이 어느 감시가 먼저 끝나는지 정한다. 결함 정지는 맞고 결함 이름이 원인을 가리키지 못한다(`STEER_HOLD_RESULT_KO.md` 5절). 펌웨어 규칙 변경(외력과 극성 반대 구별)은 P9 후보로 두고, 크기 밖 외란의 정해진 결함에 POLARITY를 넣는다.
+- 대상: `front_steer_v0_3_placeholder.yaml`(값은 v0.2와 같다). 도구는 개정 40·41과 같다. 판정 seed는 새로 쓴다.
+- ① A2·A3(F)·A8: `UBTS_STEER_TEST_PROFILE=<v0.3>`로 `test_steering_native.py`. 합격: 개정 40 ①의 판정 시험 10개 통과.
+- ② 정상 대본 N1~N6, 판정 seed 1300~1309(`--seeds judgement43`). 합격: MCU F 줄 POLARITY·DRV_STUCK·THERMAL·TRACK 0, 호스트 래치 `steering_not_following` 0.
+- ③ 고장 검출 G1~G3, 판정 seed 1400~1402. 합격: 개정 40 ③과 같다.
+- ④ `test_steering_profile_v3.py` 모두 통과(v0.3 읽기 포함).
+- ⑤ ST-11 D1~D6(R1~R4는 보고), 판정 seed 1500~1504. 합격: D1~D4는 개정 41과 같다. D5·D6은 첫 조향 결함 ∈ {STALL, TRACK, DRV_STUCK, POLARITY}이고 규칙 재계산과 ±1틱.
+- 결과 처리: ①~⑤가 모두 합격이면 기본 프로필(`vehicle_profile.DEFAULT_PROFILE_ID`)을 v0.3으로 바꾸고, 바뀌는 시드 회귀 기준값과 G-SIM 쪽 기준을 같은 커밋에서 까닭과 함께 갱신한다. 하나라도 불합격이면 기본은 v0.1로 두고 결과만 적는다.
+- 개정 40~42의 결과(불합격)는 그대로 둔다.

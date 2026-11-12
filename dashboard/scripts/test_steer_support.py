@@ -84,6 +84,7 @@ class FakeMcu:
         self.ms_jump = 0                # added to every ms value (a regression when negative)
         self.follow_rate_pm_s = 4000.0  # pos follows cmd (permille per second)
         self.stuck_pos = None           # pos stays here when set
+        self.cmd_rate_pm_s = None       # None: cmd jumps to the target; a rate: the MCU servo ramp (spec 7.1)
         self.watchdog = False           # apply the link watchdog (off by default to keep tests short)
         self.ignore_arm = False         # ARM is silently ignored (no N line, no state change)
         self.arm_reject = None          # ARM is answered with N - <this reason>
@@ -189,7 +190,12 @@ class FakeMcu:
             step = self.follow_rate_pm_s * max(dt, 0.0)
             self.pos = min(target, self.pos + step) if self.pos < target else max(target, self.pos - step)
         if self.st == 2:
-            self.cmd = max(-935, min(935, self.tgt))
+            goal = max(-935, min(935, self.tgt))
+            if self.cmd_rate_pm_s is None:
+                self.cmd = goal
+            else:
+                step = int(self.cmd_rate_pm_s * max(dt, 0.0))
+                self.cmd = min(goal, self.cmd + step) if self.cmd < goal else max(goal, self.cmd - step)
         if now + 1e-9 >= self.next_status:
             self.next_status += 1.0 / self.sthz
             n = self.n

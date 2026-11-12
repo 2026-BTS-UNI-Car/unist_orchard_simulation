@@ -57,7 +57,9 @@ def native(tmp_path_factory):
 
 @pytest.fixture(scope='session')
 def profile():
-    return vp.load_profile()
+    # UBTS_STEER_TEST_PROFILE: rerun this suite against another profile file (e.g. v0.2 for the A2 / A3(F) / A8
+    # re-measurement of ST-10, SIM_ACCEPTANCE amendment 40); default the shipped profile.
+    return vp.load_profile(os.environ.get('UBTS_STEER_TEST_PROFILE') or None)
 
 
 @pytest.fixture
@@ -77,6 +79,10 @@ def make(native):
 
 def variant(prof, clean=True, **changes):
     overrides = dict(CLEAN) if clean else {}
+    if clean and prof.has('belt_pot_play_deg'):
+        # schema v3 (profile v0.2): the measurement-side belt play is not in the pot formula of expected_raw; the belt
+        # terms have their own tests (test_steering_profile_v3.py). Found by the first v0.2 run (amendment 40 (1)).
+        overrides['belt_pot_play_deg'] = 0.0
     overrides.update(changes)
     if not overrides:
         return prof
