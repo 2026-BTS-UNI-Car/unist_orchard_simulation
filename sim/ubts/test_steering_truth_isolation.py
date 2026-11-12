@@ -270,7 +270,7 @@ class Node:
 def parse():
     p = argparse.ArgumentParser()
     p.add_argument('--imu-topic', default='/imu/data_raw')
-    p.add_argument('--gps-topic', default='/gps/fix')
+    p.add_argument('--gps-topic', default='/gps/data')
     p.add_argument('--other-topic', default=None)
 '''
 
@@ -302,9 +302,11 @@ class FrontSteerExecutorTest(unittest.TestCase):
 
     def test_executor_subscriptions_stay_inside_the_allowlist(self):
         self.assertEqual(ti.EXECUTOR_TOPIC_ALLOWLIST, ('/scan', '/imu/data_raw', '/rover/control/requested'))
+        # A13 revision 30 (PC-12): the GNSS fix of the GNSS layer (subscribed only with gnss_mode not off)
+        self.assertEqual(ti.EXECUTOR_GNSS_TOPICS, ('/gps/fix',))
         report = ti.subscription_check()
         self.assertTrue(report['passed'], report['problems'])
-        self.assertTrue(set(report['topics']) <= set(ti.EXECUTOR_TOPIC_ALLOWLIST))
+        self.assertTrue(set(report['topics']) <= set(ti.EXECUTOR_TOPIC_ALLOWLIST + ti.EXECUTOR_GNSS_TOPICS))
         self.assertIn('/scan', report['topics'])
 
     def test_planted_subscriptions_are_caught(self):
@@ -318,7 +320,7 @@ class FrontSteerExecutorTest(unittest.TestCase):
         self.assertFalse(report['passed'])
         text = ' '.join(report['problems'])
         self.assertIn('topic /ground_truth/odom outside the allowlist', text)
-        self.assertIn('topic /gps/fix outside the allowlist', text)
+        self.assertIn('topic /gps/data outside the allowlist', text)     # revision 30 allows /gps/fix only
         self.assertIn('unresolved subscription topic', text)
         self.assertIn('without a constant default', text)
         self.assertIn('/scan', report['topics'])           # the parameter default is resolved
