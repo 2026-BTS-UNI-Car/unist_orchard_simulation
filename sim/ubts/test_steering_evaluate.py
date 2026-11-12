@@ -645,9 +645,8 @@ class FastSimIntegrationTest(unittest.TestCase):
         self.assertFalse(stop['forbidden']['steer_after_terminal']['flag'])
         self.assertEqual(report['result_kinds'], ['자리값 기반 SIM 결과'])
 
-    def test_l1_brake_stops_without_a_steering_move_are_not_events(self):
-        # review R1 regression: L1 (native, pot sag and noise), brake from full duty, the command never moves after
-        # the stop; the first rule flagged most of these (verify run: hold_target +6 deg 5 of 8 seeds)
+    def _l1_brake_events(self, trace_every):
+        """(events by policy, column checks) of the L1 brake stop scenes (8 seeds x 2 angles x 3 policies)."""
         from steering import fast_sim as fs
         from steering import scene_spec as ss
         try:
@@ -656,37 +655,68 @@ class FastSimIntegrationTest(unittest.TestCase):
         except Exception as exc:
             self.skipTest('native steering backend not buildable here: %s' % exc)
         build_dir = os.environ.get('UBTS_STEER_BUILD_DIR')
+        events, checks = {}, []
         with tempfile.TemporaryDirectory() as folder:
             os.environ['UBTS_STEER_BUILD_DIR'] = build_dir or os.path.join(folder, 'build')
             try:
                 native = fs.resolve_native()
                 seeds = list(range(100, 108))
-                events = {}
                 for policy in ('hold_target', 'hold_measured', 'center'):
                     for steer in (6., -8.):
                         scene = ss.scene('l1_brake_%s_%s' % (policy, fs._tag(steer)), backend='L1', seeds=seeds,
-                                         duration_s=10., maneuver=dict(kind='stop_mode', params=dict(
+                                         duration_s=10., trace_every=trace_every,
+                                         maneuver=dict(kind='stop_mode', params=dict(
                                              mode='brake', steer_policy=policy, throttle_pct=100., steer_deg=steer,
                                              drive_s=4., hold_s=3.)))
-                        config = es.EvalConfig.from_profile(fs.scene_params(scene).profile)
+                        params = fs.scene_params(scene)
+                        config = es.EvalConfig.from_profile(params.profile)
                         for seed in seeds:
                             arrays, _, _ = fs.run_episode(scene, seed, native_executable=native['path'])
-                            ev = es.evaluate_trace(arrays, config, prereg_termination=False, corridor_metrics=False)
+                            ev = es.evaluate_trace(arrays, config, prereg_termination=False, corridor_metrics=False,
+                                                   require_grid=False)
                             rule = ev['forbidden']['steer_after_terminal']
                             events.setdefault(policy, []).append((rule['flag'], rule['auto_centre'],
                                                                  rule['hold_position_source']))
+                            if trace_every == 1:
+                                # the column equals the recomputation from pot_raw (review P4R-03) at every row without
+                                # a stop in its span (where it holds the applied, clamped hold target), after the first
+                                # median_of rows (the plant's filter also holds its reset sample, the recomputation not)
+                                recomputed = es.measured_hold_rows(arrays['pot_raw'], arrays['steer_measured_rad'],
+                                                                   config.pot_median_of)
+                                column = np.asarray(arrays['truth_hold_position_rad'], dtype=float)
+                                stop = np.asarray(arrays['cmd_stop_mode']) != 0
+                                keep = ~(stop & ~np.concatenate(([False], stop[:-1])))
+                                keep[:config.pot_median_of] = False
+                                checks.append(float(np.max(np.abs(column[keep] - recomputed[keep]))))
             finally:
                 if build_dir is None:
                     os.environ.pop('UBTS_STEER_BUILD_DIR', None)
                 else:
                     os.environ['UBTS_STEER_BUILD_DIR'] = build_dir
+        return events, checks
+
+    def test_l1_brake_stops_without_a_steering_move_are_not_events(self):
+        # review R1 regression: L1 (native, pot sag and noise), brake from full duty, the command never moves after
+        # the stop; the first rule flagged most of these (verify run: hold_target +6 deg 5 of 8 seeds)
+        events, checks = self._l1_brake_events(1)
         for policy in ('hold_target', 'hold_measured'):
             self.assertEqual([e for e in events[policy] if e[0] or e[1]], [], policy)
         self.assertTrue(all(flag and centre for flag, centre, _ in events['center']), events['center'])
-        # review P4R-03: the hold_measured stop holds the MCU-side filtered measurement (R13-2); the fast_sim trace
-        # (a row per plant step) gives that reference through the recomputation from pot_raw, not the servo view
+        # review P4R-03 / audit AUD3A-10: the hold_measured stop holds the MCU-side filtered measurement (R13-2); the
+        # fast_sim trace writes it (truth_hold_position_rad), equal to the recomputation from pot_raw
         self.assertEqual({source for entries in events.values() for _, _, source in entries},
-                         {'measured_hold_recomputed'})
+                         {'truth_hold_position'})
+        self.assertLess(max(checks), 1e-12)
+
+    def test_thinned_fast_sim_traces_keep_the_hold_reference(self):
+        # audit AUD3A-10: with trace_every > 1 the reference fell back to the servo view (4 false events of 16
+        # hold_measured windows); the trace column keeps the hold target the stop applied
+        events, _ = self._l1_brake_events(5)
+        for policy in ('hold_target', 'hold_measured'):
+            self.assertEqual([e for e in events[policy] if e[0] or e[1]], [], policy)
+        self.assertTrue(all(flag and centre for flag, centre, _ in events['center']), events['center'])
+        self.assertEqual({source for entries in events.values() for _, _, source in entries},
+                         {'truth_hold_position'})
 
     def test_recomputed_hold_reference_is_the_plant_hold_measured_target(self):
         # review P4R-03: es.measured_hold_rows equals SteeredPlant.measured_hold_rad() after every plant step (L0)

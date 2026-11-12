@@ -55,7 +55,8 @@ Holdout seeds (7, 8) are refused unless --freeze names an existing FREEZE.json (
 External locations (steering branch, docs/steering/EXECUTOR_IMPORT_KO.md): PREREG.json from sim_paths
 ('single_row_prereg': UBTS_SINGLE_ROW_PREREG or the path config file), the corridor catalogue and the 10/10 maps from
 sim/ubts/closed_loop/external_paths.py. On the steering branch the sealed corridors (042301 c01 / c04 / c07, both
-directions; sim/ubts/steering/scene_spec.sealed_status) are reserved for the steering pre-registration: do not run them.
+directions; sim/ubts/steering/scene_spec.sealed_status) are reserved for the steering pre-registration: resolve_corridor
+refuses them before any world is built (audit AUD3A-21).
 """
 import argparse
 import concurrent.futures
@@ -91,6 +92,7 @@ from row_executor import config as XC  # noqa: E402
 from row_executor import core as XCORE  # noqa: E402
 from row_executor import sim_in_loop as SIL  # noqa: E402
 from row_executor import sim_paths as XP  # noqa: E402  (PREREG.json location)
+from steering.scene_spec import sealed_status  # noqa: E402  (steering branch: sealed corridors, AUD3A-21)
 
 SCHEMA_ROW = 'ubts.single_row.sim_episode.v1'
 SCHEMA_MANIFEST = 'ubts.single_row.sim_run_manifest.v1'
@@ -236,6 +238,12 @@ def resolve_corridor(catalogue, spec):
         if entry['record'] != record:
             continue
         if entry['corridor_id'] == ident or corridor_label(entry, direction).split(':')[1] == ident:
+            sealed = sealed_status(record, entry['corridor_id'], direction)
+            if sealed is not None:
+                # steering branch: the sealed corridors and the reverse of a sealed row pair are reserved for the
+                # steering pre-registration (audit AUD3A-21); refused before any world is built
+                raise ValueError('corridor %s (%s %s) is %s: reserved for the steering pre-registration'
+                                 % (spec, entry['corridor_id'], direction, sealed))
             return entry, direction, corridor_label(entry, direction)
     raise KeyError('corridor %s not in the catalogue' % spec)
 

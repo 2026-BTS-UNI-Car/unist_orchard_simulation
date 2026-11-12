@@ -4,7 +4,9 @@ run_all(out_dir) runs the safety script catalogue through tools/row_executor/sim
 episode), evaluates every script against its stated expectation (evaluate_script) and assembles:
   A5(F)   sensor format after RealFormat (3240 beams, raw order, angle_min / increment, frame laser, 0 = no return,
           range_min / max, 10 Hz, the yaw-offset convention with a post straight ahead) and statistics at standstill
-          (LiDAR range noise sd and IMU gyro noise sd against the profile / plant values +-10 %, IMU rate +-1 %)
+          (LiDAR range noise sd and IMU gyro noise sd against the profile / plant values +-10 %, IMU rate +-1 %) and
+          while driving (audit AUD3A-02: a 40 % straight run on W0; the gyro noise around the true yaw rate and the
+          acceleration vibration RMS against the profile driving-vibration model +-10 %, scans 10 Hz, IMU rate +-1 %)
   A8      the same episode twice: serial log, trace and executor log digests equal; another seed differs; a process
           pool of 2 gives the same digests as one worker
   A11     report: episode wall time, executor step latency p50 / p99 / p99.9 (wall, without the rig work inside a
@@ -33,6 +35,7 @@ import numpy as np
 
 from . import catalogue as CAT
 from . import measure as M
+from . import states as ST
 
 _REPO = Path(__file__).resolve().parents[4]
 if str(_REPO / 'tools') not in sys.path:
@@ -45,11 +48,27 @@ STEER_FAULT_CODES = ('NOCAL', 'POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 
 HOST_LATCHES = ('steering_status_stale', 'mcu_reset_detected', 'calibration_mismatch', 'hardware_profile_mismatch',
                 'sim_identity_mismatch', 'steering_not_following', 'steering_ineffective', 'status_seq_gap',
                 'stop_unconfirmed', 'mcu_disarmed', 'mcu_state_mismatch', 'c_rejected', 'hardware_fault', 'arm_rejected',
-                'arm_unconfirmed', 'internal_error')
+                'arm_unconfirmed', 'internal_error', 'mcu_ttl_expired')
 # Every host latch needs a T1 script (A19). Review P4R-15: hardware_profile_mismatch and sim_identity_mismatch come from
 # the rig's host link settings (host_hw_profile, host_simulated), arm_rejected from an operator re-arm while the MCU fault
 # is still active (N - fault), internal_error from an injected host defect (rig fault host_defect). No exclusion is left.
 HOST_LATCHES_NOT_IN_T1 = {}
+# The 09-19 mandatory failure tests (SIM_ACCEPTANCE 2, last item) and the scripts that stand for them (audit AUD3A-19:
+# the dashboard forced exit is the operator page / hold of the lease holder stopping: hold_lost, and the client loop
+# stopping while it holds the lease: executor_stall, input deadline 0.75 s).
+MANDATORY_MAP = (
+    ('two screens and the CLI driving at once', ('two_screens_and_cli',)),
+    ('link lost while the hold is pressed', ('link_loss_while_held', 'link_loss_lateral_5deg')),
+    ('dashboard forced exit', ('hold_lost', 'executor_stall')),
+    ('bridge forced exit', ('bridge_forced_exit', 'bridge_forced_exit_port_reset')),
+    ('USB unplugged and plugged again (pty reopen)', ('usb_unplug_replug', 'usb_unplug_replug_reset')),
+    ('MCU reset', ('mcu_reset',)),
+    ('half frame', ('half_frame',)),
+    ('CRC and range errors', ('crc_error_single', 'crc_error_burst', 'range_error')),
+    ('status line loss', ('status_line_loss',)),
+    ('late drive right after a STOP', ('late_drive_after_stop',)),
+    ('system clock change (monotonic deadlines)', ('clock_change',)),
+)
 
 
 def _sim_in_loop():
@@ -128,9 +147,24 @@ def evaluate_script(entry, art, result):
     codes = _as_tuple(exp['mcu_fault']) if 'mcu_fault' in exp else ()
     if codes:
         facts['faults'] = fault_facts(entry, art, codes)
-        found = [f for f in facts['faults'] if f['found']]
+        found = sorted((f for f in facts['faults'] if f['found']), key=lambda f: f['tick'])
         _item(items, 'MCU fault %s' % '/'.join(codes), bool(found), [f['code'] for f in found])
+        if exp.get('first_rule') and found:
+            # audit AUD3A-18: the code the MCU raised first must be the rule the spec 6.7 recomputation trips first
+            onset = _onset_tick(entry, art)
+            expected = []
+            for code in codes:
+                tick, method = M.expected_fault_tick(code, art, onset)
+                if tick is not None:
+                    expected.append((tick, code))
+            facts['first_rule'] = dict(expected=sorted(expected), found=(found[0]['code'], found[0]['tick']))
+            first = min(expected) if expected else None
+            _item(items, 'first rule by the spec recomputation', first is not None and first[1] == found[0]['code']
+                  and abs(first[0] - found[0]['tick']) <= 1, (found[0]['code'], found[0]['tick']),
+                  None if first is None else (first[1], first[0]), 'earliest expected tick of %s' % '/'.join(codes))
         for f in found[:1]:
+            if f['code'] in ('NOCAL', 'BOOT', 'SOFTLIMIT'):
+                ST.mcu_result_items(items, f['code'], art, f['tick'], 'bit')
             if f.get('expected_tick') is not None:
                 _item(items, 'judgement tick %s within +-1 of spec 6.7' % f['code'], abs(f['tick'] - f['expected_tick']) <= 1,
                       f['tick'], f['expected_tick'], f.get('method'))
@@ -150,6 +184,10 @@ def evaluate_script(entry, art, result):
                           None if zero is None else zero - f['tick'], 1)
                 _item(items, 'MCU state after the fault', M.state_at(art, f['tick'] + 2) == 'DISARMED',
                       M.state_at(art, f['tick'] + 2), 'DISARMED')
+            # the resulting state of spec 6.4 / 6.8 (audit AUD3A-01): CRC and the latch bit of the latched codes
+            # (NOCAL, BOOT, SOFTLIMIT come from status bits: above)
+            if f['code'] not in ('NOCAL', 'BOOT', 'SOFTLIMIT'):
+                ST.mcu_result_items(items, f['code'], art, f['tick'], 'F')
     if exp.get('mcu_ttl'):
         expected, tick, last = M.expected_ttl_tick(art, _onset_tick(entry, art))
         facts['ttl'] = dict(f_tick=tick, expected=expected)
@@ -158,6 +196,7 @@ def evaluate_script(entry, art, result):
             _item(items, 'TTL judgement = last C arrival + ttl (+-1)', abs(tick - expected) <= 1, tick, expected)
             zero = M.drive_zero_tick(art, tick - 1)
             _item(items, 'TTL -> drive 0 <= ttl + 1 tick', zero is not None and zero <= expected + 1, zero, expected + 1)
+            ST.mcu_result_items(items, 'TTL', art, tick, 'F')
         stop_tick = tick if stop_tick is None else min(stop_tick, tick or stop_tick)
     if exp.get('mcu_watchdog'):
         expected, tick = M.expected_watchdog_tick(art, _onset_tick(entry, art))
@@ -177,10 +216,39 @@ def evaluate_script(entry, art, result):
                       'not applicable: the drive was already 0 before the W tick (an earlier stop, e.g. the C TTL '
                       'brake); link_loss_watchdog_brake judges the watchdog brake')
             _item(items, 'watchdog -> DISARMED', M.state_at(art, tick + 1) == 'DISARMED', M.state_at(art, tick + 1))
+            # A17 'watchdog -> ..., latch' (audit AUD3A-08): the MCU WATCHDOG latch bit stays in the status lines until
+            # the next operator ARM, and the host latches (any latch from the W tick on) or the executor run ended
+            kept, until = ST._bit_kept(art, 'WATCHDOG', tick)
+            status_bits = [r['fields'].get('fl', 0) & M.bit('WATCHDOG') for r in M.m2h_status(art, since_ms=tick + 1)
+                           if until is None or r['queued'] < until]
+            # an MCU reset that ends the window before the host could read a status line (the port was closed, e.g.
+            # usb_unplug_replug_reset) leaves only the MCU part to judge; otherwise the host must see the bit
+            reset_first = until is not None and until == ST._first_reset_after(art, tick)
+            _item(items, 'watchdog latch bit kept until the next operator ARM (MCU and status lines)',
+                  kept and (bool(status_bits) or reset_first) and all(status_bits),
+                  dict(until_arm_tick=until, lines=len(status_bits), ended_by_reset=reset_first))
+            latched = [name for name, since, _ in art['latches'] if since is not None and _seconds(since) >= tick]
+            _item(items, 'watchdog -> host latch or ended run', bool(latched) or s['end_reason'] is not None,
+                  dict(host_latches=latched, end_reason=s['end_reason']))
+            mode_items = []
+            ST.mcu_result_items(mode_items, 'WATCHDOG', art, tick, 'W')
+            for row in mode_items:
+                if 'steering' in row['item']:
+                    row['item'] = 'watchdog -> ' + row['item'].split(' -> ', 1)[1]
+                    items.append(row)
         stop_tick = tick if stop_tick is None else min(stop_tick, tick or stop_tick)
+    facts['latches'] = ST.latch_facts(entry, art)
+    by_latch = {row['name']: row for row in facts['latches']}
     for name in _as_tuple(exp.get('host_latch', ())):
         when = M.latch_time(art, name)
         _item(items, 'host latch %s' % name, when is not None, when)
+        row = by_latch.get(name)
+        if row is not None:
+            # audit AUD3A-01: the latch time against the design rule (+- one loop period) and the resulting state
+            _item(items, 'latch time %s = design (+-1 loop period)' % name, row['time_ok'],
+                  row['latch_ms'], row['design_ms'], row['method'])
+            _item(items, 'latch state %s (stop, no lease, fault, no C)' % name, row['state_ok'],
+                  [(i['item'], i['measured']) for i in row['state_items'] if not i['ok']] or 'ok')
     if 'arm_refused' in exp:
         error = (s.get('start_error') or {}).get('error') if isinstance(s.get('start_error'), dict) else None
         codes_ok = error is not None and any(code in error for code in _as_tuple(exp['arm_refused']))
@@ -460,8 +528,114 @@ def a5_check(native_executable=None, build_dir=None):
     istamps = np.array([m['header'] for m in imus])
     rate = (len(istamps) - 1) / float(istamps[-1] - istamps[0])
     _item(items, 'IMU rate vs profile +-1 %', abs(rate - imu_rate) <= .01 * imu_rate, round(rate, 3), imu_rate)
+    drive = a5_drive_check(native_executable, build_dir)
+    for i in drive['items']:
+        items.append(dict(i, item='driving: ' + i['item']))
     return dict(check='A5(F)', passed=all(i['ok'] for i in items), items=items, scans=len(scans), imus=len(imus),
-                digests=result['digests'])
+                digests=result['digests'], driving=dict((k, v) for k, v in drive.items() if k != 'items'))
+
+
+A5_DRIVE_S = 30.             # 40 % straight hold on the W0 floor (two rows of posts), driving statistics
+
+
+def a5_drive_check(native_executable=None, build_dir=None):
+    """A5(F) driving statistics (audit AUD3A-02). The plant's IMU model while driving: vibration RMS v_k = hypot(drive
+    vibration of the duty (profile imu_vibration_drive_below_90 / at_90 / at_100), steering-motor term x |steer PWM|);
+    gyro noise sd_k = hypot(still noise, coupling x v_k) (deg/s); acceleration noise v_k / sqrt(3) per axis. The run
+    records, next to every IMU sample, the plant's true state it was made from (evaluation only: accel, v, w, the
+    vibration RMS, the per-run gyro scale and bias), so the noise is measured around the truth: gyro residual = gyro -
+    (scale x rot_zz x (w + external) + bias), acceleration residual = acc - rot (accel, v w, g). Judged: sd of the gyro
+    residual vs sqrt(mean sd_k^2) +-10 %, RMS of the acceleration residual (three axes) vs sqrt(mean v_k^2) +-10 %, the
+    driving vibration equals the profile value of the duty, scans every 0.1 s, IMU rate +-1 %."""
+    S = _sim_in_loop()
+    spec = S.normalise_spec(dict(name='a5_driving', seed=6, world=dict(CAT.W0_ROWS),
+                                 controller=dict(kind='straight_hold', drive_pct=40, distance_m=None),
+                                 duration_s=A5_DRIVE_S, capture_inputs=4000))
+    rig = S.build_rig(spec, native_executable, build_dir)
+    truth = []
+    try:
+        plant = rig.plant
+        original = plant.imu_sample
+
+        def imu_sample():
+            sample = original()
+            truth.append((round(float(sample['stamp_s']), 6), plant.accel, plant.v, plant.w, plant.external_yaw_rate,
+                          plant.imu_vibration_rms(), plant.vibration_rms, abs(plant._steer.applied_steer_pwm)))
+            return sample
+        plant.imu_sample = imu_sample
+        cfg = S.steer_executor_config(rig, spec['config'])
+        facade = S.SteerExecutorInTheLoop(rig, cfg, spec['controller'], spec['actions'], spec['auto_repress'],
+                                          spec['capture_inputs'], operator=spec['operator'])
+        facade.run(spec['duration_s'], spec['post_end_s'])
+        params = plant.params
+        scale, bias = plant.gyro_scale, plant.gyro_bias
+        rot = params.imu_rotation
+        imus, scans = facade.inputs['imus'], facade.inputs['scans']
+        profile = rig.profile
+        drive_pct = 40.
+        expected_drive = float(params.drive_vibration(drive_pct))
+        values = dict(below_90=float(profile.value('imu_vibration_drive_below_90_m_s2')),
+                      at_90=float(profile.value('imu_vibration_drive_at_90_m_s2')),
+                      at_100=float(profile.value('imu_vibration_drive_at_100_m_s2')),
+                      steer=float(profile.value('imu_vibration_steer_m_s2')),
+                      gyro_still_deg_s=float(params.gyro_still_noise_sd_deg_s),
+                      gyro_coupling_deg_s_per_m_s2=float(params.gyro_vibration_deg_s_per_m_s2))
+        imu_rate = float(rig.imu_rate_hz)
+        summary = facade.summary()
+    finally:
+        rig.close()
+    by_stamp = {row[0]: row for row in truth}
+    gyro_res, acc_res, sd2, vib2, drive_vib, stamps = [], [], [], [], [], []
+    for m in imus:
+        row = by_stamp.get(round(float(m['header']), 6))
+        if row is None:
+            continue
+        _, accel, v, w, ext, vib, drive_part, _ = row
+        if abs(v) < .1:                     # the driving part only (the start and the stop are left out)
+            continue
+        expected_gyro = scale * rot[2][2] * (w + ext) + bias
+        gyro_res.append(m['gyro_z'] - expected_gyro)
+        force = (accel, v * w, 9.80665)
+        acc = m['accel']
+        acc_res.append([acc[i] - sum(rot[i][k] * force[k] for k in range(3)) for i in range(3)])
+        sd2.append(math.radians(math.hypot(values['gyro_still_deg_s'], values['gyro_coupling_deg_s_per_m_s2'] * vib))
+                   ** 2)
+        vib2.append(vib ** 2)
+        drive_vib.append(drive_part)
+        stamps.append(float(m['header']))
+    items = []
+    _item(items, 'driving IMU samples (v > 0.1 m/s)', len(gyro_res) >= 300, len(gyro_res), 300)
+    if not gyro_res:
+        return dict(check='A5(F) driving', passed=False, items=items)
+    gyro_res = np.asarray(gyro_res)
+    acc_res = np.asarray(acc_res)
+    expected_sd = float(np.sqrt(np.mean(sd2)))
+    measured_sd = float(np.sqrt(np.mean(gyro_res ** 2)))
+    _item(items, 'gyro noise sd while driving vs the profile vibration model +-10 %',
+          abs(measured_sd - expected_sd) <= .1 * expected_sd, round(measured_sd, 6), round(expected_sd, 6),
+          'rad/s around the true yaw rate (gyro scale and bias of the run removed); model hypot(still %.3f, %.2f x '
+          'vibration) deg/s' % (values['gyro_still_deg_s'], values['gyro_coupling_deg_s_per_m_s2']))
+    expected_vib = float(np.sqrt(np.mean(vib2)))
+    measured_vib = float(np.sqrt(np.mean(np.sum(acc_res ** 2, axis=1))))
+    _item(items, 'acceleration vibration RMS while driving vs the profile +-10 %',
+          abs(measured_vib - expected_vib) <= .1 * expected_vib, round(measured_vib, 4), round(expected_vib, 4),
+          'm/s2, three axes around the true specific force')
+    _item(items, 'driving vibration = the profile value of the duty (40 %: below_90)',
+          bool(drive_vib) and max(abs(d - expected_drive) for d in drive_vib) < 1e-9,
+          round(float(np.median(drive_vib)), 4), expected_drive)
+    istamps = np.array(stamps)
+    rate = (len(istamps) - 1) / float(istamps[-1] - istamps[0]) if len(istamps) > 1 else 0.
+    # the plant draws IMU samples on the 10 ms grid at 33 Hz (30 / 30 / 40 ms): the rate over the driving part
+    _item(items, 'IMU rate while driving vs profile +-1 %', abs(rate - imu_rate) <= .01 * imu_rate, round(rate, 3),
+          imu_rate)
+    sstamps = np.array([m['header'] for m in scans if True])
+    moving = [t for t in sstamps if any(abs(t - x) < .06 for x in stamps)]
+    dts = np.diff(np.array(moving)) if len(moving) > 1 else np.array([])
+    _item(items, 'scans every 0.1 s while driving', len(dts) > 50 and bool(np.all(np.abs(dts - .1) < 1e-6)),
+          None if not len(dts) else round(float(np.mean(dts)), 6), .1)
+    return dict(check='A5(F) driving', passed=all(i['ok'] for i in items), items=items, samples=len(gyro_res),
+                profile_values=values, gyro_residual_mean_rad_s=round(float(np.mean(gyro_res)), 6),
+                end_reason=summary['end_reason'], distance_note='straight hold, 40 %% duty, %.0f s' % A5_DRIVE_S)
 
 
 # --- A8 ----------------------------------------------------------------------------------------------------------------
@@ -670,9 +844,33 @@ def a17_table(scripts):
     rows = _collect([s for s in scripts if s['group'] in ('safety', 'mandatory', 'fault', 'host', 'normal')], words)
     mandatory = [dict(script=s['name'], passed=s['passed']) for s in scripts if s['group'] == 'mandatory']
     judged = [r for r in rows if r['ok'] is not None]
+    by = {s['name']: s for s in scripts}
+    # the 09-19 mandatory list and the scripts standing for each item (audit AUD3A-19)
+    mapping = [dict(item=item, scripts=[dict(script=n, passed=by[n]['passed']) for n in names if n in by],
+                    passed=all(by[n]['passed'] for n in names if n in by) if any(n in by for n in names) else None)
+               for item, names in MANDATORY_MAP]
+    # STOP timing per script: the request phase on the bridge grid and the status line phase (audit AUD3A-09)
+    phases = []
+    for s in scripts:
+        stop = s['facts'].get('stop')
+        if not stop or not stop.get('found'):
+            continue
+        unconfirmed = any(i['item'].startswith('STOP resends') for i in s['items'])
+        phases.append(dict(script=s['name'], request_ms=stop['request_ms'], sent_ms=stop['sent_ms'],
+                           send_delay_ms=stop['send_delay_ms'], confirm_delay_ms=stop.get('confirm_delay_ms'),
+                           parse_to_zero_ticks=stop.get('parse_to_zero_ticks'), unconfirmed_script=unconfirmed))
+    delays = [p['send_delay_ms'] for p in phases]
+    confirms = [p['confirm_delay_ms'] for p in phases if p['confirm_delay_ms'] is not None
+                and not p['unconfirmed_script']]
     # no judged row and no mandatory script: nothing was measured (None, review P4R-10)
-    passed = None if not judged and not mandatory else (_judged(rows) and all(m['passed'] for m in mandatory))
-    return dict(check='A17(F)', passed=passed, rows=rows, mandatory=mandatory,
+    passed = None if not judged and not mandatory else (_judged(rows) and all(m['passed'] for m in mandatory)
+                                                        and all(m['passed'] is not False for m in mapping))
+    return dict(check='A17(F)', passed=passed, rows=rows, mandatory=mandatory, mandatory_map=mapping,
+                stop_phases=dict(rows=phases, worst_send_delay_ms=max(delays) if delays else None,
+                                 worst_confirm_delay_ms=max(confirms) if confirms else None,
+                                 note='the rig runs host code on the 10 ms plant grid: STOP requests come at executor '
+                                      'ticks (50 ms) and the bridge steps every 20 ms, so the request phases are 0 and '
+                                      '10 ms; a request between two plant steps is not representable'),
                 not_applicable=[dict(script=r['script'], item=r['item'], note=r['note']) for r in rows
                                 if r['ok'] is None])
 
@@ -702,14 +900,41 @@ def a19_table(scripts, rates):
             if i['item'].startswith('host latch ') and i['ok']:
                 name = i['item'][len('host latch '):]
                 host.setdefault(name, []).append(s['name'])
+    # latch time against the design rule and the resulting state (audit AUD3A-01): the scripts that expect the latch
+    latch_times = {}
+    for s in scripts:
+        expected = set()
+        for i in s['items']:
+            if i['item'].startswith('host latch ') and i['ok']:
+                expected.add(i['item'][len('host latch '):])
+        for row in s['facts'].get('latches') or ():
+            if row['name'] in expected:
+                latch_times.setdefault(row['name'], []).append(dict(
+                    script=s['name'], latch_ms=row['latch_ms'], design_ms=row['design_ms'], diff_ms=row['diff_ms'],
+                    method=row['method'], time_ok=row['time_ok'], lease_at_latch=row['lease_at_latch'],
+                    state_ok=row['state_ok']))
+    latch_time_bad = sorted(name for name, rows in latch_times.items()
+                            if not any(r['time_ok'] and r['state_ok'] for r in rows))
+    states = {}
+    for s in scripts:
+        for i in s['items']:
+            if ' -> ' in i['item'] or 'latch bit kept' in i['item']:
+                head = i['item'].split(' ')[0]
+                if head in STEER_FAULT_CODES or head == 'watchdog':
+                    states.setdefault(head.upper(), []).append(dict(script=s['name'], item=i['item'], ok=i['ok'],
+                                                                    measured=i['measured']))
+    state_bad = sorted(code for code, rows in states.items() if any(r['ok'] is False for r in rows))
     normal = [dict(script=s['name'], passed=s['passed']) for s in scripts if s['group'] == 'normal']
     missing = [c for c in STEER_FAULT_CODES if c not in codes or not codes[c]['ok']]
     host_missing = [h for h in HOST_LATCHES if h not in host and h not in HOST_LATCHES_NOT_IN_T1]
     # 0 false detections: the normal scripts (catalogue seed) and every seed of the false-detection rate runs
     false_normal = list((rates or {}).get('false_detections_normal') or [])
-    passed = not missing and not host_missing and all(n['passed'] for n in normal) and not false_normal
+    passed = (not missing and not host_missing and all(n['passed'] for n in normal) and not false_normal
+              and not latch_time_bad and not state_bad)
     return dict(check='A19(F)', passed=passed, codes=codes, missing_codes=missing, host_latches=host,
-                host_missing=host_missing, host_not_in_t1=HOST_LATCHES_NOT_IN_T1, normal_scripts=normal,
+                host_missing=host_missing, host_not_in_t1=HOST_LATCHES_NOT_IN_T1, host_latch_times=latch_times,
+                host_latch_time_or_state_failed=latch_time_bad, result_states=states,
+                result_state_failed=state_bad, normal_scripts=normal,
                 false_detections_normal=false_normal, false_detection_rates=rates)
 
 

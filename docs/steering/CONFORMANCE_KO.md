@@ -2,7 +2,7 @@
 
 - 작성: 2026-11-09 (P3 적합성 작업)
 - 근거: `ESP_PROTOCOL_V3_DRAFT_KO.md`(이하 "규격") 13절과 14절, `LOCKSTEP_PROTOCOL_KO.md` 11절(lockstep v2 firmware 모드), 설계 8.3 P3, 부록 C, `SIM_ACCEPTANCE_KO.md` A19(MCU 부분)·A20, `DECISIONS_KO.md` R1.
-- 위치: 대본 `sim/ubts/steering/conformance/scripts/*.json`(90개), 실행기 `sim/ubts/steering/conformance/run_conformance.py`, 시험 `sim/ubts/test_steering_conformance.py`.
+- 위치: 대본 `sim/ubts/steering/conformance/scripts/*.json`(92개), 실행기 `sim/ubts/steering/conformance/run_conformance.py`, 시험 `sim/ubts/test_steering_conformance.py`.
 - 모든 수치는 자리값이다. 대본 통과는 자리값 기반 SIM 결과다. 현장 검증이 아니다. 실기에서는 아무것도 돌리지 않았다.
 - 2026-11-09 P3 통합: 9절의 열린 문제를 규격 12.1절 결정(48~65)으로 정했고, 그 결정을 고정하는 대본 5개를 더했다(`bench_framing_error_early_brake`, `cfg_svhz_runtime`, `cal_erase_twice`, `crc_burst_stop_special`, `c_nocrc_shows_q`). 같은 대본을 패키지 코덱(`FirmwareSteeringBackend`)으로도 돌리는 두 번째 전송을 더했다(3절 `--transport backend`). 결과는 7절.
 - 2026-11-09 fix_p3: 검토 결과(RF-01~RF-11)를 규격 12.1절 결정(66~73)으로 고치고, 그 결정을 고정하는 대본 5개를 더했다(`fault_drv_stuck_default`, `polarity_latch_needs_pol_check`, `rx_overflow_drops_oldest`, `servo_lag_with_progress_no_track`, `thermal_blocks_jog_and_pol`). 옛 대본 85개는 바꾸지 않았다. 결과는 7절 끝.
@@ -76,7 +76,7 @@ python -B -m steering.conformance.run_conformance --transport backend --out <저
 | `adc_model_center` | 7.2, 13.3, 13.6 | BOOT | - | - |
 | `arm_reject_reasons` | 4.6, 4.2, 4.9, 4.13, 6.1 | - | boot, busy, cal, crc, nocrc, state, syntax | - |
 | `bench_entry_rules` | 4.11, 4.13, 4.2, 6.1 | BOOT | boot, busy, nocrc, state, syntax | - |
-| `bench_framing_error_early_brake` (통합) | 2.2, 6.4, 8.2, 12.1-48 | - | ctrl, long | overflow_and_recovery |
+| `bench_framing_error_early_brake` (통합, 4단계 보강) | 2.1, 2.2, 6.4, 8.2, 12.1-48 | - | ctrl, long | overflow_and_recovery |
 | `bench_watchdog` | 6.2, 4.11, 4.12, 5.7 | WATCHDOG, BOOT | - | - |
 | `boot_order` | 8.3, 8.4, 5.4, 6.1, 10 | BOOT | - | boot_order |
 | `bounded_actual_reports` | 5.3, 5.4, 5.1 | - | - | bounded_actual_reports |
@@ -96,7 +96,8 @@ python -B -m steering.conformance.run_conformance --transport backend --out <저
 | `cfg_query_all_keys` | 4.10, 5.8 | - | state | - |
 | `cfg_set_ranges` | 4.10, 4.2 | - | key, range, syntax | - |
 | `cfg_set_states` | 4.10, 4.2, 4.13, 4.11 | - | busy, key, nocrc, range, state | - |
-| `cfg_svhz_runtime` (통합) | 4.10, 7.1, 7.5, 7.6, 5.9 | - | - | - |
+| `cfg_svhz_runtime` (통합, 4단계 보강) | 4.10, 7.1, 7.5, 7.6, 5.9 | - | - | - |
+| `cfg_svhz_runtime_1000_to_500` (4단계) | 4.10, 7.1, 7.5, 7.6, 5.9, 9.2 | - | - | - |
 | `crc_burst_armed` | 6.6, 6.4, 6.5, 5.6 | CRC | crc | - |
 | `crc_burst_disarmed_bench` | 6.6, 6.4, 4.11 | CRC, BOOT | crc | - |
 | `crc_burst_stop_special` (통합) | 2.4, 6.6, 12.1-52 | CRC | crc | - |
@@ -172,7 +173,7 @@ python -B -m steering.conformance.run_conformance --transport backend --out <저
 | 명령마다 받는 길 | INFO(`info_does_not_renew_watchdog`, `crc_field_rules`, `bench_entry_rules`), PING(`timely_ping`, `half_frame_rejected`), STOP(`emergency_stop_immediate`, `stop_bench_disarmed`), ARM, DISARM(`disarm_armed`, `disarm_bench`), C(`c_field_ranges` 외), CAL JOG/POL/MARK/SOFT/SAVE/ERASE/GET(`cal_*`), CFG 설정·조회(`cfg_*`), BENCH, D8/D5/D3/D0/D1(`mapping_and_full_range`, `locked_power_and_d4`) |
 | 거절 사유 18개 | 위 표 거절 사유 칸. 시험이 18개가 모두 어딘가에 있는지 본다 |
 | CRC 좋음·나쁨, 연속 | `crc_field_rules`, `crc_burst_armed`, `crc_burst_disarmed_bench`, `crc_burst_stop_special`(STOP 특례와 연속 계수) |
-| 줄 길이 64 B 앞뒤, 제어 문자, CR, 빈 줄, 반쪽 줄 | `frame_line_length_limits`, `frame_ctrl_and_cr`, `crlf_and_embedded_cr`, `overflow_and_recovery`, `half_frame_rejected`, `port_open_reset`, `bench_framing_error_early_brake`(오류 바이트와 LF가 다른 틱) |
+| 줄 길이 64 B 앞뒤, 제어 문자, CR, 빈 줄, 반쪽 줄 | `frame_line_length_limits`, `frame_ctrl_and_cr`, `crlf_and_embedded_cr`, `overflow_and_recovery`, `half_frame_rejected`, `port_open_reset`, `bench_framing_error_early_brake`(오류 바이트와 LF가 다른 틱, LF는 램프 격자 밖, CR 뒤의 LF 아닌 바이트) |
 | RX 고리 넘침(255 B, 가장 옛 바이트 버림) | `rx_overflow_drops_oldest` |
 | q 감김(65535 -> 0), ARM 뒤 첫 C | `c_q_wrap_and_old`, `late_c_after_stop`, `mcu_reset_mid_row`(새 부팅 q 1) |
 | ttl, L, R, S 범위 | `c_field_ranges`, `cfg_effects`(ttlmax), `c_nocrc_shows_q`(CRC 없는 C의 q) |
@@ -185,7 +186,7 @@ python -B -m steering.conformance.run_conformance --transport backend --out <저
 | 정지 모드 표 행(핀 수준) | STOP(ARMED) `emergency_stop_immediate`, STOP(BENCH·DISARMED) `stop_bench_disarmed`, DISARM `disarm_armed`·`disarm_bench`, L = R = 0 `gradual_acceleration_and_soft_release`, TTL `c_ttl_expiry_brake`·`ttl_expiry_release`, watchdog `watchdog_*`, 나쁜 줄 연속 `crc_burst_*`, 가변저항·움직임 결함 `fault_*`, THERMAL(release) `fault_thermal_release`, SOFTLIMIT `fault_softlimit`, 틀 오류(BENCH) `crlf_and_embedded_cr`·`overflow_and_recovery`, 틀·CRC 오류(ARMED·DISARMED) `nul_rejected`·`frame_ctrl_and_cr`, MCU 리셋 `mcu_reset_mid_row`, 전원 차단 `power_cycle` |
 | 서보 속도 제한, 정지 중 속도, HOLD 시간, 바깥쪽 막기 | `servo_rate_and_law`, `servo_rate_creep_duty`(데드밴드 안 duty도 움직이는 중, movms 꼬리), `millis_rollover`, `hold_policy_target`, `hold_policy_center`, `emergency_stop_immediate`, `disarm_armed`, `servo_deadband_dwell`, `servo_reversal_pause`, `fault_softlimit`, `svhz_1000`, `servo_lag_with_progress_no_track`(따라가는 서보의 뒤처짐은 TRACK이 아니다) |
 | CAL 흐름과 EEPROM 지속, cal_id 증가 | `cal_flow_blank_to_saved`, `cal_erase_tombstone`, `cal_wear_limit`, `cal_pol_fail_and_reverse`, `cal_jog`, `cal_reject_reasons`, `cal_erase_twice`(R 없는 ERASE), `thermal_blocks_jog_and_pol`(THERMAL 조건 중 JOG·POL 거절), `polarity_latch_needs_pol_check`(POL 통과가 극성 래치를 지움). commit 실패는 C++ 단위 시험 `test_eeprom_commit_failure`(대본으로는 만들 수 없다) |
-| CFG 키 | `cfg_query_all_keys`, `cfg_set_ranges`, `cfg_set_states`, `cfg_effects`, `cfg_svhz_runtime`(실행 중 svhz) |
+| CFG 키 | `cfg_query_all_keys`, `cfg_set_ranges`, `cfg_set_states`, `cfg_effects`, `cfg_svhz_runtime`(실행 중 svhz 500 → 1000), `cfg_svhz_runtime_1000_to_500`(실행 중 svhz의 위상 규칙) |
 | BENCH(램프, 휴지, watchdog), D 거절(ARMED·DISARMED), ARMED <-> BENCH 직행 없음 | `mapping_and_full_range`, `pending_stop`, `bench_watchdog`, `bench_entry_rules`, `arm_reject_reasons`, `disarm_bench` |
 | 포트 열기 리셋, 주행 중 MCU 리셋(coast) | `port_open_reset`, `mcu_reset_mid_row`, `reset_reasons`, `power_cycle` |
 | 09-19 필수 장애 시험(MCU 쪽) | 반쪽 프레임 `half_frame_rejected`·`port_open_reset`, CRC·범위 오류 `crc_field_rules`·`c_field_ranges`, STOP 직후 늦은 C `late_c_after_stop`·`emergency_stop_immediate`, MCU 리셋 `mcu_reset_mid_row` |
@@ -253,6 +254,15 @@ fix_p3(2026-11-09, 펌웨어 `fw=04353B49`, 대본 90개):
 
 - 네이티브에 평가 전용 시작 줄 키 `report_servo`와 채널 11~14를 더했다(LOCKSTEP 11.6). 적합성 실행기는 이 키를 늘 거짓으로 보낸다. 거짓이면 응답 바이트가 더하기 전과 같다(시험 `test_report_servo_channels`).
 
+4단계(2026-11-09, conf_fu, 펌웨어 `fw=04353B49` 그대로, 대본 92개: 바꾼 대본 `bench_framing_error_early_brake`, `cfg_svhz_runtime`, 새 대본 `cfg_svhz_runtime_1000_to_500`. 세 대본의 기대는 펌웨어·네이티브 소스를 읽지 않고 규격만 보고 먼저 계산했다. 계산 기록은 저장소 밖 `runs/wf4/conf_fu/derivation_ko.txt`):
+
+| 환경 | 결과 |
+|---|---|
+| Windows, Python 3.13, MinGW 6.3 32비트 | CLI 92/92(`--transport native`), 92/92(`--transport backend`). pytest 36 통과 |
+| WSL Ubuntu-22.04, Python 3.10.12, g++ 11.4 | CLI 92/92 두 전송 모두. unittest 36 OK(건너뜀 없음) |
+| 기반 이미지 `6209168a3507`, Python 3.12.3, g++ 13.3 | CLI 92/92 두 전송 모두. pytest(7.4.4) 36 통과 |
+| 스텝 독립 검사(RESET 뒤 7틱 스텝) | 여섯 실행 모두 92개 같음 |
+
 ## 8. 나중에 실기 벤치에서(사용자, 지금은 하지 않는다)
 
 같은 JSON 대본을 실기 보드에 쓸 수 있게 형식을 정했다(T3, 설계 8.3 P9, A20). 지금은 하드웨어에서 아무것도 돌리지 않았고 T3 실행기도 없다. 준비할 것:
@@ -280,4 +290,4 @@ P3 통합(2026-11-09)에서 1~9를 정했다. 원래 문장은 남기고 처리 
 10. ADC 모형으로 서보를 닫는 대본은 `adc_model_center` 하나(정지, 급전 배율)뿐이다. 닫힌 루프 결과는 P4 F-SIM에서 본다. → 그대로. 호스트까지 붙인 T1 결합(ADC 모형, 구동기 모형, 열린 루프 속도 stub)은 `test_steering_host_firmware.py`에 있다. 플랜트를 닫는 것은 P4다.
 11. (fix_p3) RX 넘침 규칙: 예전 흉내 층은 256 B를 담고 새 바이트를 버렸다. 코어 3.1.2 `uart.cpp`는 255 B까지 담고 가장 옛 바이트를 버린다(규격 12.1-67이 47을 바꿨다). 하드웨어 RX FIFO(128 B)가 ISR 전까지 더 담는 몫은 흉내 내지 않는다[가정]. 실기 확인은 B9다.
 12. (fix_p3) 새 대본 5개의 독립성(1절 예외). 다른 작업이 규격만 보고 기대값을 다시 계산해야 한다. → 확인했다(3단계). 3단계 안전 검토가 규격만 보고 다섯 대본의 기대값을 다시 계산했고 모두 일치했다. 그 검토에서 규격 13.5의 instant 넘침 문장이 12.1-67과 달라 고쳤다(RS-08).
-13. (통합 단계) 1~8번 질문에 답하며 통합 단계가 쓴 대본 5개(`c_nocrc_shows_q`, `bench_framing_error_early_brake`, `cal_erase_twice`, `crc_burst_stop_special`, `cfg_svhz_runtime`)도 펌웨어를 바꾼 단계가 썼다. 커밋 0c1311e 기준으로 규격만 보고 기대값을 따로 다시 계산했다(2026-11-09). 기대 74개가 모두 계산과 같고 critical·major 지적은 없다. minor 3건은 규격 8.2절 brake 문장의 두 가지 읽기, bench 대본이 LF 틱과 CR 경우를 다 고정하지 못함, 규격이 실행 중 svhz 변경의 서보 위상을 정하지 않음이다. 펌웨어는 고칠 것이 없다. 규격 문장과 대본을 4단계에서 고치고 A20을 다시 돈다(`DECISIONS_KO.md` R17, R20).
+13. (통합 단계) 1~8번 질문에 답하며 통합 단계가 쓴 대본 5개(`c_nocrc_shows_q`, `bench_framing_error_early_brake`, `cal_erase_twice`, `crc_burst_stop_special`, `cfg_svhz_runtime`)도 펌웨어를 바꾼 단계가 썼다. 커밋 0c1311e 기준으로 규격만 보고 기대값을 따로 다시 계산했다(2026-11-09). 기대 74개가 모두 계산과 같고 critical·major 지적은 없다. minor 3건은 규격 8.2절 brake 문장의 두 가지 읽기, bench 대본이 LF 틱과 CR 경우를 다 고정하지 못함, 규격이 실행 중 svhz 변경의 서보 위상을 정하지 않음이다. 펌웨어는 고칠 것이 없다. 규격 문장과 대본을 4단계에서 고치고 A20을 다시 돈다(`DECISIONS_KO.md` R17, R20). → 처리(4단계 conf_fu, 2026-11-09): 규격 8.2절 brake 문장을 쪽마다로 고쳤다. 4.10절에 실행 중 svhz의 서보 위상 규칙을 넣고, 7.1절과 12.1-21에 '`svhz`가 그대로일 때' 조건을 붙였다. 대본 `bench_framing_error_early_brake`, `cfg_svhz_runtime`을 보강하고 `cfg_svhz_runtime_1000_to_500`을 더했다(세 대본의 기대는 규격만 보고 먼저 계산). 펌웨어 `fw=04353B49` 그대로. 결과는 7절 4단계 표와 `DECISIONS_KO.md` R21.

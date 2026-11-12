@@ -470,7 +470,11 @@ class FaultHookTest(RigCase):
         cut = rig.ms
         rig.step(1.2)
         self.assertEqual(len(rig.mcu_lines(('W',), cut)), 1)
-        self.assertIn('mcu_disarmed', rig.core.latches)
+        # the C TTL (300 ms) comes before the watchdog (500 ms): the host latches mcu_ttl_expired on the F TTL line
+        # and drops the lease (DECISIONS R18 decision 1), so the MCU watchdog DISARMED is not a mcu_disarmed latch
+        self.assertEqual(len(rig.mcu_lines(('F',), cut)), 1)
+        self.assertEqual(list(rig.core.latches), ['mcu_ttl_expired'])
+        self.assertIsNone(rig.core.control.lease)
         self.assertTrue(any(item['note'].endswith(':lost') for item in rig.serial_log() if item['dir'] == 'h2m'))
 
     def test_half_frame_crc_and_range_errors(self):

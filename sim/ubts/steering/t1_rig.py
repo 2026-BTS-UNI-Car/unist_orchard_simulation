@@ -104,7 +104,8 @@ BOOT_DELAY_TICKS = 70                     # reset -> setup() (ESP protocol 1: re
 RUNTIME_FAULTS = ('mcu_reset', 'power_cut', 'port_open_reset', 'motor_power_off', 'motor_power_on', 'mcu_stall',
                   'adc_set', 'adc_model', 'link_loss', 'usb_unplug', 'half_frame', 'crc_error', 'range_error',
                   'status_loss', 'bridge_stall', 'bridge_restart', 'host_defect', 'late_drive_after_stop',
-                  'wall_clock_jump', 'foreign_write', 'sensor_blackout')
+                  'wall_clock_jump', 'foreign_write', 'sensor_blackout', 'executor_stall')
+EXECUTOR_STALL_TRIGGERS = (None, 'f_ttl')   # executor_stall: at its time, or when the next F TTL line reaches the host
 DEFAULT_BRIDGE_DOWN_S = 2.                # bridge_restart: the time without a bridge process
 # truth_mcu_pos_rad: the MCU filtered potentiometer position P[n] (servo_pos channel, host calibration table, rad).
 # The rig also writes it as truth_hold_position_rad: the target a hold_measured STOP holds (R13-2 / R13-3), the hold
@@ -611,6 +612,8 @@ class T1Rig:
         self._bridge_down_until = None                    # bridge_restart: SIM ms when the new bridge process starts
         self._bridge_restart_reset = False
         self.bridge_events = []                           # (kind, t_ms) of bridge_restart faults (evaluation)
+        self._stall_triggers = []                         # executor_stall after='f_ttl', not started yet
+        self.executor_stall_windows = []                  # (t0_ms, t1_ms, trigger) of executor_stall faults
         for item in runtime_faults:
             self.fault(item.kind, at_s=item.at_s, **item.params)
 
@@ -913,6 +916,26 @@ class T1Rig:
                 continue
             self.transport.device.send(data, at=at_ms / 1000.)
             self._log_m2h(at_ms, first, entry.done_tick, data, note)
+            if self._stall_triggers and data.startswith(b'F TTL'):
+                self._trigger_executor_stall(first, at_ms)
+
+    # -- executor stall (fault executor_stall: evaluation of the executor-loop harness)
+    def _add_executor_stall(self, t0_ms, duration_ms, trigger):
+        window = (int(t0_ms), int(t0_ms) + int(duration_ms))
+        self._windows['executor_stall'].append(window + ({'trigger': trigger},))
+        self.executor_stall_windows.append(window + (trigger,))
+        self.counters['executor_stall_windows'] += 1
+
+    def _trigger_executor_stall(self, queued_tick, readable_ms):
+        for item in list(self._stall_triggers):
+            if queued_tick is not None and queued_tick >= item['since_ms']:
+                self._stall_triggers.remove(item)
+                self._add_executor_stall(readable_ms + item['delay_ms'], item['duration_ms'], 'f_ttl')
+
+    def executor_stalled(self, t_ms=None):
+        """True while an executor_stall fault window covers SIM ms t_ms (default now): the executor-loop harness runs
+        no executor tick then (a late tick is skipped, as on the vehicle when the executor process stalls)."""
+        return self._window_active('executor_stall', self.ms if t_ms is None else int(t_ms))
 
     def _log_m2h(self, at_ms, first, done, data, note):
         if self.config.serial_log:
@@ -1015,6 +1038,22 @@ class T1Rig:
         t_s = self.now if at_s is None else float(at_s)
         t_ms = int(math.ceil(t_s * 1000. - 1e-6))
         duration_ms = int(round(float(params.get('duration_s', 0.)) * 1000.))
+        if kind == 'executor_stall':
+            # The executor loop (outside the rig: sim_in_loop_steer) runs no tick while executor_stalled() is true;
+            # the rig only keeps the window. after None: from at_s; after 'f_ttl': from the time the first F TTL line
+            # queued at or after at_s becomes readable by the host, + delay_s (the executor misses the TTL event in
+            # its drive replies for that long: the window of DECISIONS R18 decision 1).
+            after = params.get('after')
+            if after not in EXECUTOR_STALL_TRIGGERS:
+                raise RigError('executor_stall after must be one of %s' % (EXECUTOR_STALL_TRIGGERS,))
+            delay_ms = int(round(float(params.get('delay_s', 0.)) * 1000.))
+            if duration_ms <= 0 or delay_ms < 0:
+                raise RigError('executor_stall needs duration_s > 0 and delay_s >= 0')
+            if after is None:
+                self._add_executor_stall(t_ms + delay_ms, duration_ms, 'at')
+            else:
+                self._stall_triggers.append(dict(since_ms=t_ms, delay_ms=delay_ms, duration_ms=duration_ms))
+            return
         if kind in ('link_loss', 'status_loss', 'bridge_stall', 'sensor_blackout'):
             if duration_ms <= 0:
                 raise RigError('%s needs duration_s > 0' % kind)
@@ -1226,6 +1265,7 @@ class T1Rig:
                     truth_keys=[n for n in names if n.startswith('truth_')], units=units,
                     steer_target_note=STEER_TARGET_NOTE, hold_position_note=HOLD_POSITION_NOTE,
                     bridge_events=[list(e) for e in self.bridge_events],
+                    executor_stall_windows=[list(w) for w in self.executor_stall_windows],
                     columns_note=('cmd_*: host bridge request in effect (throttle %, steer_mrad); host_*: host bridge '
                                   'view (status line fields as the host last read them); truth_*: evaluation only '
                                   '(plant truth and the MCU RAM servo channels)'))

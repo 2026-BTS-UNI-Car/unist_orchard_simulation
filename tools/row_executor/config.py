@@ -90,7 +90,8 @@ untouched turn block is left out of to_dict()/digest(), so existing configs keep
 turn_assist.py is not imported; the turn keys and their rules stay so that configs and digests are unchanged.)
 
 Field decision rules (unified calibration 2026-10-22; block at the end of this file = the ONE place of the rule
-parameters, also used by tools/field_calib/recommend.py and its final config generator make_field_config.py):
+parameters, used on the single-row branch by tools/field_calib/recommend.py and its final config generator
+make_field_config.py; neither was imported to the steering branch):
   decision table   max_differential d = min(20, base - (R + inner_margin), 100 - base) with the C3b rolling threshold
                    R, else with the C2 breakaway B (base 55, margin 10: d = min(20, 45 - R) / min(20, 45 - B));
                    max_yaw_rate = min(4.5, 0.6 x measured authority) rounded down to 0.1 deg/s; C7 stop model check.
@@ -133,6 +134,7 @@ import hashlib
 import ipaddress
 import json
 import math
+import posixpath
 
 SCHEMA = 'ubts.row_executor.config.v1'
 PROFILES = ('field', 'bench')
@@ -1638,6 +1640,11 @@ STEER_RATE_FRACTION = .8              # design 6.2: command slew limit <= 0.8 x 
 STEER_GO_SOFT_MARGIN_MIN_DEG = 2.     # design 6.6: per-wheel soft limit <= mechanical limit - 2 deg
 STEER_GO_ZERO_OFFSET_MAX_DEG = 1.5    # design 6.6: |zero offset F1| <= 1.5 deg
 STEER_GO_DEADBAND_MAX_DEG = 1.        # design 6.6: servo deadband <= 1.0 deg
+# Control socket folders of the two bridge roles (HOST_BRIDGE_V3_KO.md 2: the host wrapper binds its role to its folder).
+# A front_steer configuration binds steer_allow_sim to the SIM folder (review RS-14): SIM allowed only with a socket under
+# STEER_SIM_SOCKET_DIR, a vehicle configuration never on it.
+STEER_SIM_SOCKET_DIR = '/run/ubts-steer/'
+STEER_VEHICLE_SOCKET_DIR = '/run/ubts-rover/'
 # Design 6.6 stop reasons. The executor's own monitors (core.SteerMonitor) give steering_feedback_stale /
 # steering_feedback_invalid / steering_uncalibrated / steering_authority_insufficient; every other reason comes from the
 # detector that owns the condition, read from the steering status: MCU fault names (status fl, esp_motor_v3
@@ -1669,6 +1676,7 @@ STEER_LINK_FAULT_REASONS = (
     ('WATCHDOG', 'link_watchdog'),
     ('CRC', 'link_bad_lines'),
     ('TTL', 'link_ttl_expired'),
+    ('mcu_ttl_expired', 'link_ttl_expired'),                  # host latch (R18 decision 1: the host stops on the TTL)
     ('c_rejected', 'link_command_rejected'),
     ('hardware_fault', 'link_hardware_fault'),
     ('mcu_state_mismatch', 'mcu_state_mismatch'),
@@ -1714,7 +1722,17 @@ def steer_rule_problems(cfg):
         p.append('front_steer: turn_assist_enabled is refused (no pivot, no headland turn)')
     if cfg.calib_motor_output_enabled:
         p.append('front_steer: calib_motor_output_enabled is refused (the calibration runs C5 / C3b / C7 are left / right '
-                 'duty tables; steering identification is tools/field_calib)')
+                 'duty tables; the steering identification is sim/ubts/steering/ident with the drive parts in '
+                 'tools/field_calib, IDENT_KO.md)')
+    socket = posixpath.normpath(cfg.socket_path) if cfg.socket_path.startswith('/') else cfg.socket_path
+    in_sim = (socket + '/').startswith(STEER_SIM_SOCKET_DIR)
+    if cfg.steer_allow_sim and not in_sim:
+        p.append('front_steer: steer_allow_sim True needs the SIM control socket under %s (socket_path %s%s; review '
+                 'RS-14)' % (STEER_SIM_SOCKET_DIR, cfg.socket_path,
+                             ': the vehicle socket' if (socket + '/').startswith(STEER_VEHICLE_SOCKET_DIR) else ''))
+    if not cfg.steer_allow_sim and in_sim:
+        p.append('front_steer: socket_path %s is a SIM control socket; a vehicle configuration (steer_allow_sim False) '
+                 'never uses it (review RS-14)' % cfg.socket_path)
     if cfg.steer_rate_limit_standstill_deg_s > cfg.steer_rate_limit_deg_s + 1e-9:
         p.append('front_steer: steer_rate_limit_standstill_deg_s %.2f above steer_rate_limit_deg_s %.2f (the actuator is '
                  'not faster at standstill)' % (cfg.steer_rate_limit_standstill_deg_s, cfg.steer_rate_limit_deg_s))

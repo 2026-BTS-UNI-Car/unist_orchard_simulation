@@ -305,3 +305,26 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 
 - TTL 위상 쓸기(저장소 밖 스크립트, 2.2절): 220조합, 재구동 0, `link_ttl_expired`로 끝나지 않은 run 0.
 - A18 다시 돌림: 수치가 a18_full_v5와 같다(`IDENT_KO.md` 6절).
+
+## 12. 4단계 p4_gaps (2026-11-09 작업, 2026-11-12 새 저장소에서 마무리)
+
+- 2026-11-09 작업 흐름 WF-4의 p4_gaps 단계가 사용 한도로 중간에 멈췄다. 멈춘 작업 트리의 변경을 새 저장소로 옮겨 검토하고 마무리했다(`DECISIONS_KO.md` R22). 모든 수치는 자리값 기반 SIM 결과이고 현장 검증이 아니다.
+- 바꾼 것:
+  1. 호스트 TTL 래치 `mcu_ttl_expired`(R18 결정 1, AUD3A-04): `HOST_BRIDGE_V3_KO.md` 3절. 실행기 정지 사유는 `link_ttl_expired`(`config.STEER_LINK_FAULT_REASONS`).
+  2. 실행기 SIM 신원(검토 RS-14): front_steer 설정의 `steer_allow_sim`을 SIM 제어 소켓 폴더 `/run/ubts-steer/`에 묶는다. 실차 소켓에 SIM 허용, SIM 소켓에 실차 설정 모두 거절한다(`config.steer_rule_problems`, 경로는 정규화해서 본다).
+  3. 봉인 통로(AUD3A-21): `single_row_sim.resolve_corridor`가 `scene_spec.sealed_status`의 통로를 월드를 만들기 전에 거절한다.
+  4. T1 장치 고장 `executor_stall`(`after='f_ttl'`, `T1_RIG_KO.md` 6.2)과 대본 8개: `c_line_loss_ttl_executor_stall`, `c_line_loss_ttl_executor_stall_phase`, `bridge_stall_ttl`(TTL 틈), `mid_row_stop_off_grid`, `mid_row_stop_bridge_phase`(STOP 위상, AUD3A-09), `pot_stuck_step`, `pot_reversed_step`, `driver_dead_step`(가변저항 범위 안 고장과 죽은 드라이버, 규격 6.7 재계산으로 먼저 걸리는 규칙을 판정하는 `first_rule`, AUD3A-18). 옛 TTL 대본 넷의 기대에 `host_latch` `mcu_ttl_expired`를 더했다.
+  5. 판정: A19 호스트 래치 시각과 결과 상태(`safety_scripts/states.py`, AUD3A-01), MCU 결함 코드의 결과 상태(규격 6.4·6.8), watchdog 래치 조항(AUD3A-08), 09-19 필수 장애 목록 대응표(AUD3A-19), A17 STOP 위상 표, A5(F) 주행 통계(40 % 직진 30 s, AUD3A-02), A22를 `evaluate_steer.steer_after_terminal` 규칙 하나로(AUD3A-07), fast_sim trace의 `truth_hold_position_rad`(솎은 trace에서도, AUD3A-10).
+  6. TTL 틈 위상 훑기 도구 `steering.safety_scripts.ttl_window`(손실 시작·길이, 실행기 멈춤 길이·지연, 브리지 위상, 부팅 지연).
+- 새 저장소에서 고친 것(2026-11-12):
+  - 래치로 바뀐 동작에 옛 시험 3개를 맞췄다. `test_steering_host_firmware.py` LinkLossTest 둘(브리지가 멈춘 사이 TTL: 이제 래치, STOP, `C` 없음, 재출발 없음, 운영자 재무장 뒤 래치가 지워짐. 기본 watchdog: MCU 쪽 판정은 그대로이고 호스트는 `mcu_ttl_expired`), `test_steering_t1_rig.py`의 link_loss. 예전 기대(TTL 뒤 새 `C`로 다시 출발)는 R18 결정 1이 막기로 한 바로 그 동작이다.
+  - 판정 코드: watchdog 래치 비트 항목과 HOLD 항목이 MCU 리셋을 고려하지 않아 `usb_unplug_replug_reset`(포트를 다시 열면 NodeMCU가 리셋됨)이 실패했다. 리셋이 RAM 래치와 HOLD를 끝내므로 창을 리셋에서 끝낸다(`states._first_reset_after`). 리셋이 먼저 와서 호스트가 상태 줄을 하나도 읽지 못한 경우는 MCU 쪽만 판정한다. 시험 `test_watchdog_latch_and_hold_end_at_an_mcu_reset`을 더했고, 옛 시험 `test_watchdog_brake_item_only_when_moving`의 합성 자료에 새 항목이 요구하는 증거(래치 비트, HOLD 뒤 OFF, 끝난 run)를 넣고 비트가 없는 반례를 더했다.
+  - 11/09 부분 점검(30개 대본, 23:23)에서 `usb_unplug_replug`가 'latch state hardware_fault: STOP in the latch step'으로 실패했다. 그 뒤 같은 단계가 `states.py`(23:24)와 `acceptance.py`(23:25)를 고쳤고(USB가 빠진 래치 스텝에는 STOP을 쓸 수 없다), 지금 코드에서는 통과한다.
+- T1 점검 전체(2026-11-12, Windows Python 3.13.2, 작업자 1, 5분 43초, 다른 작업이 같은 PC에서 네트워크 측정 중):
+  - 대본 67/67 기대대로. A17 합격(09-19 필수 목록 11항목 모두 대본 통과), A22 합격, A5(F) 합격(주행 표본 934개), A8 합격.
+  - A19 불합격: 정상 대본 오탐 1/40(`normal_steps_standstill` 시드 101, POLARITY). 3단계와 같은 원인(R18 결정 2, 자리값)이고 숨기지 않는다. MCU 결함 코드·호스트 래치 누락 0, 래치 시각·결과 상태 실패 0.
+  - A13: 이 실행은 s2exec 묶음의 새 파일(`exec_checks.py`)이 함께 있는 트리였고 그 파일의 역할이 없어 실패했다. s2exec 묶음에서 역할을 넣었다. p4_gaps 커밋 트리의 A13은 따로 돌렸다(아래).
+  - A11(보고): 한 걸음 p50 1.84 ms, p99 중앙 14.8 ms, p99.9 최악 84.9 ms, 최대 98.3 ms.
+- TTL 틈 위상 훑기(`steering.safety_scripts.ttl_window`, 전체 격자 320조합: 손실 시작 4.95·4.97·5.0·5.03 s, 손실 320·400 ms, 실행기 멈춤 0.1~0.5 s, 멈춤 지연 0·20 ms, 브리지 위상 0·10 ms, 부팅 지연 60·70; 2026-11-12, p4_gaps 커밋 트리, Windows, 작업자 1, 340 s): 320개 모두 MCU TTL이 났고 호스트가 320개 모두 `mcu_ttl_expired`로 래치했다. TTL 뒤 구동 재출발 0. 실행기 끝 사유 `link_ttl_expired` 248, `steering_feedback_stale` 72(멈춘 동안 조향 상태가 오래됨, 대본이 허용하는 사유).
+- A13(p4_gaps 커밋 트리만, `checks --only a13`): 합격(180파일, 면제 12건 모두 쓰임).
+- 남은 것(ST-03): 식별 쪽 편집(F3 brake 정지 거리, A18 정지 거리 비교 행, 권장 경로 길이로 A18 한 번, B0 CAL POL 멈춤)은 적용하지 않았다. 11/09에 쓴 편집 대본(저장소 밖 `runs/wf4/p4_gaps/edits/edit_ident_1.py`)이 있으나 A18 실행으로 확인해야 하고, A18은 CPU를 오래 쓰므로 조용한 호스트에서 한다. 문서 `IDENT_KO.md`도 그때 고친다. Python 3.10 venv(numpy < 2) 실행(AUD3A-20)도 남았다.

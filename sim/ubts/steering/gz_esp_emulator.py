@@ -32,20 +32,36 @@ Banner: the SIM build of the firmware prints sim=1, the device id (chip id from 
 Port events: the slave starts closed (the emulator does not keep it open). The host opening the slave clears the
 master's hangup; with port_open_reset (default on, the NodeMCU DTR/RTS auto reset, ESP spec 10.7) the MCU resets
 (reason ext_sys) at the next tick. While no host has the slave open, MCU lines are dropped (counted).
+The pty link appears only after --pty-after-clock-s (default 1 s) of SIM time with a steady /clock (no wall gap above
+50 ms; at most 20 s wall after the first /clock): the supervisor starts the bridge wrapper once the link exists, so
+the bridge opens the port after the emulator's own start (DDS discovery, the native program, the first callbacks).
+The MCU runs from the first /clock either way; the port open resets it (WF-4 g_gaps: the start-up host latches of
+phase 3 came while the emulator was not yet stepping steadily).
 
 Fault hooks (A17(G), A19(G); a Unix socket outside the shared control volume, default /run/ubts-steer-emu/hooks.sock,
 one JSON object per line, one reply line): status, mark, event (mcu_reset, power_cycle, port_open_reset, motor_power,
 mcu_stall, adc_set, adc_model), adc_pattern, adc_ramp, link (loss to_mcu / to_host / both for a SIM duration),
 status_loss, corrupt (crc / range of the next host lines), half_frame, inject_line (a foreign writer on the MCU RX),
 banner_rewrite (sim / hw fields of the next banners), restart (a new native session: EEPROM calibrated or blank, v1
-model injections such as polarity_reversed, CFG record overrides, cal_id, report_adc), unplug (USB unplug and replug:
-the pty master is closed and a new pty is made after the duration; mcu_power cycle when the board is USB powered) and
-record (A3(G), A19(G) rule ticks: every FW_STEP input and output of N SIM seconds into a JSON file for an offline
-replay; the session it starts may switch report_adc on, so that the record has every tick's analogRead value) and
-record_finish (write the running record now).
+model injections such as polarity_reversed, CFG record overrides, cal_id, report_adc, report_servo), unplug (USB
+unplug and replug: the pty master is closed and a new pty is made after the duration; mcu_power cycle when the board
+is USB powered), record (A3(G), A19(G) rule ticks: every FW_STEP input and output of N SIM seconds into a JSON file
+for an offline replay; the session it starts switches report_adc on by default and report_servo on (the
+evaluation-only servo channels for the TRACK rule tick), so that the record has every tick's analogRead value and
+the firmware's P, tgt, cmd and steering mode), record_finish (write the running record now) and kill_bridge (A17
+mandatory fault test 'bridge forced kill', design 7.2.1: SIGKILL to the bridge wrapper child of the steer supervisor
+in this container; the supervisor restarts it, its port open resets the MCU).
 
-Logs: a rotating JSONL event log (serial lines both ways with ticks, pin transitions, hooks, port and session events)
-and /runtime/steering_status.json (emulator state + the bridge status file, every 0.5 s wall).
+Logs: a rotating JSONL event log (serial lines both ways with ticks and the monotonic time of the pty read or write
+(mono: the bridge wrapper in the same container uses the same clock in its wall clock mode, for the A19(G) host latch
+timing), pin transitions, hooks, port and session events) and /runtime/steering_status.json (emulator state + the
+bridge status file, every 0.5 s wall), with the emulator's own load: process CPU, the /clock callback time histogram,
+the /sim/act publish counts.
+
+CPU (WF-4 g_gaps): the core costs a few % of one CPU (offline profile); most of the emulator's CPU is the rclpy side
+(callbacks at 120 Hz, publishes). A /sim/act/* value that did not change since its last publish is not published
+again (the Gazebo joint controllers keep their last target) except every ACT_REFRESH_STEPS steps; the MCU, the model
+and the targets Gazebo applies are the same. --truth-every N publishes /sim/truth/steering every N steps (default 1).
 
 The firmware backend here keeps no unbounded history (BoundedFirmwareBackend): a G-SIM run lasts hours.
 Every number comes from the placeholder vehicle profile: results are placeholder-based SIM results
@@ -107,6 +123,13 @@ SLOW_WINDOW_S = .3                       # SIM time received per monotonic secon
 SLOW_RTF = .9                            # below this the window is slow (A10: RTF < 0.9)
 SLOW_KEPT = 64
 PURPOSES = dict(boot=201, chip=202)      # t1_rig stream purposes (mcu_boot, mcu_chip), same derivation rule
+ACT_REFRESH_STEPS = 12                   # unchanged /sim/act/* values are published again every 12 steps (0.1 s)
+PTY_AFTER_CLOCK_S = 1.                   # the pty link appears after this much SIM time of steady /clock
+PTY_STEADY_GAP_S = .05                   # a /clock wall gap above this restarts the steady time
+PTY_FALLBACK_WALL_S = 20.                # the link appears at the latest this long (wall) after the first /clock
+CALLBACK_BINS_MS = (1, 2, 5, 10, 20, 50, 100)
+DEFAULT_SUPERVISOR_STATE = '/runtime/steer/supervisor_steer.json'
+BRIDGE_MODULE = 'scripts.steer_rover_bridge'
 FAULT_NAMES = ('NOCAL', 'POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'SOFTLIMIT',
                'STALL', 'TRACK', 'THERMAL', 'TTL', 'WATCHDOG', 'CRC', 'BOOT')
 
@@ -539,7 +562,8 @@ class EmulatorCore:
 
     def __init__(self, profile=None, *, seed=0, cal_id=1, eeprom='calibrated', injections=(), record_overrides=None,
                  boot_delay_ticks=BOOT_DELAY_TICKS, port_open_reset=True, report_adc=False, executable=None,
-                 step_ns=None, lead_steps=1, port=None, log=None, profile_path=None, boot_seed=None, chip_id=None):
+                 step_ns=None, lead_steps=1, port=None, log=None, profile_path=None, boot_seed=None, chip_id=None,
+                 report_servo=False):
         self.profile = load_profile(profile_path) if profile is None else profile
         self.profile_path = None if profile_path is None else str(profile_path)
         v = self.profile.value
@@ -554,6 +578,7 @@ class EmulatorCore:
         self.boot_delay_ticks = int(boot_delay_ticks)
         self.port_open_reset = bool(port_open_reset)
         self.report_adc = bool(report_adc)
+        self.report_servo = bool(report_servo)
         self.executable = executable
         self.step_ns = physics_step_ns(v('gz_physics_hz')) if step_ns is None else int(step_ns)
         self.lead_steps = int(lead_steps)
@@ -591,7 +616,9 @@ class EmulatorCore:
         self.unplug_power = False
         self.recorder_request = None
         self.counters = collections.Counter()
-        self.clock_stalls = collections.deque(maxlen=CLOCK_STALLS_KEPT)     # (wall end, wall gap s, SIM s)
+        # (wall end, wall gap s, SIM s, monotonic end): the monotonic end is the time base of the attribution (the
+        # VM's CLOCK_REALTIME is stepped by about +1.7 s every 30 s on this host, WF-4 g_gaps)
+        self.clock_stalls = collections.deque(maxlen=CLOCK_STALLS_KEPT)
         # slow /clock intervals (mono start, mono end, lowest rate, wall end) and the open one (mono start, rate)
         self.clock_slow = collections.deque(maxlen=SLOW_KEPT)
         self.clock_slow_open = None
@@ -604,6 +631,7 @@ class EmulatorCore:
         self.pwm_levels = (153, 204)
         self.closed = False
         self.started_wall = time.time()
+        self.load = {}                 # the ROS side's load report (cpu, callback histogram, publish counts)
 
     # -- sessions
     def _eeprom_image(self, startup, cal_id, record_overrides, eeprom):
@@ -620,9 +648,10 @@ class EmulatorCore:
         return image, cal
 
     def start_session(self, at_ns, reason, *, injections=None, eeprom=None, record_overrides=None, cal_id=None,
-                      report_adc=None):
+                      report_adc=None, report_servo=None):
         """Close the running native session (if any) and power a new MCU on with tick 0 at SIM time at_ns.
-        report_adc None keeps the emulator's setting (--report-adc), True / False sets it for this session."""
+        report_adc / report_servo None keep the emulator's setting (--report-adc, --report-servo), True / False set
+        it for this session. report_servo: the evaluation-only servo channels of lockstep v2 (decision R18-11)."""
         if injections is not None:
             self.injections = ba.validate_injections(list(injections))
         if eeprom is not None:
@@ -639,8 +668,10 @@ class EmulatorCore:
         image, cal = self._eeprom_image(startup, self.cal_id, self.record_overrides, self.eeprom_mode)
         session_seed = (self.boot_seed + self.session) & 0xFFFFFFFFFFFFFFFF
         adc = self.report_adc if report_adc is None else bool(report_adc)
+        servo = self.report_servo if report_servo is None else bool(report_servo)
         firmware = dict(boot_seed=session_seed, chip_id=self.chip_id, eeprom_hex=image, adc_mode='model',
-                        boot_delay_ticks=self.boot_delay_ticks, initial_delta_eq_rad=0., report_adc=adc)
+                        boot_delay_ticks=self.boot_delay_ticks, initial_delta_eq_rad=0., report_adc=adc,
+                        report_servo=servo)
         self.backend = BoundedFirmwareBackend(self.profile, self.seed, firmware=firmware, injections=self.injections,
                                               executable=self.executable)
         self.session += 1
@@ -792,13 +823,14 @@ class EmulatorCore:
         data = port.read() if port.created else b''
         if not data:
             return
+        mono = time.monotonic()
         self.counters['h2m_bytes_read'] += len(data)
         if self._window('link', tick, 'to_mcu') is not None:
             self.counters['h2m_bytes_lost'] += len(data)
-            self._log('h2m_lost', bytes=len(data))
+            self._log('h2m_lost', bytes=len(data), mono=round(mono, 6))
             return
         for line in self._host_lines(data):
-            self._send_host_line(line, tick)
+            self._send_host_line(line, tick, mono=mono)
 
     def _host_lines(self, data):
         """Whole host lines (with LF) and, at the end, the partial rest (sent as it is: the MCU parser joins it)."""
@@ -815,7 +847,7 @@ class EmulatorCore:
             self.host_line_buf = bytearray()
         return out
 
-    def _send_host_line(self, line, tick, note='host'):
+    def _send_host_line(self, line, tick, note='host', mono=None):
         if self.pending_corruptions and note == 'host':
             kind = self.pending_corruptions[0]
             changed, applied = corrupt_host_line(line, kind)
@@ -826,7 +858,8 @@ class EmulatorCore:
         arrivals = self.backend.send(line, tick=tick, pace='uart')
         self.counters['h2m_lines'] += 1
         self._log('h2m', text=line_text(line), first=arrivals[0] if arrivals else None,
-                  last=arrivals[-1] if arrivals else None, note=note)
+                  last=arrivals[-1] if arrivals else None, note=note,
+                  mono=None if mono is None else round(mono, 6))
 
     # -- MCU side
     def _pins(self, out):
@@ -884,7 +917,7 @@ class EmulatorCore:
             else:
                 self.counters['m2h_lines'] += 1
             self.log.write(dict(kind='m2h', session=self.session, tick=first, done=done,
-                                t=self.tick_sim_s(first), text=text, note=note))
+                                t=self.tick_sim_s(first), text=text, note=note, mono=round(time.monotonic(), 6)))
 
     # -- outputs to Gazebo
     def _outputs(self):
@@ -1067,14 +1100,17 @@ class EmulatorCore:
         at_ns = self.t0_ns + self.done_ns if self.t0_ns is not None else (self.last_clock_ns or 0)
         injections = request.get('injections')
         report_adc = request.get('report_adc')
-        if report_adc is not None and not isinstance(report_adc, bool):
-            raise ValueError('report_adc must be true, false or null')
+        report_servo = request.get('report_servo')
+        for name, value in (('report_adc', report_adc), ('report_servo', report_servo)):
+            if value is not None and not isinstance(value, bool):
+                raise ValueError('%s must be true, false or null' % name)
         info = self.start_session(at_ns, str(request.get('reason', 'hook_restart')), injections=injections,
                                   eeprom=request.get('eeprom'), record_overrides=request.get('record_overrides'),
-                                  cal_id=request.get('cal_id'), report_adc=report_adc)
+                                  cal_id=request.get('cal_id'), report_adc=report_adc, report_servo=report_servo)
         return dict(session_info=dict({k: info[k] for k in ('session', 't0_sim_s', 'first_boot_id', 'cal_id', 'eeprom',
                                                             'injections', 'record_overrides', 'build_id')},
-                                      report_adc=info['firmware']['report_adc']))
+                                      report_adc=info['firmware']['report_adc'],
+                                      report_servo=info['firmware']['report_servo']))
 
     def _hook_unplug(self, request):
         duration = int(request['duration_ms'])
@@ -1109,7 +1145,8 @@ class EmulatorCore:
             return dict(pending=True)
         return self._hook_restart(dict(reason=str(request.get('reason', 'record')), injections=request.get('injections'),
                                        eeprom=request.get('eeprom'), record_overrides=request.get('record_overrides'),
-                                       cal_id=request.get('cal_id'), report_adc=request.get('report_adc')))
+                                       cal_id=request.get('cal_id'), report_adc=request.get('report_adc'),
+                                       report_servo=request.get('report_servo', True)))
 
     def _hook_record_finish(self, request):
         """Write the running record now (A19(G): the rule ticks are computed from it right after a case)."""
@@ -1121,6 +1158,18 @@ class EmulatorCore:
         backend.recorder = None
         self._log('record_done', path=str(recorder.path), frames=len(recorder.frames))
         return dict(finished=True, path=str(recorder.path), frames=len(recorder.frames), ticks=recorder.counted)
+
+    def _hook_kill_bridge(self, request):
+        """A17 mandatory fault test 'bridge forced kill' (design 7.2.1): SIGKILL to the bridge wrapper child of the
+        steer supervisor (same container, its state file names the pid; /proc/<pid>/cmdline must run the bridge
+        module). Nothing else changes here: the MCU keeps its last C until the C TTL, then its link watchdog; the
+        supervisor restarts the bridge and its port open resets the MCU."""
+        pid = bridge_pid(request.get('supervisor_state') or DEFAULT_SUPERVISOR_STATE)
+        mono, wall = time.monotonic(), time.time()
+        os.kill(pid, signal.SIGKILL)
+        self.counters['bridge_kills'] += 1
+        self._log('bridge_kill', pid=pid, mono=round(mono, 6), wall=wall)
+        return dict(pid=pid, killed_at_tick=self.now_tick(), mono=mono, wall=wall)
 
     # -- status
     def status(self):
@@ -1142,13 +1191,14 @@ class EmulatorCore:
             first_clock_s=None if self.first_clock_ns is None else self.first_clock_ns / 1e9,
             last_clock_s=None if self.last_clock_ns is None else self.last_clock_ns / 1e9,
             clock_messages=self.clock_messages, max_clock_gap_ms=self.max_clock_gap_ns / 1e6,
-            clock_stalls=[dict(wall_end=w, wall_gap_ms=round(g * 1000., 1), sim_s=t) for w, g, t in self.clock_stalls],
+            clock_stalls=[dict(wall_end=w, wall_gap_ms=round(g * 1000., 1), sim_s=t, mono_end=round(m, 6))
+                          for w, g, t, m in self.clock_stalls],
             clock_slow=[dict(mono_start=round(a, 4), mono_end=round(b, 4), min_rate=round(r, 4), wall_end=w)
                         for a, b, r, w in self.clock_slow] + ([] if self.clock_slow_open is None else [dict(
                             mono_start=round(self.clock_slow_open[0], 4), mono_end=None,
                             min_rate=round(self.clock_slow_open[1], 4), wall_end=None)]),
             lead_steps=self.lead_steps, step_ns=self.step_ns, port=self.port.describe(), host_open=self.host_was_open,
-            port_open_reset=self.port_open_reset,
+            port_open_reset=self.port_open_reset, report_servo=self.report_servo, load=dict(self.load),
             mcu=None if out is None else dict(state=out.mcu_state, boot_count=out.boot_count, millis=out.mcu_millis,
                                               fault_bits='%04X' % b.fault_bits, faults=fault_bit_names(b.fault_bits),
                                               rx_lost_total=out.rx_lost_total, run_flags=out.run_flags),
@@ -1170,6 +1220,25 @@ class EmulatorCore:
             self.backend = None
         self.port.close()
         self.log.close()
+
+
+def bridge_pid(state_path=DEFAULT_SUPERVISOR_STATE):
+    """The pid of the running bridge wrapper child of the steer supervisor (state file), checked in /proc."""
+    try:
+        state = json.loads(Path(state_path).read_bytes().decode('utf-8'))
+    except (OSError, ValueError) as exc:
+        raise EmulatorError('no supervisor state %s: %s' % (state_path, exc))
+    child = next((c for c in state.get('children') or () if c.get('name') == 'bridge'), None)
+    if child is None or not child.get('pid') or not child.get('running'):
+        raise EmulatorError('the supervisor state has no running bridge child')
+    pid = int(child['pid'])
+    try:
+        cmdline = Path('/proc/%d/cmdline' % pid).read_bytes().replace(b'\0', b' ').decode('utf-8', 'replace')
+    except OSError as exc:
+        raise EmulatorError('bridge pid %d is not readable: %s' % (pid, exc))
+    if BRIDGE_MODULE not in cmdline:
+        raise EmulatorError('pid %d does not run %s (%s)' % (pid, BRIDGE_MODULE, cmdline[:120]))
+    return pid
 
 
 # --- hook server -----------------------------------------------------------------------------------------------------------
@@ -1284,7 +1353,8 @@ class RosEmulator:
     """rclpy wiring: /clock and /ground_truth/odom in, /sim/act/* and /sim/truth/steering out. All stepping happens in
     the /clock callback (single-threaded executor), hooks are drained there too."""
 
-    def __init__(self, core, steer_topics, drive_topics, hooks=None, node_name=NODE_NAME):
+    def __init__(self, core, steer_topics, drive_topics, hooks=None, node_name=NODE_NAME, port=None,
+                 pty_after_clock_s=PTY_AFTER_CLOCK_S, truth_every=1, act_refresh_steps=ACT_REFRESH_STEPS):
         import rclpy
         from rclpy.node import Node
         from rclpy.parameter import Parameter
@@ -1309,11 +1379,68 @@ class RosEmulator:
         self.last_error = None
         self.last_receipt = None
         self.recent_clock = collections.deque(maxlen=512)        # (monotonic, SIM s) of the last /clock receipts
+        # deferred pty (module docstring): the link appears after steady /clock
+        self.port = port
+        self.pty_after_clock_s = float(pty_after_clock_s)
+        self.pty_pending = port is not None and not port.created
+        self.steady_since_s = None
+        self.first_clock_mono = None
+        # publish on change (+ refresh), truth every N steps, load report
+        self.truth_every = max(1, int(truth_every))
+        self.act_refresh_steps = max(1, int(act_refresh_steps))
+        self.last_act = {}
+        self.steps = 0
+        self.cb_hist = collections.Counter()
+        self.cb_max_ms = 0.
+        self.cpu0 = (time.monotonic(), self.process_cpu())
+        self.cpu_recent = None
+        self.odom_messages = 0
+
+    @staticmethod
+    def process_cpu():
+        times = os.times()
+        return times.user + times.system
 
     def on_odom(self, msg):
+        self.odom_messages += 1
         value = float(msg.twist.twist.linear.x)
         if math.isfinite(value):
             self.speed = value
+
+    def maybe_create_pty(self, now, sim_s, gap):
+        """Create the pty link once /clock has been steady for pty_after_clock_s of SIM time (no wall gap above
+        PTY_STEADY_GAP_S), or PTY_FALLBACK_WALL_S after the first /clock."""
+        if self.first_clock_mono is None:
+            self.first_clock_mono = now
+        if gap is None or gap > PTY_STEADY_GAP_S or self.steady_since_s is None:
+            self.steady_since_s = sim_s
+        steady = sim_s - self.steady_since_s >= self.pty_after_clock_s
+        fallback = now - self.first_clock_mono >= PTY_FALLBACK_WALL_S
+        if not (steady or fallback):
+            return
+        self.port.create()
+        self.pty_pending = False
+        self.core.counters['pty_created_fallback' if not steady else 'pty_created_steady'] += 1
+        self.core._log('pty_created', mono=round(now, 6), sim_s=sim_s, steady_s=round(sim_s - self.steady_since_s, 4),
+                       fallback=not steady, wall_since_first_clock_s=round(now - self.first_clock_mono, 3),
+                       port=self.port.describe())
+        print('gz_esp_emulator: pty %s -> %s after %.2f s SIM of steady /clock (%.2f s wall after the first /clock%s)'
+              % (self.port.link_path, self.port.slave_name, sim_s - self.steady_since_s, now - self.first_clock_mono,
+                 ', fallback' if not steady else ''), flush=True)
+
+    def load_report(self):
+        now, cpu = time.monotonic(), self.process_cpu()
+        t0, c0 = self.cpu0
+        if now - t0 >= 5.:
+            self.cpu_recent = round(100. * (cpu - c0) / (now - t0), 1)
+            self.cpu0 = (now, cpu)
+        hist = {('<=%dms' % b): self.cb_hist.get(b, 0) for b in CALLBACK_BINS_MS}
+        hist['>%dms' % CALLBACK_BINS_MS[-1]] = self.cb_hist.get(None, 0)
+        return dict(process_cpu_s=round(cpu, 3), cpu_pct_last_5s=self.cpu_recent, clock_callback_ms_hist=hist,
+                    clock_callback_max_ms=round(self.cb_max_ms, 3), odom_messages=self.odom_messages,
+                    act_published=self.core.counters['act_published'], act_skipped=self.core.counters['act_skipped'],
+                    truth_published=self.core.counters['truth_published'], truth_every=self.truth_every,
+                    act_refresh_steps=self.act_refresh_steps, pty_pending=self.pty_pending)
 
     def track_rate(self, now, sim_s):
         """SIM time received per monotonic second over the last SLOW_WINDOW_S. Windows below SLOW_RTF are kept as
@@ -1339,6 +1466,8 @@ class RosEmulator:
 
     def on_clock(self, msg):
         now = time.monotonic()
+        started = time.perf_counter()
+        gap = None
         if self.last_receipt is not None:
             gap = now - self.last_receipt
             for limit_ms in CLOCK_GAP_BINS_MS:
@@ -1347,15 +1476,19 @@ class RosEmulator:
             self.core.counters['clock_wall_gap_max_us'] = max(self.core.counters['clock_wall_gap_max_us'],
                                                                int(gap * 1e6))
             if gap > CLOCK_STALL_MS / 1000.:      # the wall time of a stall, for the A10 validity of host latches
-                self.core.clock_stalls.append((time.time(), gap, int(msg.clock.sec) + int(msg.clock.nanosec) * 1e-9))
+                self.core.clock_stalls.append((time.time(), gap, int(msg.clock.sec) + int(msg.clock.nanosec) * 1e-9,
+                                               now))
         self.last_receipt = now
-        self.track_rate(now, int(msg.clock.sec) + int(msg.clock.nanosec) * 1e-9)
+        sim_s = int(msg.clock.sec) + int(msg.clock.nanosec) * 1e-9
+        self.track_rate(now, sim_s)
         try:
             if self.hooks is not None:
                 self.hooks.drain(self.core)
             result = self.core.on_clock(int(msg.clock.sec) * 1000000000 + int(msg.clock.nanosec), self.speed)
             if result is not None:
                 self.publish(result)
+            if self.pty_pending:
+                self.maybe_create_pty(now, sim_s, gap)
         except Exception as exc:     # never leave the callback: count, log and stop driving
             self.errors += 1
             self.last_error = '%s: %s' % (type(exc).__name__, exc)
@@ -1363,21 +1496,37 @@ class RosEmulator:
             self.publish_zero_drive()
             if self.errors > 50:
                 raise
+        spent = (time.perf_counter() - started) * 1000.
+        self.cb_max_ms = max(self.cb_max_ms, spent)
+        self.cb_hist[next((b for b in CALLBACK_BINS_MS if spent <= b), None)] += 1
 
     def publish(self, result):
-        for key, value in result['steer'].items():
-            pub = self.steer_pubs.get(key)
-            if pub is not None:
-                pub.publish(self.Float64(data=float(value)))
-        for wheel, value in result['drive'].items():
-            pub = self.drive_pubs.get(wheel)
-            if pub is not None:
-                pub.publish(self.Float64(data=float(value)))
-        self.truth_pub.publish(self.String(data=json.dumps(result['truth'], allow_nan=False)))
+        """/sim/act/*: a value is published when it differs from its last published value, and every value every
+        act_refresh_steps steps (the Gazebo joint controllers keep their last target, so the joints see the same
+        targets); /sim/truth/steering every truth_every steps."""
+        self.steps += 1
+        refresh = self.steps % self.act_refresh_steps == 0
+        counters = self.core.counters
+        for pubs, values in ((self.steer_pubs, result['steer']), (self.drive_pubs, result['drive'])):
+            for key, value in values.items():
+                pub = pubs.get(key)
+                if pub is None:
+                    continue
+                value = float(value)
+                if refresh or self.last_act.get(id(pub)) != value:
+                    pub.publish(self.Float64(data=value))
+                    self.last_act[id(pub)] = value
+                    counters['act_published'] += 1
+                else:
+                    counters['act_skipped'] += 1
+        if self.steps % self.truth_every == 0:
+            self.truth_pub.publish(self.String(data=json.dumps(result['truth'], allow_nan=False)))
+            counters['truth_published'] += 1
 
     def publish_zero_drive(self):
         for pub in self.drive_pubs.values():
             pub.publish(self.Float64(data=0.))
+            self.last_act[id(pub)] = 0.
 
     def spin(self, stop_event):
         from rclpy.executors import SingleThreadedExecutor
@@ -1427,6 +1576,15 @@ def build_parser():
     p.add_argument('--lead-steps', type=int, default=1, choices=(0, 1, 2))
     p.add_argument('--no-port-open-reset', dest='port_open_reset', action='store_false', default=True)
     p.add_argument('--report-adc', action='store_true', help='adc_read channel (A3(G) recordings)')
+    p.add_argument('--report-servo', action='store_true',
+                   help='evaluation-only servo channels in every session (records switch them on by themselves)')
+    p.add_argument('--pty-after-clock-s', type=float,
+                   default=float(os.environ.get('UBTS_STEER_PTY_AFTER_CLOCK_S', PTY_AFTER_CLOCK_S)),
+                   help='SIM seconds of steady /clock before the pty link appears (0: at start, as before)')
+    p.add_argument('--truth-every', type=int, default=int(os.environ.get('UBTS_STEER_TRUTH_EVERY', '1')),
+                   help='publish /sim/truth/steering every N physics steps')
+    p.add_argument('--act-refresh-steps', type=int, default=ACT_REFRESH_STEPS,
+                   help='unchanged /sim/act/* values are published again every N steps (1: every step, as before)')
     p.add_argument('--boot-delay-ticks', type=int, default=BOOT_DELAY_TICKS)
     p.add_argument('--executable', default=None, help='native lockstep program (default: build or the image build)')
     p.add_argument('--max-runtime-s', type=float, default=None)
@@ -1442,17 +1600,23 @@ def main(argv=None):
     injections = [json.loads(item) for item in args.inject]
     log = EventLog(args.log_file or None)
     port = PtyPort(args.pty_link)
-    port.create()
+    try:                                   # a link left by an earlier emulator would let the bridge start too early
+        os.unlink(args.pty_link)
+    except FileNotFoundError:
+        pass
+    if args.pty_after_clock_s <= 0.:
+        port.create()
     core = EmulatorCore(profile, seed=args.seed, cal_id=args.cal_id, eeprom=args.eeprom, injections=injections,
                         boot_delay_ticks=args.boot_delay_ticks, port_open_reset=args.port_open_reset,
                         report_adc=args.report_adc, executable=args.executable, lead_steps=args.lead_steps,
-                        port=port, log=log, profile_path=args.profile)
+                        port=port, log=log, profile_path=args.profile, report_servo=args.report_servo)
     hooks = HookServer(args.hook_socket) if args.hook_socket else None
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    ros = RosEmulator(core, steer_topics, drive_topics, hooks)
+    ros = RosEmulator(core, steer_topics, drive_topics, hooks, port=port, pty_after_clock_s=args.pty_after_clock_s,
+                      truth_every=args.truth_every, act_refresh_steps=args.act_refresh_steps)
     if hooks is not None:
         hooks.start()
     static = dict(scene=manifest.get('scene'), scene_sdf_sha256=manifest.get('sdf_sha256'),
@@ -1460,11 +1624,13 @@ def main(argv=None):
                   hook_socket=args.hook_socket or None, log_file=args.log_file or None,
                   source_commit=os.environ.get('UBTS_STEER_SOURCE_COMMIT'),
                   source_status_sha256=os.environ.get('UBTS_STEER_SOURCE_STATUS_SHA256'),
-                  pid=os.getpid())
+                  pid=os.getpid(), pty_after_clock_s=args.pty_after_clock_s, truth_every=args.truth_every,
+                  act_refresh_steps=args.act_refresh_steps)
 
     def status_loop():
         while not stop.wait(STATUS_PERIOD_S):
             try:
+                core.load = ros.load_report()
                 payload = dict(schema='ubts.steering_status.v1', updated_at=time.time(), emulator=core.status(),
                                emulator_static=static, ros_errors=ros.errors, ros_last_error=ros.last_error,
                                bridge=read_bridge_status(args.bridge_status_file))
@@ -1473,8 +1639,9 @@ def main(argv=None):
             except Exception as exc:  # the status file is a report; never stop the emulator for it
                 print('gz_esp_emulator: status error: %s' % exc, file=sys.stderr, flush=True)
     threading.Thread(target=status_loop, name='ubts-steer-emulator-status', daemon=True).start()
-    print('gz_esp_emulator: pty %s -> %s, scene %s, hooks %s' % (args.pty_link, port.slave_name, manifest.get('scene'),
-                                                                args.hook_socket or 'off'), flush=True)
+    print('gz_esp_emulator: pty %s -> %s, scene %s, hooks %s' % (
+        args.pty_link, port.slave_name if port.created else 'after %.2f s of steady /clock' % args.pty_after_clock_s,
+        manifest.get('scene'), args.hook_socket or 'off'), flush=True)
     if args.max_runtime_s:
         threading.Timer(args.max_runtime_s, stop.set).start()
     code = 0

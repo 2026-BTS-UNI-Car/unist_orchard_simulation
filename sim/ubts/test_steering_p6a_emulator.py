@@ -5,7 +5,9 @@ test below): the tick bundling of 1/120 s steps (8 or 9 ticks, the accumulated c
 port open reset and the banner, host bytes with the UART arrival rule, ARM + C driving the outputs (steering angles,
 drive velocity targets duty x omega0), the fault hooks (link loss, status loss, corruption, banner rewrite, restart,
 MCU reset), the A3(G) record / replay, the bounded history of the firmware backend, and the A19(G) rule ticks of
-p6a_fw_rules computed from a record (report_adc per session) against the firmware's own F lines and status bits.
+p6a_fw_rules computed from a record (report_adc per session) against the firmware's own F lines and status bits,
+TRACK from the report_servo channels (WF-4), the monotonic times of the serial lines, the kill_bridge hook (Linux),
+the deferred pty link and the /sim/act publish-on-change rule of the ROS side (without rclpy).
 
 The native program is built into UBTS_STEER_BUILD_DIR (or a temporary folder); without a compiler or the firmware
 sources the tests skip (UBTS_STEER_REQUIRE_FIRMWARE turns the skip into a failure). No file in the work tree.
@@ -330,6 +332,42 @@ class EmulatorCoreTest(unittest.TestCase):
         self.assertTrue(f, 'no THERMAL line')
         self.assertLessEqual(abs(f[0] - trace.first_trip('THERMAL', start)), 1)
 
+    def test_rule_tick_track_from_the_servo_channels(self):
+        # TRACK (WF-4 g_gaps): the record carries the report_servo channels (on by default for records), so the rule
+        # tick comes from the firmware's own cmd and mode; maxp 150, motor power off, ADC frozen, a steering step
+        rig, path = self.record_case('track', record_overrides=dict(maxp=150))
+        self.assertTrue(rig.core.session_info['firmware']['report_servo'])
+        rig.arm()
+        rig.drive(.5, 0)
+        rig.core.apply_hook(dict(op='event', kind='motor_power', arg=0))
+        rig.core.apply_hook(dict(op='event', kind='adc_set', arg=rig.core.last_out.base.pot_raw))
+        start = rig.core.now_tick()
+        rig.drive(2., 350)
+        f = rig.f_ticks('TRACK')
+        trace = self.trace_of(rig, path, start)
+        self.assertTrue(trace.servo is not None)
+        self.assertEqual(trace.pos_mismatch_ticks, 0)          # the recomputed P equals the firmware's own P
+        self.assertTrue(f, 'no TRACK line')
+        self.assertEqual(f[0], trace.first_trip('TRACK', start))
+        # without the servo channels TRACK is refused, the other rules still work
+        rig2, path2 = self.record_case('track_no_servo', report_servo=False)
+        trace2 = self.trace_of(rig2, path2, None)
+        self.assertIsNone(trace2.servo)
+        with self.assertRaises(rules.TraceError):
+            trace2.first_trip('TRACK')
+
+    def test_serial_lines_carry_the_monotonic_time(self):
+        rig = self.rig()
+        rig.run(.5)
+        rig.port.host_write(host_line('PING'))
+        rig.run(.1)
+        m2h = rig.entries('m2h')
+        h2m = [e for e in rig.entries('h2m') if e['note'] == 'host']
+        self.assertTrue(m2h and h2m)
+        self.assertTrue(all(isinstance(e.get('mono'), float) for e in m2h))
+        self.assertTrue(all(isinstance(e.get('mono'), float) for e in h2m))
+        self.assertTrue(all(b['mono'] >= a['mono'] for a, b in zip(m2h, m2h[1:])))
+
     def test_history_stays_bounded(self):
         rig = self.rig()
         rig.run(3.)
@@ -337,6 +375,153 @@ class EmulatorCoreTest(unittest.TestCase):
         self.assertEqual(backend.tx_bytes, [])
         self.assertEqual(backend.changes, [])
         self.assertEqual(backend.channel_values['mcu_state'], 1)
+
+
+class FakePub:
+    def __init__(self):
+        self.values = []
+
+    def publish(self, msg):
+        self.values.append(msg.data)
+
+
+class FakeMsg:
+    def __init__(self, data=None):
+        self.data = data
+
+
+class RosSideTest(unittest.TestCase):
+    """RosEmulator logic without rclpy (object.__new__ and the attributes the methods use)."""
+
+    def ros(self):
+        ros = object.__new__(emu.RosEmulator)
+        ros.core = emu.EmulatorCore.__new__(emu.EmulatorCore)
+        import collections
+        ros.core.counters = collections.Counter()
+        ros.core.log = emu.EventLog(None)
+        ros.core.session = 0
+        ros.core.backend = None
+        ros.core.t0_ns = None
+        ros.Float64 = FakeMsg
+        ros.String = FakeMsg
+        ros.steer_pubs = {'left': FakePub(), 'right': FakePub()}
+        ros.drive_pubs = {'left_rear_wheel': FakePub(), 'right_rear_wheel': FakePub()}
+        ros.truth_pub = FakePub()
+        ros.last_act = {}
+        ros.steps = 0
+        ros.truth_every = 1
+        ros.act_refresh_steps = 12
+        return ros
+
+    def test_act_values_are_published_on_change_and_refreshed(self):
+        ros = self.ros()
+        result = dict(steer={'left': .1, 'right': .09}, drive={'left_rear_wheel': 0., 'right_rear_wheel': 0.},
+                      truth=dict(a=1))
+        for _ in range(24):
+            ros.publish(result)
+        self.assertEqual(len(ros.steer_pubs['left'].values), 1 + 2)          # first + refreshes at steps 12, 24
+        self.assertEqual(len(ros.truth_pub.values), 24)
+        changed = dict(result, steer={'left': .2, 'right': .09})
+        ros.publish(changed)
+        self.assertEqual(ros.steer_pubs['left'].values[-1], .2)
+        self.assertEqual(len(ros.steer_pubs['right'].values), 3)             # unchanged: not published again
+        self.assertEqual(ros.core.counters['act_published'] + ros.core.counters['act_skipped'], 25 * 4)
+        ros.truth_every = 5
+        for _ in range(10):
+            ros.publish(changed)
+        self.assertEqual(len(ros.truth_pub.values), 25 + 2)
+        # the zero drive of an error resets the remembered value: the next non-zero duty is published at once
+        ros.publish_zero_drive()
+        ros.publish(dict(changed, drive={'left_rear_wheel': 3., 'right_rear_wheel': 3.}))
+        self.assertEqual(ros.drive_pubs['left_rear_wheel'].values[-1], 3.)
+
+    def test_pty_appears_after_steady_clock(self):
+        ros = self.ros()
+
+        class Port:
+            created = False
+            link_path, slave_name = '/run/ubts-steer/esp-tty', '/dev/pts/9'
+
+            def create(self):
+                self.created = True
+
+            def describe(self):
+                return dict(created=self.created)
+        ros.port = Port()
+        ros.pty_pending = True
+        ros.pty_after_clock_s = 1.
+        ros.steady_since_s = None
+        ros.first_clock_mono = None
+        sim, now = 0., 100.
+        ros.maybe_create_pty(now, sim, None)
+        for k in range(60):                           # 0.5 s of steady /clock (8.3 ms SIM, 9 ms wall)
+            sim += 1. / 120.
+            now += .009
+            ros.maybe_create_pty(now, sim, .009)
+        self.assertFalse(ros.port.created)
+        sim += 1. / 120.
+        now += .2                                     # a wall gap: the steady time starts again
+        ros.maybe_create_pty(now, sim, .2)
+        for k in range(110):
+            sim += 1. / 120.
+            now += .009
+            ros.maybe_create_pty(now, sim, .009)
+        self.assertFalse(ros.port.created)            # 0.92 s after the gap
+        for k in range(15):
+            if ros.pty_pending:
+                sim += 1. / 120.
+                now += .009
+                ros.maybe_create_pty(now, sim, .009)
+        self.assertTrue(ros.port.created)
+        self.assertEqual(ros.core.counters['pty_created_steady'], 1)
+        # without a steady clock the link still comes after the wall fallback
+        ros2 = self.ros()
+        ros2.port, ros2.pty_pending, ros2.pty_after_clock_s = Port(), True, 1.
+        ros2.steady_since_s = ros2.first_clock_mono = None
+        sim, now = 0., 0.
+        while ros2.pty_pending and now < 30.:
+            sim += .0083
+            now += .3                                  # every receipt is a gap
+            ros2.maybe_create_pty(now, sim, .3)
+        self.assertTrue(ros2.port.created)
+        self.assertEqual(ros2.core.counters['pty_created_fallback'], 1)
+        self.assertLessEqual(now, emu.PTY_FALLBACK_WALL_S + 1.)
+
+
+@unittest.skipUnless(sys.platform.startswith('linux'), 'kill_bridge needs Linux /proc')
+class KillBridgeHookTest(unittest.TestCase):
+    def test_kill_bridge_kills_only_the_supervisor_bridge_child(self):
+        import signal
+        import subprocess
+        tmp = tempfile.mkdtemp(prefix='steer_p6a_kill_')
+        try:
+            child = subprocess.Popen([sys.executable, '-c', 'import time, sys; time.sleep(60)',
+                                      'scripts.steer_rover_bridge'])
+            other = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+            state = Path(tmp) / 'supervisor_steer.json'
+            state.write_text(json.dumps(dict(children=[dict(name='bridge', pid=other.pid, running=True)])),
+                             encoding='utf-8')
+            with self.assertRaises(emu.EmulatorError):           # not the bridge module: refused
+                emu.bridge_pid(str(state))
+            state.write_text(json.dumps(dict(children=[dict(name='bridge', pid=child.pid, running=True)])),
+                             encoding='utf-8')
+            self.assertEqual(emu.bridge_pid(str(state)), child.pid)
+            core = emu.EmulatorCore.__new__(emu.EmulatorCore)
+            import collections
+            core.counters = collections.Counter()
+            core.log = emu.EventLog(None)
+            core.session, core.backend, core.t0_ns = 1, None, None
+            reply = core._hook_kill_bridge(dict(supervisor_state=str(state)))
+            self.assertEqual(reply['pid'], child.pid)
+            self.assertEqual(child.wait(timeout=10), -signal.SIGKILL)
+            self.assertIsNone(other.poll())                       # the other process lives
+            self.assertEqual(core.counters['bridge_kills'], 1)
+            other.kill()
+            other.wait()
+            with self.assertRaises(emu.EmulatorError):           # no state file
+                emu.bridge_pid(str(Path(tmp) / 'missing.json'))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 @unittest.skipUnless(sys.platform.startswith('linux'), 'pty needs Linux')

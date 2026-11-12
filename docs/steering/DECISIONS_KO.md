@@ -358,6 +358,41 @@
 - 펌웨어(`firmware/**`, `native/**`)는 바꾸지 않는다. build id 04353B49를 유지한다.
 - P8(사전등록·열 추종 제어기)과 P9(실제 값·실기 펌웨어·이식)는 4단계에 넣지 않는다. 자리값 일관성 판(프로필 v0.2)은 P8 사전등록 전에 만든다(R18 결정 3).
 
+## R21. 4단계 적합성 후속(conf_fu) 결과 확정
+
+- 2026-11-12. 4단계 작업 흐름은 2026-11-09에 사용 한도로 멈췄고, 여섯 빌드 단계 가운데 conf_fu만 끝났다. 멈춘 작업 트리의 변경은 새 저장소 `unist_orchard_simulation`의 주제 브랜치로 옮겨 작업별로 나눴다(R22). 이 항목은 conf_fu 묶음을 확정한다. 모든 수치는 자리값 기반 SIM 결과이고 현장 검증이 아니다. 실기에서는 아무것도 돌리지 않았다.
+- 바꾼 것(R17의 minor 3건, `CONFORMANCE_KO.md` 9절 13):
+  - 규격 8.2절 brake 문장을 쪽마다의 규칙으로 고쳤다(펌웨어와 대본이 이미 그렇게 동작했다).
+  - 규격 4.10절에 실행 중 `svhz` 변경의 서보 위상 규칙을 넣었다. 7.1절과 12.1-21에 '`svhz`가 그대로일 때' 조건을 붙였다.
+  - 대본 `bench_framing_error_early_brake`(LF가 램프 격자 밖, CR 뒤의 LF 아닌 바이트, ctrl 오류 뒤 두 번째 재출발), `cfg_svhz_runtime`(C를 짝수 틱 210으로 옮겨 옛·새 서보 주기를 가름)을 보강하고, 새 대본 `cfg_svhz_runtime_1000_to_500`을 더했다. 세 대본의 기대는 펌웨어·네이티브 소스를 읽지 않고 규격만 보고 먼저 계산했다(저장소 밖 `runs/wf4/conf_fu/derivation_ko.txt`).
+  - 펌웨어(`firmware/**`, `native/**`)는 바꾸지 않았다. build id `04353B49` 그대로다.
+- A20 결과(대본 92개):
+  - 2026-11-09, 옛 작업 트리(50fc854 + conf_fu 변경): Windows MinGW 6.3, WSL g++ 11.4, 기반 이미지 `6209168a3507`의 g++ 13.3 세 플랫폼 × 두 전송(`native`, `backend`)에서 모두 92/92. 바꾼·새 대본의 기대 27, 12, 13개 모두 통과. 기대 하나씩 바꾼 변이 18개가 모두 바꾼 그 기대에서만 실패했다.
+  - 2026-11-12, 새 저장소(main 5c497b7 + conf_fu 묶음): Windows(Python 3.13.2, MinGW 6.3 32비트) `native` 92/92, `backend` 92/92, pytest `test_steering_conformance.py` 36 통과. WSL(Python 3.10.12, g++ 11.4 64비트) `native` 92/92, `backend` 92/92, unittest 36 OK. 두 플랫폼 모두 build id `fw=04353B49`, 소스 id `src=hfd0e970b4ccd`.
+  - 이미지(g++ 13.3) 쪽은 이번에 다시 돌리지 않았다(Docker를 켜지 않는 작업). 11/09 결과를 그대로 둔다. 다음 Docker 작업(SR-11)의 이미지 안 시험에 적합성이 들어 있다.
+
+## R22. 4단계 중단 변경의 새 저장소 이전, 작업별 정리, 스택 운영 규칙
+
+- 2026-11-12. 4단계 작업 흐름(WF-4, R20)은 2026-11-09 23:35 KST 사용 한도로 멈췄다. 옛 저장소 조향 작업 트리(50fc854)에 수정 38개와 새 파일 24개가 남았고 저장소 밖에 패치와 묶음으로 보존했다. 그 변경을 새 저장소 `unist_orchard_simulation`의 주제 브랜치 `steer-phase4-20261112`에 그대로 적용했다(적용 뒤 `git diff`의 SHA-256이 보존한 패치와 같다, 새 파일 24개 바이트 동일, 반입 때 의도적으로 바꾼 파일과 겹침 0, 안 붙은 것 0). 모든 수치는 자리값 기반 SIM 결과이고 현장 검증이 아니다.
+- 묶음(파일마다 한 묶음, 목록은 저장소 밖 `runs/steer_phase4_20261112/ST01_UNITS.tsv`). 11/09 단계별 파일 소유 목록을 따랐다.
+  1. conf_fu: 적합성 후속, 확정(R21).
+  2. p4_gaps: 실행기 쪽 빈틈, 마무리했다(`EXECUTOR_STEER_KO.md` 12절). 식별 쪽 편집은 아직이다(A18 실행 필요).
+  3. g_gaps: G-SIM 쪽 빈틈. Docker 검증 전(`P6A_HEADLESS_KO.md` 16절). 자르기 노드의 빠른 경로(`scan_unobserved_clip.py`, `raster_ops.py`의 해당 부분)는 떼어 저장소 밖 패치로 보류했다(ST-04 조건: `test_field_world`와 A7 재측정 통과).
+  4. s2exec: S2 형식 노드와 실행기 컨테이너. Docker 검증 전(`S2_NODE_EXEC_KO.md`).
+  5. record: 조향 사이드카 기록과 별도 bag. Docker 검증 전(`STEER_RECORDING_KO.md`).
+  6. ui: 계획 결정 13대로 조종 규칙과 그 시험만 남겼다(`dashboard/static/steer-control-rules.js`, `test_steer_control_rules.mjs`, A14 옛 화면 검사와 요청 계약 `test_steering_ui_routes.py`). 화면(HTML, CSS, 표시 모형, 위쪽 그림), SIM 표시 피드(`steer_state_feed.py`)와 그 시험, 표시 시험 6개는 저장소에 넣지 않았다(저장소 밖 `held/ui_screen_draft/`와 원래 묶음에 바이트 그대로 있다). 새 조향 화면은 대시보드 저장소에서 이 규칙 위에 만든다. 화면 문구 '이 차량은 조향 화면만 쓴다'(A14 화면 쪽)도 그쪽 몫이다.
+- 두 작업에 걸친 파일: `test_steering_gz_model.py`(g_gaps 소유)의 바뀐 줄은 s2exec의 Dockerfile 변경 때문이라 s2exec 묶음에 넣었다. 그 밖에는 한 파일이 두 작업에 걸치지 않았다.
+- 실차와 같은 코드는 `dashboard/scripts/steer_bridge_core.py`와 그 시험뿐이다. 줄 단위로 검토했다(R18 결정 1의 `mcu_ttl_expired`). 판정: 결정대로 동작한다. 래치 판단은 그 읽기 50 ms 전 루프의 입력 기한을 본다(줄 시간·USB·루프 한 번 약 35 ms보다 길다). 보수적인 쪽의 한계 하나: 정지 중 TTL 비트가 남은 채 운영자가 다시 누른 직후 첫 `C`를 잃으면 래치한다(재무장 필요, 안전 쪽). 루프 주기가 길어지면 50 ms 여유를 다시 본다.
+- 새 저장소에서 고친 것: 래치로 바뀐 동작에 맞춘 옛 시험 3개, MCU 리셋을 고려하지 않던 watchdog 래치·HOLD 판정(`usb_unplug_replug_reset` 실패 원인), Windows 타이머 해상도에 기대던 실행기 컨테이너 시험 1개, `exec_checks.py`의 참값 격리 역할(evaluator).
+- 실패한 대본: 11/09 부분 점검에서 실패한 `usb_unplug_replug`는 그 뒤 같은 단계가 판정을 고쳐 지금 통과한다. `usb_unplug_replug_reset`은 위의 판정 수정으로 통과한다. 지금 대본 67개 모두 기대대로다. 저장소 밖 단계별 스택 대본(`runs/wf4/s2exec/tools/stack.sh`, `runs/wf4/record/stack.sh`)은 모두 같은 프로젝트 이름 `ubts-steer`를 쓰고 옛 작업 트리 경로를 박아 두어 가져오지 않았다. 아래 스택 도구로 대신한다.
+- 스택 운영 규칙(ST-07, `STACK_OPERATIONS_KO.md`, 도구 `tools/steer_sim/stack.py`):
+  1. 조향 스택은 한 번에 하나(잠금 파일, 다른 `ubts-steer*` 프로젝트 컨테이너가 돌면 거절).
+  2. 큰 조건 묶음이나 시간 민감 실행 전에 호스트 부하를 확인한다(Windows CPU 30 s 평균 30 % 미만, WSL 1분 부하 1.0 미만, 가용 메모리 6,000 MB 넘음, 1 GB 넘는 호스트 프로세스 3개 이하, 다른 측정·SIM 프로세스 0, 남의 조향·SIM 컨테이너와 예산 예약 0). 30 s마다 다시 보고 10분까지 기다린다. 결과는 실행 기록에 JSON으로 남기고 스택을 올리면 잠금 파일에 묶는다. 옛 표시 파일 `HOLD_SIM_MATRIX`, `HOLD_PROTOCOL.txt`는 보관 폴더로 옮겼고(W-15) 다시 만들지 않는다.
+  3. 작업마다 프로젝트 이름 `ubts-steer-<작업>`(기본 `ubts-steer` 거절).
+  4. 예산 대기 최대 10분, 넘으면 아무것도 올리지 않는다.
+  5. 올린 쪽이 내린다(`down -t 20`, `-v` 없음). 남의 프로젝트는 내리지도 쓰지도 못한다(시험으로 확인). 내린 뒤 남은 컨테이너·네트워크 수를 영수증에 남기고, 0이 아니면 잠금을 풀지 않는다.
+- 남은 일: ST-03의 식별 쪽(F3 brake 정지 거리, A18 정지 거리 행, 권장 경로 길이로 A18, B0 CAL POL)과 Python 3.10 venv 실행, ST-04(g_gaps 마무리), ST-05(실행기 스택 측정), ST-06(A23), SR-11(이미지 빌드·이미지 안 시험), SR-12(기반 이미지 정의). 모두 Docker나 조용한 호스트가 필요하다.
+
 ## R30. 설계 개정 v2를 따로 두고, 번호를 30부터 쓴다
 
 - 2026-11-12. 작업 ST-08(PC-01 포함). 2026-11-11 사용자 요청과 2026-11-12 계획 승인에 맞춰 설계를 고친다. 이 항목부터 R38까지가 그 결정이다. 모두 구현 전이고 측정은 없다.

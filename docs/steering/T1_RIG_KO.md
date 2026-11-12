@@ -210,7 +210,7 @@ WSL 3.10(g++ 11.4 빌드)에서는 seed 61 두 번이 직렬 `c75bc6e4864d…`·
 | `motor_power_off`, `motor_power_on` | — | `motor_power` | 조향 모터 급전 끊김: `F STALL` 또는 `F TRACK` |
 | `mcu_stall` | `duration_s` | 사건(`loop()` 멈춤) | STOP 확인 실패, 재전송 격자, `stop_unconfirmed` 래치 t0 + 400 ms |
 | `adc_set`, `adc_model` | `raw` | 사건(ADC 대본값) | (시험하지 않음. 실행 중 단선 0 / 단락 1023을 흉내 낼 수 있다) |
-| `link_loss` | `duration_s`, `direction` both / to_mcu / to_host | 그 시간 동안 바이트를 버림 | MCU `W`, 호스트 `mcu_disarmed` |
+| `link_loss` | `duration_s`, `direction` both / to_mcu / to_host | 그 시간 동안 바이트를 버림 | MCU `W`, 호스트 `mcu_disarmed`. 4단계부터: C TTL(300 ms)이 watchdog(500 ms)보다 먼저면 호스트가 `F TTL` 줄에서 `mcu_ttl_expired`로 먼저 멈추고 lease를 버린다(그 뒤 watchdog DISARMED는 `mcu_disarmed`가 아니다) |
 | `usb_unplug` | `duration_s` | `MemoryDevice.unplug/replug` | `hardware_fault` 래치, 1 s마다 다시 열기, INFO, 배너, 준비. `RigConfig.port_open_reset`이면 다시 열 때 MCU가 리셋된다(새 boot id, 핀이 뜸; 대본 `usb_unplug_replug_reset`, 검토 RS-13) |
 | `half_frame` | `text`(기본 `C 1 300 0 0 0`) | 앞 절반만 LF 없이 씀 | 다음 줄과 붙어 MCU가 거절(`N 1 nocrc` 등). q가 있는 거절이라 호스트는 `c_rejected` 래치와 정지(보수적 규칙) |
 | `crc_error` | `count` | 다음 브리지 줄의 내용 한 바이트를 바꿈(CRC 유지). CRC 없는 줄(PING)에는 틀린 CRC를 붙임. STOP은 바꾸지 않음 | 하나: `N - crc`, 정지 없음. 5개 연속: MCU `F CRC`, 호스트 `mcu_disarmed` |
@@ -223,6 +223,7 @@ WSL 3.10(g++ 11.4 빌드)에서는 seed 61 두 번이 직렬 `c75bc6e4864d…`·
 | `wall_clock_jump` | `jump_s` | 벽시계만 옮김 | `updated_at`이 바뀌고 기한·C 20 Hz는 그대로 |
 | `foreign_write` | `text` 또는 `data`, `crc`, `lf` | 다른 쓰는 쪽(CLI 등)이 선에 씀 | ARM이면 MCU ARMED, 호스트 `mcu_state_mismatch` 래치와 STOP(7.2절) |
 | `sensor_blackout` | `duration_s`, `which` lidar / imu / both | 그 시간 센서 패킷 없음 | 그 시간의 스캔 없음 |
+| `executor_stall` [4단계] | `duration_s`, `after` None / `f_ttl`, `delay_s` | 장치는 창만 기록한다. 실행기 루프(`sim_in_loop_steer`)가 `rig.executor_stalled()`가 참인 동안 틱을 건너뛴다. `after='f_ttl'`이면 `at_s` 뒤 처음 큐에 들어간 `F TTL` 줄을 호스트가 읽을 수 있게 된 때 + `delay_s`부터다 | R18 결정 1의 틈: 실행기가 TTL 직후 늦어도 브리지가 `mcu_ttl_expired`로 먼저 멈춘다. 재출발 없음(대본 `c_line_loss_ttl_executor_stall*`) |
 
 ## 7. trace 형식
 

@@ -56,7 +56,7 @@ MOTOR = dict(vehicle_profile='front_steer', mode='single_row', require_native_na
              steer_measured_rate_deg_s=30., steer_measured_rate_standstill_deg_s=15., steer_range_measured=True,
              steer_wheel_soft_margin_deg=3., steer_min_pwm_pct=25., steer_zero_offset_deg=0.,
              steer_servo_deadband_deg=.5, steer_polarity_checked=True, steer_cal_id=1, steer_allow_sim=True,
-             lidar_yaw_offset_deg=179.08, lidar_x_in_base_m=.18)
+             socket_path='/run/ubts-steer/control.sock', lidar_yaw_offset_deg=179.08, lidar_x_in_base_m=.18)
 
 
 def motor_config(**over):
@@ -170,6 +170,22 @@ class ConfigTest(unittest.TestCase):
         self.assertIn('outside the footprint', text)
         self.assertIn('turn_assist_enabled is refused', ' '.join(config_problems(turn_assist_enabled=True)))
 
+    def test_sim_flag_is_bound_to_the_sim_socket(self):
+        # review RS-14: steer_allow_sim True only with the SIM control socket; the vehicle socket with SIM allowed and a
+        # vehicle configuration on the SIM socket are refused (a path that leaves the folder counts as outside)
+        self.assertEqual(config_problems(), [])
+        for path in ('/run/ubts-rover/control.sock', '/run/ubts-steer/../ubts-rover/control.sock', '/tmp/control.sock',
+                     '/run/ubts-steer-other/control.sock'):
+            text = ' '.join(config_problems(socket_path=path))
+            self.assertIn('steer_allow_sim True needs the SIM control socket', text, path)
+        self.assertIn('the vehicle socket', ' '.join(config_problems(socket_path='/run/ubts-rover/control.sock')))
+        text = ' '.join(config_problems(steer_allow_sim=False))
+        self.assertIn('is a SIM control socket', text)
+        self.assertEqual(config_problems(steer_allow_sim=False, socket_path='/run/ubts-rover/control.sock'), [])
+        self.assertEqual(config_problems(socket_path='/run/ubts-steer/./control.sock'), [])
+        # the differential profile keeps its own rules (no front_steer binding)
+        self.assertEqual(ExecutorConfig().validate().socket_path, '/run/ubts-rover/control.sock')
+
     def test_go_rules_shadow_unknown_and_motor_problems(self):
         shadow = C.feasibility(steer_config())
         self.assertEqual(shadow['status'], 'unknown')
@@ -204,7 +220,8 @@ class ConfigTest(unittest.TestCase):
                  ('POT_NOISE',): 'steering_feedback_invalid', ('NOCAL',): 'steering_uncalibrated',
                  ('calibration_mismatch',): 'steering_uncalibrated', ('steering_status_stale',): 'steering_feedback_stale',
                  ('status_seq_gap',): 'steering_feedback_stale', ('stop_unconfirmed',): 'stop_unconfirmed',
-                 ('TTL',): 'link_ttl_expired', ('WATCHDOG',): 'link_watchdog', ('CRC',): 'link_bad_lines',
+                 ('TTL',): 'link_ttl_expired', ('mcu_ttl_expired',): 'link_ttl_expired',
+                 ('WATCHDOG',): 'link_watchdog', ('CRC',): 'link_bad_lines',
                  ('mcu_reset_detected',): 'mcu_reset', ('c_rejected',): 'link_command_rejected',
                  ('hardware_fault',): 'link_hardware_fault', ('mcu_disarmed',): 'mcu_disarmed',
                  ('BOOT',): None, ('SOFTLIMIT',): None, (): None}

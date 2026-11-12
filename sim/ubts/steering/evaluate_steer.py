@@ -61,12 +61,18 @@ Rules (one per name; every result carries its definition in 'definitions'):
                           servo deadband) from the command at the terminal row, or (b) the stop moves the command by
                           more than the tolerance to somewhere other than the steering position at the stop
                           (hold reference, hold_reference(): truth_hold_position_rad = the MCU filtered potentiometer
-                          position a hold_measured STOP holds (executor / T1 rig traces, R13-2 / R13-3), else the
-                          SteeredPlant hold_measured target recomputed from pot_raw (fast_sim, a row per plant step),
-                          else truth_servo_view_rad, steer_measured_rad; hold_measured holding the
-                          position is allowed, the centre policy is not); the potentiometer decode is not a reference
-                          of (a) (sag / noise, review R1) (design 6.5); 'auto_centre' marks a move toward 0 (A22); the
-                          true wheel-side drift after the terminal moment is reported (A17 input)
+                          position a hold_measured STOP holds (executor / T1 rig traces, R13-2 / R13-3; fast_sim:
+                          the plant's hold_measured target, also in thinned traces), else the SteeredPlant
+                          hold_measured target recomputed from pot_raw (older fast_sim traces, a row per plant step),
+                          else truth_servo_view_rad, steer_measured_rad; the steering position at the stop is the
+                          reference of the row before the stop or of the stop row; hold_measured holding the
+                          position is allowed, the centre policy is not). In a trace with the MCU state
+                          (truth_mcu_state: executor / T1 traces) the stop the MCU applies later inside a window (the
+                          STOP that lands after the executor's terminal moment) is judged by (b) at its row and (a)
+                          starts again from the held command (one rule for the executor path, audit AUD3A-07); the
+                          potentiometer decode is not a reference of (a) (sag / noise, review R1) (design 6.5);
+                          'auto_centre' marks a move toward 0 (A22); the true wheel-side drift after the terminal moment
+                          is reported (A17 input)
   rest clearance          PREREG obstacle_wall_clearance: the swept footprint's (and the body's) smallest clearance
                           to ADDED_HARD cells over the terminal rest rows with the 6 m reach (raster worlds)
   stop response           per stop trigger (stop mode in effect, or the drive command falling to 0): time to drive
@@ -143,12 +149,13 @@ PROPOSED_STEERING_STOP_TABLE = {
 PROPOSED_TABLE_SOURCE = 'evaluate_steer.PROPOSED_STEERING_STOP_TABLE (proposal; PREREG_STEER fixes it)'
 REQUIRED_COLUMNS = ('t_s', 'truth_x_m', 'truth_y_m', 'truth_yaw_rad', 'truth_v_m_s', 'truth_delta_left_rad',
                     'truth_delta_right_rad')
-# STEER_AFTER_TERMINAL rule (b) hold reference (R13-2 / R13-3; hold_reference()): the executor / T1 rig trace column
-# truth_hold_position_rad (the MCU filtered potentiometer position: what a hold_measured STOP holds); else, for a trace
-# with a row every plant step (fast_sim trace_every 1), the SteeredPlant hold_measured target recomputed from the
+# STEER_AFTER_TERMINAL rule (b) hold reference (R13-2 / R13-3; hold_reference()): the trace column
+# truth_hold_position_rad (executor / T1 rig: the MCU filtered potentiometer position, what a hold_measured STOP holds;
+# fast_sim since audit AUD3A-10: the SteeredPlant hold_measured target, also in thinned traces); else, for a trace with a
+# row every plant step (older fast_sim traces, trace_every 1), the SteeredPlant hold_measured target recomputed from the
 # potentiometer columns (median of the last pot_median_of pot_raw samples, decoded: 'measured_hold_recomputed', review
-# P4R-03); else the columns below, first present wins: the fast_sim servo view (traces before R13-2, or thinned rows),
-# the potentiometer decode (older traces).
+# P4R-03); else the columns below, first present wins: the fast_sim servo view (traces before R13-2, or thinned rows
+# before AUD3A-10), the potentiometer decode (older traces).
 HOLD_POSITION_COLUMNS = (('truth_hold_position_rad', 'truth_hold_position'), ('truth_servo_view_rad', 'truth_servo_view'),
                          ('steer_measured_rad', 'measured_fallback'))
 
@@ -614,15 +621,32 @@ def hold_reference(arrays, meta, config, force=None):
     return None, 'command_before'
 
 
+def mcu_stop_rows(arrays):
+    """Rows at which the MCU left ARMED (truth_mcu_state 2 -> other: a STOP, DISARM, watchdog, fault or reset reached
+    the pins in that row's step): the stop rows of STEER_AFTER_TERMINAL inside a window. [] without the column (fast_sim:
+    the stop row is the window start)."""
+    state = _column(arrays, 'truth_mcu_state')
+    if state is None:
+        return []
+    state = np.asarray(state).astype(np.int64)
+    return [int(k) for k in np.flatnonzero((state[1:] != 2) & (state[:-1] == 2)) + 1]
+
+
 def steer_after_terminal(t, target, drive_cmd, stop_code, v, starts, tolerance, rest_v, *, hold_position=None,
-                         hold_source='command_before', true_eq=None):
+                         hold_source='command_before', true_eq=None, stop_rows=()):
     """STEER_AFTER_TERMINAL windows (every trace row; design 6.5, A22 'no commanded steering move after a terminal
     state'). The commanded steering is the servo target. Per window from row i (j0 = i - 1) to the drive restart:
 
       (a) the command moves after the terminal row: max |target[k] - target[i]| > tolerance;
       (b) the stop itself moves the command: |target[i] - target[j0]| > tolerance AND the new command is not the
-          steering position at the stop (|target[i] - hold_position[j0]| > tolerance). Holding the position where it
-          is (the hold_measured policy) is allowed; the centre policy or a new command is not.
+          steering position at the stop (min(|target[i] - hold_position[j0]|, |target[i] - hold_position[i]|) >
+          tolerance: the reference of the row before the stop or of the stop row; a thinned fast_sim trace holds the
+          applied hold target in the stop row). Holding the position where it is (the hold_measured policy) is
+          allowed; the centre policy or a new command is not.
+      stop_rows (mcu_stop_rows(): executor / T1 traces): a later row k of the window where the MCU applied a stop (the
+          STOP that lands after the executor's terminal moment, a watchdog, a fault) is judged by (b) at k (j0 = k - 1)
+          and (a) is measured from target[k] after it; before k, (a) from the terminal command. The window records
+          each such stop ('mcu_stops').
           hold_position = hold_reference(): truth_hold_position_rad (executor / T1 rig traces: the MCU filtered
           potentiometer position, the target a hold_measured STOP holds; R13-2 / R13-3), the SteeredPlant hold_measured
           target recomputed from the pot_raw rows (fast_sim with a row per plant step; review P4R-03),
@@ -636,6 +660,20 @@ def steer_after_terminal(t, target, drive_cmd, stop_code, v, starts, tolerance, 
     P4): the true wheel-side drift after the terminal moment (true_eq = truth_delta_eq_rad) and whether it exceeds the
     tolerance. Returns the rule result dict."""
     windows = []
+
+    def stop_check(k):
+        """Rule (b) at row k (the stop's row): (moved, change, gap, before, position)."""
+        j = max(k - 1, 0)
+        before_k = float(target[j])
+        command_k = float(target[k])
+        if hold_position is not None:
+            position_k = float(hold_position[j])
+            gap_k = min(abs(command_k - position_k), abs(command_k - float(hold_position[k])))
+        else:
+            position_k, gap_k = before_k, abs(command_k - before_k)
+        change_k = command_k - before_k
+        return abs(change_k) > tolerance and gap_k > tolerance, change_k, gap_k, before_k, position_k
+
     for i, source in starts:
         j0 = max(i - 1, 0)
         restart = None
@@ -646,24 +684,36 @@ def steer_after_terminal(t, target, drive_cmd, stop_code, v, starts, tolerance, 
         end = restart if restart is not None else len(t)
         segment = slice(i, end)
         commanded = float(target[i])
-        before = float(target[j0])
-        position = float(hold_position[j0]) if hold_position is not None else before
-        seg_target = target[segment]
-        dev_cmd = float(np.max(np.abs(seg_target - commanded))) if len(seg_target) else 0.
-        stop_change = commanded - before
-        hold_gap = abs(commanded - position)
-        stop_moved = abs(stop_change) > tolerance and hold_gap > tolerance
-        at_rest = np.abs(v[segment]) < rest_v
-        toward_zero_after = np.abs(seg_target) < abs(commanded) - tolerance
+        stop_moved, stop_change, hold_gap, before, position = stop_check(i)
+        # the window splits at the MCU's later stops (stop_rows): (b) at each, (a) from the held command after it
+        cuts = [k for k in sorted(set(int(k) for k in stop_rows)) if i < k < end]
+        bounds = [i] + cuts + [end]
+        dev_cmd, first_violation, auto_centre, mcu_stops = 0., None, False, []
         stop_centred = stop_moved and abs(commanded) < min(abs(before), abs(position)) - tolerance
-        auto_centre = bool(stop_centred or np.any(at_rest & toward_zero_after))
-        violated = stop_moved or dev_cmd > tolerance
-        first_violation = None
         if stop_moved:
             first_violation = round(float(t[i]), 4)
-        elif violated:
-            k = _first(np.abs(seg_target - commanded) > tolerance)
-            first_violation = None if k is None else round(float(t[i + k]), 4)
+        for a, b in zip(bounds[:-1], bounds[1:]):
+            reference = float(target[a])
+            if a != i:
+                moved_k, change_k, gap_k, before_k, position_k = stop_check(a)
+                mcu_stops.append(dict(t_s=round(float(t[a]), 4), change_deg=round(math.degrees(change_k), 4),
+                                      hold_gap_deg=round(math.degrees(gap_k), 4), moved_command=bool(moved_k)))
+                if moved_k:
+                    stop_moved = True
+                    stop_centred = stop_centred or abs(reference) < min(abs(before_k), abs(position_k)) - tolerance
+                    if first_violation is None:
+                        first_violation = round(float(t[a]), 4)
+            seg_target = target[a:b]
+            if not len(seg_target):
+                continue
+            dev = np.abs(seg_target - reference)
+            dev_cmd = max(dev_cmd, float(np.max(dev)))
+            if first_violation is None and np.any(dev > tolerance):
+                first_violation = round(float(t[a + _first(dev > tolerance)]), 4)
+            at_rest_seg = np.abs(v[a:b]) < rest_v
+            auto_centre = auto_centre or bool(np.any(at_rest_seg & (np.abs(seg_target) < abs(reference) - tolerance)))
+        auto_centre = bool(auto_centre or stop_centred)
+        violated = stop_moved or dev_cmd > tolerance
         drift = None
         if true_eq is not None and end > i:
             drift = float(np.max(np.abs(true_eq[segment] - true_eq[j0])))
@@ -674,7 +724,7 @@ def steer_after_terminal(t, target, drive_cmd, stop_code, v, starts, tolerance, 
                             hold_position_deg=round(math.degrees(position), 4), hold_position_source=hold_source,
                             stop_change_deg=round(math.degrees(stop_change), 4),
                             stop_hold_gap_deg=round(math.degrees(hold_gap), 4), stop_moved_command=bool(stop_moved),
-                            max_dev_from_command_deg=round(math.degrees(dev_cmd), 4),
+                            max_dev_from_command_deg=round(math.degrees(dev_cmd), 4), mcu_stops=mcu_stops,
                             auto_centre=auto_centre, violated=bool(violated), first_violation_t_s=first_violation,
                             true_drift_deg=None if drift is None else round(math.degrees(drift), 4),
                             true_drift_over_tolerance=None if drift is None else bool(drift > tolerance)))
@@ -1079,7 +1129,7 @@ def evaluate_trace(arrays, config=None, *, world=None, s_end=None, spacing_m=Non
         starts = _terminal_starts(t_rows, stop_rows, fm_rows, rest_row, terminal_t_s)
         forbidden['steer_after_terminal'] = steer_after_terminal(
             t_rows, target_rows, drive_rows, stop_rows, v_rows, starts, config.hold_tolerance_rad, config.rest_v_m_s,
-            hold_position=hold_rows, hold_source=hold_source, true_eq=true_eq_rows)
+            hold_position=hold_rows, hold_source=hold_source, true_eq=true_eq_rows, stop_rows=mcu_stop_rows(arrays))
     else:
         forbidden['steer_after_terminal'] = dict(flag=False, evaluated=False, reason='no steer_target_rad column')
     # stop response (every row)

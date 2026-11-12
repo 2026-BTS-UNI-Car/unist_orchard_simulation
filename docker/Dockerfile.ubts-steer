@@ -19,7 +19,9 @@
 #     --build-arg IMAGE_TAG_HINT=ubts-steer-sim:p6a -t ubts-steer-sim:p6a .
 # Images of this branch: ubts-steer-sim:p5 (phase 2, before the firmware was tracked), ubts-steer-sim:wf3 (phase 3,
 # G-SIM update), ubts-steer-sim:p6a (phase 3, the headless stack of compose.ubts-steer.yaml: ESP emulator, sensor
-# contract, supervisor, checks; docs/steering/P6A_HEADLESS_KO.md).
+# contract, supervisor, checks; docs/steering/P6A_HEADLESS_KO.md). WF-4: the row executor package tools/row_executor is
+# copied to /opt/ubts/tools/row_executor (the executor container, steering.exec_container_main; it is on the PYTHONPATH of the
+# executor service, docs/steering/S2_NODE_EXEC_KO.md) and is part of the manifest file list.
 ARG UBTS_STEER_BASE=ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29@sha256:6209168a3507cf7a657464af99711e0cdf45329617e67bdafca87007367688b0
 FROM ${UBTS_STEER_BASE}
 ARG UBTS_STEER_BASE
@@ -31,7 +33,7 @@ ARG IMAGE_TAG_HINT=ubts-steer-sim:p6a
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt/ubts
 RUN rm -rf /opt/ubts/dashboard /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \
-           /opt/ubts/ros2_ws/src/orchard_navigation /opt/ubts/firmware \
+           /opt/ubts/ros2_ws/src/orchard_navigation /opt/ubts/firmware /opt/ubts/tools/row_executor \
  && rm -f /opt/ubts/compose.ubts*.yaml
 COPY dashboard /opt/ubts/dashboard
 COPY sim/ubts /opt/ubts/sim/ubts
@@ -39,6 +41,7 @@ COPY ros2_ws/src/orchard_gazebo /opt/ubts/ros2_ws/src/orchard_gazebo
 COPY ros2_ws/src/orchard_navigation /opt/ubts/ros2_ws/src/orchard_navigation
 COPY compose.ubts*.yaml /opt/ubts/
 COPY firmware /opt/ubts/firmware
+COPY tools/row_executor /opt/ubts/tools/row_executor
 ENV PYTHONPATH=/opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts \
     PYTHONDONTWRITEBYTECODE=1 \
     UBTS_STEER_BUILD_DIR=/opt/ubts/steer_native_build \
@@ -56,7 +59,8 @@ RUN g++ -O3 -std=c++17 -shared -fPIC /opt/ubts/dashboard/dashboard_server/sensor
 fw = r.get('firmware_build_id'); print('steering native build: binary %s, firmware_build_id %s' % (r.get('path'), fw)); \
 sys.exit(0 if (fw or '${UBTS_STEER_REQUIRE_FIRMWARE}' == '0') else 'firmware_build_id missing in BUILD_RESULT.json: the native build failed or ran without firmware/ubts_steer_v3 (see BUILD_STDERR.txt)')"
 RUN python3 -B -c "import hashlib, json, os, time; \
-roots = ('dashboard', 'sim/ubts', 'ros2_ws/src/orchard_gazebo', 'ros2_ws/src/orchard_navigation', 'firmware'); \
+roots = ('dashboard', 'sim/ubts', 'ros2_ws/src/orchard_gazebo', 'ros2_ws/src/orchard_navigation', 'tools/row_executor', \
+         'firmware'); \
 files = sorted(os.path.join(d, n) for r in roots for d, _, ns in os.walk(r) for n in ns); \
 files += sorted(n for n in os.listdir('.') if n.startswith('compose.ubts') and n.endswith('.yaml')); \
 digest = lambda p: hashlib.sha256(open(p, 'rb').read()).hexdigest(); \
@@ -72,5 +76,6 @@ manifest = dict(schema='ubts.steer_image_manifest.v1', image_tag_hint='${IMAGE_T
 open('/opt/ubts/STEER_IMAGE_MANIFEST.json', 'w').write(json.dumps(manifest, indent=1, sort_keys=True) + '\n')" \
  && source /opt/ros/jazzy/setup.bash \
  && python3 -B -c "import numpy, yaml, PIL, matplotlib; import gz.sim8, gz.transport13, gz.msgs10; from steering import gz_model, gz_assemble, gz_probe, gz_direct_drive" \
- && python3 -B -c "import rclpy, adapter; from steering import gz_esp_emulator, supervisor_steer, sensor_contract_steer, verify_steer, p6a_checks, p6a_graph, p6a_client, p6a_imu_model; sensor_contract_steer.make_node_class()"
+ && python3 -B -c "import rclpy, adapter; from steering import gz_esp_emulator, supervisor_steer, sensor_contract_steer, verify_steer, p6a_checks, p6a_graph, p6a_client, p6a_imu_model; sensor_contract_steer.make_node_class()" \
+ && PYTHONPATH=$PYTHONPATH:/opt/ubts/tools python3 -B -c "import rclpy; from steering import s2_format_node, exec_container_main, exec_checks; from row_executor import executor_main, operator_http, bridge_client; executor_main.verify_sources(); executor_main.verify_vendor()"
 CMD ["python3", "-B", "-m", "steering.gz_probe", "--help"]

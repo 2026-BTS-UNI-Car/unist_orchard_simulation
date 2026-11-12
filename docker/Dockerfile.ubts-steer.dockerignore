@@ -13,6 +13,9 @@
 !compose.ubts*.yaml
 !firmware/
 !firmware/**
+!tools/
+!tools/row_executor/
+!tools/row_executor/**
 **/__pycache__
 **/*.pyc
 **/.pytest_cache

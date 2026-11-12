@@ -596,3 +596,17 @@ A9: 같은 장면 5번, 실행마다 스택을 새로 켬(같은 seed). 대본: 
 - (제안) 에뮬레이터 경로의 과부하: 호스트가 포화되면(다른 작업 흐름, CPU 74~99 %) Gazebo의 RTF는 1 근처인데 에뮬레이터가 `/clock`의 약 12 %를 빠뜨리고, 관절 − 모델 오차가 p99 1.41°가 되거나(실차 시계 H) 호스트 래치가 걸린다(SIM 시계 I). RTF 규칙에 걸리지 않는다. 단계 안 에뮬레이터 `/clock` 빠짐이 몇 % 넘으면 무효로 할지(값은 결정 필요), 또는 시간 민감 검사 동안 Gazebo를 에뮬레이터와 lockstep으로 묶을지 정해야 한다. SIM 시계 모드는 브리지의 시계만 바꾸므로 부하에 강하지 않다.
 - (제안) A25 에뮬레이터 경로 판정: 에뮬레이터가 `/clock`을 빠뜨리지 않은 실행(E: 빠짐 0, p99 4.2e-11°)에서는 관절이 공유 모델과 같다. 판정은 위 무효 규칙을 정한 뒤 조용한 호스트에서 다시 한다.
 - (제안) 실차 시계 시작 직후와 실행 중의 약 340 ms 멈춤: 같은 컨테이너의 에뮬레이터와 브리지가 함께 멈추고 벽시계가 뛴 경우가 있다. 컨테이너 CPU 몫(steer 1.5)과 VM 수준 정지를 가르려면 cgroup `cpu.stat`(throttled)과 VM 시계 기록이 필요하다(이번 수집 실패).
+
+## 16. 4단계 g_gaps 소스 변경 (2026-11-09 작업, Docker 검증 전)
+
+- 2026-11-09 작업 흐름 WF-4의 g_gaps 단계가 사용 한도로 중간에 멈췄다. 그 변경을 새 저장소로 옮겼다(`DECISIONS_KO.md` R22). 이 절의 내용은 **Docker 검증 전**이다: Gazebo 스택에서 아직 돌리지 않았고, Docker 없이 도는 단위 시험(`test_steering_p6a_emulator.py`, `test_steering_p6a_checks_units.py`)만 통과를 확인했다. 단계가 남긴 개발 기록(부하가 있는 호스트에서 잰 값, 판정 아님)은 저장소 밖 `runs/wf4/g_gaps/`에 있다. 최종 결과와 판정은 ST-04가 이 절과 9절에 넣는다.
+- 들어온 것:
+  - ESP 에뮬레이터: /clock이 SIM 시간 1 s 동안 고르게 온 뒤에 pty 링크를 만든다(3단계 시작 때의 호스트 래치 대응, 늦어도 첫 /clock 뒤 벽시계 20 s). 바뀌지 않은 `/sim/act/*` 값은 12스텝(0.1 s)마다만 다시 보낸다(펌웨어가 보는 것은 같다는 것이 단계의 주장이고 아직 확인하지 않았다). `--truth-every`. 상태 파일에 에뮬레이터 자신의 부하(CPU, /clock 콜백 시간 분포, 발행 수). 직렬 줄에 단조 시각. 훅 `record`가 `report_servo`를 켠다(TRACK 판정 틱), 훅 `kill_bridge`(필수 장애 시험 '브리지 강제 종료').
+  - 검사(`p6a_checks.py`): `bridge_kill`(브리지 SIGKILL → TTL 구동 0 → watchdog → 감독기 재시작 → 포트 열기 리셋 → 재출발 없음), `a3noise`(DISARMED, `report_adc`, 정지 10,000틱 이상, 개정 15), `clip`(자르기 노드 ROS 출력과 래스터 DDA 비교, 스탬프→발행 지연), 실행 범위(run token) 밖의 옛 상태 파일 무시, 호스트 래치 시각을 HOST_BRIDGE 설계값(±1 루프)과 BOOT/NOCAL 시각으로 판정, 모든 요약에 출처 칸(커밋, 상태 SHA, 프로필 id와 SHA, 코드 SHA; `field_world/provenance.py`).
+  - `p6a_fw_rules.py`: 평가 전용 채널(`servo_pos`, `servo_tgt`, `servo_cmd`, `steer_mode`)로 TRACK을 추정이 아니라 판정한다.
+  - `p6a_imu_model.py`: G-SIM IMU 오차 모델과 F-SIM 모델의 일치 비교(`compare_with_fsim`).
+  - `sensor_contract_steer.py`: 가상 GPS 레버암과 `gps_link` 정적 TF를 프로필 `gnss_antenna_pose_in_base`에서 계산한다(고정 파일 `sim_telemetry.py`는 그대로).
+  - `gz_direct_drive.py`: 데모의 '뜬 바퀴' 규칙을 토크 단위(DC 선의 순 토크)로 바꿨다(R19 결정 14). `gz_probe.py`: fdir 이방 진단에 상대 허용을 더했다(옛 절대 기준 결과도 남긴다). W1 바퀴 중심 높이·옆면 접촉력을 직접 재는 일은 이 변경에 없다.
+  - `p6a_stall_probe.py`: 조향 컨테이너의 약 335 ms 멈춤을 조사하는 탐침(`/proc` 프로세스 카운터, 스레드 상태, cgroup v2 cpu.stat·PSI). 컨테이너 안에서 `python3 -B -m steering.p6a_stall_probe --seconds 600 --out ...`. 아직 스택에서 돌리지 않았다.
+- 들어오지 않은 것: 자르기 노드의 빠른 경로(`scan_unobserved_clip.py`의 블록 여유 + 제한된 DDA, `field_world/raster_ops.py`의 `first_stop_steps`, `chebyshev_rings`). ST-04 계획대로 따로 떼어 저장소 밖 패치(`runs/steer_phase4_20261112/held/g_gaps_fast_clip.patch`)로 보류했다. `test_field_world` 단위 시험과 A7 재측정을 통과할 때만 넣는다. 지금 자르기 노드는 3단계의 `first_stop` 경로 그대로다.
+- 하지 않은 문서 일(감사 G02, G05): 3단계 최종 자격 결과를 9절·`WORLDS_KO.md`에 넣기, A12 등록 형식 수를 6개 중 3개로 고치기(R19 결정 15). ST-04에서 한다.

@@ -80,8 +80,15 @@ DEMO_OVERRIDE_LABEL = 'gz_demo_zero_offset_0'
 STANDSTILL_SPEED_M_S = gz_probe.STANDSTILL_SPEED_M_S
 STOPPED_SPEED_M_S = gz_probe.STOP_SPEED_M_S
 LIFT_LIMIT_M = .002                 # W0 wheel lift report threshold (centre height - radius above the floor)
-UNLOADED_TOL_RAD_S = .03            # a driven wheel this close to its no-load speed gives (almost) no traction
-LOADED_MARGIN_RAD_S = .1            # ... while another driven wheel is this much slower (loaded): wheel off the ground
+# Unloaded-wheel rule in torque units (WF-4 g_gaps, decision R19-14): the net wheel torque of the DC line,
+# p (no-load speed - wheel speed), below UNLOADED_TORQUE_NM while another driven wheel carries more than
+# LOADED_TORQUE_NM. The values are the phase 2 speed thresholds (0.03 and 0.1 rad/s) times the slope of the v0 DC line
+# (p = 0.239 N m s/rad, tau_stall 1.6 N m): the same classification for v0, now independent of the profile's p (v0.1:
+# p = 0.657, where the speed thresholds flagged wheels that were not lifted: W0 2.1 %, W1 9.1 %, GZ_DEMO_KO.md 10).
+UNLOADED_TORQUE_NM = .0072          # a driven wheel with less net torque gives (almost) no traction
+LOADED_TORQUE_NM = .024             # ... while another driven wheel carries more than this: wheel off the ground
+UNLOADED_TOL_RAD_S = .03            # the phase 2 speed form (kept for the comparison in the report)
+LOADED_MARGIN_RAD_S = .1
 BACKENDS = ('l0', 'native')
 
 # Demo camera views (SIM_ASSUMED display settings, not sensors of the vehicle).
@@ -1011,20 +1018,29 @@ def analyze_run(a, ctx, script, world, radius):
     driving = (a['duty'] > line.deadband_frac + .05) & moving
     noload = a['duty'] * line.omega0_rad_s - line.coulomb_friction_nm / line.p_gain
     speeds = {wheel: a['wheel_%s_qd' % wheel] for wheel in ctx.driven}
-    unloaded = {}
+    torque = {wheel: line.p_gain * (noload - speeds[wheel]) for wheel in ctx.driven}     # net DC line torque, N m
+    unloaded, unloaded_speed_form = {}, {}
     any_unloaded = np.zeros(len(t), bool)
     for wheel in ctx.driven:
-        others = [noload - speeds[w] for w in ctx.driven if w != wheel]
-        loaded_other = np.max(others, axis=0) > LOADED_MARGIN_RAD_S if others else np.zeros(len(t), bool)
-        flag = driving & loaded_other & (np.abs(speeds[wheel] - noload) < UNLOADED_TOL_RAD_S)
+        others = [torque[w] for w in ctx.driven if w != wheel]
+        loaded_other = np.max(others, axis=0) > LOADED_TORQUE_NM if others else np.zeros(len(t), bool)
+        flag = driving & loaded_other & (np.abs(torque[wheel]) < UNLOADED_TORQUE_NM)
         any_unloaded |= flag
         unloaded[wheel] = float(np.mean(flag[driving])) if driving.any() else None
+        others_speed = [noload - speeds[w] for w in ctx.driven if w != wheel]
+        loaded_speed = np.max(others_speed, axis=0) > LOADED_MARGIN_RAD_S if others_speed else np.zeros(len(t), bool)
+        flag_speed = driving & loaded_speed & (np.abs(speeds[wheel] - noload) < UNLOADED_TOL_RAD_S)
+        unloaded_speed_form[wheel] = float(np.mean(flag_speed[driving])) if driving.any() else None
     out['unloaded_wheels'] = dict(
-        rule='driven wheel within %g rad/s of the no-load speed duty*omega0 - friction/p while another driven wheel is '
-             'more than %g rad/s below it' % (UNLOADED_TOL_RAD_S, LOADED_MARGIN_RAD_S),
+        rule='driven wheel with a net DC line torque p (no-load speed - wheel speed) below %g N m while another driven '
+             'wheel carries more than %g N m (torque form, decision R19-14; p %.4f N m s/rad of this profile)'
+             % (UNLOADED_TORQUE_NM, LOADED_TORQUE_NM, line.p_gain),
         fraction_of_driving_time=unloaded,
         any_wheel_fraction=float(np.mean(any_unloaded[driving])) if driving.any() else None,
-        driving_samples=int(driving.sum()))
+        driving_samples=int(driving.sum()),
+        speed_form_fraction_of_driving_time=unloaded_speed_form,
+        speed_form_rule='phase 2: within %g rad/s of the no-load speed while another wheel is %g rad/s slower '
+                        '(tied to the v0 slope; report)' % (UNLOADED_TOL_RAD_S, LOADED_MARGIN_RAD_S))
     out['wheels'] = wheels
     susp = {w: a.get('wheel_%s_susp' % w) for w in gz_model.WHEELS}
     if all(s is not None and np.all(np.isfinite(s)) and len(s) for s in susp.values()):

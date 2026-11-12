@@ -629,16 +629,22 @@ class LinkLossTest(HostFirmwareCase):
         self.assertEqual(f_lines, [(expiry, 'F TTL 1 %d' % expiry)])
         fl = [s['fl'] for tick, s in rig.status_lines(expiry, frozen + 400)]
         self.assertTrue(fl and all(v & 0x0800 for v in fl))
-        # The operator input is still valid (0.75 s deadline): after the hang the host sends a C with a new q and
-        # the MCU starts again after its 120 ms zero dwell (TTL is a condition, not a latch).
+        # The operator input is still valid (0.75 s deadline). On the MCU the TTL is a condition, not a latch (spec
+        # 6.3: a new C would start the drive again after the 120 ms zero dwell). The host latch of DECISIONS R18
+        # decision 1 closes that path: the first step after the hang reads the F TTL line while the input was still
+        # valid, latches mcu_ttl_expired, drops the lease and sends STOP; no C with a new q, no restart until an
+        # operator re-arm.
         rig.host_frozen = False
         resume = rig.ms
         rig.run(300)
-        new_c = rig.c_writes(resume)
-        self.assertTrue(new_c)
-        self.assertEqual(new_c[0].c_fields()[0], q + 1)
-        restart = [t for t, v in rig.changes('drive_l', expiry + 1) if v != 0]
-        self.assertEqual(restart[0], max(new_c[0].arrival, expiry + 120))
+        self.assertEqual(rig.c_writes(resume), [])
+        self.assertEqual(rig.host_heads(resume)[0], 'STOP')
+        self.assertEqual(list(rig.core.latches), ['mcu_ttl_expired'])
+        self.assertIn('F TTL line', rig.core.latches['mcu_ttl_expired']['detail'])
+        self.assertIsNone(rig.core.control.lease)
+        self.assertEqual(rig.core.control.reason, 'mcu_ttl_expired')
+        self.assert_no_restart(rig, resume, mcu_since=expiry)
+        Operator(rig).arm_confirmed()
         self.assertEqual(rig.core.latches, {})
 
     def test_watchdog_on_link_loss_latches_the_host(self):
@@ -677,7 +683,13 @@ class LinkLossTest(HostFirmwareCase):
         self.assertEqual(rig.first_change_to('drive_l', 0, cut), last_c.arrival + ttl)
         self.assertEqual([line.queued_tick for line in rig.mcu_lines(('W',), cut)], [last_input + wd + 1])
         self.assertEqual(rig.first_change_to('mcu_state', 1, cut), last_input + wd + 1)
-        self.assertEqual(rig.core.latches['mcu_disarmed']['detail'], 'MCU watchdog')
+        # host side (DECISIONS R18 decision 1): the F TTL line reaches the host (MCU -> host still works) while the
+        # operator input is valid, so the host latches mcu_ttl_expired and drops the lease before the watchdog; the
+        # later MCU DISARMED is then the expected end of its STOP, not mcu_disarmed
+        self.assertEqual(list(rig.core.latches), ['mcu_ttl_expired'])
+        self.assertLess(rig.core.latches['mcu_ttl_expired']['since'] * 1000., last_input + wd + 1)
+        self.assertIsNone(rig.core.control.lease)
+        self.assertEqual(rig.core.control.reason, 'mcu_ttl_expired')
 
 
 class ResetAndFaultTest(HostFirmwareCase):

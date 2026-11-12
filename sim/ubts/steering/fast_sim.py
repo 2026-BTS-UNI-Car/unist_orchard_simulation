@@ -46,8 +46,8 @@ Trace (npz, one row per recorded plant step; trace_every in the scene; units in 
   cmd_stop_mode             0 none, 1 release, 2 brake, 3 coast (stop requested by the command in effect)
   phase                     index into phase_names (phase of the command in effect; 'start' before the first)
   steer_target_rad          servo target after the equivalent soft-limit clamp (host / MCU side); after a
-                            hold_measured stop it is the plant's servo view at the stop, made from TRUTH (meta
-                            steer_target_note; the MCU will hold its filtered measurement, P1 / P3)
+                            hold_measured stop it is the plant's hold target: the MCU-side filtered potentiometer
+                            measurement at the stop (SteeredPlant.measured_hold_rad(), R13-2; meta steer_target_note)
   drive_request_pct, drive_applied_pct   requested duty and the MCU ramp output (MCU side, not a speed)
   drive_en, steer_en        commanded enables
   pot_raw, steer_measured_rad, fault_bits   potentiometer ADC count, its nominal decode, MCU fault mask
@@ -61,7 +61,10 @@ Trace (npz, one row per recorded plant step; trace_every in the scene; units in 
                             truth_delta_eq_rad, truth_delta_left_rad, truth_delta_right_rad, truth_motor_side_rad,
                             truth_applied_steer_pwm, truth_model_flags, truth_decelerating, truth_regime
                             (0 still, 1 drive, 2 stopping, 3 blocked), truth_servo_view_rad (the servo-side angle
-                            the test servo sees, SteeredPlant.servo_view_rad(); the evaluator's hold reference)
+                            the test servo sees, SteeredPlant.servo_view_rad()), truth_hold_position_rad (the
+                            evaluator's hold reference, R13-3: the hold target a hold_measured stop applied in this
+                            row's span, else SteeredPlant.measured_hold_rad() after the row's step; audit AUD3A-10:
+                            exact also when trace_every > 1)
   ctrl_*                    controller values (probe_pure_pursuit: its observation, made from TRUTH + noise)
   phase_names, meta_json    phase names; trace meta (schema, ids, SHAs, dt, units, the list of truth keys)
 content_sha256 = SHA-256 over (name, dtype, shape, bytes) of every member in sorted name order; A8 compares it.
@@ -152,12 +155,14 @@ FLOAT_FIELDS = (
     'truth_x_m', 'truth_y_m', 'truth_yaw_rad', 'truth_yaw_unwrapped_rad', 'truth_v_m_s', 'truth_w_rad_s',
     'truth_external_yaw_rate_rad_s', 'truth_distance_m', 'truth_curvature_1_m', 'truth_steer_curvature_1_m',
     'truth_wander_deg_per_m', 'truth_lateral_slip_m_s', 'truth_delta_eq_rad', 'truth_delta_left_rad',
-    'truth_delta_right_rad', 'truth_motor_side_rad', 'truth_applied_steer_pwm', 'truth_servo_view_rad')
+    'truth_delta_right_rad', 'truth_motor_side_rad', 'truth_applied_steer_pwm', 'truth_servo_view_rad',
+    'truth_hold_position_rad')
 # The servo target after a hold_measured stop is SteeredPlant.servo_view_rad() (made from the true motor-side angle;
 # the MCU will hold its filtered potentiometer measurement instead, P1 / P3). Written into every trace meta.
 STEER_TARGET_NOTE = ('steer_target_rad is the host / MCU-side servo target; after a hold_measured stop it is the '
-                     "plant's servo view at the stop (truth_servo_view_rad, made from the true motor-side angle), not "
-                     'an MCU measurement (the MCU will hold its filtered potentiometer reading, P1 / P3)')
+                     "plant's hold target: the MCU-side filtered potentiometer measurement at the stop "
+                     '(SteeredPlant.measured_hold_rad(), R13-2), recorded as truth_hold_position_rad (the evaluator '
+                     'hold reference, R13-3)')
 # Environment variable of the native build folder (steering/native/build.py ENV_BUILD_DIR); fast_sim needs it set to
 # a folder outside the repository, or native_build_dir (design 4.5: builds live outside the repository).
 NATIVE_BUILD_DIR_ENV = 'UBTS_STEER_BUILD_DIR'
@@ -403,6 +408,13 @@ class TracedSteeredPlant(sp.SteeredPlant):
         self.yaw_unwrapped = self.yaw
         self.applied_command = INITIAL_COMMAND
         self.recorder = None
+        self.stop_hold_rad = None      # the hold target of a hold_measured stop since the last trace row (recorder)
+
+    def stop(self, mode='brake', steer=None):
+        super().stop(mode, steer)
+        policy = self.params.stop_policy_steer if steer is None else steer
+        if policy == 'hold_measured':
+            self.stop_hold_rad = self.steer_target_rad     # what the stop holds (clamped measured_hold_rad(), R13-2)
 
     def step(self, dt):
         started = time.perf_counter()
@@ -548,11 +560,16 @@ class TraceRecorder:
         if (self.steps - 1) % self.every:
             return
         st, cmd, ramp = plant._steer, plant.applied_command, plant._ramp
+        hold = getattr(plant, 'stop_hold_rad', None)
+        if hold is None:
+            hold = plant.measured_hold_rad()
+        else:
+            plant.stop_hold_rad = None
         row = (plant.time_s, cmd[0], cmd[1], plant.steer_target_rad, plant.throttle_request_pct, ramp.applied,
                plant.x, plant.y, plant.yaw, plant.yaw_unwrapped, plant.v, plant.w, plant.external_yaw_rate,
                plant.distance_m, plant.curvature, plant.steer_curvature, plant.wander_deg_per_m, plant.lateral,
                st.delta_eq_rad, st.delta_left_rad, st.delta_right_rad, st.motor_side_angle_rad, st.applied_steer_pwm,
-               plant.servo_view_rad())
+               plant.servo_view_rad(), float(hold))
         if self.extras is not None:
             row = row + tuple(self.extras())
         self.floats.append(row)
