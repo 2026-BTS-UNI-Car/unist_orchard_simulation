@@ -47,6 +47,8 @@ SEEDS = dict(
 )
 STEER_FAULTS = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'TRACK', 'THERMAL')
 NORMAL_FORBIDDEN = ('POLARITY', 'DRV_STUCK', 'THERMAL', 'TRACK')
+ABOVE_DEFINED = ('STALL', 'TRACK', 'DRV_STUCK')       # amendment 42 (amendment 41: STALL, TRACK)
+ABOVE_DEFINED_41 = ('STALL', 'TRACK')
 RECOVERY_HOLD_S = 0.5
 RECOVERY_LIMIT_S = 2.0
 
@@ -106,7 +108,7 @@ def _fault_cases():
 def _disturbance_cases(profile):
     skip = ba.belt_skip_injection(profile, T0 + 1., teeth=-1)
     within = dict(group='within', expect=())
-    above = dict(group='above', expect=('STALL', 'TRACK'))
+    above = dict(group='above', expect=ABOVE_DEFINED)
     report = dict(group='report', expect=())
     cases = {
         'D1': dict(within, torque=(2.5, 3.), purpose='+2.5 N m step 3 s'),
@@ -340,13 +342,16 @@ def check(result):
             why = 'forbidden F %s, latches %s' % (bad, ep['latches'])
         elif group in ('faults', 'above'):
             first = ep.get('first_steer_fault')
-            expect = dict(faults=None, above=('STALL', 'TRACK'))[group]
-            exp_codes = expect or _fault_cases()[name]['expect']
-            ok = (first is not None and first[0] in exp_codes and ep.get('tick_diff') is not None
-                  and abs(ep['tick_diff']) <= 1 and ep['armed'])
+            exp_codes = ABOVE_DEFINED if group == 'above' else _fault_cases()[name]['expect']
+            tick_ok = ep.get('tick_diff') is not None and abs(ep['tick_diff']) <= 1
+            ok = first is not None and first[0] in exp_codes and tick_ok and ep['armed']
             if group == 'faults' and first is not None:
                 ok = ok and first[1] - int(_fault_cases()[name]['onset_s'] * 1000) <= 3000
             why = 'first %s, tick diff %s' % (first, ep.get('tick_diff'))
+            if group == 'above':
+                items.append(dict(case=name, seed=seed, group='above_original_41', report_only=True,
+                                  passed=bool(first is not None and first[0] in ABOVE_DEFINED_41 and tick_ok),
+                                  detail=why))
         elif group == 'within':
             ok = (not codes and not ep['latches'] and ep['recovery_s'] is not None
                   and ep['recovery_s'] <= RECOVERY_LIMIT_S and ep['armed'])
@@ -354,7 +359,8 @@ def check(result):
         else:
             continue   # report
         items.append(dict(case=name, seed=seed, group=group, passed=bool(ok), detail=why))
-    passed = judgement and all(i['passed'] for i in items) and bool(items)
+    judged = [i for i in items if not i.get('report_only')]
+    passed = judgement and all(i['passed'] for i in judged) and bool(judged)
     return passed, items
 
 
@@ -400,6 +406,9 @@ def main(argv=None):
     for item in items:
         if not item['passed']:
             print(json.dumps(item, ensure_ascii=False))
+    original = [i for i in items if i['group'] == 'above_original_41']
+    if original:
+        print('amendment 41 original criterion (report):', 'PASS' if all(i['passed'] for i in original) else 'FAIL')
     print('judgement:', 'PASS' if passed else 'FAIL', '(%d items)' % len(items))
     return 0 if passed else 1
 
