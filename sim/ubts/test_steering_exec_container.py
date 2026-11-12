@@ -617,28 +617,47 @@ class CheckHelpersTest(unittest.TestCase):
         self.assertGreaterEqual(EC.DRIVE_LOOKBACK_S, 2. / 10.)            # two send periods of send_hz 10 Hz at least
 
     def test_stop_writes_split_request_writes_from_resends(self):
-        # ST-05 A17(G) 2nd run: STOP lines at 0, 20.2, 100.2, 160.3, 200.3, 260.4, 300.4 ms; the one at 20.2 ms was
-        # the second op stop of the executor page (emergency_stop, then the main loop's _handle_stop)
+        # an op stop only sets the bridge's emergency event; the loop (20 ms) writes STOP at its next tick. gsim_final
+        # w0_a17: requests at -14.0 and +21.7 ms, STOP lines at 0, 37.4, then the resends 117.9 .. 324.2 ms
         t0 = 10.0
-        bridge = [dict(kind='request', op='stop', t=t0 - .001), dict(kind='tx', head='STOP\n', t=t0),
-                  dict(kind='reply', op='stop', t=t0 + .001),
-                  dict(kind='request', op='stop', t=t0 + .0201), dict(kind='tx', head='STOP\n', t=t0 + .0202),
-                  dict(kind='reply', op='stop', t=t0 + .0203)]
-        for ms in (100.2, 160.3, 200.3, 260.4, 300.4):
-            bridge.append(dict(kind='tx', head='STOP\n', t=t0 + ms / 1000.))
-        bridge.append(dict(kind='tx', head='C 0 0\n', t=t0 + .31))
+        bridge = [dict(kind='request', op='stop', t=t0 - .014), dict(kind='reply', op='stop', t=t0 - .0139),
+                  dict(kind='tx', head='STOP', t=t0),
+                  dict(kind='request', op='stop', t=t0 + .0217), dict(kind='reply', op='stop', t=t0 + .0218)]
+        for ms in (37.4, 117.9, 158.6, 217.7, 257.8, 324.2):
+            bridge.append(dict(kind='tx', head='STOP', t=t0 + ms / 1000.))
+        bridge.append(dict(kind='tx', head='C 0 0', t=t0 + .31))
         bridge.sort(key=lambda e: e['t'])
-        by_request, resends, requests = EC.stop_writes(bridge, t0 - .001)
-        self.assertEqual(len(by_request), 2)
-        self.assertEqual([round((e['t'] - t0) * 1000., 1) for e in resends], [100.2, 160.3, 200.3, 260.4, 300.4])
+        by_request, resends, requests = EC.stop_writes(bridge, t0 - .014)
+        self.assertEqual([round((e['t'] - t0) * 1000., 1) for e in by_request], [0.0, 37.4])
+        self.assertEqual([round((e['t'] - t0) * 1000., 1) for e in resends], [117.9, 158.6, 217.7, 257.8, 324.2])
         self.assertEqual(len(requests), 2)
-        # overlapping handler threads (request, request, reply, reply) still pair both requests
-        overlap = [dict(kind='request', op='stop', t=1.0), dict(kind='request', op='stop', t=1.001),
-                   dict(kind='tx', head='STOP\n', t=1.0005), dict(kind='tx', head='STOP\n', t=1.0015),
-                   dict(kind='reply', op='stop', t=1.002), dict(kind='reply', op='stop', t=1.003),
-                   dict(kind='tx', head='STOP\n', t=1.1)]
-        by_request, resends, _ = EC.stop_writes(overlap, 1.0)
-        self.assertEqual((len(by_request), len(resends)), (2, 1))
+        # two requests inside one loop period make one STOP: the second request takes no resend 100 ms later
+        coalesced = [dict(kind='request', op='stop', t=1.0), dict(kind='request', op='stop', t=1.005),
+                     dict(kind='tx', head='STOP', t=1.015), dict(kind='tx', head='STOP', t=1.115)]
+        by_request, resends, _ = EC.stop_writes(coalesced, 1.0)
+        self.assertEqual((len(by_request), len(resends)), (1, 1))
+
+    def test_outage_precondition_needs_a_driving_run(self):
+        # gsim_final w0_a17: executor_loop_stall / executor_freeze were injected 1.9 s / 3.0 s after a stale_lidar pause
+        # (drive already 0): nothing left to measure -> invalid step, not a failed one
+        ok = EC.driving_precondition(dict(runner=dict(state=EC.STATE_ACTIVE, reason='script_drive')))
+        self.assertTrue(ok['met'])
+        paused = EC.driving_precondition(dict(runner=dict(state=EC.STATE_PAUSED, reason='stale_lidar')))
+        self.assertFalse(paused['met'])
+        self.assertIn('stale_lidar', paused['reason'])
+        self.assertFalse(EC.driving_precondition(None)['met'])
+
+    def test_output_guard_sequence_may_ramp_to_the_settle_steering(self):
+        # gsim_final w0_a17 output_guard: C lines S 112, 94, 57, 5, 0 (settle ramp from the previous steering), then
+        # the guard ended the run; the old check wanted S 0 only
+        lines = [dict(c=dict(S=s)) for s in (112, 112, 94, 57, 57, 5, 0, 0)]
+        seq = EC.s_sequence(lines)
+        self.assertEqual(seq, [112, 94, 57, 5, 0])
+        self.assertFalse(EC.moves_away_from(seq, 0))
+        self.assertTrue(EC.moves_away_from([0, 41], 0))            # a raw step past the guard
+        self.assertTrue(EC.moves_away_from([57, 5, -30], 0))       # through 0 to the other side
+        self.assertTrue(EC.moves_away_from([-20, -60], 0))
+        self.assertFalse(EC.moves_away_from([], 0))
 
     def test_scripts_registry(self):
         names = [s['name'] for s in EC.SCRIPTS]

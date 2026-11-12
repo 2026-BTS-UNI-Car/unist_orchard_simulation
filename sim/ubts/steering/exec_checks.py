@@ -674,6 +674,26 @@ def drive_spec(throttle=40, steer_deg=5., seconds=60., lead_s=1., end='stop'):
 
 
 # --- emulator log measurements ------------------------------------------------------------------------------------------
+def s_sequence(lines):
+    """The steering targets (S, permille) of C lines in log order, consecutive repeats removed."""
+    out = []
+    for c in lines:
+        s = c['c']['S']
+        if not out or out[-1] != s:
+            out.append(s)
+    return out
+
+
+def moves_away_from(sequence, target):
+    """True when a value of the sequence lies farther from target than the one before it, or on the other side of it
+    (output_guard: the settle segment ramps from the previous steering to 0; a raw step past the guard would move
+    away from 0). gsim_final 2026-11-13 w0_a17: 112, 94, 57, 5, 0 (the ramp; the old check wanted 0 only)."""
+    for a, b in zip(sequence, sequence[1:]):
+        if abs(b - target) > abs(a - target) or (b - target) * (a - target) < 0:
+            return True
+    return False
+
+
 def c_lines(emu, after_tick=0):
     out = []
     for e in entries(emu, 'h2m'):
@@ -735,10 +755,14 @@ def script(name, purpose, registered):
 
 def _finish(ctx, name, step0, before, criteria, details, normal_until_tick=None, expected=()):
     """Common end of a script: A10 validity (wall clock), the A19(G) normal false detections of the drive-up (step start
-    to the injection), the verdict."""
+    to the injection), the verdict. details['precondition'] = dict(met=False, reason=...) makes the step invalid too
+    (the injection did not meet the state it is meant to test, e.g. the run had already paused)."""
     after = emulator_counters(ctx.hooks)
     sim_made = step_sim_latches(ctx, step0, ctx.clock) if ctx.clock == 'wall' else ()
     validity = step_validity(ctx, ctx.clock, step0['mono'], time.monotonic(), before, after, sim_made=sim_made)
+    pre = details.get('precondition')
+    if pre is not None and not pre.get('met') and (validity is None or validity.get('valid')):
+        validity = dict(validity or {}, valid=False, reason='precondition: %s' % pre.get('reason'))
     criteria = invalidate(criteria, validity)
     emu, _ = ctx.logs(step0, wait=False)
     window = [e for e in emu if normal_until_tick is None or e.get('tick', 0) <= normal_until_tick]
@@ -1063,27 +1087,44 @@ def last_executor_drive(mark_wall, injection_wall, lookback_s=DRIVE_LOOKBACK_S, 
     return found[-1] if found else None
 
 
-def stop_writes(bridge, after_t):
-    """STOP lines the bridge wrote at or after after_t, split into the ones a stop request wrote (between an op stop
-    request and its reply: the bridge writes STOP at once for every op stop) and the bridge's own resends (written by
-    its loop on the 50 ms grid). The executor page's STOP sends op stop twice by design: emergency_stop() at once
-    from the HTTP thread, then the main loop's _handle_stop() latches its client with one more op stop (ST-05 A17(G)
-    2nd run: a STOP 20.2 ms after the first, counted as a 6th resend). Returns (request_writes, resends,
-    stop_request_times)."""
-    requests, pending = [], []
-    for e in bridge:
-        if e.get('op') != 'stop' or e.get('t') is None:
-            continue
-        if e['kind'] == 'request':
-            pending.append(e['t'])
-        elif e['kind'] == 'reply' and pending:
-            requests.append((pending.pop(0), e['t']))        # handler threads may overlap: first in, first out
-    requests.extend((t, float('inf')) for t in pending)
+STOP_ANSWER_S = .06            # an op stop is written by the bridge loop at its next tick (loop 20 ms; 3 periods)
+
+
+def stop_writes(bridge, after_t, answer_s=STOP_ANSWER_S):
+    """STOP lines the bridge wrote at or after after_t, split into the ones an op stop request caused and the bridge's
+    own resends (its loop, on the 50 ms grid from the first STOP). An op stop only sets the bridge core's emergency
+    event and is answered at once; the loop writes STOP at its next tick (steer_bridge_core.submit). So the first STOP
+    line within answer_s after each op stop request (not yet given to an earlier request) is that request's; two
+    requests inside one loop period make one STOP (the second finds none of its own). The executor page's STOP sends
+    op stop twice by design: emergency_stop() at once from the HTTP thread, then the main loop's _handle_stop()
+    latches its client with one more (ST-05 A17(G) 2nd run: a STOP 20.2 ms after the first was counted as a 6th
+    resend; gsim_final w0_a17: requests at -14.0 and +21.7 ms, STOP lines at 0 and 37.4 ms). Returns
+    (request_writes, resends, stop_request_times)."""
+    requests = sorted(e['t'] for e in bridge if e.get('kind') == 'request' and e.get('op') == 'stop' and
+                      e.get('t') is not None)
     tx = [e for e in bridge if e['kind'] == 'tx' and str(e.get('head') or '').startswith('STOP') and
           e['t'] >= after_t]
-    by_request = [e for e in tx if any(a <= e['t'] <= b for a, b in requests)]
-    resends = [e for e in tx if not any(a <= e['t'] <= b for a, b in requests)]
-    return by_request, resends, [a for a, _ in requests if a >= after_t]
+    taken = set()
+    for r in requests:
+        for i, e in enumerate(tx):
+            if i not in taken and r <= e['t'] <= r + answer_s:
+                taken.add(i)
+                break
+    by_request = [e for i, e in enumerate(tx) if i in taken]
+    resends = [e for i, e in enumerate(tx) if i not in taken]
+    return by_request, resends, [r for r in requests if r >= after_t]
+
+
+def driving_precondition(status):
+    """Is the executor driving just before an executor-side injection (runner ACTIVE)? The outage scripts measure the
+    stop that the injection causes; a run that had already paused (gsim_final 2026-11-13 w0_a17: stale_lidar 1.9 s and
+    3.0 s before the injection under host load, drive already 0) leaves nothing to measure: the step is invalid, not
+    failed. status: the executor hook status (None: unknown -> not met)."""
+    runner = (status or {}).get('runner') or {}
+    state, reason = runner.get('state'), runner.get('reason')
+    met = state == STATE_ACTIVE
+    return dict(met=met, runner_state=state, runner_reason=reason,
+                reason=None if met else 'the run was not driving at the injection (%s/%s)' % (state, reason))
 
 
 def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=False):
@@ -1092,6 +1133,7 @@ def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=Fals
     before, step0 = step_start(ctx, 'exec_%s_start' % name)
     start = start_drive(ctx, drive_spec(40, 4.))
     ctx.obs.spin_sim_for(3.)
+    precondition = driving_precondition(ctx.try_exec_status())
     mark = ctx.mark('exec_%s' % name)
     reply = inject()
     injection_wall = time.time()
@@ -1122,7 +1164,8 @@ def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=Fals
                    last_executor_drive=None if last_request is None else dict(t=last_request.get('t'),
                                                                                wall=last_request.get('wall'),
                                                                                op=last_request.get('op')),
-                   runner=runner, client=(status.get('client') or {}).get('state'), watchdog_events=len(wd_events))
+                   runner=runner, client=(status.get('client') or {}).get('state'), watchdog_events=len(wd_events),
+                   precondition=precondition)
     if expired is not None and last_request is not None:
         details['input_expired_after_last_request_s'] = round(expired['t'] - last_request['t'], 4)
     return step0, before, criteria, details
@@ -1449,11 +1492,14 @@ def s_output_guard(ctx):
     mark = ctx.mark('exec_guard')
     emu, bridge = ctx.logs(step0)
     end_reason, end_note, client = _end_reason(ctx, 4.)
-    targets = sorted({c['c']['S'] for c in c_lines(emu, step0['tick'])})
+    sequence = s_sequence(c_lines(emu, step0['tick']))
+    away = moves_away_from(sequence, 0)
     criteria = [criterion('executor_end_reason', end_reason, 'guard_violation:steer_rate_above_limit',
                           str(end_reason).startswith('guard_violation')),
-                criterion('violating_target_not_sent', targets, 'every C line keeps the settle steering 0 (S 0 '
-                          'permille): the guard held the previous steering', targets in ([], [0])),
+                criterion('violating_target_not_sent', sequence, 'the S values of the C lines (permille, in order) only '
+                          'step toward the settle steering 0 (the run starts from the steering the previous script '
+                          'left) and never away from it: the guard held the raw step', not away and
+                          (not sequence or sequence[-1] == 0)),
                 criterion('executor_client_latched', client.get('state'), 'LATCHED', client.get('state') ==
                           CLIENT_LATCHED)]
     return _finish(ctx, 'output_guard', step0, before, criteria,
