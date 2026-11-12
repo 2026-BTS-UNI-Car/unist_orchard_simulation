@@ -262,11 +262,21 @@ class ExecRunTest(unittest.TestCase):
         code, summary, op, hold, hooks, lines = self.run_start(seq, arm_refusals=1)
         self.assertEqual(code, exec_run.EXIT_ROW_END)
         self.assertEqual(hooks.requests, [dict(op='controller', spec={'kind': 'row_follow'})])
-        self.assertEqual(op.posts, ['/api/start', '/api/arm', '/api/arm'])
+        self.assertEqual(op.posts, ['/api/start', '/api/arm', '/api/start', '/api/arm'])
         self.assertEqual(hold.events, ['press', 'release', 'close'])
         self.assertTrue(summary['seen_active'])
         self.assertTrue(any('arm attempt 1 refused' in line for line in lines))
         self.assertTrue(lines[-1].startswith('ended: row_end'))
+
+    def test_a_refused_arm_that_ended_the_run_is_acknowledged_and_started_again(self):
+        # gsim_final 2026-11-13: the executor latched its client and ended the run after the first refused arm; the
+        # old loop sent only /api/arm again (start_a_run_first x 5, exit 4)
+        seq = ([status('IDLE', client='IDLE')] * 3 + [status('ENDED', 'bridge_latched', client='LATCHED')] +
+               [status('PAUSED', 'await_hold')] + [status('ACTIVE', 'follow')] * 2 +
+               [status('ENDED', 'row_end', end_reason='row_end')])
+        code, summary, op, hold, hooks, lines = self.run_start(seq, arm_refusals=1)
+        self.assertEqual(code, exec_run.EXIT_ROW_END)
+        self.assertEqual(op.posts, ['/api/start', '/api/arm', '/api/ack', '/api/start', '/api/arm'])
 
     def test_an_open_run_is_not_started_again(self):
         code, summary, op, hold, hooks, lines = self.run_start([status('ACTIVE', 'follow')])

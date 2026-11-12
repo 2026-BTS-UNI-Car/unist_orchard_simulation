@@ -250,8 +250,30 @@ class EndToEndTests(unittest.TestCase):
     def test_c7_release_and_stop(self):
         kinds = self.r['c7']['kinds']
         self.assertGreaterEqual(kinds['release']['clean'], 3)
-        self.assertEqual(kinds['hard_stop']['clean'], 1)
+        # audit AUD3A-03 (ST-03 identification edit): the 2 Hz motor log cannot place a brake, so a hard stop without
+        # the steering sidecar is kept in the detail but not clean (it was 1 clean event before the edit)
+        self.assertEqual(kinds['hard_stop']['clean'], 0)
+        hard = [e for e in self.r['c7']['detail'] if e.get('kind') == 'hard_stop']
+        self.assertEqual(len(hard), 1)
+        self.assertIn('hard stop command time unresolved (2 Hz motor log; give the steering sidecar)', hard[0]['tags'])
         self.assertLess(kinds['release']['distance_m_p10_p50_p90'][2], .35)
+
+    def test_sidecar_brake_from_mcu_status_lines(self):
+        lines = [dict(t=10. + .05 * k, L=120 if k < 6 else 0, R=120 if k < 6 else 0, state='ARMED') for k in range(12)]
+        t_cmd, half = steps.sidecar_brake(lines, 10.1, 10.6)
+        self.assertAlmostEqual(t_cmd, 10.275, places=6)            # between the last line with drive and the first 0
+        self.assertAlmostEqual(half, .025, places=6)
+        self.assertIsNone(steps.sidecar_brake(lines, 10.4, 10.6))  # no drive -> 0 step inside the window
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'steering.jsonl')
+            with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+                for k, (ms, rx) in enumerate(((1000, 50.012), (1050, 50.070), (1100, 50.111))):
+                    fh.write(json.dumps(dict(mcu_ms=ms, received_at=rx, drive_l=100 - 50 * k, drive_r=100 - 50 * k,
+                                             state='ARMED')) + '\n')
+            rows = cli.steering_stop_lines(path)
+        self.assertEqual([r['L'] for r in rows], [100, 50, 0])
+        self.assertAlmostEqual(rows[0]['t'], 50.011, places=6)      # min(receipt - ms) 49.011 (third line) + 1.000
+        self.assertEqual(cli.steering_stop_lines(None), [])
 
     def test_cache_rerun_skips_scans_and_gives_the_same_result(self):
         cache = os.path.join(self.s.root, 'cache')

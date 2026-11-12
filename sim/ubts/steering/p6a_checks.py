@@ -2332,8 +2332,13 @@ def host_timing(ctx, case, latch, rule):
             # carries target_mrad None (the stop of the latch cleared the request), so the rule time is the first line
             # received track_duration after the error began whose published state either still shows the error or
             # has no target any more (ST-04: with the lines without a target left out, the reference was never found).
+            # Only the lines of this case (from its mark on, gsim_final 2026-11-13 w0_a17): the observer keeps every
+            # state of the run, and an error stretch of an earlier case (track_model_noise, 68 s before, also latched
+            # steering_not_following) gave the reference (latch - reference 65.9 s).
+            start = mark.get('mono') if clock == 'wall' else mark.get('sim')
             rows = sorted({m['received_monotonic']: m for m in states
-                           if m['received_monotonic'] <= t_latch + loop}.items())
+                           if m['received_monotonic'] <= t_latch + loop and
+                           (start is None or m['received_monotonic'] >= start - .05)}.items())
             since = None
             expected_line = None
             for received, m in rows:

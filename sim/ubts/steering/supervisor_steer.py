@@ -16,7 +16,10 @@ One supervisor per container role of compose.ubts-steer.yaml (the old sim/ubts/s
              (scripts.steer_rover_bridge, pty transport, SIM role, --clock wall|sim, control socket
              /run/ubts-steer/control.sock). The bridge is restarted after an exit (at most 5 times per 60 s, like a
              service manager); the emulator is not
-  recorder   the existing data recorder service (P6b uses it; it records the topics it already knows)
+  recorder   the existing data recorder service (P6b uses it; it records the topics it already knows) -> steering
+             sidecar (steering.steering_sidecar by default: for every recording of the pinned recorder a steering
+             timeline, its descriptor, the calibration copy and a separate bag of /rover/steering/state next to the
+             recording, design 4.5, docs/steering/STEER_RECORDING_KO.md; --sidecar none runs the recorder alone)
 
 Run token (2026-11-09 review RG-10): the sim supervisor makes a new token at its start, writes it into the scene
 READY stamp (JSON) and passes it to the sensor contract (simulation_status.json sim_run). A stamp left by a run that
@@ -83,6 +86,10 @@ DEFAULT_CLIP_NODE = 'steering.scan_unobserved_clip'
 DEFAULT_S2_NODE = 'steering.s2_format_node'
 S2_NODE_OFF = ('none', 'off', '0')                          # --s2-node none: no S2 node, /scan absent (P6a)
 S2_STATUS = 's2_node_status.json'
+DEFAULT_SIDECAR = 'steering.steering_sidecar'
+SIDECAR_STATUS = 'steering_sidecar_status.json'
+SIDECAR_READY_STATES = ('starting', 'idle', 'recording', 'closing')
+RECORDER_URL = 'http://127.0.0.1:8790'                      # the recorder's HTTP API inside the sim network namespace
 GRACE_S = 6.
 STATUS_FRESH_S = 3.                                         # simulation_status.json age for a live sim role
 BRIDGE_RESTARTS = (5, 60.)                                  # at most 5 restarts in 60 s
@@ -94,7 +101,7 @@ ROLE_STATUS_FILES = {
             'camera_driver_status.json', 'imu_driver_status.json', 'lidar_bridge_status.json',
             'camera_bridge_status.json', 'imu_bridge_status.json', 'gps_bridge_status.json'),
     'steer': ('steering_status.json', 'rover_bridge_status.json'),
-    'recorder': ('data_recorder_status.json',),
+    'recorder': ('data_recorder_status.json', SIDECAR_STATUS),
 }
 RETIRED_DIR = 'retired'                                     # <runtime>/steer/retired/<run token>/
 RETIRED_KEEP = 5
@@ -623,12 +630,34 @@ def steer_children(args, scene_dir, manifest):
     ]
 
 
+def sidecar_of(args):
+    """The steering sidecar module of this run (default DEFAULT_SIDECAR), or None for --sidecar none."""
+    module = (getattr(args, 'sidecar', None) or DEFAULT_SIDECAR).strip()
+    return None if module.lower() in S2_NODE_OFF else module
+
+
+def sidecar_command(module, runtime):
+    """The steering sidecar's command line (the contract of steering.steering_sidecar): the recorder's archive folder
+    and HTTP API, the host profile the steer role exports (the calibration table) and its own status file."""
+    runtime = Path(runtime)
+    return py_module(module, '--archive-dir', runtime / 'recordings', '--recorder-url', RECORDER_URL,
+                     '--host-profile', runtime / 'steer' / 'host_profile.json', '--status-file',
+                     runtime / SIDECAR_STATUS)
+
+
 def recorder_children(args):
     runtime = Path(args.runtime_dir)
-    return [Child('data_recorder', py_module('scripts.data_recorder_service', '--host', '0.0.0.0', '--archive-dir',
-                                             runtime / 'recordings', '--status-file',
-                                             runtime / 'data_recorder_status.json'), cwd=str(DASHBOARD_ROOT),
-                  ready=alive_after(2.))]
+    children = [Child('data_recorder', py_module('scripts.data_recorder_service', '--host', '0.0.0.0', '--archive-dir',
+                                                 runtime / 'recordings', '--status-file',
+                                                 runtime / 'data_recorder_status.json'), cwd=str(DASHBOARD_ROOT),
+                      ready=alive_after(2.))]
+    sidecar = sidecar_of(args)
+    if sidecar:
+        children.append(Child('steering_sidecar', sidecar_command(sidecar, runtime), cwd=str(SIM_ROOT),
+                              ready=json_file_ready(runtime / SIDECAR_STATUS,
+                                                    lambda d: d.get('state') in SIDECAR_READY_STATES),
+                              ready_timeout_s=60.))
+    return children
 
 
 def native_executable():
@@ -760,6 +789,9 @@ def build_parser():
     p.add_argument('--s2-node', default=os.environ.get('UBTS_STEER_S2_NODE') or DEFAULT_S2_NODE,
                    help='module of the S2 format node (default %s; none: no S2 node, /scan absent): python3 -m '
                         'MODULE --input T --output /scan --status-file F --run-token T' % DEFAULT_S2_NODE)
+    p.add_argument('--sidecar', default=os.environ.get('UBTS_STEER_SIDECAR') or DEFAULT_SIDECAR,
+                   help='recorder role: module of the steering sidecar (default %s; none: the recorder alone)'
+                        % DEFAULT_SIDECAR)
     p.add_argument('--supervisor-hook-socket', default=os.environ.get('UBTS_STEER_SUPERVISOR_HOOK_SOCKET',
                                                                       SUPERVISOR_HOOK_SOCKET),
                    help='steer role: Unix socket of the supervisor fault hooks (SIM only; empty: none)')

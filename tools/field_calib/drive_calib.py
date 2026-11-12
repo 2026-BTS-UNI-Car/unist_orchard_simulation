@@ -67,6 +67,26 @@ def steering_mask_windows(sidecar_path, straight_mrad=STEER_STRAIGHT_MRAD):
     return out
 
 
+def steering_stop_lines(sidecar_path):
+    """MCU status rows of a steering sidecar (orchard.steering.timeline.v1, one per status line, 20 Hz) as
+    [dict(t (host time of the MCU tick, s), L, R, state)], sorted: the host time of an MCU ms is the smallest receipt -
+    ms over the file (the line read soonest after it was made). [] without a file. Used for the C7 hard stop command time
+    (audit AUD3A-03: the 2 Hz motor log cannot place a brake)."""
+    if not sidecar_path or not os.path.isfile(sidecar_path):
+        return []
+    with open(sidecar_path, 'r', encoding='utf-8') as fh:
+        rows = [json.loads(line) for line in fh if line.strip()]
+    rows = [r for r in rows if r.get('mcu_ms') is not None and r.get('received_at') is not None
+            and r.get('drive_l') is not None and r.get('drive_r') is not None]
+    if not rows:
+        return []
+    offset = min(float(r['received_at']) - float(r['mcu_ms']) / 1000. for r in rows)
+    out = [dict(t=offset + float(r['mcu_ms']) / 1000., L=int(r['drive_l']), R=int(r['drive_r']), state=r.get('state'))
+           for r in rows]
+    out.sort(key=lambda r: r['t'])
+    return out
+
+
 def drop_steered(rec, windows):
     """Mark motor statuses inside steered windows as unknown requests (the steps then skip them)."""
     if not windows:
@@ -140,6 +160,7 @@ def open_recordings(root, rids, labels=None, workers=1, pool=None, hashes=True, 
             dropped = drop_steered(rec, steering_mask_windows(steer_sidecars.get(rid)))
             if dropped:
                 rec.warnings.append('steered_statuses_dropped:%d' % dropped)
+            rec.stop_lines = steering_stop_lines(steer_sidecars.get(rid))
         recs.append(rec)
     return recs, skipped
 

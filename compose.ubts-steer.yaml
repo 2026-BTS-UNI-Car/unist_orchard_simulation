@@ -27,6 +27,8 @@
 # The S2 format node (steering.s2_format_node) runs in the sim service by default (UBTS_STEER_S2_NODE=none: none, the
 # P6a stack without /scan). The executor image needs tools/row_executor at /opt/ubts/tools/row_executor (the
 # Dockerfile copies it from WF-4 on; with an older image an override file mounts it). docs/steering/S2_NODE_EXEC_KO.md.
+# The recorder service also runs the steering sidecar (steering.steering_sidecar: a steering timeline and a separate
+# bag next to every recording; UBTS_STEER_SIDECAR=none: the recorder alone). docs/steering/STEER_RECORDING_KO.md.
 # Camera: D3D12 / Ogre 1 on the WSLg GPU (as compose.ubts.gpu.yaml); LiDAR: the Embree CPU process. For software
 # rendering set UBTS_RENDER_ENGINE=ogre2 UBTS_HEADLESS_RENDERING=1 UBTS_LIBGL_SOFTWARE=1 UBTS_EGL_PLATFORM=surfaceless
 # UBTS_GALLIUM_DRIVER=llvmpipe. Placeholder-based SIM results only (자리값 기반 SIM 결과), never field validation.
@@ -66,6 +68,7 @@ x-environment: &environment
   UBTS_STEER_LEAD_STEPS: ${UBTS_STEER_LEAD_STEPS:-1}
   UBTS_STEER_PORT_OPEN_RESET: ${UBTS_STEER_PORT_OPEN_RESET:-1}
   UBTS_STEER_S2_NODE: ${UBTS_STEER_S2_NODE:-}
+  UBTS_STEER_SIDECAR: ${UBTS_STEER_SIDECAR:-}
   UBTS_STEER_CLIP_NODE: ${UBTS_STEER_CLIP_NODE:-}
   UBTS_STEER_FIELD_SPEC: ${UBTS_STEER_FIELD_SPEC:-}
   UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
