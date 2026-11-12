@@ -182,7 +182,8 @@ CALIB_KINDS = CR.KINDS          # calibration run kinds 'arc' (C5) / 'rolldown' 
 # vendored modules by their SIM-tree source path (vendor/SOURCE_MANIFEST.json source_path; stable over vendor renames)
 VENDOR_SOURCES = dict(estimator='sim/ubts/closed_loop/estimator.py', controllers='sim/ubts/closed_loop/controllers.py',
                       single_row='sim/ubts/closed_loop/single_row.py',
-                      scan_corridor='sim/ubts/orchard_perception/scan_corridor.py')
+                      scan_corridor='sim/ubts/orchard_perception/scan_corridor.py',
+                      actuator_prior='sim/ubts/closed_loop/actuator_prior.py')
 SINGLE_ROW_VENDOR_PATH = VENDOR_SOURCES['single_row']
 # single-row stop categories (single_row_stop_category): the vendored table first; these executor-only pause / end reasons
 # are not in it. Display / log only - the SIM evaluation uses the vendored table (PREREG); nothing re-maps a table reason.
@@ -316,7 +317,8 @@ def load_vendor():
     with _SimTreeNames({'orchard_perception': corridor_package, 'orchard_perception.scan_corridor': corridor}):
         from .vendor.closed_loop_copy import estimator
     for module, source in ((controllers, VENDOR_SOURCES['controllers']), (estimator, VENDOR_SOURCES['estimator']),
-                           (corridor, VENDOR_SOURCES['scan_corridor'])):
+                           (corridor, VENDOR_SOURCES['scan_corridor']),
+                           (_prior_module(estimator), VENDOR_SOURCES['actuator_prior'])):
         if not _inside(module.__file__, VENDOR_DIR):
             raise VendorError('vendored module resolved outside the vendor dir: %s' % module.__file__)
         _check_module_bytes(module, source, want)
@@ -335,10 +337,19 @@ def verified_modules(estimator, controllers):
     want = {e['source_path']: e['sha256'] for e in manifest['files']}
     corridor = sys.modules.get(getattr(estimator, 'observe_scan_corridor').__module__)
     for module, source in ((estimator, VENDOR_SOURCES['estimator']), (controllers, VENDOR_SOURCES['controllers']),
-                           (corridor, VENDOR_SOURCES['scan_corridor'])):
+                           (corridor, VENDOR_SOURCES['scan_corridor']),
+                           (_prior_module(estimator), VENDOR_SOURCES['actuator_prior'])):
         _check_module_bytes(module, source, want)
     estimator.VENDOR_COMMIT = manifest['source_commit']
     return estimator, controllers
+
+
+def _prior_module(estimator):
+    """The actuator prior module the given estimator module imported (closed_loop/actuator_prior.py next to it)."""
+    module = sys.modules.get(getattr(getattr(estimator, 'ActuatorPrior', None), '__module__', None))
+    if module is None:
+        raise VendorError('the estimator module has no actuator prior module')
+    return module
 
 
 def single_row_module(controllers):
