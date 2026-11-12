@@ -40,13 +40,16 @@ SteerModel::SteerModel(const Config &cfg)
   link_min_ = map_.link_from_delta_eq(-g.eq_mech_right_rad);
   const double straight = clamp(map_.link_from_delta_eq(0.0), link_min_, link_max_);
   actuator_.configure(cfg_.actuator, link_min_, link_max_, straight, tick_dt_);
+  if (cfg_.ext.present) actuator_.configure_ext(cfg_.ext);
   pot_.configure(cfg_.pot);
+  if (cfg_.ext.present) pot_.configure_belt(cfg_.ext);
   for (size_t i = 0; i < cfg_.injections.size(); ++i) {
     Timed t;
     t.injection = cfg_.injections[i];
     t.k_at = first_index_at(t.injection.at_s);
-    t.k_end = t.injection.kind == kInjPotJump ? first_index_at(t.injection.at_s + t.injection.duration_s)
-                                               : static_cast<int64_t>(0x7fffffffffffffffLL);
+    const bool timed_window = t.injection.kind == kInjPotJump || t.injection.kind == kInjSteerTorque;
+    t.k_end = timed_window ? first_index_at(t.injection.at_s + t.injection.duration_s)
+                           : static_cast<int64_t>(0x7fffffffffffffffLL);
     timed_.push_back(t);
   }
 }
@@ -92,6 +95,9 @@ ActuatorFaults SteerModel::actuator_faults(int64_t tick_index) const {
         }
         break;
       case kInjPolarityReversed: f.polarity_reversed = true; break;
+      case kInjSteerTorque:
+        if (tick_index < t.k_end) f.torque_nm += t.injection.value;
+        break;
       default: break;
     }
   }

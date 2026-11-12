@@ -94,7 +94,8 @@ def test_derived_values(profile):
     assert set(sweep) == set(geometry.WHEEL_LIMIT_KEYS)
     assert all(value == pytest.approx(.0429, abs=.0001) for value in sweep.values())
     for name in vp.DERIVATIONS:
-        assert profile.is_derived(name) and profile.provenance(name) == 'DERIVED'
+        if profile.has(name):   # the schema v3 derivations are absent from this v2 file
+            assert profile.is_derived(name) and profile.provenance(name) == 'DERIVED'
 
 
 def test_spec_pending_list(profile):
@@ -151,7 +152,9 @@ def test_profile_name_lists_exist():
                   backend_api.POT_PROFILE_NAMES, backend_api.TEST_SERVO_PROFILE_NAMES,
                   backend_api.MCU_PROFILE_NAMES, backend_api.PER_RUN_DRAW_NAMES):
         assert set(group) <= names
-    assert set(vp.DERIVATIONS) <= names and set(vp.IDEAL_DRAWS) <= names
+    assert set(vp.IDEAL_DRAWS) <= names
+    assert set(vp.DERIVATIONS) <= set(vp.PARAMETER_NAMES_V3) and set(backend_api.EXT_PROFILE_NAMES) <= set(vp.PARAMETER_NAMES_V3)
+    assert set(vp.PARAMETER_NAMES) < set(vp.PARAMETER_NAMES_V3)
 
 
 # --- rejection rules (each builds a failing file in tmp_path) ------------------------------------------------------------
@@ -354,7 +357,7 @@ def test_measured_value_accepted(tmp_path):
 
 def test_derived_values_are_not_written_and_follow_inputs(tmp_path):
     doc = base_doc()
-    assert all('value' not in doc['parameters'][name] for name in vp.DERIVATIONS)   # design 3.8.1
+    assert all('value' not in doc['parameters'][name] for name in vp.DERIVATIONS if name in doc['parameters'])
     doc['parameters']['steer_ackermann_ratio']['value'] = 1.
     loaded = vp.load_profile(write(tmp_path, doc))
     assert loaded.value('steer_soft_limit_eq_left_deg') == pytest.approx(22.227, abs=.001)
@@ -480,7 +483,7 @@ def test_spec_request_lists_every_new_placeholder(profile):
 
 # --- value shapes (RP-04) -------------------------------------------------------------------------------------------
 def test_shapes_cover_the_parameters(profile):
-    assert set(vp.SHAPES) <= set(vp.PARAMETER_NAMES)
+    assert set(vp.SHAPES) <= set(vp.PARAMETER_NAMES_V3)
     assert not set(vp.SHAPES) & set(vp.DERIVATIONS)
     for name in profile.names():
         if not profile.is_derived(name) and profile.value(name) is not None:
@@ -545,6 +548,8 @@ def test_derived_ranges_cover_every_corner_of_their_inputs(profile):
     monotone in each input), so no sweep with inputs inside their ranges is refused by a DERIVED range."""
     checked = 0
     for name in vp.DERIVATIONS:
+        if not profile.has(name):
+            continue
         rng = profile.param(name)['range']
         if rng is None:
             continue

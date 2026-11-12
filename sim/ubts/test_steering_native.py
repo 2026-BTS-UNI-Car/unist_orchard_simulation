@@ -57,7 +57,9 @@ def native(tmp_path_factory):
 
 @pytest.fixture(scope='session')
 def profile():
-    return vp.load_profile()
+    # UBTS_STEER_TEST_PROFILE: rerun this suite against another profile file (e.g. v0.2 for the A2 / A3(F) / A8
+    # re-measurement of ST-10, SIM_ACCEPTANCE amendment 40); default the shipped profile.
+    return vp.load_profile(os.environ.get('UBTS_STEER_TEST_PROFILE') or None)
 
 
 @pytest.fixture

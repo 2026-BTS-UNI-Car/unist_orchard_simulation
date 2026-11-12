@@ -105,6 +105,7 @@ INJECTION_PARAMS = {
     'pot_slip': ('offset_rad',),        # measured angle + offset (shaft slip, inside the range)
     'pot_drift': ('rate_rad_per_s',),   # measured angle + rate * (t - at_s)
     'pot_reversed': (),                 # measured angle sign reversed
+    'steer_torque': ('torque_nm', 'duration_s'),  # external steering-axis torque for duration_s (L1; ST-11)
 }
 INJECTION_KINDS = tuple(INJECTION_PARAMS)
 
@@ -128,6 +129,10 @@ MCU_PROFILE_NAMES = ('sim_mcu_tick_hz', 'servo_dwell_brake_s', 'servo_reversal_p
                      'pot_jump_counts', 'pot_noise_counts', 'polarity_fault', 'stall_detect', 'track_fault',
                      'driver_stuck_fault', 'thermal_proxy', 'crc_burst_n')
 PER_RUN_DRAW_NAMES = ('steer_zero_offset_deg', 'pot_cal_residual_deg')
+# Schema v3 names read for the optional startup block steer_ext (STEER_EXT_MODEL_KO.md)
+EXT_PROFILE_NAMES = ('belt_pot_play_deg', 'belt_creep_sd_deg_per_100deg', 'belt_skip_per_10000deg', 'belt_tooth_step_deg',
+                     'steer_supply_shared_with_drive', 'battery_voltage_scale', 'steer_backdrive_coast_gain',
+                     'steer_self_lock_breakaway_nm', 'steer_terrain_impacts', 'steer_terrain_push')
 
 # --- wire format v1 -----------------------------------------------------------------------------------------------------
 WIRE_MAGIC = b'USTP'
@@ -553,8 +558,10 @@ def validate_injections(injections):
             raise ValueError('injection_pwm_out_of_range')
         if kind == 'pot_noise_x10' and clean['scale'] <= 0.:
             raise ValueError('injection_scale_not_positive')
-        if kind == 'pot_jump' and clean['duration_s'] <= 0.:
+        if kind in ('pot_jump', 'steer_torque') and clean['duration_s'] <= 0.:
             raise ValueError('injection_duration_not_positive')
+        if kind == 'steer_torque' and abs(clean['torque_nm']) > 1000.:
+            raise ValueError('injection_torque_out_of_range')
         out.append(dict(kind=kind, at_s=at, params=clean))
     return out
 
@@ -605,7 +612,7 @@ def native_startup_config(profile, seed, mode='direct_pwm', mcu_tick_hz=None, in
         thermal_pwm=v('thermal_proxy')['pwm_pct'] / 100., thermal_window_s=v('thermal_proxy')['window_s'],
         thermal_accumulated_s=v('thermal_proxy')['accumulated_s'], crc_burst_n=v('crc_burst_n'))
     ramp = v('mcu_ramp')
-    return dict(
+    out = dict(
         protocol=PROTOCOL, mode=mode, seed=seed, mcu_tick_hz=tick, profile_id=profile.profile_id,
         profile_sha256=profile.sha256, profile_overrides=profile.result_label()['overrides'],
         geometry=dict(
@@ -645,6 +652,47 @@ def native_startup_config(profile, seed, mode='direct_pwm', mcu_tick_hz=None, in
             pot_filter_sample_hz=v('pot_filter')['sample_hz'], pot_filter_median_of=v('pot_filter')['median_of'],
             faults=faults),
         injections=validate_injections(injections))
+    ext = ext_startup_block(profile)
+    if ext is not None:
+        out['steer_ext'] = ext
+    return out
+
+
+def ext_startup_block(profile):
+    """The optional steer_ext block of a schema v3 profile (None for a v2 profile: the native model then runs
+    exactly as before). SI units; the creep sd per 100 deg becomes a random-walk sd per sqrt(rad) of travel."""
+    if not profile.has('belt_type'):
+        return None
+    v = profile.value
+    rad = math.radians
+    impacts, push = v('steer_terrain_impacts'), v('steer_terrain_push')
+    creep = v('belt_creep_sd_deg_per_100deg')
+    return dict(
+        belt_play_rad=rad(v('belt_pot_play_deg')),
+        belt_creep_sd_rad_per_sqrt_rad=rad(creep) / math.sqrt(rad(100.)),
+        belt_skip_per_rad=v('belt_skip_per_10000deg') / rad(10000.),
+        belt_tooth_step_rad=rad(v('belt_tooth_step_deg')),
+        supply_rate_scale=float(v('battery_voltage_scale')) if v('steer_supply_shared_with_drive') else 1.,
+        backdrive_coast_gain=float(v('steer_backdrive_coast_gain')),
+        self_lock_breakaway_nm=float(v('steer_self_lock_breakaway_nm')),
+        impact_rate_per_m=float(impacts['rate_per_m']), impact_torque_sd_nm=float(impacts['torque_sd_nm']),
+        impact_duration_s=float(impacts['duration_s']), push_sd_nm=float(push['sd_nm']),
+        push_corr_length_m=float(push['corr_length_m']))
+
+
+def belt_skip_injection(profile, at_s, teeth=1):
+    """A belt tooth skip as a native injection: the pot zero moves by teeth x belt_tooth_step_deg (pot_slip)."""
+    if isinstance(teeth, bool) or not isinstance(teeth, int) or teeth == 0:
+        raise ValueError('belt_skip_teeth_must_be_a_non_zero_int')
+    step = profile.value('belt_tooth_step_deg') if profile.has('belt_tooth_step_deg') else None
+    if step is None:
+        raise ValueError('belt_skip_needs_a_schema_v3_profile')
+    return dict(kind='pot_slip', at_s=float(at_s), params=dict(offset_rad=math.radians(teeth * step)))
+
+
+def belt_break_injection(at_s):
+    """A broken or derailed belt: the pot shaft stops where it is (pot_stuck)."""
+    return dict(kind='pot_stuck', at_s=float(at_s), params={})
 
 
 def startup_line(config):

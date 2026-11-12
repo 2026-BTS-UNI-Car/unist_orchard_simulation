@@ -9,6 +9,8 @@ namespace {
 
 double clamp(double x, double lo, double hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
+const double kMaxBackdriveRateFactor = 4.0;  // cap of the torque-driven speed (x the rate limit)
+
 }  // namespace
 
 double DistanceOu::advance(double ds) {
@@ -39,7 +41,10 @@ Actuator::Actuator()
       omega_m_(0.0),
       theta_l_(0.0),
       applied_(0.0),
-      free_(false) {}
+      free_(false),
+      torque_(0.0),
+      impact_torque_(0.0),
+      impact_left_s_(0.0) {}
 
 void Actuator::configure(const ActuatorConfig &cfg, double link_min, double link_max, double theta_straight,
                          double tick_dt) {
@@ -58,6 +63,11 @@ void Actuator::configure(const ActuatorConfig &cfg, double link_min, double link
   cached_ds_ = -1.0;
 }
 
+void Actuator::configure_ext(const ExtConfig &ext) {
+  ext_ = ext;
+  push_.configure(ext.push_sd_nm, ext.push_corr_length_m);
+}
+
 void Actuator::reset(double link_angle, uint64_t seed) {
   theta_l_ = clamp(link_angle, link_min_, link_max_);
   theta_m_ = theta_l_;
@@ -67,6 +77,36 @@ void Actuator::reset(double link_angle, uint64_t seed) {
   wander_.reset(seed, kStreamBacklashWander);
   release_.reset(seed, kStreamReleaseNoise);
   cached_ds_ = -1.0;
+  torque_ = 0.0;
+  impact_torque_ = 0.0;
+  impact_left_s_ = 0.0;
+  if (ext_.present) {  // the extension streams exist only with the block (no draw otherwise)
+    impact_rng_.seed(seed, kStreamImpact);
+    if (ext_.push_sd_nm > 0.0) push_.reset(seed, kStreamPush);
+  }
+}
+
+double Actuator::terrain_torque(double ds) {
+  // Ground impacts: one rectangular pulse at a time, started by a Poisson event in distance; a new event replaces
+  // the running pulse. Pushing torque: OU process in distance. Both only while the vehicle moves (ds > 0).
+  if (impact_left_s_ > 0.0) {
+    impact_left_s_ -= dt_;
+    if (!(impact_left_s_ > 1e-12)) {
+      impact_left_s_ = 0.0;
+      impact_torque_ = 0.0;
+    }
+  }
+  if (ds > 0.0 && ext_.impact_rate_per_m > 0.0) {
+    const double p = -std::expm1(-ext_.impact_rate_per_m * ds);
+    if (impact_rng_.uniform() < p) {
+      impact_torque_ = ext_.impact_torque_sd_nm * impact_rng_.normal();
+      impact_left_s_ = ext_.impact_duration_s;
+    }
+  }
+  double tau = impact_torque_;
+  if (ds > 0.0 && ext_.push_sd_nm > 0.0) push_.advance(ds);
+  if (ext_.push_sd_nm > 0.0) tau += push_.value();
+  return tau;
 }
 
 bool Actuator::in_backlash() const {
@@ -95,9 +135,29 @@ void Actuator::tick(double command_pwm, bool enable, bool stopped, double speed_
     applied = enable ? command_pwm : 0.0;
   }
   const double u = faults.polarity_reversed ? -applied : applied;
-  const double rate = (stopped ? cfg_.rate_standstill_rad_s : cfg_.rate_max_rad_s) * faults.rate_scale;
+  double rate = (stopped ? cfg_.rate_standstill_rad_s : cfg_.rate_max_rad_s) * faults.rate_scale;
+  if (ext_.present && ext_.supply_rate_scale != 1.0) rate *= ext_.supply_rate_scale;
   const bool l0 = cfg_.level == kLevelL0;
   const bool driving = l0 ? enable : applied != 0.0;
+  const double ds = stopped ? 0.0 : speed_abs * dt_;
+
+  // External torque (steer_ext and steer_torque injections; L1 only, refused with L0 at startup).
+  double tau = faults.torque_nm;
+  if (ext_.present) tau += terrain_torque(ds);
+  torque_ = tau;
+  // Equivalent duty of tau and the speed gain (coast: no electrical braking).
+  double d_tau = 0.0, torque_gain = 1.0;
+  if (!l0 && tau != 0.0 && !faults.jam) {
+    const bool coast = !enable || faults.driver_dead;
+    if (driving || !cfg_.self_locking) {
+      d_tau = tau / cfg_.stall_torque_nm;
+    } else {
+      const double breakaway = ext_.self_lock_breakaway_nm;
+      const double excess = std::fabs(tau) - breakaway;
+      if (excess > 0.0) d_tau = (tau > 0.0 ? excess : -excess) / cfg_.stall_torque_nm;
+    }
+    if (!driving && coast && ext_.present) torque_gain = ext_.backdrive_coast_gain;
+  }
 
   // Motor side.
   if (faults.jam) {
@@ -115,10 +175,20 @@ void Actuator::tick(double command_pwm, bool enable, bool stopped, double speed_
     // torques (design 3.3 L1b). Needs the motor no-load speed and the load model (Q11); the
     // startup refuses level L1b until then.
     double w_ss = 0.0;
-    if (!l0 && driving) {
+    if (!l0 && driving && d_tau == 0.0) {
       const double min_pwm = stopped ? cfg_.min_pwm_standstill : cfg_.min_pwm;
       const double au = std::fabs(u);
       if (au > min_pwm) w_ss = (u > 0.0 ? rate : -rate) * (au - min_pwm) / (1.0 - min_pwm);
+    } else if (!l0 && d_tau != 0.0) {
+      // motor torque (if any) plus the external torque against the static friction (the start duty)
+      const double min_pwm = stopped ? cfg_.min_pwm_standstill : cfg_.min_pwm;
+      const double ue = (driving ? u : 0.0) + d_tau;
+      const double au = std::fabs(ue);
+      if (au > min_pwm) {
+        const double cap = kMaxBackdriveRateFactor * rate;
+        const double w = clamp(rate * torque_gain * (au - min_pwm) / (1.0 - min_pwm), 0.0, cap);
+        w_ss = ue > 0.0 ? w : -w;
+      }
     }
     if (l0) applied = 0.0;
     const double dw = omega_m_ - w_ss;
@@ -136,7 +206,6 @@ void Actuator::tick(double command_pwm, bool enable, bool stopped, double speed_
   // Link side.
   const bool free = !driving && !cfg_.self_locking && !faults.jam;
   theta_l_ = clamp(theta_l_, theta_m_ - h, theta_m_ + h);  // the motor side drags the link
-  const double ds = stopped ? 0.0 : speed_abs * dt_;
   if (ds > 0.0) {
     // Both processes advance with the distance in every mode so that their streams stay aligned.
     const double wander = wander_.advance(ds);
@@ -148,6 +217,7 @@ void Actuator::tick(double command_pwm, bool enable, bool stopped, double speed_
       theta_l_ = clamp(theta_l_ + wander, theta_m_ - h, theta_m_ + h);
     }
   }
+  if (tau != 0.0 && !l0) theta_l_ = tau > 0.0 ? theta_m_ + h : theta_m_ - h;  // the torque closes the play
   theta_l_ = clamp(theta_l_, link_min_, link_max_);
   if (free) theta_m_ = clamp(theta_m_, theta_l_ - h, theta_l_ + h);  // back-driven through the play
 
