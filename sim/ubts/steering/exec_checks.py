@@ -626,7 +626,8 @@ def start_drive(ctx, spec, moving=True, timeout_s=30., arm_attempts=3):
     info = dict(spec=spec, arm_attempts=[])
     for attempt in range(arm_attempts):
         status = ctx.exec_status()
-        if (status.get('client') or {}).get('state') == CLIENT_LATCHED or ctx.host().get('state') not in                 HOST_PLAIN_STATES:
+        latched = (status.get('client') or {}).get('state') == CLIENT_LATCHED
+        if latched or ctx.host().get('state') not in HOST_PLAIN_STATES:
             ctx.op.post('/api/ack')
         code, reply, _, _ = ctx.op.post('/api/start', {'row_len_m': None})
         if not reply.get('ok') and reply.get('error') != 'run_in_progress':
@@ -1940,9 +1941,144 @@ def check_drive(ctx, args):
                                   'controller)')
 
 
+# --- G-SIM row following (steer_follow_gsim_v1) -----------------------------------------------------------------------
+SCENE_DIR = Path(os.environ.get('UBTS_STEER_SCENE_DIR', '/runtime/steer/scene'))
+
+
+def check_pose(ctx, args):
+    """The truth pose now (evaluation side; used to confirm a pose reset)."""
+    ctx.obs.spin_until(lambda: bool(ctx.obs.odom), 5.)
+    ctx.obs.spin_for(.5)
+    pose = ctx.obs.last_pose()
+    return dict(check='pose', pose=None if pose is None else [round(float(v), 4) for v in pose], passed=None)
+
+
+def _run_records(ctx, step0, run_id):
+    records = executor_log(ctx.exec_dir, after_wall=step0['wall'])
+    ticks = [r for r in executor_ticks(records) if r.get('run') == run_id]
+    ends = [r for r in executor_events(records, ('run_end',), after_wall=step0['wall'] - 1.)
+            if r.get('run_id') == run_id]
+    return ticks, (ends[-1] if ends else None)
+
+
+def check_follow(ctx, args):
+    """One closed-loop run of the row-following controller through the executor, judged on the evaluation side against
+    the registration steer_follow_gsim_v1 (steering.gsim_follow). The check is the operator: Start, Arm, one press held
+    by heartbeats until the run ends; no second press."""
+    from . import gsim_follow as GF
+    from . import exec_run
+    spec = json.loads(args.controller) if args.controller else dict(GF.CONTROLLER)
+    run = next((dict(r) for r in GF.RUNS if r['name'] == args.run), None)
+    if run is None:
+        raise SessionError('unknown run %r (registered: %s)' % (args.run, ', '.join(r['name'] for r in GF.RUNS)))
+    metadata = load_json(SCENE_DIR / 'world_metadata.json')
+    manifest = load_json(SCENE_DIR / 'scene_manifest.json')
+    geometry = GF.row_geometry(metadata)
+    ctx.obs.spin_until(lambda: bool(ctx.obs.odom) and ctx.obs.sim_time is not None, 10.)
+    ensure_idle(ctx)
+    placed = None
+    if run['start'] == 'set_pose':
+        along, _, _ = GF.to_row(geometry, geometry['spawn'][0], geometry['spawn'][1], geometry['spawn_yaw'])
+        x, y, yaw = GF.from_row(geometry, along, run.get('lateral_offset_m', 0.), 0.)
+        z = exec_run.spawn_height(manifest, metadata) + exec_run.OFFSET_DROP_M
+        placed = dict(exec_run.set_model_pose(x, y, z, yaw), x=round(x, 4), y=round(y, 4), z=round(z, 4), yaw=yaw)
+        ctx.obs.spin_for(2.)
+        ctx.wait_still(10.)
+    before, step0 = step_start(ctx, 'gsim_follow_' + run['name'])
+    ctx.obs.spin_for(.3)
+    t0 = ctx.obs.sim_time
+    pose0 = ctx.obs.last_pose()
+    error, start, timeline, ended = None, None, [], None
+    try:
+        start = start_drive(ctx, spec, moving=False, timeout_s=30.)
+    except (SessionError, ClientError, OSError) as exc:
+        error = '%s: %s' % (type(exc).__name__, exc)
+    limit = time.monotonic() + (args.limit_s or GF.RUN_LIMIT_S)
+    paused_since, last = None, None
+    while error is None and time.monotonic() < limit:
+        ctx.obs.spin_for(.2)
+        status = ctx.try_exec_status()
+        if status is None:
+            continue
+        runner = status['runner']
+        key = (runner.get('state'), runner.get('reason'))
+        if key != last:
+            timeline.append(dict(sim_s=ctx.obs.sim_time, state=key[0], reason=key[1]))
+            last = key
+        if runner.get('state') == STATE_ENDED:
+            ended = dict(runner)
+            break
+        if runner.get('state') == STATE_PAUSED:
+            paused_since = paused_since or time.monotonic()
+            if time.monotonic() - paused_since > GF.PAUSE_GIVE_UP_S:
+                break
+        else:
+            paused_since = None
+    gave_up = ended is None and error is None
+    ctx.hold.release()
+    if gave_up:
+        ctx.op.post('/api/end')
+    ctx.wait_still(15.)
+    ctx.obs.spin_for(GF.CRITERIA['after_terminal_window_s'] + .7)
+    status = ctx.try_exec_status() or {}
+    runner = status.get('runner') or {}
+    t1 = ctx.obs.sim_time
+    mono1 = time.monotonic()
+    odom = [[round(float(v), 5) for v in row] for row in odom_rows(ctx.obs, t0, t1)]
+    truth = truth_rows(ctx.obs, t0, t1)
+    duty = [(r['sim_time_s'], max(abs(r.get('drive_duty_left') or 0.), abs(r.get('drive_duty_right') or 0.))
+             if r.get('drive_en') else 0.) for r in truth]
+    ticks, run_end = _run_records(ctx, step0, runner.get('run_id'))
+    emu, _ = ctx.logs(step0, wait=False)
+    lines = [(mark_sim_of_tick(step0, e['last']), e['c']['S']) for e in c_lines(emu, after_tick=step0['tick'])]
+    t_end = None
+    if run_end is not None:
+        t_end = run_end.get('t') if ctx.clock == 'sim' else interpolate_sim(list(ctx.obs.clock_rows), run_end.get('t'))
+    metrics = GF.measure(odom, duty, geometry, settle_m=run.get('settle_m', 0.))
+    stats = GF.tick_stats(ticks)
+    metrics.update(end_reason=runner.get('end_reason') if run_end is None else run_end.get('end_reason'),
+                   final_state=runner.get('state'), final_reason=runner.get('reason'), ended_at_s=t_end,
+                   pauses_after_start=sorted({str(item[1]) for item in stats['pauses_after_start']}),
+                   after_terminal=GF.after_terminal(lines, t_end, t1))
+    checks = GF.judge(run['expect'], metrics)
+    after = emulator_counters(ctx.hooks)
+    sim_made = step_sim_latches(ctx, step0, ctx.clock) if ctx.clock == 'wall' else ()
+    validity = step_validity(ctx, ctx.clock, step0['mono'], mono1, before, after, sim_made=sim_made)
+    verdict_text = GF.verdict(checks, validity['valid'])
+    counts = status.get('counts') or {}
+    steer = [[round(r['sim_time_s'], 3), round(math.degrees(r['delta_eq_rad']), 3)] for r in truth[::6]]
+    trace = dict(schema=GF.SCHEMA + '.trace', result_kind=RESULT_KIND, run=run['name'],
+                 odom_columns=['sim_s', 'x_m', 'y_m', 'yaw_rad', 'v_m_s', 'w_rad_s'], odom=odom[::3],
+                 duty=[[round(t, 3), round(v, 4)] for t, v in duty[::6]], steer_eq_deg=steer,
+                 ticks=[dict(t=r.get('t'), state=r.get('state'), reason=r.get('reason'), ctl=r.get('ctl'),
+                             corridor=r.get('corridor'), corridor_reason=r.get('corridor_reason'), lat=r.get('lat'),
+                             head=r.get('head'), width=r.get('width'), end=r.get('end'), front=r.get('front'),
+                             dist=r.get('dist'), v=r.get('v'), T=r.get('T'), S=r.get('S'),
+                             lidar_age=r.get('lidar_age')) for r in ticks],
+                 geometry=dict((k, geometry[k]) for k in ('lane', 'rows', 'centre_a', 'centre_b', 'axis_rad',
+                                                          'half_width_m', 'row_start_s', 'row_end_s', 'markers',
+                                                          'rocks', 'spawn', 'spawn_yaw')))
+    write_json(Path(ctx.out) / 'GSIM_FOLLOW_TRACE.json', trace)
+    criteria = [criterion(item['check'], item['measured'], item['limit'], item['ok'] if validity['valid'] else None)
+                for item in checks]
+    return dict(check='gsim_follow', prereg_id=GF.PREREG_ID, run=run, controller=spec, clock=ctx.clock,
+                verdict=verdict_text, passed=None if verdict_text == 'invalid' else verdict_text == 'pass',
+                criteria=criteria, checks=checks, validity=validity, metrics=metrics, tick_stats=stats,
+                start=start, start_error=error, placed=placed, gave_up_paused=gave_up, timeline=timeline,
+                run_end=run_end, pose_start=None if pose0 is None else [round(float(v), 4) for v in pose0],
+                geometry=dict(lane=geometry['lane'], rows=geometry['rows'], axis_deg=math.degrees(geometry['axis_rad']),
+                              centre_a_m=geometry['centre_a'], half_width_m=geometry['half_width_m'],
+                              row_start_s_m=geometry['row_start_s'], row_end_s_m=geometry['row_end_s'],
+                              trunks=geometry['trunks'], rocks_in_lane=len(geometry['rocks'])),
+                counts=dict((k, counts.get(k)) for k in ('scans_processed', 'scans_dropped', 'missed_ticks',
+                                                         'loop_exceptions', 'watchdog_fires', 'bridge_errors',
+                                                         'emergency_stops', 'sends')),
+                hold_replies=dict(ctx.hold.replies), samples=dict(odom=len(odom), truth=len(truth), c_lines=len(lines)))
+
+
 # --- main -----------------------------------------------------------------------------------------------------------------
 CHECKS = dict(graph=check_graph, scan=check_scan, imu=check_imu, display=check_display, chain=check_chain,
-              safety=check_safety, drive=check_drive)
+              safety=check_safety, drive=check_drive, follow=check_follow, pose=check_pose)
 
 
 def build_parser():
@@ -1959,6 +2095,8 @@ def build_parser():
     p.add_argument('--discovery-s', type=float, default=45.)
     p.add_argument('--controller', default=None, help='drive: scripted controller spec JSON')
     p.add_argument('--distance', type=float, default=6.)
+    p.add_argument('--run', default='nominal_1', help='follow: a registered run name (gsim_follow.RUNS)')
+    p.add_argument('--limit-s', type=float, default=None, help='follow: wall limit of the run')
     return p
 
 
@@ -1993,7 +2131,8 @@ def main(argv=None):
         finally:
             ctx.close()
     name = dict(graph='A13_G_EXEC.json', scan='A5_G_SCAN.json', imu='A5_G_IMU.json', display='A5_G_DISPLAY.json',
-                chain='W2_CHAIN.json', safety='A17_G_EXEC.json', drive='EXEC_DRIVE.json')[args.check]
+                chain='W2_CHAIN.json', safety='A17_G_EXEC.json', drive='EXEC_DRIVE.json',
+                follow='GSIM_FOLLOW_RUN.json', pose='POSE.json')[args.check]
     write_json(out / name, report)
     failed = [c['name'] for c in report.get('criteria', []) if c.get('passed') is False]
     print(json.dumps(dict(check=args.check, passed=report.get('passed'), failed=failed[:40],

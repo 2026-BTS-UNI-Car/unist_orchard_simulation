@@ -213,6 +213,11 @@ ROLE_TABLE = {
     'sim/ubts/steering/exec_checks.py': (ROLE_EVALUATOR, 'executor-in-the-stack checks of the G-SIM stack (A5(G), A13(G) R6, '
                                          'A17(G) executor items, W2 chain; evaluation)'),
     'sim/ubts/steering/p6a_client.py': (ROLE_DRIVER, 'P6a scripted clients of the control socket (SIM test driver)'),
+    'sim/ubts/steering/gsim_follow.py': (ROLE_EVALUATOR, 'G-SIM row-following confirmation: row geometry from the '
+                                         'scene metadata and metrics from the truth pose (evaluation)'),
+    'sim/ubts/steering/exec_run.py': (ROLE_DRIVER, 'SIM operator tool: Start / Arm / hold heartbeats / stop on the '
+                                      'executor operator page (no truth is sent) and the pose reset of the SIM '
+                                      '(scene start pose, Gazebo set_pose; run in the sim container)'),
     'sim/ubts/steering/p6a_graph.py': (ROLE_TOOL, 'ROS graph rules of A13 (G): names the truth topics as data'),
     'sim/ubts/steering/p6a_imu_model.py': (ROLE_PLANT, 'G-SIM IMU error model (plant side)'),
     'sim/ubts/steering/p6a_fw_rules.py': (ROLE_EVALUATOR, 'firmware monitor rule ticks from a recorded emulator session '
