@@ -28,6 +28,11 @@ to the folder of the config file. Unknown keys, another schema and wrong value t
 
 The dashboard default is this repository's dashboard/ folder: its scripts/rover_control_core.py has the same bytes as
 the real dashboard checkout (design 2.4; A26 compares the two copies). Standard library only.
+
+measurement_hold_file(): the HOLD_MEASUREMENT file the 10/10 replay tools (row_shadow_replay.py,
+replay_executor_shadow.py) wait on. It is the SIM tree resolver's file (sim/ubts/closed_loop/external_paths.py, key
+'hold_dir'), loaded by file path so that neither the SIM tree nor its packages get on sys.path; a copy of this package
+without the SIM tree (e.g. the ARM offline timing replay) has no hold file (None).
 """
 import json
 import os
@@ -178,3 +183,17 @@ def optional_path(key, kind=None):
         return configured_path(key, kind)
     except PathNotConfigured:
         return None
+
+
+def measurement_hold_file(repo_root=REPO_ROOT):
+    """Path of the HOLD_MEASUREMENT file of the configured hold folder (the file itself may be absent), or None when
+    this package runs without the SIM tree. With the SIM tree present the hold folder must be configured: the SIM
+    tree resolver's PathNotConfigured / FileNotFoundError is passed on (nothing runs unguarded, as in sim_in_loop)."""
+    source = Path(repo_root) / 'sim' / 'ubts' / 'closed_loop' / 'external_paths.py'
+    if not source.is_file():
+        return None
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('_row_executor_sim_tree_paths', str(source))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return Path(module.hold_file())
