@@ -1,0 +1,1090 @@
+{
+ "schema": "ubts.steer_sim.gsim_follow.result.v1",
+ "prereg_id": "steer_follow_gsim_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "field_validated": false,
+ "iteration": 1,
+ "runs": [
+  {
+   "session": "it1_nominal_1",
+   "run": {
+    "name": "nominal_1",
+    "expect": "row_end",
+    "start": "spawn"
+   },
+   "controller": {
+    "kind": "row_follow"
+   },
+   "clock": "wall",
+   "image_manifest": {
+    "image_tag_hint": null,
+    "source_commit": null,
+    "sources_match_image": true
+   },
+   "started_utc": "2026-11-12T08:48:11Z",
+   "verdict_recorded": "pass",
+   "failed_recorded": [],
+   "verdict_rejudged": "pass",
+   "failed_rejudged": [],
+   "checks": [
+    {
+     "check": "no contact",
+     "ok": true,
+     "measured": 1.4085,
+     "limit": "> 0 m"
+    },
+    {
+     "check": "at rest at the end",
+     "ok": true,
+     "measured": 0.0,
+     "limit": "<= 0.02 m/s"
+    },
+    {
+     "check": "no guard violation",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "none"
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "ok": true,
+     "measured": {
+      "passed": true,
+      "complete": true,
+      "c_lines_in_window": 0,
+      "other_s_permille": []
+     },
+     "limit": "passed"
+    },
+    {
+     "check": "ends at the row end",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "row_end"
+    },
+    {
+     "check": "no pause after the drive started",
+     "ok": true,
+     "measured": [],
+     "limit": "none"
+    },
+    {
+     "check": "lateral RMSE",
+     "ok": true,
+     "measured": 0.0214,
+     "limit": "<= 0.2 m"
+    },
+    {
+     "check": "lateral p95",
+     "ok": true,
+     "measured": 0.0492,
+     "limit": "<= 0.35 m"
+    },
+    {
+     "check": "lateral max",
+     "ok": true,
+     "measured": 0.0546,
+     "limit": "<= 0.5 m"
+    },
+    {
+     "check": "heading RMSE",
+     "ok": true,
+     "measured": 0.594,
+     "limit": "<= 5 deg"
+    },
+    {
+     "check": "heading max",
+     "ok": true,
+     "measured": 1.47,
+     "limit": "<= 15 deg"
+    },
+    {
+     "check": "true speed max",
+     "ok": true,
+     "measured": 0.443,
+     "limit": "<= 0.5 m/s"
+    },
+    {
+     "check": "row end stop position e",
+     "ok": true,
+     "measured": 0.452,
+     "limit": "[-1, +1] m"
+    }
+   ],
+   "metrics": {
+    "drove": true,
+    "samples": 2399,
+    "settle_m": 0.0,
+    "min_clearance_m": 1.4085,
+    "min_clearance_to": "trunk",
+    "rest_speed_m_s": 0.0,
+    "rest_along_m": 29.861,
+    "rest_lateral_m": 0.013,
+    "rest_heading_deg": 1.473,
+    "row_end_error_m": 0.452,
+    "start_along_m": -3.621,
+    "start_lateral_m": -0.01,
+    "start_heading_deg": 0.12,
+    "drive_start_s": 34.55,
+    "drive_stop_s": 127.775,
+    "duration_s": 93.22,
+    "distance_m": 33.47,
+    "lateral_max_m": 0.0546,
+    "heading_max_deg": 1.47,
+    "speed_mean_m_s": 0.359,
+    "speed_max_m_s": 0.443,
+    "lateral_rmse_m": 0.0214,
+    "lateral_p95_m": 0.0492,
+    "heading_rmse_deg": 0.594,
+    "end_reason": "row_end",
+    "final_state": "ENDED",
+    "final_reason": "row_end",
+    "ended_at_s": 128.68341663492018,
+    "pauses_after_start": [],
+    "after_terminal": {
+     "passed": true,
+     "complete": true,
+     "from_s": 128.683,
+     "window_s": 3.0,
+     "c_lines_in_window": 0,
+     "reference_s_permille": 0,
+     "other_s_permille": []
+    }
+   },
+   "validity": {
+    "valid": true,
+    "reason": "RTF 1.000, no emulator wall gap above 100 ms",
+    "rtf": 1.0000895494565938,
+    "clock_wall_gaps_over_20ms": 0,
+    "clock_wall_gaps_over_100ms": 0,
+    "sim_made_latches": 0
+   },
+   "tick_stats": {
+    "ticks": 1986,
+    "active_ticks": 1885,
+    "driving_ticks": 1860,
+    "corridor_valid_ticks": 1885,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 995,
+     "follow_scan": 678,
+     "follow_end": 187,
+     "stopping_row_end": 24,
+     "align": 1
+    },
+    "lidar_age_max_s": 0.191,
+    "loop_ms_p50": null,
+    "loop_ms_max": null
+   },
+   "tick_stats_recorded": {
+    "ticks": 1986,
+    "active_ticks": 1885,
+    "driving_ticks": 1860,
+    "corridor_valid_ticks": 1885,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 995,
+     "follow_scan": 678,
+     "follow_end": 187,
+     "stopping_row_end": 24,
+     "align": 1
+    },
+    "lidar_age_max_s": 0.191,
+    "loop_ms_p50": 3.63,
+    "loop_ms_max": 40.55
+   },
+   "ticks_recorded": 1986,
+   "counts": {
+    "scans_processed": 1215,
+    "scans_dropped": 6,
+    "missed_ticks": 0,
+    "loop_exceptions": 0,
+    "watchdog_fires": 0,
+    "bridge_errors": 1,
+    "emergency_stops": 0,
+    "sends": 708
+   },
+   "start": {
+    "spec": {
+     "kind": "row_follow"
+    },
+    "arm_attempts": [
+     {
+      "code": 409,
+      "ok": false,
+      "error": "arm_precheck:steering_fault:steering_status_stale",
+      "wall": 1794473300.178422
+     },
+     {
+      "code": 200,
+      "ok": true,
+      "error": null,
+      "wall": 1794473300.8289456
+     }
+    ],
+    "presses": 1,
+    "active_wall": 1794473301.9154058
+   },
+   "pose_start": [
+    32.5833,
+    -3.6207,
+    -0.0015,
+    0.0014,
+    0.0,
+    0.0
+   ],
+   "placed": null,
+   "run_end": {
+    "end_reason": "row_end",
+    "pauses": 0,
+    "resumes": 1,
+    "stale_events": 0,
+    "stall_guard_pauses": 0,
+    "controllers_built": 1
+   },
+   "geometry": {
+    "lane": 0,
+    "rows": [
+     0,
+     1
+    ],
+    "axis_deg": -0.03873897518573952,
+    "centre_a_m": 0.006027249943889479,
+    "half_width_m": 1.8976220296488415,
+    "row_start_s_m": 0.025265714472618613,
+    "row_end_s_m": 30.018708523758036,
+    "trunks": 49,
+    "rocks_in_lane": 3
+   },
+   "host_quiet": true,
+   "files": {
+    "run_sha256": "ce2640d0274fd60070f55909fe798f3c4373fb63efe6af3fad6a3d186986e210",
+    "trace_sha256": "1283b4d888e1e79c63ef4369394a9eb7f842f4f65af2864f16d77b2442d305e6"
+   }
+  },
+  {
+   "session": "it1_nominal_2",
+   "run": {
+    "name": "nominal_2",
+    "expect": "row_end",
+    "start": "spawn"
+   },
+   "controller": {
+    "kind": "row_follow"
+   },
+   "clock": "wall",
+   "image_manifest": {
+    "image_tag_hint": null,
+    "source_commit": null,
+    "sources_match_image": true
+   },
+   "started_utc": "2026-11-12T08:51:58Z",
+   "verdict_recorded": "fail",
+   "failed_recorded": [
+    "no pause after the drive started"
+   ],
+   "verdict_rejudged": "pass",
+   "failed_rejudged": [],
+   "checks": [
+    {
+     "check": "no contact",
+     "ok": true,
+     "measured": 1.4089,
+     "limit": "> 0 m"
+    },
+    {
+     "check": "at rest at the end",
+     "ok": true,
+     "measured": 0.0,
+     "limit": "<= 0.02 m/s"
+    },
+    {
+     "check": "no guard violation",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "none"
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "ok": true,
+     "measured": {
+      "passed": true,
+      "complete": true,
+      "c_lines_in_window": 0,
+      "other_s_permille": []
+     },
+     "limit": "passed"
+    },
+    {
+     "check": "ends at the row end",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "row_end"
+    },
+    {
+     "check": "no pause after the drive started",
+     "ok": true,
+     "measured": [],
+     "limit": "none"
+    },
+    {
+     "check": "lateral RMSE",
+     "ok": true,
+     "measured": 0.0275,
+     "limit": "<= 0.2 m"
+    },
+    {
+     "check": "lateral p95",
+     "ok": true,
+     "measured": 0.0568,
+     "limit": "<= 0.35 m"
+    },
+    {
+     "check": "lateral max",
+     "ok": true,
+     "measured": 0.0624,
+     "limit": "<= 0.5 m"
+    },
+    {
+     "check": "heading RMSE",
+     "ok": true,
+     "measured": 0.8,
+     "limit": "<= 5 deg"
+    },
+    {
+     "check": "heading max",
+     "ok": true,
+     "measured": 1.959,
+     "limit": "<= 15 deg"
+    },
+    {
+     "check": "true speed max",
+     "ok": true,
+     "measured": 0.446,
+     "limit": "<= 0.5 m/s"
+    },
+    {
+     "check": "row end stop position e",
+     "ok": true,
+     "measured": 0.459,
+     "limit": "[-1, +1] m"
+    }
+   ],
+   "metrics": {
+    "drove": true,
+    "samples": 2417,
+    "settle_m": 0.0,
+    "min_clearance_m": 1.4089,
+    "min_clearance_to": "trunk",
+    "rest_speed_m_s": 0.0,
+    "rest_along_m": 29.868,
+    "rest_lateral_m": -0.012,
+    "rest_heading_deg": -0.179,
+    "row_end_error_m": 0.459,
+    "start_along_m": -3.621,
+    "start_lateral_m": -0.01,
+    "start_heading_deg": 0.106,
+    "drive_start_s": 34.583,
+    "drive_stop_s": 128.642,
+    "duration_s": 94.06,
+    "distance_m": 33.48,
+    "lateral_max_m": 0.0624,
+    "heading_max_deg": 1.959,
+    "speed_mean_m_s": 0.356,
+    "speed_max_m_s": 0.446,
+    "lateral_rmse_m": 0.0275,
+    "lateral_p95_m": 0.0568,
+    "heading_rmse_deg": 0.8,
+    "end_reason": "row_end",
+    "final_state": "ENDED",
+    "final_reason": "row_end",
+    "ended_at_s": 129.46092863565292,
+    "pauses_after_start": [],
+    "after_terminal": {
+     "passed": true,
+     "complete": true,
+     "from_s": 129.461,
+     "window_s": 3.0,
+     "c_lines_in_window": 0,
+     "reference_s_permille": 82,
+     "other_s_permille": []
+    }
+   },
+   "validity": {
+    "valid": true,
+    "reason": "RTF 1.000, no emulator wall gap above 100 ms",
+    "rtf": 0.9996450391878148,
+    "clock_wall_gaps_over_20ms": 4,
+    "clock_wall_gaps_over_100ms": 0,
+    "sim_made_latches": 0
+   },
+   "tick_stats": {
+    "ticks": 1976,
+    "active_ticks": 1872,
+    "driving_ticks": 1849,
+    "corridor_valid_ticks": 1872,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 898,
+     "follow_blind": 577,
+     "follow_scan": 193,
+     "follow_end": 181,
+     "stopping_row_end": 22,
+     "align": 1
+    },
+    "lidar_age_max_s": 0.263,
+    "loop_ms_p50": null,
+    "loop_ms_max": null
+   },
+   "tick_stats_recorded": {
+    "ticks": 4072,
+    "active_ticks": 3757,
+    "driving_ticks": 3709,
+    "corridor_valid_ticks": 3757,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [
+     [
+      8915.4665,
+      "await_hold"
+     ]
+    ],
+    "controller_reasons": {
+     "follow_cruise": 1893,
+     "follow_scan": 871,
+     "follow_blind": 577,
+     "follow_end": 368,
+     "stopping_row_end": 46,
+     "align": 2
+    },
+    "lidar_age_max_s": 0.263,
+    "loop_ms_p50": 4.61,
+    "loop_ms_max": 177.01
+   },
+   "ticks_recorded": 4072,
+   "counts": {
+    "scans_processed": 1218,
+    "scans_dropped": 6,
+    "missed_ticks": 28,
+    "loop_exceptions": 0,
+    "watchdog_fires": 0,
+    "bridge_errors": 1,
+    "emergency_stops": 0,
+    "sends": 747
+   },
+   "start": {
+    "spec": {
+     "kind": "row_follow"
+    },
+    "arm_attempts": [
+     {
+      "code": 409,
+      "ok": false,
+      "error": "arm_precheck:steering_fault:steering_status_stale",
+      "wall": 1794473522.8402963
+     },
+     {
+      "code": 200,
+      "ok": true,
+      "error": null,
+      "wall": 1794473523.486443
+     }
+    ],
+    "presses": 1,
+    "active_wall": 1794473524.6587253
+   },
+   "pose_start": [
+    32.5833,
+    -3.6207,
+    -0.0016,
+    0.0012,
+    0.0,
+    0.0
+   ],
+   "placed": null,
+   "run_end": {
+    "end_reason": "row_end",
+    "pauses": 0,
+    "resumes": 1,
+    "stale_events": 0,
+    "stall_guard_pauses": 0,
+    "controllers_built": 1
+   },
+   "geometry": {
+    "lane": 0,
+    "rows": [
+     0,
+     1
+    ],
+    "axis_deg": -0.03873897518573952,
+    "centre_a_m": 0.006027249943889479,
+    "half_width_m": 1.8976220296488415,
+    "row_start_s_m": 0.025265714472618613,
+    "row_end_s_m": 30.018708523758036,
+    "trunks": 49,
+    "rocks_in_lane": 3
+   },
+   "host_quiet": true,
+   "files": {
+    "run_sha256": "e4520285d0d70e4ee23d51681128d4afaa089dae979f27ede668ce6833d3a6f9",
+    "trace_sha256": "0a4e71335026a94249487d4e9af20ca2b4482cbfe962b4a84a41e63e2cd45601"
+   }
+  },
+  {
+   "session": "it1_nominal_3",
+   "run": {
+    "name": "nominal_3",
+    "expect": "row_end",
+    "start": "spawn"
+   },
+   "controller": {
+    "kind": "row_follow"
+   },
+   "clock": "wall",
+   "image_manifest": {
+    "image_tag_hint": null,
+    "source_commit": null,
+    "sources_match_image": true
+   },
+   "started_utc": "2026-11-12T08:56:08Z",
+   "verdict_recorded": "pass",
+   "failed_recorded": [],
+   "verdict_rejudged": "pass",
+   "failed_rejudged": [],
+   "checks": [
+    {
+     "check": "no contact",
+     "ok": true,
+     "measured": 1.4066,
+     "limit": "> 0 m"
+    },
+    {
+     "check": "at rest at the end",
+     "ok": true,
+     "measured": 0.0,
+     "limit": "<= 0.02 m/s"
+    },
+    {
+     "check": "no guard violation",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "none"
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "ok": true,
+     "measured": {
+      "passed": true,
+      "complete": true,
+      "c_lines_in_window": 0,
+      "other_s_permille": []
+     },
+     "limit": "passed"
+    },
+    {
+     "check": "ends at the row end",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "row_end"
+    },
+    {
+     "check": "no pause after the drive started",
+     "ok": true,
+     "measured": [],
+     "limit": "none"
+    },
+    {
+     "check": "lateral RMSE",
+     "ok": true,
+     "measured": 0.0276,
+     "limit": "<= 0.2 m"
+    },
+    {
+     "check": "lateral p95",
+     "ok": true,
+     "measured": 0.0563,
+     "limit": "<= 0.35 m"
+    },
+    {
+     "check": "lateral max",
+     "ok": true,
+     "measured": 0.0663,
+     "limit": "<= 0.5 m"
+    },
+    {
+     "check": "heading RMSE",
+     "ok": true,
+     "measured": 0.8,
+     "limit": "<= 5 deg"
+    },
+    {
+     "check": "heading max",
+     "ok": true,
+     "measured": 1.724,
+     "limit": "<= 15 deg"
+    },
+    {
+     "check": "true speed max",
+     "ok": true,
+     "measured": 0.446,
+     "limit": "<= 0.5 m/s"
+    },
+    {
+     "check": "row end stop position e",
+     "ok": true,
+     "measured": 0.456,
+     "limit": "[-1, +1] m"
+    }
+   ],
+   "metrics": {
+    "drove": true,
+    "samples": 2415,
+    "settle_m": 0.0,
+    "min_clearance_m": 1.4066,
+    "min_clearance_to": "trunk",
+    "rest_speed_m_s": 0.0,
+    "rest_along_m": 29.865,
+    "rest_lateral_m": -0.01,
+    "rest_heading_deg": 0.939,
+    "row_end_error_m": 0.456,
+    "start_along_m": -3.621,
+    "start_lateral_m": -0.01,
+    "start_heading_deg": 0.107,
+    "drive_start_s": 33.925,
+    "drive_stop_s": 128.475,
+    "duration_s": 94.55,
+    "distance_m": 33.48,
+    "lateral_max_m": 0.0663,
+    "heading_max_deg": 1.724,
+    "speed_mean_m_s": 0.354,
+    "speed_max_m_s": 0.446,
+    "lateral_rmse_m": 0.0276,
+    "lateral_p95_m": 0.0563,
+    "heading_rmse_deg": 0.8,
+    "end_reason": "row_end",
+    "final_state": "ENDED",
+    "final_reason": "row_end",
+    "ended_at_s": 129.38951517093562,
+    "pauses_after_start": [],
+    "after_terminal": {
+     "passed": true,
+     "complete": true,
+     "from_s": 129.39,
+     "window_s": 3.0,
+     "c_lines_in_window": 0,
+     "reference_s_permille": 57,
+     "other_s_permille": []
+    }
+   },
+   "validity": {
+    "valid": true,
+    "reason": "RTF 0.999, no emulator wall gap above 100 ms",
+    "rtf": 0.9986521202134685,
+    "clock_wall_gaps_over_20ms": 9,
+    "clock_wall_gaps_over_100ms": 0,
+    "sim_made_latches": 0
+   },
+   "tick_stats": {
+    "ticks": 1993,
+    "active_ticks": 1892,
+    "driving_ticks": 1867,
+    "corridor_valid_ticks": 1892,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 714,
+     "follow_scan": 504,
+     "follow_blind": 470,
+     "follow_end": 179,
+     "stopping_row_end": 24,
+     "align": 1
+    },
+    "lidar_age_max_s": 0.338,
+    "loop_ms_p50": null,
+    "loop_ms_max": null
+   },
+   "tick_stats_recorded": {
+    "ticks": 1993,
+    "active_ticks": 1892,
+    "driving_ticks": 1867,
+    "corridor_valid_ticks": 1892,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 714,
+     "follow_scan": 504,
+     "follow_blind": 470,
+     "follow_end": 179,
+     "stopping_row_end": 24,
+     "align": 1
+    },
+    "lidar_age_max_s": 0.338,
+    "loop_ms_p50": 6.61,
+    "loop_ms_max": 207.53
+   },
+   "ticks_recorded": 1993,
+   "counts": {
+    "scans_processed": 1220,
+    "scans_dropped": 6,
+    "missed_ticks": 23,
+    "loop_exceptions": 0,
+    "watchdog_fires": 0,
+    "bridge_errors": 0,
+    "emergency_stops": 0,
+    "sends": 754
+   },
+   "start": {
+    "spec": {
+     "kind": "row_follow"
+    },
+    "arm_attempts": [
+     {
+      "code": 200,
+      "ok": true,
+      "error": null,
+      "wall": 1794473775.947141
+     }
+    ],
+    "presses": 1,
+    "active_wall": 1794473777.0886455
+   },
+   "pose_start": [
+    32.5833,
+    -3.6207,
+    -0.0016,
+    0.0012,
+    0.0,
+    0.0
+   ],
+   "placed": null,
+   "run_end": {
+    "end_reason": "row_end",
+    "pauses": 0,
+    "resumes": 1,
+    "stale_events": 0,
+    "stall_guard_pauses": 0,
+    "controllers_built": 1
+   },
+   "geometry": {
+    "lane": 0,
+    "rows": [
+     0,
+     1
+    ],
+    "axis_deg": -0.03873897518573952,
+    "centre_a_m": 0.006027249943889479,
+    "half_width_m": 1.8976220296488415,
+    "row_start_s_m": 0.025265714472618613,
+    "row_end_s_m": 30.018708523758036,
+    "trunks": 49,
+    "rocks_in_lane": 3
+   },
+   "host_quiet": true,
+   "files": {
+    "run_sha256": "0b2515a3255de615546e3f17f58d395f929c77c49b417ded622b93572c3d364a",
+    "trace_sha256": "79c0b2c80afbb58f51364d87ab0d98c2e9a75549a06fa2d940119faef6361712"
+   }
+  },
+  {
+   "session": "it1_lateral_p040",
+   "run": {
+    "name": "lateral_p040",
+    "expect": "row_end",
+    "start": "set_pose",
+    "lateral_offset_m": 0.4,
+    "settle_m": 6.0
+   },
+   "controller": {
+    "kind": "row_follow"
+   },
+   "clock": "wall",
+   "image_manifest": {
+    "image_tag_hint": null,
+    "source_commit": null,
+    "sources_match_image": true
+   },
+   "started_utc": "2026-11-12T08:59:37Z",
+   "verdict_recorded": "pass",
+   "failed_recorded": [],
+   "verdict_rejudged": "pass",
+   "failed_rejudged": [],
+   "checks": [
+    {
+     "check": "no contact",
+     "ok": true,
+     "measured": 1.4056,
+     "limit": "> 0 m"
+    },
+    {
+     "check": "at rest at the end",
+     "ok": true,
+     "measured": 0.0,
+     "limit": "<= 0.02 m/s"
+    },
+    {
+     "check": "no guard violation",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "none"
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "ok": true,
+     "measured": {
+      "passed": true,
+      "complete": true,
+      "c_lines_in_window": 0,
+      "other_s_permille": []
+     },
+     "limit": "passed"
+    },
+    {
+     "check": "ends at the row end",
+     "ok": true,
+     "measured": "row_end",
+     "limit": "row_end"
+    },
+    {
+     "check": "no pause after the drive started",
+     "ok": true,
+     "measured": [],
+     "limit": "none"
+    },
+    {
+     "check": "lateral RMSE",
+     "ok": true,
+     "measured": 0.0391,
+     "limit": "<= 0.2 m"
+    },
+    {
+     "check": "lateral p95",
+     "ok": true,
+     "measured": 0.0608,
+     "limit": "<= 0.35 m"
+    },
+    {
+     "check": "lateral max",
+     "ok": true,
+     "measured": 0.4015,
+     "limit": "<= 0.5 m"
+    },
+    {
+     "check": "heading RMSE",
+     "ok": true,
+     "measured": 1.175,
+     "limit": "<= 5 deg"
+    },
+    {
+     "check": "heading max",
+     "ok": true,
+     "measured": 10.92,
+     "limit": "<= 15 deg"
+    },
+    {
+     "check": "true speed max",
+     "ok": true,
+     "measured": 0.445,
+     "limit": "<= 0.5 m/s"
+    },
+    {
+     "check": "row end stop position e",
+     "ok": true,
+     "measured": 0.446,
+     "limit": "[-1, +1] m"
+    }
+   ],
+   "metrics": {
+    "drove": true,
+    "samples": 2443,
+    "settle_m": 6.0,
+    "min_clearance_m": 1.4056,
+    "min_clearance_to": "trunk",
+    "rest_speed_m_s": 0.0,
+    "rest_along_m": 29.855,
+    "rest_lateral_m": 0.044,
+    "rest_heading_deg": -0.639,
+    "row_end_error_m": 0.446,
+    "start_along_m": -2.996,
+    "start_lateral_m": 0.401,
+    "start_heading_deg": -0.036,
+    "drive_start_s": 39.158,
+    "drive_stop_s": 131.758,
+    "duration_s": 92.6,
+    "distance_m": 32.91,
+    "lateral_max_m": 0.4015,
+    "heading_max_deg": 10.92,
+    "speed_mean_m_s": 0.355,
+    "speed_max_m_s": 0.445,
+    "lateral_rmse_m": 0.0391,
+    "lateral_p95_m": 0.0608,
+    "heading_rmse_deg": 1.175,
+    "end_reason": "row_end",
+    "final_state": "ENDED",
+    "final_reason": "row_end",
+    "ended_at_s": 132.67330709908757,
+    "pauses_after_start": [],
+    "after_terminal": {
+     "passed": true,
+     "complete": true,
+     "from_s": 132.673,
+     "window_s": 3.0,
+     "c_lines_in_window": 0,
+     "reference_s_permille": -46,
+     "other_s_permille": []
+    }
+   },
+   "validity": {
+    "valid": true,
+    "reason": "RTF 1.000, no emulator wall gap above 100 ms",
+    "rtf": 1.0000912434270295,
+    "clock_wall_gaps_over_20ms": 0,
+    "clock_wall_gaps_over_100ms": 0,
+    "sim_made_latches": 0
+   },
+   "tick_stats": {
+    "ticks": 2025,
+    "active_ticks": 1923,
+    "driving_ticks": 1848,
+    "corridor_valid_ticks": 1923,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 904,
+     "follow_scan": 589,
+     "follow_end": 183,
+     "follow_lateral": 172,
+     "align": 51,
+     "stopping_row_end": 24
+    },
+    "lidar_age_max_s": 0.185,
+    "loop_ms_p50": null,
+    "loop_ms_max": null
+   },
+   "tick_stats_recorded": {
+    "ticks": 2025,
+    "active_ticks": 1923,
+    "driving_ticks": 1848,
+    "corridor_valid_ticks": 1923,
+    "corridor_valid_ratio": 1.0,
+    "corridor_valid_ratio_driving": 1.0,
+    "corridor_invalid_reasons": {},
+    "pauses_after_start": [],
+    "controller_reasons": {
+     "follow_cruise": 904,
+     "follow_scan": 589,
+     "follow_end": 183,
+     "follow_lateral": 172,
+     "align": 51,
+     "stopping_row_end": 24
+    },
+    "lidar_age_max_s": 0.185,
+    "loop_ms_p50": 4.15,
+    "loop_ms_max": 32.01
+   },
+   "ticks_recorded": 2025,
+   "counts": {
+    "scans_processed": 1251,
+    "scans_dropped": 3,
+    "missed_ticks": 0,
+    "loop_exceptions": 0,
+    "watchdog_fires": 0,
+    "bridge_errors": 1,
+    "emergency_stops": 0,
+    "sends": 739
+   },
+   "start": {
+    "spec": {
+     "kind": "row_follow"
+    },
+    "arm_attempts": [
+     {
+      "code": 409,
+      "ok": false,
+      "error": "arm_precheck:steering_fault:steering_status_stale",
+      "wall": 1794473987.325807
+     },
+     {
+      "code": 200,
+      "ok": true,
+      "error": null,
+      "wall": 1794473987.975964
+     }
+    ],
+    "presses": 1,
+    "active_wall": 1794473989.0725625
+   },
+   "pose_start": [
+    34.7083,
+    -2.9956,
+    0.4088,
+    -0.0013,
+    -0.0001,
+    0.0001
+   ],
+   "placed": {
+    "service": "/world/ubts_orchard/set_pose",
+    "requested": true,
+    "accepted": true,
+    "x": -2.9997,
+    "y": 0.4081,
+    "z": 0.0293,
+    "yaw": -0.0006761226658395365
+   },
+   "run_end": {
+    "end_reason": "row_end",
+    "pauses": 0,
+    "resumes": 1,
+    "stale_events": 0,
+    "stall_guard_pauses": 0,
+    "controllers_built": 1
+   },
+   "geometry": {
+    "lane": 0,
+    "rows": [
+     0,
+     1
+    ],
+    "axis_deg": -0.03873897518573952,
+    "centre_a_m": 0.006027249943889479,
+    "half_width_m": 1.8976220296488415,
+    "row_start_s_m": 0.025265714472618613,
+    "row_end_s_m": 30.018708523758036,
+    "trunks": 49,
+    "rocks_in_lane": 3
+   },
+   "host_quiet": true,
+   "files": {
+    "run_sha256": "0627226f26e0f800052db35c8920ac7ffb194617d74a0b64f7745de7177096fc",
+    "trace_sha256": "4ead2d2d6e0df2de647934c35e7907174d3a6041076e7e6edb2c0140892a3742"
+   }
+  }
+ ],
+ "recorded": {
+  "pass": 3,
+  "fail": 1,
+  "invalid": 0
+ },
+ "after_amendments": {
+  "pass": 4,
+  "fail": 0,
+  "invalid": 0
+ },
+ "overall_recorded": "not pass",
+ "overall_after_amendments": "pass"
+}

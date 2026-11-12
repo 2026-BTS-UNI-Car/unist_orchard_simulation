@@ -114,5 +114,5 @@ python -B -m steering.safety_scripts.follow_matrix --out <저장소 밖 폴더> 
 
 - 모듈과 팩토리: `sim/ubts/closed_loop/steer_control.py`의 `make_factory(spec, executor_cfg)`. 실행기 쪽 입구는 `steering.scripted_control.make_factory(spec, executor_cfg)`이고 `spec["kind"] == "row_follow"`이면 위 팩토리로 넘긴다. 돌려준 팩토리를 `Runner(cfg, controller_factory=...)`에 준다.
 - F-SIM(T1): 에피소드 spec의 `"controller": {"kind": "row_follow"}`.
-- Docker 스택의 실행기 컨테이너(`steering.exec_container_main`): 환경 변수 `UBTS_STEER_EXEC_CONTROLLER='{"kind": "row_follow"}'`(`compose.ubts-steer.yaml`이 넘긴다) 또는 인자 `--controller '{"kind": "row_follow"}'`. run 사이에는 SIM 걸이 `controller {"kind": "row_follow"}`로 바꿀 수 있다. 이미지는 `sim/ubts` 전체를 복사하므로 다시 빌드하면 들어간다. 컨테이너에서는 돌려 보지 않았다(이 작업에서는 Docker를 쓰지 않았다).
+- Docker 스택의 실행기 컨테이너(`steering.exec_container_main`): 환경 변수 `UBTS_STEER_EXEC_CONTROLLER='{"kind": "row_follow"}'`(`compose.ubts-steer.yaml`이 넘긴다) 또는 인자 `--controller '{"kind": "row_follow"}'`. run 사이에는 SIM 걸이 `controller {"kind": "row_follow"}`로 바꿀 수 있다. 이미지는 `sim/ubts` 전체를 복사하므로 다시 빌드하면 들어간다. 이 문서의 작업에서는 Docker를 쓰지 않았다. 스택(G-SIM, 이미지 wf4c)에서 돌린 결과는 `STEER_FOLLOW_GSIM_RESULT_KO.md`다.
 - 제어기 값은 spec에 `SteerFollowConfig`의 필드 이름으로 넣어 바꾼다(예: `{"kind": "row_follow", "cruise_speed_m_s": 0.35}`). 모르는 이름은 거부한다. 조향 속도·소프트 한계·신선도 한도·duty 상한은 실행기 설정에서 가져온다. 이 결과는 기본값이다.
