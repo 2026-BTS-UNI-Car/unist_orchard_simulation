@@ -236,3 +236,15 @@
   - τ_loop 구성: 스캔 나이, 틱 기다림, 실행기 한 걸음, 송신 기다림의 p50 / p90 / p99 / 최대와 그 합.
   - 속도 조절기가 묶인 상한 이름별 시간 비율.
 - 비교 기준은 `TIMING_BASELINE_KO.md`다. SIM 값은 자리값 기반이며 Jetson 값이 아니다.
+
+### 개정 33 — 구동기 사전값 층(L1, PC-06) 확인 기준 (2026-11-13, 설계 v2 V2-1 2항, `steering.safety_scripts.prior_checks`의 등록 실행 전)
+
+- 이 개정과 같은 커밋이 첫 등록 실행보다 앞선다. 그 전에는 등록 밖 스모크(seed 7) 한 번뿐이었다.
+- 장치: T1 빠른 SIM(실행기 포함, `tools/row_executor/sim_in_loop_steer.py`), W0 기둥 두 줄, 대본 제어기 `straight_hold` 40 %, 10 m, 60 s, seed 0~4. seed마다 run 7종: off(기본 설정), monitor(사전값 켬·가중 0·프로필 표), table_ok, table_plus30, table_minus30(가중 0, 표 ×1.0 / ×1.3 / ×0.7), blackout(가중 1, LiDAR 끊김 16.0~17.0 s), blackout_w0(같은 끊김, 가중 0, 비교용).
+- 보정: monitor run 마지막 주행 틱의 온라인 배율(실행기 자신의 LiDAR 속도 ÷ 표 속도)을 [0.5, 1.3]으로 묶어 나머지 run의 `prior_speed_scale`로 쓴다(운영자가 주행 뒤 저장하는 흉내, PW-10).
+- 판정(모두 맞아야 합격):
+  1. 가중 0은 기본과 같다: off와 monitor의 직렬 로그, trace 공통 칸, 실행기 틱('prior' 블록을 뺀 것)이 바이트까지 같다.
+  2. 표 어긋남 표시: table_ok에서 꺼짐, table_plus30·table_minus30에서 켜짐(마지막 주행 틱).
+  3. 예측 오차: blackout run에서 끊김 시작부터 끝까지 추정기의 예측 이동과 참 이동의 차이(끊김 시작 때의 차체 좌표) ≤ 0.15 m.
+  4. 사전값만으로 주행 0: monitor·table·blackout run 모두에서, 사전값 예측 시간이 1.0 s를 넘은 상태로 구동(throttle > 0)하거나 조향 목표를 바꾼 틱이 0개.
+- 참값은 평가 코드(A13 역할 evaluator)만 읽는다. 결과는 자리값 기반 SIM 결과다.

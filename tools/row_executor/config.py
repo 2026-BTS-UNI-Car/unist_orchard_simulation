@@ -355,6 +355,23 @@ class ExecutorConfig:
     operator_timeout_s: float = .5               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
                                                  # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31)
 
+    # --- actuator priors and estimator outputs of design v2 (V2-1 item 2, layer L1; front_steer only). Opt-in: with the
+    # defaults nothing is fed and nothing changes; an untouched block is left out of to_dict()/digest() (existing
+    # configs keep their digest). PWM is not an encoder: the prior is bounded and LiDAR + raw IMU stay the main input.
+    # Every value is a placeholder until the steered vehicle is measured (the field tuning file replaces the table).
+    prior_enabled: bool = False                  # feed the applied drive duty and the measured steering angle of the
+                                                 # steering status to the estimator; snapshot / log block 'actuator_prior'
+    prior_weight: float = 0.                     # 0 = record and monitor only; (0, 1] = scan-match seed blend and the
+                                                 # share of the bounded prediction (a failed match, a scan gap)
+    prior_speed_table: tuple = ()                # ((duty_pct, speed_m_s), ...) rising; () = the vendored placeholder table
+    prior_speed_scale: float = 1.                # k_field: table speed x scale = expected speed (field tuning 0.5-1.3)
+    prior_wheelbase_m: object = None             # yaw-rate prior v tan(steer) / L; None = no yaw-rate prior
+    prior_predict_max_s: float = 1.              # prediction bound since the last scan-matched pose (locked values):
+    prior_predict_max_m: float = .5              # whichever comes first; then PAUSED 'prediction_limit'
+    prior_mismatch_fraction: float = .2          # |table speed / LiDAR speed - 1| above this over the monitor window:
+                                                 # table_mismatch (shown and logged; never a stop)
+    corridor_quality: bool = False               # estimator 'corridor_quality' block (sides, support, ages, spread)
+
     # --- assisted headland turn (TurnAssist; opt-in, default DISABLED; TURN_DESIGN.txt 3.10) ------
     # With the defaults below no turn run can command any output (observe / dry runs only) and the
     # row executor is unchanged; an untouched turn block is left out of to_dict()/digest().
@@ -449,6 +466,10 @@ class ExecutorConfig:
         if all(data[k] == _AUTONOMY_DEFAULTS[k] for k in AUTONOMY_KEYS):
             for k in AUTONOMY_KEYS:    # untouched autonomy block (design v2): the same
                 del data[k]
+        data['prior_speed_table'] = [list(point) for point in self.prior_speed_table]
+        if all(getattr(self, k) == _PRIOR_DEFAULTS[k] for k in PRIOR_KEYS):
+            for k in PRIOR_KEYS:       # untouched design v2 block: the same
+                del data[k]
         return data
 
     def digest(self):
@@ -467,6 +488,20 @@ class ExecutorConfig:
             # single-row estimator options (other modes: the EstimatorConfig defaults, i.e. the original rules)
             overrides.update(single_row_estimator_fields(self))
         return overrides
+
+    def actuator_prior_settings(self):
+        """Keyword arguments of the vendored ActuatorPriorConfig (closed_loop/actuator_prior.py), or None while
+        prior_enabled is False. The status age limit is the steering status one (design v2 V2-1)."""
+        if not self.prior_enabled:
+            return None
+        settings = dict(speed_scale=float(self.prior_speed_scale),
+                        wheelbase_m=None if self.prior_wheelbase_m is None else float(self.prior_wheelbase_m),
+                        status_max_age_s=float(self.steer_status_max_age_s), weight=float(self.prior_weight),
+                        predict_max_s=float(self.prior_predict_max_s), predict_max_m=float(self.prior_predict_max_m),
+                        mismatch_fraction=float(self.prior_mismatch_fraction))
+        if self.prior_speed_table:
+            settings['speed_table'] = tuple((float(d), float(v)) for d, v in self.prior_speed_table)
+        return settings
 
     def controller_settings(self):
         """(mode, overrides) for the vendored config_for(); freshness is shared with the Runner.
@@ -512,6 +547,9 @@ AUTONOMY_KEYS = ('start_mode', 'operator_timeout_s')
 _AUTONOMY_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in AUTONOMY_KEYS}
 ONE_PRESS, HOLD_TO_RUN = 'one_press', 'hold_to_run'
 START_MODES = (ONE_PRESS, HOLD_TO_RUN)
+PRIOR_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('prior_')) + ('corridor_quality',)
+_PRIOR_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in PRIOR_KEYS}
+MAX_SPEED_TABLE_POINTS = 32
 
 
 # --- field specification -----------------------------------------------------------------------
@@ -629,6 +667,13 @@ _SPEC.update({
 _SPEC.update({
     'start_mode': (str, None, None, 'nullable'), 'operator_timeout_s': (_REAL, .5, 3.),
 })
+# Actuator priors and estimator outputs (design v2 V2-1): separate block for the same reason.
+_SPEC.update({
+    'prior_enabled': (bool,), 'prior_weight': (_REAL, 0., 1.), 'prior_speed_table': ('speed_table',),
+    'prior_speed_scale': (_REAL, .5, 1.3), 'prior_wheelbase_m': (_REAL, .2, 3., 'nullable'),
+    'prior_predict_max_s': (_REAL, .1, 3.), 'prior_predict_max_m': (_REAL, .05, 2.),
+    'prior_mismatch_fraction': (_REAL, .05, .9), 'corridor_quality': (bool,),
+})
 
 # Vendored ControlConfig defaults (closed_loop/controllers.py; tests compare them with the vendored file).
 # With motor output the field profile may not configure anything looser (review S6).
@@ -683,8 +728,36 @@ def _type_problems(cfg):
             problems += _segments_shape(value)
         elif kind == 'overrides':
             problems += _overrides_problems(value)
+        elif kind == 'speed_table':
+            problems += _speed_table_shape(value)
         else:
             problems += _check_scalar(name, value, spec)
+    return problems
+
+
+def _speed_table_shape(value):
+    """prior_speed_table: () or 2 .. MAX_SPEED_TABLE_POINTS (duty_pct, speed_m_s) points, the duty rising inside
+    (0, 100], the speed >= 0 and never falling with the duty (the vendored SpeedTable rule), the last speed > 0."""
+    if not isinstance(value, tuple) or len(value) > MAX_SPEED_TABLE_POINTS:
+        return ['prior_speed_table: must be a tuple of at most %d points' % MAX_SPEED_TABLE_POINTS]
+    if not value:
+        return []
+    problems = []
+    if len(value) < 2:
+        problems.append('prior_speed_table: needs at least two points')
+    previous = None
+    for k, point in enumerate(value):
+        if not isinstance(point, tuple) or len(point) != 2 or not _is_real(point[0]) or not _is_real(point[1]):
+            problems.append('prior_speed_table[%d]: must be (duty_pct, speed_m_s)' % k)
+            previous = None
+            continue
+        if not (0 < point[0] <= 100 and 0 <= point[1] <= 3.):
+            problems.append('prior_speed_table[%d]: duty outside (0, 100] or speed outside [0, 3] m/s' % k)
+        if previous is not None and not (point[0] > previous[0] and point[1] >= previous[1]):
+            problems.append('prior_speed_table[%d]: the duty must rise and the speed must not fall with the duty' % k)
+        previous = point
+    if not problems and not value[-1][1] > 0:
+        problems.append('prior_speed_table: the last speed must be > 0')
     return problems
 
 
@@ -797,6 +870,7 @@ def _rule_problems(cfg):
     p += single_row_rule_problems(cfg)
     p += steer_rule_problems(cfg)
     p += autonomy_rule_problems(cfg)
+    p += prior_rule_problems(cfg)
     return p
 
 
@@ -1211,6 +1285,8 @@ def from_dict(data):
         values['bench_pattern'] = _tuple_of_tuples(values['bench_pattern'], 'bench_pattern', problems)
     if 'body_mask' in values:
         values['body_mask'] = _tuple_of_tuples(values['body_mask'], 'body_mask', problems)
+    if 'prior_speed_table' in values:
+        values['prior_speed_table'] = _tuple_of_tuples(values['prior_speed_table'], 'prior_speed_table', problems)
     if 'controller_overrides' in values and isinstance(values['controller_overrides'], dict):
         values['controller_overrides'] = dict(values['controller_overrides'])
     if problems:
@@ -1780,6 +1856,18 @@ def steer_rule_problems(cfg):
     if not abs(cfg.steer_rotation_centre_x_m) < .5 * cfg.footprint_length_m:
         p.append('front_steer: steer_rotation_centre_x_m %r outside the footprint (length %g m)'
                  % (cfg.steer_rotation_centre_x_m, cfg.footprint_length_m))
+    return p
+
+
+def prior_rule_problems(cfg):
+    """Static rules of the design v2 block: the priors need the steering status (front_steer) and a weight needs
+    prior_enabled."""
+    p = []
+    if cfg.prior_enabled and cfg.vehicle_profile != FRONT_STEER:
+        p.append('prior_enabled: needs vehicle_profile front_steer (the applied duty and the steering angle come from '
+                 'the steering status)')
+    if cfg.prior_weight > 0 and not cfg.prior_enabled:
+        p.append('prior_weight %r: needs prior_enabled' % (cfg.prior_weight,))
     return p
 
 

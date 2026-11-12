@@ -495,7 +495,15 @@ class SteerBridgeClient(BridgeClient):
         status = response if 'steering' in response else response.get('status')
         if isinstance(status, dict) and isinstance(status.get('steering'), dict):
             host = status.get('steering_host')
-            self.steering_seen = (self.clock(), dict(status['steering']), dict(host) if isinstance(host, dict) else {})
+            host = dict(host) if isinstance(host, dict) else {}
+            pins = status.get('outputs')
+            if isinstance(pins, dict):
+                # the drive pins the MCU reported in the same status line (V2 pin keys, 0..255): the signed APPLIED duty
+                # of each side for the estimator's actuator prior (core.Runner._feed_actuator; never the request)
+                values = [pins.get(key) for key in ('D8', 'D5', 'D3', 'D0')]
+                if all(type(v) is int for v in values):
+                    host['drive_l'], host['drive_r'] = values[0] - values[1], values[2] - values[3]
+            self.steering_seen = (self.clock(), dict(status['steering']), host)
             self.counts['steering_replies'] += 1
             return status
         return None

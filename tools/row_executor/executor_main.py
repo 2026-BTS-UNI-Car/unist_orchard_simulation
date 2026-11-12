@@ -1691,6 +1691,20 @@ class ExecutorLoop:
                           steer=dict(meas=st.get('measured_mrad'), age=st.get('age_s'), req=st.get('required'),
                                      arm=st.get('arm_state'), stop=st.get('stop_state'), faults=st.get('faults'),
                                      fault=st.get('fault_reason'), sat=st.get('authority_saturated_s')))
+        prior = s.get('actuator_prior')
+        if prior is not None:                                   # design v2 actuator prior (config prior_enabled)
+            record['prior'] = dict(fresh=prior.get('fresh'), duty=prior.get('duty_pct'), v=prior.get('speed_m_s'),
+                                   w=prior.get('yaw_rate_rad_s'), k=prior.get('online_scale'),
+                                   mon=prior.get('monitor_s'), mismatch=prior.get('table_mismatch'),
+                                   pred=prior.get('predicting'), ps=prior.get('predict_s'), pm=prior.get('predict_m'),
+                                   lim=prior.get('limit'), d=prior.get('distance_m'))
+        quality = s.get('corridor_quality')
+        if quality is not None:                                 # estimator corridor quality (config corridor_quality)
+            record['cq'] = dict(sides=quality.get('sides'), src=quality.get('source'),
+                                n=[quality.get('support_left'), quality.get('support_right')],
+                                age=quality.get('age_s'), full=quality.get('full_age_s'),
+                                one=quality.get('one_sided_run'), rej=quality.get('rejected_run'),
+                                sd=[quality.get('lateral_sd_m'), quality.get('heading_sd_rad')])
         self.log.put(_clean(record), tick=True)
         self._run_end_event(d)
         status = dict(record)

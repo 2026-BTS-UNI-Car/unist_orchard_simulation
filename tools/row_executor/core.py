@@ -145,6 +145,18 @@ terminal decisions never lost, corridor lost, geometry guard, N9 no-response bud
                 pivot values (pivot_clearance_m, pivot_radius_required_m) are removed (off: a steered vehicle does not
                 pivot); steer_measured_mrad / steer_status_age_s / steer_command_mrad are added.
   refused       bench runs and calibration runs (left / right duty tables).
+
+Actuator priors (config prior_enabled, design v2 V2-1 item 2, docs/steering/ACTUATOR_PRIOR_KO.md; front_steer only,
+default OFF and then nothing below runs): every steering status fed to the Runner also gives the estimator the APPLIED
+drive duty (steering_host drive_l / drive_r, -255..255 -> percent) and the calibrated measured steering angle, stamped
+at the status line (receipt - age_ms). The vendored estimator records and monitors them (weight 0) or also seeds its scan
+match and predicts across a failed match / a scan gap (prior_weight > 0), bounded by prior_predict_max_s / _max_m.
+  prediction_limit  the estimator reports that bound ('actuator_prior' limit): ACTIVE -> PAUSED 'prediction_limit'
+                (counted with the stale pauses of the run); while it lasts the inputs do not count as fresh, so a
+                resume needs a NEW press after fresh_recover_s of scan-matched input. The prior never steers alone
+                beyond the bound and never decides a row end.
+  reporting     Decision.summary['actuator_prior'] (speed / yaw-rate prior, online scale, table_mismatch, prediction
+                time and distance) and, with corridor_quality, summary['corridor_quality'].
 """
 import collections
 from dataclasses import dataclass, field
@@ -192,6 +204,7 @@ SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'operator_link_lost': 'OPERATOR_LINK_LOST',              # one_press: the operator screen's heartbeats stopped (R32)
     'reacquire_needs_press': 'PERCEPTION_OR_LOCALISATION',   # corridor re-acquisition wait (Runner pause)
     'stall_guard': 'SENSOR',                                 # loop stall pause (the repeat limit is SENSOR in the table)
+    'prediction_limit': 'SENSOR',                            # actuator prior bound reached (a proposal; design v2 5)
     'native_cross_check_cost_occupied': 'OBSTACLE',          # optional native cross-check veto (executor_main)
     'bridge_error': 'SYSTEM_FAULT', 'bridge_latched': 'SYSTEM_FAULT', 'bridge_arm_failed': 'SYSTEM_FAULT',
     'shutdown': 'SYSTEM_FAULT', 'loop_exception': 'SYSTEM_FAULT',
@@ -209,7 +222,7 @@ SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'link_identity_mismatch': 'SYSTEM_FAULT', 'bridge_internal_error': 'SYSTEM_FAULT', 'mcu_disarmed': 'SYSTEM_FAULT',
 }
 # pauses counted together against max_stale_events (design v2 V2-2 item 5; the reason names of the steering controller)
-COUNTED_PAUSES = ('stale_lidar', 'stale_imu', 'operator_link_lost')
+COUNTED_PAUSES = ('stale_lidar', 'stale_imu', 'operator_link_lost', 'prediction_limit')
 SINGLE_ROW_SUB_LABELS = dict(DRIVE='CONTROL_AUTHORITY', SENSOR='PERCEPTION_OR_LOCALISATION')   # PREREG sub-labels
 SINGLE_ROW_NOT_STOPS = ('await_hold', 'resumed', 'no_run', 'press_ignored_inputs_not_fresh',
                         'press_ignored_not_standstill', 'press_ignored_steering_feedback')
@@ -809,7 +822,13 @@ class Runner:
         config.validate()
         self.config = config
         estimator, controllers = load_vendor() if vendor_modules is None else verified_modules(*vendor_modules)
-        self.estimator_config = estimator.EstimatorConfig(**config.estimator_overrides())
+        estimator_overrides = config.estimator_overrides()
+        prior_settings = config.actuator_prior_settings()       # design v2 block: None / False while untouched
+        if prior_settings is not None:
+            estimator_overrides['actuator_prior'] = estimator.ActuatorPriorConfig(**prior_settings)
+        if config.corridor_quality:
+            estimator_overrides['corridor_quality'] = True
+        self.estimator_config = estimator.EstimatorConfig(**estimator_overrides)
         mode, overrides = config.controller_settings()
         self.single_row = None              # the vendored single_row module in mode 'single_row', else None
         if mode == SINGLE_ROW_MODE:
@@ -1106,6 +1125,8 @@ class Runner:
         if self.steer_monitor is None:
             return False
         ok = self.steer_monitor.feed(t, block, host)
+        if ok and self.config.prior_enabled and self._run_open():
+            self._feed_actuator(t)
         if ok and self._held_steer is None:
             measured = self.steer_monitor.measured_mrad()
             if measured is not None:
@@ -1113,6 +1134,29 @@ class Runner:
                 self._held_steer = int(max(-cfg.steer_limit_right_mrad, min(cfg.steer_limit_left_mrad,
                                                                             int(round(measured)))))
         return ok
+
+    def _feed_actuator(self, t):
+        """prior_enabled: the steering status just fed -> the estimator's actuator input (module docstring). The applied
+        drive duty is the MCU's own report (steering_host drive_l / drive_r, signed -255..255), never the request; the
+        steering angle is the calibrated measurement (None when the status is not calibrated or has no finite angle).
+        A status without drive values, with an unknown age or flagged stale by the host is not fed (counted)."""
+        _, block, host = self.steer_monitor.last
+        left, right, age_ms = host.get('drive_l'), host.get('drive_r'), block.get('age_ms')
+        fed = False
+        if (type(left) is int and type(right) is int and type(age_ms) is int and age_ms >= 0
+                and host.get('stale') is not True and abs(left) <= 255 and abs(right) <= 255):
+            steer = self.steer_monitor.measured_mrad() if block.get('calibrated') is True else None
+            fed = self.estimator.on_actuator(float(t) - age_ms / 1000., left * 100. / 255., right * 100. / 255.,
+                                             None if steer is None else steer / 1000.)
+        key = 'prior_fed' if fed else 'prior_not_fed'
+        self.stats[key] = self.stats.get(key, 0) + 1
+        return fed
+
+    @staticmethod
+    def _prior_limit(s):
+        """True when the estimator reports the actuator prior bound (no block while prior_enabled is off)."""
+        block = s.get('actuator_prior')
+        return block is not None and block.get('limit') is True
 
     def _steer_snapshot(self, s, now):
         """front_steer snapshot (design 6.7): rotation centre of the side-sweep rule = the rear axle, the pivot values of
@@ -1195,7 +1239,8 @@ class Runner:
         if self.single_row is not None:
             self._sr_track_path()
         fresh = (s['lidar_age_s'] <= self.config.lidar_max_age_s and s['imu_age_s'] <= self.config.imu_max_age_s)
-        if not fresh:
+        prior_limit = self._prior_limit(s)      # design v2: the estimate ran on the actuator prior up to its bound
+        if not fresh or prior_limit:
             self._fresh_since = None
         elif self._fresh_since is None:
             self._fresh_since = now
@@ -1223,7 +1268,7 @@ class Runner:
                 return self._decision(0, 0, s)
         rising = hold and not self._prev_hold
         self._prev_hold = hold
-        ready = fresh and now - self._fresh_since >= self.config.fresh_recover_s
+        ready = fresh and not prior_limit and now - self._fresh_since >= self.config.fresh_recover_s
         steer_ok = self._steer_ok(now)
         if self._press_pending_since is not None and (not hold or self.state != PAUSED):
             self._press_pending_since = None          # released: the held initial press lapses (no later start)
@@ -1261,6 +1306,9 @@ class Runner:
             return self._decision(0, 0, s)
         if not fresh:
             self._pause('stale_lidar' if s['lidar_age_s'] > self.config.lidar_max_age_s else 'stale_imu')
+            return self._decision(0, 0, s)
+        if prior_limit:
+            self._pause('prediction_limit')
             return self._decision(0, 0, s)
         if self.steering:
             return self._steer_active(now, s, dt_tick)
@@ -1715,6 +1763,10 @@ class Runner:
                    side_clearance_left_m=_finite_or_none(side_l, 3),
                    side_clearance_right_m=_finite_or_none(side_r, 3),
                    vibration_rms=_finite_or_none(s.get('vibration_rms'), 3))
+        for name in ('actuator_prior', 'corridor_quality'):         # design v2 blocks (absent while the options are off)
+            block = s.get(name)
+            if isinstance(block, dict):
+                out[name] = {k: (_finite_or_none(v, 4) if isinstance(v, float) else v) for k, v in block.items()}
         if self.controller is not None:
             out['controller_state'] = self.controller.state
             out['controller_reason'] = self.controller.reason

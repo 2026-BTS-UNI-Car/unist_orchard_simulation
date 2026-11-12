@@ -94,6 +94,10 @@ MAX_REPRESSES = 20
 OWNER = 'row-executor:sim'
 SIM_SOCKET = '/run/ubts-steer/control.sock'   # the SIM control socket (T1 talks to the rig, the path binds the role)
 STATE_CODES = {XCORE.IDLE: 0, XCORE.PAUSED: 1, XCORE.ACTIVE: 2, XCORE.ENDED: 3}
+# Estimator columns, written only when the executor config has prior_enabled (the default trace is unchanged): the
+# estimator's latency-compensated base pose in its own odometry frame, the time it has run on the actuator prior since
+# the last scan-matched pose and the scan-match flag (evaluation of the prediction; never fed back).
+EST_COLUMNS = ('ctrl_est_x_m', 'ctrl_est_y_m', 'ctrl_est_yaw_rad', 'ctrl_est_predict_s', 'ctrl_est_odom_valid')
 CTRL_COLUMNS = ('ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold', 'ctrl_steer_required',
                 'ctrl_steer_age_s')
 # executor JSONL fields that hold wall-clock (perf_counter) values: dropped from the deterministic log digest
@@ -139,8 +143,25 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')))
     values.update(overrides or {})
+    if values.get('prior_enabled'):
+        # actuator priors (design v2 V2-1): the SIM 'measured' duty -> speed table and wheelbase are the profile's
+        # nominal values (SIM_ASSUMED placeholders, never the per-run speed draw), unless the overrides give them
+        values.setdefault('prior_wheelbase_m', float(value('wheelbase_m')))
+        if not values.get('prior_speed_table'):
+            values['prior_speed_table'] = profile_speed_table(profile)
     from dataclasses import replace
     return replace(XC.ExecutorConfig(), **values).validate()
+
+
+def profile_speed_table(profile, duties=(10, 20, 30, 40, 50, 60, 70, 80, 90, 100), factor=1.):
+    """The prior's (duty %, speed m/s) table from the profile's nominal drive curve (steering.drive.steady_speed_m_s:
+    profile values, not a run's draw) x factor. Points with no speed (inside the deadband) are left out."""
+    points = []
+    for duty in duties:
+        speed = round(float(SD.steady_speed_m_s(profile, duty)) * float(factor), 4)
+        if speed > 0. and (not points or speed >= points[-1][1]):
+            points.append((float(duty), speed))
+    return tuple(points)
 
 
 # --- log capture ------------------------------------------------------------------------------------------------------
@@ -295,6 +316,9 @@ class SteerExecutorInTheLoop:
             self._wrap_rig_timers()
         self.mcu_step_ms = []
         rig.add_trace_extras(CTRL_COLUMNS, self._ctrl_row)
+        self.est_columns = bool(cfg.prior_enabled)
+        if self.est_columns:
+            rig.add_trace_extras(EST_COLUMNS, self._est_row)
 
     # -- timing (A11): the rig's work inside an executor tick is subtracted from the executor step latency
     def _wrap_rig_timers(self):
@@ -340,6 +364,16 @@ class SteerExecutorInTheLoop:
         return (float(d.throttle or 0), steer, float(STATE_CODES.get(d.state, -1)),
                 float(bool(level)), float(bool(runner.steer_required)),
                 age if math.isfinite(age) else float('nan'))
+
+    def _est_row(self):
+        """EST_COLUMNS of this trace row (NaN before the first scan of a run)."""
+        est = self.executor.runner.estimator
+        if est is None or est.last_scan_stamp is None:
+            return (float('nan'),) * 5
+        now = self.rig.now
+        x, y, yaw = est.base_pose(now)
+        block = est.prior.snapshot(now, est.last_scan_stamp, est.speed) if est.prior is not None else None
+        return (x, y, yaw, float('nan') if block is None else float(block['predict_s']), float(bool(est.odom_valid)))
 
     # -- sensors -> executor
     def _feed_sensors(self):
@@ -649,7 +683,8 @@ class SteerExecutorInTheLoop:
         table, the hold_measured STOP target; R13-3, written by the rig) + the ctrl_* executor columns + meta."""
         arrays = self.rig.trace_arrays()
         meta = json.loads(bytes(arrays['meta_json']).decode('utf-8'))
-        meta.update(schema_executor=SCHEMA, executor_columns=list(CTRL_COLUMNS),
+        meta.update(schema_executor=SCHEMA,
+                    executor_columns=list(CTRL_COLUMNS) + (list(EST_COLUMNS) if self.est_columns else []),
                     ctrl_state_codes={k: v for k, v in STATE_CODES.items()})
         arrays['meta_json'] = np.frombuffer(json.dumps(meta, sort_keys=True, separators=(',', ':'), ensure_ascii=True,
                                                        allow_nan=False).encode('utf-8'), dtype=np.uint8).copy()
