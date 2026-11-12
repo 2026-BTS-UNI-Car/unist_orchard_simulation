@@ -157,7 +157,8 @@ ROLE_TABLE = {
     'sim/ubts/closed_loop/controllers.py': (ROLE_DECISION, 'RowController: estimator snapshot only'),
     'sim/ubts/closed_loop/single_row.py': (ROLE_DECISION, 'SingleRowController: estimator snapshot only'),
     'sim/ubts/orchard_perception/scan_corridor.py': (ROLE_DECISION, 'scan corridor detector used by the estimator'),
-    'sim/ubts/closed_loop/steer_control.py': (ROLE_DECISION, 'P8 steering controller (design 6.8)'),
+    'sim/ubts/closed_loop/steer_control.py': (ROLE_DECISION, 'P8 row-following steering controller: the estimator '
+                                                             'snapshot only (design 6.2-6.4, v2 V2-4)'),
     # --- shared library code (no truth) -----------------------------------------------------------------------------
     'sim/ubts/steering/__init__.py': (ROLE_SHARED, 'package marker'),
     'sim/ubts/steering/vehicle_profile.py': (ROLE_SHARED, 'vehicle profile (values, ranges, provenance)'),

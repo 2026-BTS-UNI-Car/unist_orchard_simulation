@@ -27,7 +27,8 @@ Controllers
                    stop_test(), standstill_sweeps()
   HoldStill        throttle 0 and the held steering for a duration, then HOLD (sensor statistics at standstill)
 make_factory(spec, cfg) builds a zero-argument factory (the Runner's controller_factory) from a JSON-able spec
-{'kind': ..., ...}; spec_digest(spec) is its canonical SHA-256.
+{'kind': ..., ...}; spec_digest(spec) is its canonical SHA-256. The kind 'row_follow' is not a script: it hands the
+slot to the P8 row-following controller (closed_loop/steer_control.py make_factory) with the same spec.
 
 Every number is a placeholder of the SIM scripts. Results are placeholder-based SIM results (자리값 기반 SIM 결과).
 """
@@ -38,7 +39,8 @@ import hashlib
 import json
 import math
 
-KINDS = ('straight_hold', 'segments', 'hold_still')
+KINDS = ('straight_hold', 'segments', 'hold_still', 'row_follow')
+ROW_FOLLOW = 'row_follow'     # the P8 row-following controller (closed_loop/steer_control.py), not a script
 STILL_CONFIRM_S = .4          # vendored ControlConfig still_confirm_s (the Runner's stillness rule)
 DEFAULT_RATE_MARGIN = .75     # shaped slew = this x the executor guard's slew limit
 DEFAULT_LIMIT_MARGIN = .90    # shaped targets stay inside this x the equivalent soft limit
@@ -362,6 +364,10 @@ def make_factory(spec, executor_cfg):
     kind = spec.get('kind')
     if kind not in KINDS:
         raise ValueError('unknown scripted controller kind %r (known: %s)' % (kind, ', '.join(KINDS)))
+    if kind == ROW_FOLLOW:
+        # the row-following controller fills the same slot: {'kind': 'row_follow', <SteerFollowConfig fields>...}
+        from closed_loop import steer_control
+        return steer_control.make_factory(spec, executor_cfg)
     cfg = controller_cfg(spec, executor_cfg)
     cls = {'straight_hold': StraightHold, 'segments': SegmentScript, 'hold_still': HoldStill}[kind]
     if kind == 'segments' and not spec.get('segments'):
