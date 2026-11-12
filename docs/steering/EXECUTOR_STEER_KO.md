@@ -323,6 +323,8 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 - T1 점검 전체(2026-11-12, Windows Python 3.13.2, 작업자 1, 5분 43초, 다른 작업이 같은 PC에서 네트워크 측정 중):
   - 대본 67/67 기대대로. A17 합격(09-19 필수 목록 11항목 모두 대본 통과), A22 합격, A5(F) 합격(주행 표본 934개), A8 합격.
   - A19 불합격: 정상 대본 오탐 1/40(`normal_steps_standstill` 시드 101, POLARITY). 3단계와 같은 원인(R18 결정 2, 자리값)이고 숨기지 않는다. MCU 결함 코드·호스트 래치 누락 0, 래치 시각·결과 상태 실패 0.
-  - A13: 이 실행은 s2exec 묶음의 새 파일(`exec_checks.py`)이 함께 있는 트리였고 그 파일의 역할이 없어 실패했다. s2exec 묶음에서 역할을 넣었다. p4_gaps 커밋 트리의 A13은 따로 돌렸다(R22).
+  - A13: 이 실행은 s2exec 묶음의 새 파일(`exec_checks.py`)이 함께 있는 트리였고 그 파일의 역할이 없어 실패했다. s2exec 묶음에서 역할을 넣었다. p4_gaps 커밋 트리의 A13은 따로 돌렸다(아래).
   - A11(보고): 한 걸음 p50 1.84 ms, p99 중앙 14.8 ms, p99.9 최악 84.9 ms, 최대 98.3 ms.
+- TTL 틈 위상 훑기(`steering.safety_scripts.ttl_window`, 전체 격자 320조합: 손실 시작 4.95·4.97·5.0·5.03 s, 손실 320·400 ms, 실행기 멈춤 0.1~0.5 s, 멈춤 지연 0·20 ms, 브리지 위상 0·10 ms, 부팅 지연 60·70; 2026-11-12, p4_gaps 커밋 트리, Windows, 작업자 1, 340 s): 320개 모두 MCU TTL이 났고 호스트가 320개 모두 `mcu_ttl_expired`로 래치했다. TTL 뒤 구동 재출발 0. 실행기 끝 사유 `link_ttl_expired` 248, `steering_feedback_stale` 72(멈춘 동안 조향 상태가 오래됨, 대본이 허용하는 사유).
+- A13(p4_gaps 커밋 트리만, `checks --only a13`): 합격(180파일, 면제 12건 모두 쓰임).
 - 남은 것(ST-03): 식별 쪽 편집(F3 brake 정지 거리, A18 정지 거리 비교 행, 권장 경로 길이로 A18 한 번, B0 CAL POL 멈춤)은 적용하지 않았다. 11/09에 쓴 편집 대본(저장소 밖 `runs/wf4/p4_gaps/edits/edit_ident_1.py`)이 있으나 A18 실행으로 확인해야 하고, A18은 CPU를 오래 쓰므로 조용한 호스트에서 한다. 문서 `IDENT_KO.md`도 그때 고친다. Python 3.10 venv(numpy < 2) 실행(AUD3A-20)도 남았다.
