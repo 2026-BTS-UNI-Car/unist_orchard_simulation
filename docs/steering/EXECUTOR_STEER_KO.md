@@ -328,3 +328,37 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 - TTL 틈 위상 훑기(`steering.safety_scripts.ttl_window`, 전체 격자 320조합: 손실 시작 4.95·4.97·5.0·5.03 s, 손실 320·400 ms, 실행기 멈춤 0.1~0.5 s, 멈춤 지연 0·20 ms, 브리지 위상 0·10 ms, 부팅 지연 60·70; 2026-11-12, p4_gaps 커밋 트리, Windows, 작업자 1, 340 s): 320개 모두 MCU TTL이 났고 호스트가 320개 모두 `mcu_ttl_expired`로 래치했다. TTL 뒤 구동 재출발 0. 실행기 끝 사유 `link_ttl_expired` 248, `steering_feedback_stale` 72(멈춘 동안 조향 상태가 오래됨, 대본이 허용하는 사유).
 - A13(p4_gaps 커밋 트리만, `checks --only a13`): 합격(180파일, 면제 12건 모두 쓰임).
 - 남은 것(ST-03): 식별 쪽 편집(F3 brake 정지 거리, A18 정지 거리 비교 행, 권장 경로 길이로 A18 한 번, B0 CAL POL 멈춤)은 적용하지 않았다. 11/09에 쓴 편집 대본(저장소 밖 `runs/wf4/p4_gaps/edits/edit_ident_1.py`)이 있으나 A18 실행으로 확인해야 하고, A18은 CPU를 오래 쓰므로 조용한 호스트에서 한다. 문서 `IDENT_KO.md`도 그때 고친다. Python 3.10 venv(numpy < 2) 실행(AUD3A-20)도 남았다.
+
+## 13. 자율 주행 마무리 (2026-11-13, 묶음 S1, 브랜치 `autonomy-exec-20261113`)
+
+설계 v2(V2-1, V2-2, V2-4, V2-5)의 실행기 쪽을 넣었다. 모든 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다.
+
+1. **한 번 눌러 시작(R32).** 설정 `start_mode`(front_steer 기본 `one_press`, 차동 기본 `hold_to_run`), `operator_timeout_s`(0.5 s,
+   잠금). `executor_main.OperatorLink`가 화면 세션과 heartbeat, go를 다룬다. 끊기면 그 틱에 구동 0, 조향 유지,
+   `operator_link_lost` 일시정지(신선도 일시정지와 합쳐 셈). 다른 세션은 409, STOP은 누구나. 규약은 `OPERATOR_API_KO.md`.
+   3절의 조작자 흉내(T1)는 실행기의 시작 방식을 따른다: one_press면 첫 틱부터 heartbeat, 1.2 s 또는 시작 조건이 처음 맞는 틱에
+   go 한 번. 안전 대본 중 `deadman_release`, `hold_lost`는 `hold_to_run`으로 고정했고 one_press 대본 4개를 더했다
+   (`operator_link_lost`, `operator_link_back_no_restart`, `other_screen_refused`, `one_press_stop`).
+2. **첫 Arm.** 브리지가 lease 없이 건 `steering_status_stale` 래치 하나뿐이고 지금 상태가 신선하면 그 Arm 누름을 운영자
+   재무장으로 본다(`bridge_client.idle_latch_only`). 원인과 근거는 `OPERATOR_API_KO.md` 3.3절.
+3. **구동기 사전값(PC-06).** 설정 `prior_*`(기본 꺼짐, untouched digest 그대로). 조향 상태마다 MCU가 보고한 적용 duty(핀 값)와
+   보정 조향각을 추정기 사전값에 넣는다. 가중 > 0이면 예측 한도(1 s / 0.5 m) 뒤 `prediction_limit` 일시정지. 확인 기준은
+   `SIM_ACCEPTANCE_KO.md` 개정 33, 결과는 `ACTUATOR_PRIOR_KO.md`.
+4. **속도 조절기(PC-10).** `closed_loop/steer_control.py`의 상한 11개(cruise, scan, blind, map, stop, curvature, lateral, steer,
+   quality, fresh, end), 과속 보호, 묶인 상한 이름(`limit_reason`). `speed_cap_below_min`·`overspeed`는 일시정지(새 go 필요).
+   틱 기록 `sr.cap`, `sr.tau`.
+5. **현장 조정 파일(PW-07, PW-08, PC-13).** `field_tuning.py`, `field_tuning.default.json`, `FIELD_TUNING_KO.md`.
+6. **vendor.** `vendor/closed_loop_copy/steer_control.py`. factory 없이 만든 front_steer Runner는 이 row_follow 제어기를 쓴다(실차
+   `executor_main.main` 경로; 예전에는 거절). 2.4절의 '조향 제어기 공장이 꼭 있어야 한다'는 이것으로 바뀐다.
+7. **빠른 SIM 행렬 회귀(새 기본값).** 사전등록 `steer_follow_v1`(`PREREG_STEER_FOLLOW_KO.md`)의 15회를 새 기본값(one_press,
+   속도 조절기, 패키지 조정 파일)으로 다시 돌렸다. 회귀 확인이며 새 합격 판정이 아니다(넓은 새 행렬은 묶음 S1c가 사전등록부터 한다).
+   - 병합 전(8ac107b)과 main 527ffb0을 병합한 트리(2040578) 모두 15/15 기대대로. 두 트리의 trace는 15개 모두 같다(직렬 로그는
+     첫 줄의 네이티브 프로그램 빌드 id만 다르다).
+   - 2026-11-12 등록 실행(iter1)과 직렬 로그가 같은 run 13. 다른 2: `lidar_dropout_0p2`(0.2 s 끊김에 `fresh` 상한이 묶여 row_end
+     66.7 s, iter1 66.4 s; 정지 위치 e +0.095 m, iter1 +0.043 m; 횡 최대 0.095 m, 방향 최대 2.67°), `lidar_stale_1p0`(첫 일시정지
+     20.3 s `stale_lidar`, 구동 0 같은 틱, 재출발 없음으로 같고 정지 위치만 −16.311 m, iter1 −16.309 m).
+   - 사전값 감시를 켠 변형(`prior_enabled`, 가중 0)도 15/15이고 직렬 로그 15개가 기본 변형과 같다(같은 결정).
+   - 사전값 확인(개정 33): 55 검사 모두 합격(`ACTUATOR_PRIOR_KO.md`).
+   - 차동 실행기 기준 에피소드 10개(E1~E6, R1~R4): row·trace가 main 3289d16 기준과 같다. 실행 기록은 `config` 사건의 `start_mode`
+     칸과 `start` 사건의 `config_digest` 칸만 늘었다.
+   - 모든 수치는 자리값 기반 SIM 결과다. 결과 원본은 기록 폴더 `runs/autonomy_exec_20261113/measure/`(레포 밖).
