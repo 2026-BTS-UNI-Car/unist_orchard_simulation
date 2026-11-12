@@ -55,6 +55,24 @@ pivot centre); the harness never copies the plant's true values into it.
   no line) or UNKNOWN (zone not observed, e.g. an opaque barrier).
 * front and pivot clearances come from the newest raw scan, including branch
   returns. Gyro bias is learnt only while sensor-observed still.
+
+Opt-in inputs and outputs of design v2 (V2-1, V2-3; every one OFF by default and
+bit-identical then: the state they use is None and no original value is touched):
+* actuator priors (actuator_prior, layer L1; closed_loop/actuator_prior.py):
+  on_actuator(stamp, duty_left_pct, duty_right_pct, steer_rad) takes the APPLIED
+  drive duty and the calibrated steering angle of an MCU status line. PWM is not
+  an encoder: with weight 0 the prior is only recorded and compared with the
+  LiDAR speed (online scale, table mismatch); with a weight it seeds the scan
+  match and predicts across a failed match or a scan gap for at most
+  predict_max_s / predict_max_m. The snapshot gets the 'actuator_prior' block.
+* corridor quality (corridor_quality): the snapshot gets 'corridor_quality':
+  which sides the newest accepted update saw, the support returns per side, the
+  ages and the innovation spread. Nothing reads it back.
+* external corridor observations (external_corridor_gain > 0): the provider slot
+  on_corridor_observation(stamp, lateral_offset_m, heading_error_rad, width_m,
+  quality, source) of a camera or of the executor's local grid. A gated, low
+  gain pull of the tracked band; it never creates a band, never keeps one alive
+  and never touches the row-end evidence.
 """
 from collections import deque
 from dataclasses import dataclass
@@ -66,6 +84,8 @@ from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 from orchard_perception.scan_corridor import observe_scan_corridor
+
+from .actuator_prior import ActuatorPrior, ActuatorPriorConfig   # opt-in layer L1 (OFF: never instantiated)
 
 
 def wrap(angle):
@@ -261,8 +281,34 @@ class EstimatorConfig:
     still_rotation_deg: float = .6
     keyframe_translation_m: float = .4
     keyframe_rotation_deg: float = 8.
+    # --- design v2 opt-in inputs / outputs (all OFF = original rules, bit-identical) ---------------------------------
+    # Actuator priors, layer L1 (None = OFF: on_actuator is ignored). An ActuatorPriorConfig: speed table, scale,
+    # wheelbase, weight (0 = record and monitor only) and the prediction bound; closed_loop/actuator_prior.py.
+    actuator_prior: ActuatorPriorConfig | None = None
+    # Corridor quality block in the snapshot (False = OFF: the snapshot keeps its original keys).
+    corridor_quality: bool = False
+    # External corridor observation slot (0 = OFF: on_corridor_observation is ignored). With a gain g in (0, 1]: an
+    # observation of an accepted source, not older than external_corridor_max_age_s, with quality >=
+    # external_corridor_min_quality and inside the band gates (band_heading_gate_deg, band_offset_gate_m,
+    # band_width_gate_m) pulls the tracked band by g (heading about the vehicle, then the centre, then the width).
+    external_corridor_gain: float = 0.
+    external_corridor_sources: tuple = ()       # accepted source names, e.g. ('local_grid',); empty = none
+    external_corridor_max_age_s: float = .5
+    external_corridor_min_quality: float = .5
 
     def __post_init__(self):
+        if self.actuator_prior is not None and not isinstance(self.actuator_prior, ActuatorPriorConfig):
+            raise ValueError('actuator_prior_invalid: an ActuatorPriorConfig or None')
+        if not (isinstance(self.external_corridor_gain, (int, float)) and 0. <= self.external_corridor_gain <= 1.):
+            raise ValueError('external_corridor_invalid: gain must be in [0, 1]')
+        if self.external_corridor_gain > 0. and not (
+                isinstance(self.external_corridor_sources, tuple) and self.external_corridor_sources
+                and all(isinstance(name, str) and name for name in self.external_corridor_sources)
+                and math.isfinite(self.external_corridor_max_age_s) and self.external_corridor_max_age_s > 0.
+                and math.isfinite(self.external_corridor_min_quality)
+                and 0. <= self.external_corridor_min_quality <= 1.):
+            raise ValueError('external_corridor_invalid: a gain needs source names, max_age_s > 0 and '
+                             'min_quality in [0, 1]')
         if self.distance_mode not in ('scan_norm_legacy', 'resolved_polyline'):
             raise ValueError('unknown_sensor_path_distance_mode')
         if self.row_end_segment_span_m is not None and not (
@@ -492,6 +538,98 @@ class ResolvedPathLength:
         return self.distance
 
 
+QUALITY_GAIN = .2            # EMA gain of the squared innovations in CorridorQuality
+EXTERNAL_REASONS = ('fused', 'no_band', 'source', 'quality', 'invalid', 'order', 'stale', 'future', 'no_pose',
+                    'heading_gate', 'offset_gate', 'width_gate')
+
+
+class CorridorQuality:
+    """Opt-in corridor_quality: what the accepted corridor updates saw (bookkeeping only, nothing reads it back).
+
+    sides          'both' / 'left' / 'right' of the newest accepted update, 'none' without a band
+    source         'init', 'candidate' (detector lines) or 'guided' (returns near the predicted lines)
+    support        returns within line_gate_m of the left / right line of that update (|along| < 8 m)
+    stamps         of the newest update, the newest two-sided update and the newest update of each side
+    one_sided_run  accepted one-sided updates since the last two-sided one
+    rejected_run   corridor updates that were refused since the last accepted one
+    innovation     EMA (gain QUALITY_GAIN) of the squared innovations (observed - predicted) of the accepted updates:
+                   lateral offset [m], heading [rad], width [m] (two-sided updates only); reported as sd
+    """
+
+    def __init__(self):
+        self.sides = 'none'
+        self.source = None
+        self.support = [0, 0]
+        self.stamp = self.full_stamp = None
+        self.side_stamp = [None, None]
+        self.one_sided_run = 0
+        self.rejected_run = 0
+        self.variance = dict(lateral=None, heading=None, width=None)
+
+    def _innovation(self, name, value):
+        if value is None:
+            return
+        previous = self.variance[name]
+        square = value * value
+        self.variance[name] = square if previous is None else previous + QUALITY_GAIN * (square - previous)
+
+    def accepted(self, stamp, sides, source, support, lateral=None, heading=None, width=None):
+        self.sides, self.source, self.stamp = sides, source, stamp
+        self.support = list(support)
+        self.rejected_run = 0
+        if sides == 'both':
+            self.full_stamp = stamp
+            self.side_stamp = [stamp, stamp]
+            self.one_sided_run = 0
+        else:
+            self.side_stamp[0 if sides == 'left' else 1] = stamp
+            self.one_sided_run += 1
+        for name, value in (('lateral', lateral), ('heading', heading), ('width', width)):
+            self._innovation(name, value)
+
+    def rejected(self):
+        self.rejected_run += 1
+
+    def lost(self):
+        self.sides, self.source = 'none', None
+        self.support = [0, 0]
+
+    def snapshot(self, now, band):
+        def age(stamp):
+            return None if stamp is None else now - stamp
+
+        def sd(name):
+            value = self.variance[name]
+            return None if value is None else math.sqrt(value)
+        return dict(sides=self.sides if band is not None else 'none', source=self.source,
+                    support_left=self.support[0], support_right=self.support[1], age_s=age(self.stamp),
+                    full_age_s=age(self.full_stamp), left_age_s=age(self.side_stamp[0]),
+                    right_age_s=age(self.side_stamp[1]), one_sided_run=self.one_sided_run,
+                    rejected_run=self.rejected_run, lateral_sd_m=sd('lateral'), heading_sd_rad=sd('heading'),
+                    width_sd_m=sd('width'))
+
+
+class ExternalCorridor:
+    """Opt-in external_corridor_gain: bookkeeping of the provider slot (last observation and outcome counts)."""
+
+    def __init__(self):
+        self.counts = dict.fromkeys(EXTERNAL_REASONS, 0)
+        self.last_stamp = None           # stamp of the newest observation that was looked at (order check)
+        self.fused_stamp = None
+        self.fused_source = None
+        self.last_reason = None
+
+    def note(self, reason):
+        self.counts[reason] += 1
+        self.last_reason = reason
+        return reason
+
+    def snapshot(self, now):
+        return dict(fused=self.counts['fused'], refused=sum(v for k, v in self.counts.items() if k != 'fused'),
+                    last_reason=self.last_reason, source=self.fused_source,
+                    age_s=None if self.fused_stamp is None else now - self.fused_stamp)
+
+
 class SensorEstimator:
     def __init__(self, config=EstimatorConfig()):
         self.config = config
@@ -541,6 +679,20 @@ class SensorEstimator:
         pair = config.row_end_continuation_m is not None and config.row_end_continuation_rule == 'pair'
         self.continuation_counts = dict.fromkeys(CONTINUATION_PAIR_KEYS if pair else CONTINUATION_KEYS, 0)
         self.continuation_events = []
+        # Design v2 opt-in layers (None while OFF and never touched then): actuator priors (L1), the corridor quality
+        # bookkeeping and the external corridor observation slot.
+        self.prior = None if config.actuator_prior is None else ActuatorPrior(config.actuator_prior)
+        self.quality = CorridorQuality() if config.corridor_quality else None
+        self.external = ExternalCorridor() if config.external_corridor_gain > 0. else None
+
+    # --- opt-in actuator status (never stored while OFF) -------------------------------------------------
+    def on_actuator(self, stamp, duty_left_pct, duty_right_pct, steer_rad=None):
+        """Opt-in actuator_prior: one MCU status line on the estimator clock - the APPLIED drive duty of each side
+        [% of full scale, signed, + forward] and the calibrated steering angle [rad, + left; None = not known].
+        Not the request and not a wheel speed. Returns False while OFF or for a refused sample."""
+        if self.prior is None:
+            return False
+        return self.prior.update(stamp, duty_left_pct, duty_right_pct, steer_rad)
 
     # --- IMU -------------------------------------------------------------
     def on_imu(self, stamp, gyro, accel):
@@ -619,26 +771,45 @@ class SensorEstimator:
             dt = stamp - self.last_scan_stamp
             rotation = self.gyro_integral(self.last_scan_stamp, stamp)
             c, s = math.cos(self.pose[2]), math.sin(self.pose[2])
-            predicted = np.array((self.pose[0] + c * self.speed * dt, self.pose[1] + s * self.speed * dt,
-                                  wrap(self.pose[2] + rotation)))
+            # Opt-in actuator prior (a): a blended translation seed; None (OFF, weight 0 or no status over the interval)
+            # keeps the original seed below, bit for bit.
+            seed = None if self.prior is None else self.prior.seed(self.last_scan_stamp, stamp, self.speed)
+            if seed is None:
+                predicted = np.array((self.pose[0] + c * self.speed * dt, self.pose[1] + s * self.speed * dt,
+                                      wrap(self.pose[2] + rotation)))
+            else:
+                predicted = np.array((self.pose[0] + c * seed, self.pose[1] + s * seed, wrap(self.pose[2] + rotation)))
             key_points, key_pose = self.keyframe
+            # A scan gap of 0.5 s or more is matched only with a prior seed (the LiDAR speed alone is no seed then).
             result = (self._icp(key_points, sparse, _relative(key_pose, predicted))
-                      if len(sparse) >= cfg.icp_min_pairs and dt < .5 else None)
+                      if len(sparse) >= cfg.icp_min_pairs and (dt < .5 or seed is not None) else None)
             previous = self.pose
             if result is not None and result[1] >= .5:
                 self.pose = _compose(key_pose, result[0])
                 self.odom_valid = True
+                if self.prior is not None:
+                    self.prior.matched()
             else:
                 # Degraded: gyro rotation only; translation is NOT invented.
                 self.pose = np.array((previous[0], previous[1], wrap(previous[2] + rotation)))
                 self.odom_valid = False
                 self.odom_failures += 1
+                if self.prior is not None:
+                    # Opt-in actuator prior (b): a bounded prediction along the mid heading (0 with weight 0, without
+                    # a status line over the interval and beyond predict_max_s / predict_max_m).
+                    moved = self.prior.predict(self.last_scan_stamp, stamp)
+                    if moved:
+                        mid = wrap(previous[2] + .5 * rotation)
+                        self.pose = np.array((previous[0] + math.cos(mid) * moved,
+                                              previous[1] + math.sin(mid) * moved, self.pose[2]))
             step = _relative(previous, self.pose)
             if dt > 0 and self.odom_valid:
                 self.speed_samples.append(step[0] / dt)
                 self.speed = float(np.median(self.speed_samples))
                 if cfg.distance_mode == 'scan_norm_legacy':
                     self.distance += math.hypot(step[0], step[1])
+                if self.prior is not None:
+                    self.prior.observe(self.last_scan_stamp, stamp, step[0])     # (c) monitor, (e) distance
             relative = _relative(key_pose, self.pose)
             if (not self.odom_valid or math.hypot(relative[0], relative[1]) > cfg.keyframe_translation_m
                     or abs(relative[2]) > math.radians(cfg.keyframe_rotation_deg)):
@@ -670,6 +841,8 @@ class SensorEstimator:
             self.band = None
             self.candidates = []
             self.corridor_reason = 'corridor_lost'
+            if self.quality is not None:
+                self.quality.lost()
 
     def _update_stillness(self, stamp):
         """Still when every recent pose stays within a few cm / tenths of a degree."""
@@ -1157,9 +1330,23 @@ class SensorEstimator:
                                            band.center - band.width / 2 - lateral)
         if left is None and right is None:
             self.corridor_reason = 'no_support_near_tracked_lines'
+            if self.quality is not None:
+                self.quality.rejected()
             return
         if not self._apply(stamp, wrap(theta + axis), axis, left, right, points, 'guided'):
             self.corridor_reason = 'inconsistent_corridor_rejected'
+            if self.quality is not None:
+                self.quality.rejected()
+
+    def _support_counts(self, points, axis, left, right):
+        """Opt-in corridor_quality: returns within line_gate_m of each laser-frame line (|along| < 8 m)."""
+        c, s = math.cos(axis), math.sin(axis)
+        along = points @ np.array((c, s))
+        cross = points @ np.array((-s, c))
+        near = np.abs(along) < 8.
+        gate = self.config.line_gate_m
+        return [0 if offset is None else int(np.count_nonzero((np.abs(cross - offset) < gate) & near))
+                for offset in (left, right)]
 
     def _apply(self, stamp, heading, axis, left, right, points, source):
         """Gated full (both sides) or one-sided update of the tracked band."""
@@ -1180,6 +1367,10 @@ class SensorEstimator:
             if (abs(offset_obs - offset_pred) < cfg.band_offset_gate_m
                     and abs(width - band.width) < cfg.band_width_gate_m
                     and cfg.band_min_width_m <= width <= cfg.band_max_width_m):   # no slow drift to 0
+                if self.quality is not None:
+                    self.quality.accepted(stamp, 'both', source, self._support_counts(points, axis, left, right),
+                                          lateral=offset_obs - offset_pred, heading=wrap(heading - band.heading),
+                                          width=width - band.width)
                 band.heading = wrap(band.heading + g * wrap(heading - band.heading))
                 band.width += g * (width - band.width)
                 normal = np.array((-math.sin(band.heading), math.cos(band.heading)))
@@ -1198,6 +1389,10 @@ class SensorEstimator:
         # One-sided: the matched line keeps the learnt width.
         for observed, predicted, sign in ((left, pred_left, -1), (right, pred_right, 1)):
             if observed is not None and abs(observed - predicted) < cfg.band_side_gate_m:
+                if self.quality is not None:
+                    self.quality.accepted(stamp, 'left' if sign < 0 else 'right', source,
+                                          self._support_counts(points, axis, left, right),
+                                          lateral=observed - predicted, heading=wrap(heading - band.heading))
                 relative = band.center - lateral          # opt-in: the centre offset from the vehicle before the turn
                 band.heading = wrap(band.heading + g / 2 * wrap(heading - band.heading))
                 normal = np.array((-math.sin(band.heading), math.cos(band.heading)))
@@ -1381,6 +1576,85 @@ class SensorEstimator:
                               (heading, left, right))
             self.candidates = []
             self.corridor_reason = 'tracked_full_init'
+            if self.quality is not None:
+                self.quality.accepted(stamp, 'both', 'init', self._support_counts(points, axis, left, right))
+
+    # --- opt-in external corridor observations (never called into while OFF) --------------------------------
+    def _base_pose_at(self, stamp):
+        """Base pose (x, y, yaw) in the odometry frame at `stamp`, or None: interpolated between the recent scan poses
+        (about the last second), or advanced from the newest scan with the gyro and the LiDAR speed."""
+        if self.last_scan_stamp is None or not self.history:
+            return None
+        cfg = self.config
+        if stamp >= self.last_scan_stamp:
+            theta = wrap(self.pose[2] + self.gyro_integral(self.last_scan_stamp, stamp))
+            lx, ly = advance(self.pose, theta, self.speed, stamp - self.last_scan_stamp)
+        else:
+            entries = list(self.history)
+            if stamp < entries[0][0]:
+                return None
+            k = max(i for i, entry in enumerate(entries) if entry[0] <= stamp)
+            (t0, p0, _), (t1, p1, _) = entries[k], entries[min(k + 1, len(entries) - 1)]
+            u = 0. if t1 <= t0 else (stamp - t0) / (t1 - t0)
+            lx, ly = p0[0] + u * (p1[0] - p0[0]), p0[1] + u * (p1[1] - p0[1])
+            theta = wrap(p0[2] + u * wrap(p1[2] - p0[2]))
+        return (lx - cfg.lidar_x_in_base_m * math.cos(theta), ly - cfg.lidar_x_in_base_m * math.sin(theta), theta)
+
+    def on_corridor_observation(self, stamp, lateral_offset_m, heading_error_rad, width_m=None, quality=1.,
+                                source='external'):
+        """Opt-in provider slot (external_corridor_gain > 0): a corridor observation made at `stamp` (estimator clock)
+        in the snapshot's own convention - lateral_offset_m = base offset from the corridor centre along the corridor's
+        left normal, heading_error_rad = corridor axis - vehicle heading, width_m (optional), quality in [0, 1] and the
+        provider name. Returns the outcome (EXTERNAL_REASONS: 'fused' or why it was not used); None while OFF.
+
+        A used observation pulls the tracked band by the gain: the heading about the vehicle, then the centre, then
+        the width. It never creates a band, never refreshes the band's own stamp (the band still times out without
+        LiDAR support), never counts as a corridor update and never touches the row-end evidence."""
+        book = self.external
+        if book is None:
+            return None
+        cfg = self.config
+        if source not in cfg.external_corridor_sources:
+            return book.note('source')
+        values = (stamp, lateral_offset_m, heading_error_rad, quality) + (() if width_m is None else (width_m,))
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in values):
+            return book.note('invalid')
+        if book.last_stamp is not None and stamp <= book.last_stamp:
+            return book.note('order')
+        book.last_stamp = stamp
+        if quality < cfg.external_corridor_min_quality:
+            return book.note('quality')
+        stamps = [t for t in (self.last_scan_stamp, self.last_imu_stamp) if t is not None]
+        if not stamps or self.band is None:
+            return book.note('no_band')
+        newest = max(stamps)
+        if newest - stamp > cfg.external_corridor_max_age_s:
+            return book.note('stale')
+        if stamp - newest > cfg.external_corridor_max_age_s:
+            return book.note('future')
+        pose = self._base_pose_at(stamp)
+        if pose is None:
+            return book.note('no_pose')
+        band, gain = self.band, cfg.external_corridor_gain
+        bx, by, theta = pose
+        turn = wrap(wrap(theta + heading_error_rad) - band.heading)
+        if abs(turn) >= math.radians(cfg.band_heading_gate_deg):
+            return book.note('heading_gate')
+        lateral = bx * -math.sin(band.heading) + by * math.cos(band.heading)
+        if abs((lateral - band.center) - lateral_offset_m) >= cfg.band_offset_gate_m:
+            return book.note('offset_gate')
+        if width_m is not None and not (abs(width_m - band.width) < cfg.band_width_gate_m
+                                        and cfg.band_min_width_m <= width_m <= cfg.band_max_width_m):
+            return book.note('width_gate')
+        relative = band.center - lateral                 # the centre's offset from the vehicle before the turn
+        band.heading = wrap(band.heading + gain * turn)
+        lateral = bx * -math.sin(band.heading) + by * math.cos(band.heading)
+        band.center = lateral + relative                 # rotated about the vehicle
+        band.center += gain * ((lateral - lateral_offset_m) - band.center)
+        if width_m is not None:
+            band.width += gain * (width_m - band.width)
+        book.fused_stamp, book.fused_source = stamp, source
+        return book.note('fused')
 
     # --- outputs ------------------------------------------------------------
     def still_duration(self, now):
@@ -1408,6 +1682,24 @@ class SensorEstimator:
                 result[side] = 'UNKNOWN'
         return result
 
+    def base_pose(self, now):
+        """Latency-compensated base pose (x, y, yaw) in the odometry frame at `now`: the pose the snapshot's corridor
+        values refer to (the newest scan pose advanced by the gyro and by the LiDAR speed, or by the bounded actuator
+        prior). Display and evaluation only; nothing in the estimator reads it back."""
+        cfg = self.config
+        theta = self.pose[2]
+        if self.last_scan_stamp is not None:
+            theta = wrap(theta + self.gyro_integral(self.last_scan_stamp, now))
+        horizon = 0. if self.last_scan_stamp is None else max(0., now - self.last_scan_stamp)
+        ahead = (None if self.prior is None or self.last_scan_stamp is None
+                 else self.prior.extrapolate(self.last_scan_stamp, now, self.speed))
+        if ahead is None:
+            lx, ly = advance(self.pose, theta, self.speed, horizon)
+        else:
+            lx, ly = advance(self.pose, theta, ahead[0], 1.)
+        return (float(lx - cfg.lidar_x_in_base_m * math.cos(theta)),
+                float(ly - cfg.lidar_x_in_base_m * math.sin(theta)), float(theta))
+
     def snapshot(self, now):
         cfg = self.config
         lidar_age = math.inf if self.last_scan_stamp is None else now - self.last_scan_stamp
@@ -1418,7 +1710,16 @@ class SensorEstimator:
         # Latency compensation: advance the scan pose with gyro and LiDAR speed
         # along the wrapped mid-heading (no naive mean across +-pi).
         horizon = 0. if self.last_scan_stamp is None else max(0., now - self.last_scan_stamp)
-        lx, ly = advance(self.pose, theta, self.speed, horizon)
+        # Opt-in actuator prior (b): the bounded, blended travel since the newest scan; None (OFF, weight 0 or no
+        # status over that time) keeps the original LiDAR-speed rule below, bit for bit.
+        ahead = (None if self.prior is None or self.last_scan_stamp is None
+                 else self.prior.extrapolate(self.last_scan_stamp, now, self.speed))
+        if ahead is None:
+            lx, ly = advance(self.pose, theta, self.speed, horizon)
+            front_clearance = self.front_clearance - max(0., self.speed) * horizon
+        else:
+            lx, ly = advance(self.pose, theta, ahead[0], 1.)
+            front_clearance = self.front_clearance - max(0., ahead[0])
         bx = lx - cfg.lidar_x_in_base_m * math.cos(theta)
         by = ly - cfg.lidar_x_in_base_m * math.sin(theta)
         still_s = self.still_duration(now)
@@ -1427,7 +1728,7 @@ class SensorEstimator:
                       speed=self.speed, odom_valid=self.odom_valid, lidar_heading=float(self.pose[2]),
                       distance_m=self.distance, still=still_s > 0., still_s=still_s,
                       vibration_rms=self.vibration_rms(now),
-                      front_clearance_m=self.front_clearance - max(0., self.speed) * horizon,
+                      front_clearance_m=front_clearance,
                       side_clearance_m=self.side_clearance,
                       side_clearance_left_m=self.side_left, side_clearance_right_m=self.side_right,
                       side_nearest_x_left_m=self.side_left_x, side_nearest_x_right_m=self.side_right_x,
@@ -1458,6 +1759,12 @@ class SensorEstimator:
                           side_ends_ahead_m=ends, side_end_free=list(self.end_free),
                           row_end_ahead_m=max(ends) if both_end else None,
                           end_age_s=None if band.end_stamp is None else now - band.end_stamp)
+        if self.prior is not None:
+            result['actuator_prior'] = self.prior.snapshot(now, self.last_scan_stamp, self.speed)
+        if self.quality is not None:
+            result['corridor_quality'] = self.quality.snapshot(now, band)
+        if self.external is not None:
+            result['external_corridor'] = self.external.snapshot(now)
         return result
 
 

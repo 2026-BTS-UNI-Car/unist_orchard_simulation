@@ -149,7 +149,11 @@ SCOPE_PATTERNS = (
 # Explicit roles (repository-relative paths). Every allowlisted (truth-reading) module has a reason.
 ROLE_TABLE = {
     # --- decision side: controller, estimator (no truth) -------------------------------------------------------------
-    'sim/ubts/closed_loop/estimator.py': (ROLE_DECISION, 'SensorEstimator: 2D LiDAR + raw IMU only'),
+    'sim/ubts/closed_loop/estimator.py': (ROLE_DECISION, 'SensorEstimator: 2D LiDAR + raw IMU; opt-in (design v2): '
+                                                         'the MCU status line (applied duty, measured steering '
+                                                         'angle) and corridor observations of a provider'),
+    'sim/ubts/closed_loop/actuator_prior.py': (ROLE_DECISION, 'actuator priors of the estimator (layer L1): the '
+                                                              'status line values only'),
     'sim/ubts/closed_loop/controllers.py': (ROLE_DECISION, 'RowController: estimator snapshot only'),
     'sim/ubts/closed_loop/single_row.py': (ROLE_DECISION, 'SingleRowController: estimator snapshot only'),
     'sim/ubts/orchard_perception/scan_corridor.py': (ROLE_DECISION, 'scan corridor detector used by the estimator'),

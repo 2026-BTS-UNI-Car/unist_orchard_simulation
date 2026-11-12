@@ -60,7 +60,12 @@ SINGLE_ROW_FIELDS = (('row_end_segment_span_m', None), ('row_end_segment_min_gap
                      ('row_end_segment_bin_m', .5), ('row_end_segment_min_bins', 4),
                      ('band_rotate_about_vehicle', False), ('row_end_stagger_gap_m', None),
                      ('row_end_stagger_window_m', 2.), ('row_end_last_trunk', False), ('acquire_behind_m', None))
-OPT_IN_FIELDS = DISTANCE_FIELDS + ROW_END_POSITION_FIELDS + CONTINUATION_FIELDS + SINGLE_ROW_FIELDS
+# Added by the design v2 inputs / outputs (2026-11-12): actuator priors (L1), the corridor quality block and the external
+# corridor observation slot. Never read while OFF (None / False / gain 0); their state stays None then.
+V2_FIELDS = (('actuator_prior', None), ('corridor_quality', False), ('external_corridor_gain', 0.),
+             ('external_corridor_sources', ()), ('external_corridor_max_age_s', .5),
+             ('external_corridor_min_quality', .5))
+OPT_IN_FIELDS = DISTANCE_FIELDS + ROW_END_POSITION_FIELDS + CONTINUATION_FIELDS + SINGLE_ROW_FIELDS + V2_FIELDS
 
 
 def test_frozen_estimator_uses_the_frozen_scan_corridor():
@@ -83,7 +88,9 @@ def main_config(config, variant=False):
     assert variant or (added['row_end_position_confirm_m'] is None and added['row_end_continuation_m'] is None
                        and added['distance_mode'] == 'scan_norm_legacy' and added['row_end_segment_span_m'] is None
                        and added['acquire_behind_m'] is None and added['band_rotate_about_vehicle'] is False
-                       and added['row_end_stagger_gap_m'] is None and added['row_end_last_trunk'] is False), \
+                       and added['row_end_stagger_gap_m'] is None and added['row_end_last_trunk'] is False
+                       and added['actuator_prior'] is None and added['corridor_quality'] is False
+                       and added['external_corridor_gain'] == 0.), \
         'reference comparison needs the variants OFF'
     return ref_estimator.EstimatorConfig(**values)
 
@@ -368,13 +375,16 @@ SIDE_SNAPSHOT = ('side_clearance_left_m', 'side_clearance_right_m', 'side_neares
 ROW_END_POSITION_STATE = ('end_position_memory', 'end_position_counts', 'end_position_events')
 # Added by the opt-in line-continuation veto (written only while it is ON; asserted untouched while OFF).
 CONTINUATION_STATE = ('continuation_last', 'continuation_counts', 'continuation_events')
+# Added by the design v2 inputs / outputs (None while OFF; asserted untouched in every comparison).
+V2_STATE = ('prior', 'quality', 'external')
+V2_SNAPSHOT = ('actuator_prior', 'corridor_quality', 'external_corridor')
 
 
 def state(estimator):
     """Every attribute except the private recording and the additive opt-in ones; the candidate's
     configuration is compared as the reference's view of it (the opt-in fields are checked apart)."""
     values = {key: value for key, value in vars(estimator).items()
-              if key not in PRIVATE + SIDE_STATE + ROW_END_POSITION_STATE + CONTINUATION_STATE}
+              if key not in PRIVATE + SIDE_STATE + ROW_END_POSITION_STATE + CONTINUATION_STATE + V2_STATE}
     if isinstance(values['config'], new_estimator.EstimatorConfig):
         values['config'] = main_config(values['config'], variant=True)
     return canon(values)
@@ -385,6 +395,10 @@ def assert_row_end_position_untouched(estimator):
     assert estimator.end_position_counts == dict.fromkeys(new_estimator.END_POSITION_REASONS, 0)
 
 
+def assert_v2_untouched(estimator):
+    assert estimator.prior is None and estimator.quality is None and estimator.external is None
+
+
 def assert_continuation_untouched(estimator):
     assert estimator.continuation_last is None and estimator.continuation_events == []
     assert estimator.continuation_counts == dict.fromkeys(new_estimator.CONTINUATION_KEYS, 0)
@@ -393,6 +407,7 @@ def assert_continuation_untouched(estimator):
 def main_view(snapshot):
     """The candidate snapshot without the additive side keys (asserted present)."""
     assert all(key in snapshot for key in SIDE_SNAPSHOT), 'side snapshot keys present'
+    assert not any(key in snapshot for key in V2_SNAPSHOT), 'design v2 blocks absent while OFF'
     return {key: value for key, value in snapshot.items() if key not in SIDE_SNAPSHOT}
 
 
@@ -428,6 +443,7 @@ class DualEstimator:
             assert_row_end_position_untouched(self.new)
         if self.new.config.row_end_continuation_m is None:
             assert_continuation_untouched(self.new)
+        assert_v2_untouched(self.new)                 # the comparisons run with the design v2 options OFF
 
     def on_scan(self, stamp, ranges, angle_min, increment, range_max):
         original = np.array(ranges, copy=True)
