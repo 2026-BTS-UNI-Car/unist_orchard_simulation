@@ -167,6 +167,7 @@
 | `deploy/field10_c0_shadow_v3` | `tools/row_executor` 밖, 옛 실행기의 Jetson 배치 |
 | `tools/field_calib` | p4_ident가 가져온다 |
 
+- (2026-11-12, PC-04) 재생 도구 `replay_adapters.py`, `replay_executor_shadow.py`, `row_shadow_replay.py`, `row_gate_report.py`와 `tests/test_replay_gate.py`는 뒤에 가져왔다. 바꾼 곳과 10/22 기준선 재현 결과는 `REPLAY_BASELINE_KO.md`에 있다. `convert_1003.py`와 회전 도구는 여전히 없다.
 - `config.py`의 회전 설정 키(`turn_assist_enabled`, `turn_*`, `turn_feasibility`)와 `guard.TurnGuard`는 그대로 두었다. 지우면 설정 스키마와 digest가 바뀐다. `turn_assist_enabled`는 기본 false이고 단일열 모드는 이 키를 거부한다.
 
 ## 6. 바꾼 것
