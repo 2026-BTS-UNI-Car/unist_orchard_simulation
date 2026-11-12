@@ -1954,9 +1954,16 @@ def check_pose(ctx, args):
 
 
 def _run_records(ctx, step0, run_id):
+    """Ticks and the run_end event of this run only. The log folder (control volume) keeps the files of earlier
+    sessions and their runs have the same run ids, so only the records after this run's start event are used
+    (registration steer_follow_gsim_v1, amendment 1)."""
+    from . import gsim_follow as GF
     records = executor_log(ctx.exec_dir, after_wall=step0['wall'])
-    ticks = [r for r in executor_ticks(records) if r.get('run') == run_id]
-    ends = [r for r in executor_events(records, ('run_end',), after_wall=step0['wall'] - 1.)
+    starts = [i for i, r in enumerate(records) if r.get('k') == 'event' and r.get('event') == 'start'
+              and r.get('run_id') == run_id and r.get('wall', 0.) >= step0['wall'] - 1.]
+    own = records[starts[-1]:] if starts else records
+    ticks = GF.own_ticks([r for r in executor_ticks(own) if r.get('run') == run_id])
+    ends = [r for r in executor_events(own, ('run_end',), after_wall=step0['wall'] - 1.)
             if r.get('run_id') == run_id]
     return ticks, (ends[-1] if ends else None)
 

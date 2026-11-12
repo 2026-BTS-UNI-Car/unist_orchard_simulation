@@ -226,6 +226,20 @@ def after_terminal(c_lines, t_end, t_record_end, window_s=None):
                 other_s_permille=moved[:8])
 
 
+OWN_TICK_GAP_S = 20.                 # ticks of one executor run come at 20 Hz; a longer gap is another session
+
+
+def own_ticks(ticks, gap_s=OWN_TICK_GAP_S):
+    """The ticks after the last time gap above gap_s (or a step back in time): the ticks of the newest run only
+    (registration amendment 1: the log folder of the control volume keeps the files of earlier sessions)."""
+    cut = 0
+    for i in range(1, len(ticks)):
+        a, b = ticks[i - 1].get('t'), ticks[i].get('t')
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)) and (b - a > gap_s or b < a):
+            cut = i
+    return list(ticks[cut:])
+
+
 def tick_stats(ticks):
     """Executor tick statistics of one run (the executor's own estimates, not truth): corridor validity over the
     ACTIVE ticks, pauses with reasons, controller phases."""
@@ -294,3 +308,44 @@ def verdict(checks, valid=True):
     if not valid:
         return 'invalid'
     return 'pass' if all(item['ok'] for item in checks) else 'fail'
+
+
+def rejudge(report, trace):
+    """Judge a recorded run again from its own files with the ticks of the run only (amendment 1). report:
+    GSIM_FOLLOW_RUN.json, trace: GSIM_FOLLOW_TRACE.json. The truth metrics are taken as recorded."""
+    every = trace.get('ticks') or []
+    own = own_ticks(every)
+    stats = tick_stats(own)
+    metrics = dict(report.get('metrics') or {})
+    metrics['pauses_after_start'] = sorted({str(item[1]) for item in stats['pauses_after_start']})
+    run = report.get('run') or {}
+    checks = judge(run.get('expect', 'row_end'), metrics)
+    valid = bool((report.get('validity') or {}).get('valid'))
+    return dict(schema=SCHEMA + '.rejudged', prereg_id=PREREG_ID, amendment=1, result_kind=RESULT_KIND, run=run,
+                verdict=verdict(checks, valid), checks=checks, metrics=metrics, tick_stats=stats,
+                validity=report.get('validity'), ticks_recorded=len(every), ticks_of_the_run=len(own),
+                original_verdict=report.get('verdict'),
+                original_failed=[c['check'] for c in report.get('checks', ()) if not c['ok']])
+
+
+def main(argv=None):
+    """python -B -m steering.gsim_follow <run folder> ...: writes GSIM_FOLLOW_REJUDGED.json next to the records."""
+    import json
+    import sys
+    from pathlib import Path
+    for folder in (sys.argv[1:] if argv is None else argv):
+        folder = Path(folder)
+        report = json.loads((folder / 'GSIM_FOLLOW_RUN.json').read_bytes().decode('utf-8'))
+        trace = json.loads((folder / 'GSIM_FOLLOW_TRACE.json').read_bytes().decode('utf-8'))
+        result = rejudge(report, trace)
+        (folder / 'GSIM_FOLLOW_REJUDGED.json').write_bytes(
+            (json.dumps(result, indent=1, allow_nan=False) + '\n').encode('utf-8'))
+        print(json.dumps(dict(run=result['run'].get('name'), verdict=result['verdict'],
+                              original_verdict=result['original_verdict'],
+                              failed=[c['check'] for c in result['checks'] if not c['ok']],
+                              ticks=[result['ticks_recorded'], result['ticks_of_the_run']])))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

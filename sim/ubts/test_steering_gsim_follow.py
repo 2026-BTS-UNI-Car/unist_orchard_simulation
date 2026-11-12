@@ -146,6 +146,40 @@ class MeasureTest(unittest.TestCase):
         self.assertEqual(s['corridor_invalid_reasons'], {'insufficient_returns': 10})
 
 
+class OwnTicksTest(unittest.TestCase):
+    """Amendment 1: the ticks of an earlier session (same run id, same log folder) are not the run's ticks."""
+
+    def merged(self):
+        earlier = [dict(t=100. + k * .05, state='ACTIVE', T=40, corridor=True) for k in range(200)]
+        own = [dict(t=230. + k * .05, state='PAUSED', reason='await_hold', corridor=False) for k in range(10)]
+        own += [dict(t=230.5 + k * .05, state='ACTIVE', T=40, corridor=True) for k in range(300)]
+        return earlier, own
+
+    def test_only_the_ticks_after_the_last_gap_are_the_run(self):
+        earlier, own = self.merged()
+        self.assertEqual(GF.own_ticks(earlier + own), own)
+        self.assertEqual(GF.own_ticks(own), own)
+        self.assertEqual(GF.own_ticks([]), [])
+        self.assertEqual(GF.tick_stats(earlier + own)['pauses_after_start'], [[230., 'await_hold']])
+        self.assertEqual(GF.tick_stats(GF.own_ticks(earlier + own))['pauses_after_start'], [])
+
+    def test_rejudge_uses_the_recorded_truth_metrics_and_the_run_ticks(self):
+        earlier, own = self.merged()
+        metrics = dict(min_clearance_m=1.4, rest_speed_m_s=0., end_reason='row_end', lateral_rmse_m=.02,
+                       lateral_p95_m=.05, lateral_max_m=.06, heading_rmse_deg=.8, heading_max_deg=2., speed_max_m_s=.44,
+                       row_end_error_m=.45, pauses_after_start=['await_hold'],
+                       after_terminal=dict(passed=True, complete=True))
+        report = dict(run=dict(name='nominal_2', expect='row_end'), metrics=metrics, validity=dict(valid=True),
+                      verdict='fail', checks=[dict(check='no pause after the drive started', ok=False)])
+        result = GF.rejudge(report, dict(ticks=earlier + own))
+        self.assertEqual((result['verdict'], result['original_verdict']), ('pass', 'fail'))
+        self.assertEqual(result['original_failed'], ['no pause after the drive started'])
+        self.assertEqual((result['ticks_recorded'], result['ticks_of_the_run']), (510, 310))
+        own[100] = dict(t=own[100]['t'], state='PAUSED', reason='stale_lidar', corridor=False)
+        self.assertEqual(GF.rejudge(report, dict(ticks=earlier + own))['verdict'], 'fail')
+        self.assertEqual(GF.rejudge(dict(report, validity=dict(valid=False)), dict(ticks=own))['verdict'], 'invalid')
+
+
 class RegistrationTest(unittest.TestCase):
     def test_the_limits_are_those_of_the_fast_sim_registration(self):
         from steering.safety_scripts import follow_matrix as F
