@@ -324,5 +324,47 @@ async function releaseOrder() {
             plainHidden: plain.el('srcard').hidden, plainStarts: plain.requests.filter((r) => r.path === '/api/start').length,
             plainMsg: plain.el('msg').textContent};
   })();
+  out.one_press = await (async () => {
+    // start_mode one_press (design v2 V2-2): heartbeats while visible, the big button sends one go of the same
+    // session, hiding the page stops the heartbeats; the field tuning card replaces the differential keys
+    const ready = statusBody('MOTOR', {start_mode: 'one_press', vehicle_control: 'armed', run_state: 'armed',
+      go_ready: true, go_blockers: [], operator_link: {fresh: true, age_s: 0.05, timeout_s: 0.5},
+      speed: {target_mps: 0.4, limit_mps: null, limit_reason: 'not_running'},
+      tuning: {preset: 'default', revision: 0, editable: true, digest: 'abcdef0123456789',
+               presets: ['default', 'slow_030'], basic: [{name: 'k_d', value: 1, low: 0, high: 3, unit: ''}]}});
+    let status = ready;
+    const env = makeEnv((path) => {
+      if (path === '/api/status') return {status: 200, body: status};
+      return {status: 200, body: {ok: true}};
+    });
+    await env.flush();
+    await env.advance(600);
+    const count = (p) => env.requests.filter((r) => r.path === p).length;
+    const beatsVisible = count('/api/heartbeat');
+    const ready_ = {holdText: env.el('hold').textContent, holdDisabled: env.el('hold').disabled,
+                    tuningHidden: env.el('tuning').hidden, diffHidden: env.el('diffparams').hidden,
+                    form: env.el('tuningform').innerHTML, presets: env.el('tnpreset').innerHTML,
+                    info: env.el('tuninginfo').textContent, banner: env.el('banner').textContent};
+    env.el('hold').fire('pointerdown');
+    await env.flush();
+    env.el('hold').fire('pointerup');
+    await env.flush();
+    const gos = env.requests.filter((r) => r.path === '/api/go').map((r) => r.body);
+    const beatSessions = env.requests.filter((r) => r.path === '/api/heartbeat').map((r) => r.body.session);
+    env.sandbox.document.hidden = true;
+    for (const fn of env.listeners.doc.visibilitychange || []) fn();
+    const before = count('/api/heartbeat');
+    await env.advance(1000);
+    const hiddenBeats = count('/api/heartbeat') - before;
+    env.sandbox.document.hidden = false;
+    for (const fn of env.listeners.doc.visibilitychange || []) fn();
+    await env.advance(300);
+    const backBeats = count('/api/heartbeat') - before - hiddenBeats;
+    status = statusBody('MOTOR', Object.assign({}, ready, {go_ready: false, go_blockers: ['inputs_not_fresh']}));
+    await env.advance(600);
+    return Object.assign(ready_, {beatsVisible, gos, beatSessions: Array.from(new Set(beatSessions)), hiddenBeats,
+                                  backBeats, holds: count('/api/hold') + count('/api/release'),
+                                  blockedText: env.el('hold').textContent, blockedDisabled: env.el('hold').disabled});
+  })();
   process.stdout.write(JSON.stringify(out));
 })().catch((e) => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });
