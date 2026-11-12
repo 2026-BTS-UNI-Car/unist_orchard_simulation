@@ -386,7 +386,7 @@ v_ref = min(v_cruise, v_scan, v_blind, v_map, v_stop, v_curv, v_lat, v_sat, v_qu
 
 ## 7. 근거
 
-- 계획 `todo.md` 1절(요청 2~21번), 4절 가1~가4, 나10·나11·나16, 다1·다7·다9, 6.4절(ST-08, PC-02, PC-05~PC-14).
+- 계획 `todo.md` 1절(요청 2~21번), 4절 가1~가4, 나10·나11·나16, 다1·다7, 6.4절(ST-08, PC-02, PC-05~PC-14).
 - 조사 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_perception_control.txt`: 1절(지금 사슬), 4a~4e절(네 층, 조향, 속도 조절기, 열 끝·이상 처리), 5절(현장 조정 값), 8절(규칙과 달라지는 곳), PC-01.
 - 조사 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_steer_status.txt`: 조향 하드웨어 항목, 목표 비교 항목, ST-08.
 - PWM 분석 `D:/Develop/UBTS/steering-sim-20261108/runs/pwm_20261112/REPORT_KO.md`.
