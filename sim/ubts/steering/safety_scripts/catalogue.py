@@ -35,6 +35,10 @@ expect keys (all optional):
   rate_counts     the false-detection count group of a normal script ('normal' scripts)
   first_rule      True with a tuple mcu_fault: the found code must be the one the spec 6.7 recomputation trips first
                   (the earliest expected tick of the candidate codes, +-1 tick)
+  link_lost_at    one_press: the time the operator screen's heartbeats stop; the drive command must be 0 at most
+                  link_timeout_s (the executor's operator_timeout_s, default 0.5) + one tick later (A17 amendment 31)
+  other_screen    one_press: the expected replies to a second screen [(op, ok, error)] (heartbeat and go)
+  go_refused      one_press: the allowed error(s) of the first refused go of the script
   stop_phase      True: a STOP phase script (the STOP request off the bridge grid or the status lines shifted;
                   audit AUD3A-09); its STOP items are judged as stop_at and listed in the A17 STOP phase table
 Every value of the scripts is a placeholder of the SIM (자리값 기반 SIM 결과).
@@ -61,11 +65,16 @@ def _drive_then(seconds, throttle=40, steer_deg=0., lead_s=2.):
 
 def episode(name, controller=None, world=None, faults=(), actions=(), rig=None, config=None, duration_s=10.,
             post_end_s=POST_END_S, auto_repress=False, seed=0, start_pose=(0., 0., 0.), capture_inputs=0,
-            stream_key=None, start_steer_deg=0.):
+            stream_key=None, start_steer_deg=0., start_mode=None):
+    """An episode spec. start_mode None = the executor's default (front_steer: one_press, design v2 V2-2); the
+    hold-to-run scripts (deadman_release, hold_lost) name 'hold_to_run'."""
+    config = dict(config or {})
+    if start_mode is not None:
+        config.setdefault('start_mode', start_mode)
     return dict(name=name, seed=seed, world=copy.deepcopy(world or W0_ROWS), start_pose=list(start_pose),
                 start_steer_deg=float(start_steer_deg),
                 controller=copy.deepcopy(controller or HOLD_40), faults=[dict(f) for f in faults],
-                actions=[dict(a) for a in actions], rig=dict(rig or {}), config=dict(config or {}),
+                actions=[dict(a) for a in actions], rig=dict(rig or {}), config=config,
                 duration_s=float(duration_s), post_end_s=post_end_s, auto_repress=auto_repress,
                 capture_inputs=capture_inputs, stream_key=stream_key)
 
@@ -112,11 +121,34 @@ script('mid_row_stop_bridge_phase', 'safety', 'mid_row_stop_w0 with the bridge o
 script('deadman_release', 'safety', 'the operator lets the hold go while driving: pause, zero throttle at once, steering '
        'held, no restart (no new press)',
        episode('deadman_release', controller=segments(_drive_then(8., 40, 4.)), actions=[action('release', 5.)],
-               duration_s=10.),
+               duration_s=10., start_mode='hold_to_run'),
        dict(end_reason=None, pause_reason='hold_released', no_restart=True, a22=True, pause_at=5.))
 script('hold_lost', 'safety', 'the operator page stops sending heartbeats (page closed): the hold times out',
-       episode('hold_lost', actions=[action('hold_lost', 5.)], duration_s=10.),
+       episode('hold_lost', actions=[action('hold_lost', 5.)], duration_s=10., start_mode='hold_to_run'),
        dict(end_reason=None, pause_reason='hold_released', no_restart=True, a22=True, pause_at=5.))
+# one_press (design v2 V2-2, decision R32, A17 amendment 31; the front_steer default start mode): one go, the screen's
+# heartbeats keep the run going; the link timeout (operator_timeout_s 0.5 s) pauses it, only a new go resumes
+script('operator_link_lost', 'safety', 'one_press: the operator screen stops its heartbeats while driving (screen hidden): '
+       'pause operator_link_lost, zero drive within the timeout + 1 tick, steering held, no restart',
+       episode('operator_link_lost', controller=segments(_drive_then(8., 40, 4.)),
+               actions=[action('screen_hidden', 5.)], duration_s=10.),
+       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=.5, no_restart=True,
+            a22=True, pause_at=5.5))
+script('operator_link_back_no_restart', 'safety', 'one_press: the heartbeats stop and come back 0.8 s later: the run '
+       'stays paused (no restart without a new go)',
+       episode('operator_link_back_no_restart', actions=[action('screen_hidden', 5.), action('screen_visible', 5.8)],
+               duration_s=10.),
+       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=.5, no_restart=True,
+            pause_at=5.5))
+script('other_screen_refused', 'safety', 'one_press: a second screen sends a heartbeat and a go while the first one drives: '
+       'both refused (session_conflict), the run goes on',
+       episode('other_screen_refused', actions=[action('other_screen', 5.)], duration_s=8.),
+       dict(end_reason=None, other_screen=[('heartbeat', False, 'session_conflict'), ('go', False, 'session_conflict')]))
+script('one_press_stop', 'safety', 'one_press: operator STOP while driving ends the run and the go; a go after it is '
+       'refused (the latch needs an acknowledgement, a new Start and Arm)',
+       episode('one_press_stop', actions=[action('stop', 6.), action('go', 7.)], duration_s=12.),
+       dict(end_reason='operator_stop', stop_at=6., hold_check=True, no_restart=True, a22=True,
+            go_refused=('latched', 'no_run')))
 script('c_line_loss_ttl', 'safety', 'C lines stop reaching the MCU (link to the MCU lost for 0.4 s, under the watchdog): '
        'MCU C TTL brake, steering kept; the executor ends the run (no restart by the next C)',
        episode('c_line_loss_ttl', faults=[fault('link_loss', duration_s=.4, direction='to_mcu')], duration_s=10.),

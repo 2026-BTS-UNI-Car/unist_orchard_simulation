@@ -210,6 +210,33 @@ class FakeOp:
         return 200, dict(ok=True), 0., 0.
 
 
+class FakeOnePressOp(FakeOp):
+    """An executor page in start_mode one_press: /api/status says so; /api/go is refused go_refusals times
+    (inputs_not_fresh), or always with session_conflict."""
+
+    def __init__(self, go_refusals=0, conflict=False):
+        super().__init__()
+        self.go_refusals, self.conflict = go_refusals, conflict
+        self.go_sessions, self.beat_sessions = [], []
+
+    def request(self, method, route, body=None, timeout_s=None):
+        return 200, dict(start_mode='one_press'), 0., 0.
+
+    def post(self, route, body=None, timeout_s=None):
+        if route == '/api/heartbeat':
+            self.beat_sessions.append((body or {}).get('session'))
+        if route == '/api/go':
+            self.go_sessions.append((body or {}).get('session'))
+            self.posts.append(route)
+            if self.conflict:
+                return 409, dict(ok=False, error='session_conflict'), 0., 0.
+            if self.go_refusals > 0:
+                self.go_refusals -= 1
+                return 409, dict(ok=False, error='inputs_not_fresh', blockers=['inputs_not_fresh']), 0., 0.
+            return 200, dict(ok=True), 0., 0.
+        return super().post(route, body, timeout_s)
+
+
 class FakeHold:
     def __init__(self):
         self.events = []
@@ -286,6 +313,37 @@ class ExecRunTest(unittest.TestCase):
         code, summary, op, hold, hooks, lines = self.run_start(seq)
         self.assertEqual(code, exec_run.EXIT_OTHER_END)
         self.assertEqual(summary['runner']['end_reason'], 'obstacle_ahead')
+
+    def one_press_start(self, statuses, op):
+        hooks = FakeHooks(statuses)
+        operator = exec_run.Operator('unused', op=op, hooks=hooks)     # no hold given: the start mode decides
+        lines = []
+        try:
+            code, summary = exec_run.start_run(operator, {'kind': 'row_follow'}, out=lines.append, period_s=0.,
+                                               sleep=lambda s: None, tick_reader=lambda d: None)
+        finally:
+            operator.hold.close()
+        return code, summary, operator, lines
+
+    def test_one_press_executor_gets_heartbeats_and_one_go(self):
+        op = FakeOnePressOp(go_refusals=1)
+        seq = [status('IDLE', client='IDLE')] * 3 + [status('ACTIVE', 'follow')] * 3 + [
+            status('ENDED', 'row_end', end_reason='row_end')]
+        code, summary, operator, lines = self.one_press_start(seq, op)
+        self.assertEqual(code, exec_run.EXIT_ROW_END)
+        self.assertEqual(summary['start_mode'], 'one_press')
+        self.assertIsInstance(operator.hold, exec_run.GoBeater)
+        self.assertEqual([p for p in op.posts if p in ('/api/go', '/api/hold')], ['/api/go', '/api/go'])
+        self.assertIn('/api/heartbeat', op.posts)
+        self.assertEqual(op.go_sessions[0], op.beat_sessions[0])            # one screen: one session id
+        self.assertTrue(any(line.startswith('started (one press)') for line in lines))
+
+    def test_one_press_go_refused_by_another_screen_ends_the_request(self):
+        op = FakeOnePressOp(conflict=True)
+        code, summary, operator, lines = self.one_press_start([status('IDLE', client='IDLE')], op)
+        self.assertEqual((code, summary['error']), (exec_run.EXIT_NO_START, 'go_refused:session_conflict'))
+        self.assertEqual(op.posts.count('/api/go'), 1)                      # a session conflict is not retried
+        self.assertEqual(op.posts[-1], '/api/end')
 
     def test_stop_posts_the_operator_stop(self):
         op = FakeOp()

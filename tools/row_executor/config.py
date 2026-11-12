@@ -347,6 +347,14 @@ class ExecutorConfig:
     steer_rotation_centre_x_m: float = -.38      # rotation centre of the side-sweep rule: the rear axle in the base frame
     steer_rotation_centre_sd_m: float = .05      # (profile rear_axle_x_in_base_m, design 6.7) and its uncertainty
 
+    # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
+    # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
+    start_mode: object = None                    # None = the profile's default (effective_start_mode): 'one_press' for
+                                                 # front_steer, 'hold_to_run' for the differential profile (history);
+                                                 # or explicitly 'one_press' / 'hold_to_run'
+    operator_timeout_s: float = .5               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
+                                                 # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31)
+
     # --- assisted headland turn (TurnAssist; opt-in, default DISABLED; TURN_DESIGN.txt 3.10) ------
     # With the defaults below no turn run can command any output (observe / dry runs only) and the
     # row executor is unchanged; an untouched turn block is left out of to_dict()/digest().
@@ -438,6 +446,9 @@ class ExecutorConfig:
         if all(data[k] == _STEER_DEFAULTS[k] for k in STEER_KEYS):
             for k in STEER_KEYS:       # untouched steering block: the same (existing configs keep their digest)
                 del data[k]
+        if all(data[k] == _AUTONOMY_DEFAULTS[k] for k in AUTONOMY_KEYS):
+            for k in AUTONOMY_KEYS:    # untouched autonomy block (design v2): the same
+                del data[k]
         return data
 
     def digest(self):
@@ -497,6 +508,10 @@ SINGLE_ROW_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startsw
 _SINGLE_ROW_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in SINGLE_ROW_KEYS}
 STEER_KEYS = ('vehicle_profile',) + tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('steer_'))
 _STEER_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in STEER_KEYS}
+AUTONOMY_KEYS = ('start_mode', 'operator_timeout_s')
+_AUTONOMY_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in AUTONOMY_KEYS}
+ONE_PRESS, HOLD_TO_RUN = 'one_press', 'hold_to_run'
+START_MODES = (ONE_PRESS, HOLD_TO_RUN)
 
 
 # --- field specification -----------------------------------------------------------------------
@@ -609,6 +624,10 @@ _SPEC.update({
     'steer_status_max_age_s': (_REAL, .05, 1.),
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
+})
+# Autonomous start and operator link (design v2 V2-2): separate block for the same reason.
+_SPEC.update({
+    'start_mode': (str, None, None, 'nullable'), 'operator_timeout_s': (_REAL, .5, 3.),
 })
 
 # Vendored ControlConfig defaults (closed_loop/controllers.py; tests compare them with the vendored file).
@@ -777,6 +796,7 @@ def _rule_problems(cfg):
     p += _turn_rule_problems(cfg)
     p += single_row_rule_problems(cfg)
     p += steer_rule_problems(cfg)
+    p += autonomy_rule_problems(cfg)
     return p
 
 
@@ -1695,6 +1715,23 @@ STEER_LINK_STOP_REASONS = tuple(sorted(set(reason for _, reason in STEER_LINK_FA
 
 def is_front_steer(cfg):
     return getattr(cfg, 'vehicle_profile', DIFFERENTIAL) == FRONT_STEER
+
+
+def effective_start_mode(cfg):
+    """The start mode of a configuration (design v2 V2-2): the explicit start_mode, else 'one_press' for front_steer and
+    'hold_to_run' for the differential profile."""
+    mode = getattr(cfg, 'start_mode', None)
+    if mode is not None:
+        return mode
+    return ONE_PRESS if is_front_steer(cfg) else HOLD_TO_RUN
+
+
+def autonomy_rule_problems(cfg):
+    """Static rules of the autonomy block: a known start mode. The operator timeout range is the field spec (0.5-3.0 s,
+    locked: config file only)."""
+    if cfg.start_mode is not None and cfg.start_mode not in START_MODES:
+        return ['start_mode: must be null or one of %s' % (START_MODES,)]
+    return []
 
 
 def steer_fault_reason(names):

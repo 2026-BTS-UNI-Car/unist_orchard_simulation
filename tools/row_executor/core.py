@@ -189,6 +189,7 @@ SINGLE_ROW_VENDOR_PATH = VENDOR_SOURCES['single_row']
 # are not in it. Display / log only - the SIM evaluation uses the vendored table (PREREG); nothing re-maps a table reason.
 SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'operator_stop': 'OPERATOR_OR_BACKSTOP',                 # page / dashboard STOP (emergency_stop)
+    'operator_link_lost': 'OPERATOR_LINK_LOST',              # one_press: the operator screen's heartbeats stopped (R32)
     'reacquire_needs_press': 'PERCEPTION_OR_LOCALISATION',   # corridor re-acquisition wait (Runner pause)
     'stall_guard': 'SENSOR',                                 # loop stall pause (the repeat limit is SENSOR in the table)
     'native_cross_check_cost_occupied': 'OBSTACLE',          # optional native cross-check veto (executor_main)
@@ -207,6 +208,8 @@ SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'mcu_state_mismatch': 'SYSTEM_FAULT', 'arm_unconfirmed': 'SYSTEM_FAULT', 'arm_rejected': 'SYSTEM_FAULT',
     'link_identity_mismatch': 'SYSTEM_FAULT', 'bridge_internal_error': 'SYSTEM_FAULT', 'mcu_disarmed': 'SYSTEM_FAULT',
 }
+# pauses counted together against max_stale_events (design v2 V2-2 item 5; the reason names of the steering controller)
+COUNTED_PAUSES = ('stale_lidar', 'stale_imu', 'operator_link_lost')
 SINGLE_ROW_SUB_LABELS = dict(DRIVE='CONTROL_AUTHORITY', SENSOR='PERCEPTION_OR_LOCALISATION')   # PREREG sub-labels
 SINGLE_ROW_NOT_STOPS = ('await_hold', 'resumed', 'no_run', 'press_ignored_inputs_not_fresh',
                         'press_ignored_not_standstill', 'press_ignored_steering_feedback')
@@ -1014,7 +1017,9 @@ class Runner:
             self.stall_guard_pauses += 1
             if self.stall_guard_pauses > self.config.max_stall_guard_pauses:
                 self._end('stall_guard_repeat_limit')
-        elif why in ('stale_lidar', 'stale_imu'):
+        elif why in COUNTED_PAUSES:
+            # design v2 V2-2 item 5: the freshness, operator link, speed cap and prediction pauses of a run are counted
+            # together; one more than max_stale_events ends the run
             self.stale_events += 1
             if self.stale_events > self.config.max_stale_events:
                 self._end('stale_repeat_limit')
@@ -1623,6 +1628,8 @@ class Runner:
             authority_state=t.get('authority_state'), bias_pct=_finite_or_none(t.get('bias_pct'), 3),
             base_duty_pct=_finite_or_none(t.get('base_duty_pct'), 2),
             target_speed_m_s=_finite_or_none(t.get('target_speed_m_s'), 3),
+            speed_cap=t.get('cap'), cruise_speed_m_s=_finite_or_none((t.get('caps') or {}).get('cruise'), 3),
+            speed_caps=t.get('caps'),
             target_yaw_rate_deg_s=_finite_or_none(t.get('target_yaw_rate_deg_s'), 3),
             measured_yaw_rate_deg_s=_finite_or_none(math.degrees(s.get('yaw_rate', 0.) or 0.), 3),
             row_end_ahead_m=_finite_or_none(end, 3), end_remaining_m=_finite_or_none(remaining, 3),

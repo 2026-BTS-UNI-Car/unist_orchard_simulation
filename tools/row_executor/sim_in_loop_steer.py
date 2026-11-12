@@ -17,9 +17,16 @@ lidar_yaw_offset_deg mount convention, 0 = no return, 1 mm), header = the SIM se
 time; IMU angular_velocity (0, 0, gyro_z) and linear_acceleration (sensor axes), header = stamp, receipt = arrival.
 Clock: the executor steps at 20 Hz on the rig's 10 ms grid (t = 0, 50, 100 ms ...; a late tick is skipped, never caught
 up), with the rig clock as its clock (ExecutorLoop clock = rig.clock, wall = rig.wall_clock; SteerBridgeClient too).
-Operator emulation: Start (row length optional, single-row mode) at the first tick, Arm at ARM_AT_S, press hold at
-PRESS_AT_S and keep the heartbeat; after a pause (not await_hold) release and press again with a new press id once the
-Runner would accept it (REPRESS_WAIT_S later), at most MAX_REPRESSES; never after an end; never an automatic re-arm.
+Operator emulation (the executor's start mode, config.effective_start_mode):
+  hold_to_run  Start (row length optional, single-row mode) at the first tick, Arm at ARM_AT_S, press hold at PRESS_AT_S
+               and keep the heartbeat; after a pause (not await_hold) release and press again with a new press id once the
+               Runner would accept it (REPRESS_WAIT_S later), at most MAX_REPRESSES; never after an end; never an
+               automatic re-arm.
+  one_press    (design v2 V2-2, the front_steer default) the operator screen is open from the first tick: one heartbeat of
+               SESSION per tick while it is 'visible'; Start at the first tick, Arm at ARM_AT_S, one go at PRESS_AT_S or
+               the first tick after it on which the executor's start checks pass (ExecutorLoop._go_blockers: the button
+               of the screen is on); after a pause a new go (auto_repress: REPRESS_WAIT_S later and once the checks pass,
+               at most MAX_REPRESSES); never after an end.
 Episode actions (episode spec 'actions', times in SIM s; the safety scripts use them): stop (executor emergency_stop:
 the page STOP), release (the operator lets the hold go: deadman loss), hold_lost (heartbeats stop without a release:
 the hold times out), press, end, ack, arm, start, executor_stall (no executor tick for duration_s), client2_arm /
@@ -92,7 +99,10 @@ CTRL_COLUMNS = ('ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold
 # executor JSONL fields that hold wall-clock (perf_counter) values: dropped from the deterministic log digest
 WALL_FIELDS = ('loop_ms', 'proc_ms', 'max_scan_proc_s', 'last_scan_proc_s')
 ACTIONS = ('stop', 'release', 'hold_lost', 'press', 'end', 'ack', 'arm', 'start', 'executor_stall', 'client2_arm',
-           'client2_drive', 'client2_stop', 'late_drive', 'foreign_arm')
+           'client2_drive', 'client2_stop', 'late_drive', 'foreign_arm', 'go', 'screen_hidden', 'screen_visible',
+           'other_screen')
+SESSION = 'sim-screen-0001'       # one_press: the operator screen's session id
+OTHER_SESSION = 'sim-screen-0002'  # one_press: a second screen (action other_screen)
 EXECUTOR_EVENTS_KEPT = ('start', 'request', 'emergency_stop', 'bridge_error', 'bridge_stop', 'run_end', 'stop_confirmed',
                         'stop_unconfirmed', 'stop_watch_timeout', 'watchdog_stall')
 
@@ -254,6 +264,10 @@ class SteerExecutorInTheLoop:
         self.inputs = dict(scans=[], imus=[])
         self.input_counts = collections.Counter()
         self.phase, self.press, self.presses, self.represses = 'start', None, 0, 0
+        self.one_press = XC.effective_start_mode(cfg) == XC.ONE_PRESS
+        self.go_refused = []             # one_press: refused gos (t, error)
+        self.other_screen = []           # one_press: replies to the second screen (action other_screen)
+        self.other_future = None
         self.repress_at = None
         self.future = None
         self.start_error = None
@@ -318,8 +332,13 @@ class SteerExecutorInTheLoop:
         if d is None:
             return (0., float('nan'), float(STATE_CODES.get(runner.state, -1)), 0., 0., float('nan'))
         steer = float('nan') if d.steer_mrad is None else float(d.steer_mrad)
+        if self.one_press:
+            link = self.executor.link
+            level = link.go_active and link.last_beat is not None and self.rig.clock() - link.last_beat <= link.timeout_s
+        else:
+            level = self.executor.hold.active(self.rig.clock())
         return (float(d.throttle or 0), steer, float(STATE_CODES.get(d.state, -1)),
-                float(bool(self.executor.hold.active(self.rig.clock()))), float(bool(runner.steer_required)),
+                float(bool(level)), float(bool(runner.steer_required)),
                 age if math.isfinite(age) else float('nan'))
 
     # -- sensors -> executor
@@ -344,6 +363,9 @@ class SteerExecutorInTheLoop:
     # -- operator
     def _new_press(self):
         self.presses += 1
+        if self.one_press:
+            self.future, self.phase = self.executor.submit('go', session=SESSION), 'going'
+            return
         self.press = 'sim-press-%04d' % self.presses
         self.executor.hold_beat(self.press)
         self.phase = 'holding'
@@ -362,9 +384,17 @@ class SteerExecutorInTheLoop:
             return s is not None and runner._standstill(s)
         return True
 
+    def _go_ready(self, now):
+        return not self.executor._go_blockers(now, SESSION)
+
     def _operator(self, now):
         executor, runner = self.executor, self.executor.runner
         if not self.operator:
+            return
+        if self.one_press and self.beating:
+            executor.operator_heartbeat(SESSION)          # the screen is visible: one heartbeat per tick
+        if self.one_press and self.phase in ('armed', 'going', 'holding', 'released'):
+            self._operator_one_press(now)
             return
         if self.phase == 'start':
             self.future = executor.submit('start', row_len_m=None)
@@ -404,6 +434,33 @@ class SteerExecutorInTheLoop:
         elif self.phase == 'released' and now >= self.repress_at and self._resume_ready(now):
             self._new_press()
 
+    def _operator_one_press(self, now):
+        executor, runner = self.executor, self.executor.runner
+        if self.phase == 'armed' and now >= PRESS_AT_S - 1e-9 and self._go_ready(now):
+            self._new_press()
+        elif self.phase == 'going' and self.future.done():
+            result = self.future.result()
+            if result.get('ok'):
+                self.phase = 'holding'
+            else:
+                self.go_refused.append((round(now, 3), result.get('error')))
+                self.phase = 'armed' if runner.state == XCORE.PAUSED else 'done'
+        elif self.phase == 'holding':
+            if runner.state == XCORE.ENDED:
+                self.phase = 'done'
+            elif runner.state == XCORE.PAUSED and not executor.link.go_active:
+                if str(runner.reason).startswith('press_ignored'):
+                    self.press_ignored += 1
+                self.represses += 1
+                allowed = self.auto_repress and self.represses <= MAX_REPRESSES
+                self.phase = 'released' if allowed else 'gave_up'
+                self.repress_at = now + REPRESS_WAIT_S
+        elif self.phase == 'released':
+            if runner.state == XCORE.ENDED:
+                self.phase = 'done'
+            elif now >= self.repress_at and self._go_ready(now):
+                self._new_press()
+
     def _action(self, action, now):
         op = action['op']
         executor = self.executor
@@ -411,14 +468,23 @@ class SteerExecutorInTheLoop:
         if op == 'stop':
             executor.emergency_stop(action.get('source', 'page'))
         elif op == 'release':
-            if self.press is not None:
+            if self.one_press:
+                self.beating = False                  # one_press has no release: the screen stops its heartbeats
+            elif self.press is not None:
                 executor.hold_release(self.press)
             self.phase = 'operator_released'
-        elif op == 'hold_lost':
+        elif op in ('hold_lost', 'screen_hidden'):
             self.beating = False
-        elif op == 'press':
+        elif op == 'screen_visible':
+            self.beating = True
+        elif op in ('press', 'go'):
             self.beating = True
             self._new_press()
+        elif op == 'other_screen':
+            # one_press: a second screen opens: a heartbeat and a go of another session (refused while the first is fresh)
+            beat = executor.operator_heartbeat(OTHER_SESSION)
+            self.other_screen.append(dict(t=round(now, 3), op='heartbeat', ok=bool(beat[0]), error=beat[1]))
+            self.other_future = executor.submit('go', session=OTHER_SESSION)
         elif op == 'end':
             executor.submit('end')
         elif op == 'ack':
@@ -478,6 +544,10 @@ class SteerExecutorInTheLoop:
         self._operator(now)
         s0 = time.perf_counter()
         self.decision = self.executor.step(now)
+        if self.other_future is not None and self.other_future.done():
+            reply = self.other_future.result()
+            self.other_screen.append(dict(t=round(now, 3), op='go', ok=bool(reply.get('ok')), error=reply.get('error')))
+            self.other_future = None
         s1 = time.perf_counter()
         self.ticks += 1
         wall = (time.perf_counter() - t0) * 1e3
@@ -555,6 +625,8 @@ class SteerExecutorInTheLoop:
             executor_stall=dict(rig_stalled_ticks=self.rig_stalled_ticks,
                                 windows_ms=[list(w) for w in getattr(self.rig, 'executor_stall_windows', ())]),
             events=[list(e) for e in self.events], client2=self.client2_replies,
+            start_mode=XC.effective_start_mode(self.cfg), go_refused=[list(g) for g in self.go_refused],
+            other_screen=list(self.other_screen),
             host_latches=[list(item) for item in self.latch_log],
             late_drive=[dict(t=item['t'], reply=dict((k, item.get('reply', {}).get(k)) for k in ('ok', 'error')))
                         for item in self.late_replies],

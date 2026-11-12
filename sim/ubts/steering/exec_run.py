@@ -2,15 +2,19 @@
 
 The executor container runs the real row executor with a controller in its slot (steering.exec_container_main). A run
 is started on the executor's operator page (127.0.0.1:8097 in the sim network namespace, token in the control volume).
-That page is hold-to-run: the run goes on only while heartbeats of one press arrive. The one-press start of design v2
-(R32) is not implemented. This module is the operator for a SIM run: it sends Start and Arm, presses once, sends the
-heartbeats itself until the run ends, and prints one status line per second (the executor's own estimates, not
+The executor's start mode decides how (docs/steering/OPERATOR_API_KO.md):
+  one_press    (design v2 V2-2, R32; the front_steer default) this tool is the operator screen: one session id, heartbeats
+               every 100 ms (/api/heartbeat) until the run ends, one go (/api/go) once the executor's start checks pass;
+               a pause (e.g. the link lost) needs a new go, which this tool never sends by itself
+  hold_to_run  one press whose heartbeats this tool sends until the run ends (the earlier behaviour)
+It sends Start and Arm, starts the run once and prints one status line per second (the executor's own estimates, not
 truth).
 
   in the executor container (control volume, no truth):
     docker exec -it <project>-executor-1 python3 -B -m steering.exec_run start [--controller JSON]
-        Start, Arm, one press, heartbeats until the run ends (row end, a hold of the controller, an operator stop or
-        --limit-s). Ctrl-C sends an operator stop. Exit code 0: ended with row_end; 3: ended otherwise; 4: no start.
+        Start, Arm, one go (one_press) or one press (hold_to_run), heartbeats until the run ends (row end, a hold of
+        the controller, an operator stop or --limit-s). Ctrl-C sends an operator stop. Exit code 0: ended with row_end;
+        3: ended otherwise; 4: no start.
     docker exec <project>-executor-1 python3 -B -m steering.exec_run stop      operator stop at once (/api/stop)
     docker exec <project>-executor-1 python3 -B -m steering.exec_run status    one status line
   in the sim container (runtime volume with the scene; SIM only, the vehicle must stand):
@@ -43,6 +47,8 @@ ARM_ATTEMPTS = 6
 ARM_RETRY_S = .6
 RELEASE_WAIT_S = 8.                 # an ended run keeps the lease up to terminal_stop_wait_s before its own STOP
 PAUSE_GIVE_UP_S = 15.
+GO_WAIT_S = 20.                     # one_press: how long the go waits for the executor's start checks
+GO_RETRY_S = .25
 EXIT_ROW_END, EXIT_OTHER_END, EXIT_NO_START = 0, 3, 4
 
 
@@ -94,6 +100,78 @@ def status_line(elapsed_s, status, tick):
                 client.get('state')))
 
 
+class GoBeater:
+    """one_press operator screen (docs/steering/OPERATOR_API_KO.md) with the HoldBeater interface: press() starts the
+    heartbeats of one session (every period_s, wall) and sends one go once the start checks pass (retrying a refused go
+    for at most go_wait_s; a session conflict is not retried); release() / lose() stop the heartbeats (the screen goes
+    away: the executor pauses the run after operator_timeout_s); close() ends the heartbeat thread."""
+
+    def __init__(self, op, period_s=.1, go_wait_s=GO_WAIT_S, retry_s=GO_RETRY_S, sleep=time.sleep,
+                 clock=time.monotonic):
+        import threading
+        import uuid
+        self.op, self.period_s, self.go_wait_s, self.retry_s = op, float(period_s), float(go_wait_s), float(retry_s)
+        self.sleep, self.clock = sleep, clock
+        self.session = 'exec-run-%s' % uuid.uuid4().hex[:16]
+        self.press_id = None
+        self.beating = False
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=self._run, name='exec-run-heartbeat', daemon=True)
+        self.replies = {}
+        self.events = []
+        self.go_reply = None
+
+    def _count(self, key):
+        self.replies[key] = self.replies.get(key, 0) + 1
+
+    def beat(self):
+        try:
+            code, reply, _, _ = self.op.post('/api/heartbeat', {'session': self.session}, timeout_s=1.)
+        except Exception as exc:          # a lost heartbeat is the link loss the executor watches for
+            self._count('error:%s' % type(exc).__name__)
+            return False
+        self._count('ok' if reply.get('ok') else 'refused:%s' % reply.get('error'))
+        return bool(reply.get('ok'))
+
+    def _run(self):
+        while not self.stop_event.wait(self.period_s):
+            if self.beating:
+                self.beat()
+
+    def press(self):
+        self.beating = True
+        if not self.thread.is_alive() and not self.stop_event.is_set():
+            self.thread.start()
+        self.beat()
+        end = self.clock() + self.go_wait_s
+        reply = None
+        while True:
+            code, reply, _, _ = self.op.post('/api/go', {'session': self.session}, timeout_s=8.)
+            self.events.append(dict(op='go', ok=bool(reply.get('ok')), error=reply.get('error'), code=code))
+            if reply.get('ok') or reply.get('error') == 'session_conflict' or self.clock() >= end:
+                break
+            self.sleep(self.retry_s)
+        self.go_reply = reply
+        self.press_id = self.session if reply.get('ok') else None
+        return self.press_id
+
+    def release(self):
+        self.beating = False
+        self.events.append(dict(op='release'))
+        self.press_id = None
+
+    def lose(self):
+        self.beating = False
+        self.events.append(dict(op='lose'))
+        self.press_id = None
+
+    def close(self):
+        self.beating = False
+        self.stop_event.set()
+        if self.thread.is_alive():
+            self.thread.join(timeout=1.)
+
+
 class Operator:
     """The operator page and the SIM hooks of the executor (the classes of exec_checks, no ROS)."""
 
@@ -102,8 +180,27 @@ class Operator:
         self.x = X
         self.exec_dir = exec_dir
         self.op = op or X.OperatorClient(exec_dir)
+        self._hold_given = hold is not None
         self.hold = hold or X.HoldBeater(self.op)
         self.hooks = hooks or X.SocketHooks(Path(exec_dir) / 'hooks.sock')
+
+    def start_mode(self):
+        """The executor's start mode from its operator page status ('hold_to_run' when the page does not say: an
+        executor from before design v2 V2-2)."""
+        request = getattr(self.op, 'request', None)
+        if request is None:
+            return 'hold_to_run'
+        try:
+            code, reply, _, _ = request('GET', '/api/status')
+        except Exception:
+            return 'hold_to_run'
+        return (reply.get('start_mode') or 'hold_to_run') if code == 200 else 'hold_to_run'
+
+    def use_start_mode(self, mode):
+        """one_press: the screen is a GoBeater (unless a hold object was given, the tests)."""
+        if mode == 'one_press' and not self._hold_given and not isinstance(self.hold, GoBeater):
+            self.hold.close()
+            self.hold = GoBeater(self.op)
 
     def status(self):
         try:
@@ -157,8 +254,20 @@ def start_run(operator, spec, out=print, limit_s=600., period_s=1., sleep=time.s
     if not (armed or {}).get('ok'):
         operator.op.post('/api/end')
         return EXIT_NO_START, dict(error='arm_refused:%s' % (armed or {}).get('error'))
-    operator.hold.press()
-    out('started: one press is held by this command (heartbeats). Ctrl-C or "exec_run stop" = operator stop.')
+    mode = operator.start_mode()
+    operator.use_start_mode(mode)
+    pressed = operator.hold.press()
+    if mode == 'one_press':
+        reply = getattr(operator.hold, 'go_reply', None) or {}
+        if not pressed:
+            operator.hold.close()
+            operator.op.post('/api/end')
+            out('go refused: %s %s' % (reply.get('error'), reply.get('blockers') or ''))
+            return EXIT_NO_START, dict(error='go_refused:%s' % reply.get('error'), start_mode=mode)
+        out('started (one press): this command is the operator screen (heartbeats every 100 ms). Ctrl-C or '
+            '"exec_run stop" = operator stop.')
+    else:
+        out('started: one press is held by this command (heartbeats). Ctrl-C or "exec_run stop" = operator stop.')
     t0 = time.monotonic()
     paused_since, final, seen_active = None, None, False
     try:
@@ -203,7 +312,8 @@ def start_run(operator, spec, out=print, limit_s=600., period_s=1., sleep=time.s
             final = dict(final, state=ended['runner'].get('state'), end_reason=ended['runner'].get('end_reason'))
     reason = final.get('end_reason')
     out('ended: %s (state %s). %s, not field performance.' % (reason, final.get('state'), RESULT_KIND))
-    return (EXIT_ROW_END if reason == 'row_end' else EXIT_OTHER_END), dict(runner=final, seen_active=seen_active)
+    return (EXIT_ROW_END if reason == 'row_end' else EXIT_OTHER_END), dict(runner=final, seen_active=seen_active,
+                                                                          start_mode=mode)
 
 
 def stop_run(operator, out=print):
