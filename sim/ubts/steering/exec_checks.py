@@ -1084,7 +1084,17 @@ def last_executor_drive(mark_wall, injection_wall, lookback_s=DRIVE_LOOKBACK_S, 
     found = [e for e in entries if e.get('kind') == 'request' and e.get('op') == 'drive' and
              str(e.get('owner') or '').startswith('row-executor') and
              mark_wall - lookback_s <= e.get('wall', 0.) < injection_wall]
-    return found[-1] if found else None
+    if not found:
+        return None
+    last = dict(found[-1])
+    # The bridge takes a drive at its next loop tick (steer_bridge_core: one queued request per tick) and its input
+    # deadline starts there (rover_control_core: input_until = clock() + INPUT_TTL at dispatch). The 'reply' entry
+    # follows the dispatch: 'accepted_t' is the deadline's start (gsim_final w0_a17b: request -> expiry 0.776 / 0.772 s,
+    # reply -> expiry 0.760 / 0.760 s).
+    index = next(i for i, e in enumerate(entries) if e is found[-1])
+    reply = next((e for e in entries[index + 1:] if e.get('kind') == 'reply' and e.get('op') == 'drive'), None)
+    last['accepted_t'] = None if reply is None else reply.get('t')
+    return last
 
 
 STOP_ANSWER_S = .06            # an op stop is written by the bridge loop at its next tick (loop 20 ms; 3 periods)
@@ -1163,11 +1173,16 @@ def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=Fals
                    input_expired=None if expired is None else dict(t=expired.get('t'), wall=expired.get('wall')),
                    last_executor_drive=None if last_request is None else dict(t=last_request.get('t'),
                                                                                wall=last_request.get('wall'),
-                                                                               op=last_request.get('op')),
+                                                                               op=last_request.get('op'),
+                                                                               accepted_t=last_request.get('accepted_t')),
                    runner=runner, client=(status.get('client') or {}).get('state'), watchdog_events=len(wd_events),
                    precondition=precondition)
     if expired is not None and last_request is not None:
-        details['input_expired_after_last_request_s'] = round(expired['t'] - last_request['t'], 4)
+        # judged from the bridge's acceptance of the last drive (its input deadline starts there); the time from the
+        # request's arrival (one queue tick more) stays in the details
+        details['input_expired_after_last_request_arrival_s'] = round(expired['t'] - last_request['t'], 4)
+        if last_request.get('accepted_t') is not None:
+            details['input_expired_after_last_request_s'] = round(expired['t'] - last_request['accepted_t'], 4)
     return step0, before, criteria, details
 
 

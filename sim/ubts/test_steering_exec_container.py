@@ -614,6 +614,11 @@ class CheckHelpersTest(unittest.TestCase):
         found = EC.last_executor_drive(mark_wall, injection_wall, entries=entries)
         self.assertEqual((found['t'], found['owner']), (50.1, 'row-executor:gsim-1'))
         self.assertIsNone(EC.last_executor_drive(mark_wall, injection_wall, lookback_s=.05, entries=entries))
+        self.assertIsNone(found['accepted_t'])                          # no reply logged after it
+        # the reply after the request is the bridge's acceptance (its input deadline starts there)
+        replied = entries[:2] + [dict(kind='reply', op='drive', ok=True, t=50.112, wall=99.912)] + entries[2:]
+        found = EC.last_executor_drive(mark_wall, injection_wall, entries=replied)
+        self.assertEqual((found['t'], found['accepted_t']), (50.1, 50.112))
         self.assertGreaterEqual(EC.DRIVE_LOOKBACK_S, 2. / 10.)            # two send periods of send_hz 10 Hz at least
 
     def test_stop_writes_split_request_writes_from_resends(self):
