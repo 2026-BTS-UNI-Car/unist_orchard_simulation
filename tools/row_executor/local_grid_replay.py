@@ -239,22 +239,27 @@ def _wrap_deg(values):
     return (np.asarray(values) + 180.) % 360. - 180.
 
 
-def axis_consistency(rows):
-    """Row-axis scatter without a ground truth: on a straight row the corridor axis expressed in the reference (ICP)
-    frame (reference heading + heading error) is constant. |deviation from the run's median| over the steady ticks with
-    a grid fit, for L0 and for the grid (same ticks). Smaller = steadier; the reference's own heading noise is in both."""
+def axis_consistency(rows, window_s=2.5):
+    """Row-axis scatter without a ground truth: along a straight row the corridor axis expressed in the reference (ICP)
+    frame (reference heading + heading error) is constant. For every steady tick with a grid fit: |deviation from the
+    median over the same run's steady ticks within +-window_s| (a segment may hold several rows: a run-wide median
+    would mix them), for L0 and for the grid on the same ticks. Smaller = steadier; the reference's own heading noise
+    is in both."""
     dev_l0, dev_grid = [], []
     has = np.isfinite(rows[:, 3]) & np.isfinite(rows[:, 9])
     for run in np.unique(rows[has, 0]):
         sel = has & (rows[:, 0] == run)
-        if sel.sum() < 20:
-            continue
+        t = rows[sel, 1]
         l0 = rows[sel, 9]
         grid = l0 + rows[sel, 3]              # grid heading error = L0 heading error + d heading
         for values, out in ((l0, dev_l0), (grid, dev_grid)):
-            d = _wrap_deg(values - values[0])
-            out += list(np.abs(_wrap_deg(d - np.median(d))))
-    return dict(ticks=len(dev_l0), l0_abs_deg_p50_p90=pct(dev_l0, (50, 90), digits=3),
+            for i in range(len(t)):
+                near = np.abs(t - t[i]) <= window_s
+                if near.sum() < 10:
+                    continue
+                d = _wrap_deg(values[near] - values[i])
+                out.append(abs(float(np.median(d))))
+    return dict(ticks=len(dev_l0), window_s=window_s, l0_abs_deg_p50_p90=pct(dev_l0, (50, 90), digits=3),
                 grid_abs_deg_p50_p90=pct(dev_grid, (50, 90), digits=3))
 
 
