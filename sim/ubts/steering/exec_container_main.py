@@ -621,7 +621,9 @@ class Container:
                                stalls_done=self.hooks_state.stalls_done, freezes=self.hooks_state.freezes,
                                events=list(self.hooks_state.events)[-20:]),
                     controller=self.slot.spec, controller_digest=self.slot.digest, controllers_built=self.slot.built,
-                    log=self.log.health(), config_digest=self.cfg.digest(), source_check=self.source_check)
+                    log=self.log.health(), config_digest=self.loop._config_digest,   # after a field tuning change too
+                    tuning=None if self.loop.tuning is None else self.loop.tuning.brief(),
+                    source_check=self.source_check)
 
 
 def main(argv=None):
