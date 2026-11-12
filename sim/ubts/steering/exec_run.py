@@ -149,6 +149,16 @@ def start_run(operator, spec, out=print, limit_s=600., period_s=1., sleep=time.s
         return EXIT_NO_START, dict(error='start_refused:%s' % reply.get('error'))
     armed = None
     for attempt in range(ARM_ATTEMPTS):
+        if attempt:
+            # A refused arm (e.g. arm_precheck:steering_fault:steering_status_stale: a bridge host latch left by a SIM
+            # status gap) latches the executor's bridge client and ends the run, so the next arm only got
+            # start_a_run_first (gsim_final 2026-11-13: six refusals, exit 4). As exec_checks.start_drive does:
+            # acknowledge the latch (an operator re-arm) and start a new run before the next arm.
+            status = operator.status() or {}
+            if (status.get('client') or {}).get('state') == X.CLIENT_LATCHED:
+                operator.op.post('/api/ack')
+            if (status.get('runner') or {}).get('state') != X.STATE_PAUSED:
+                operator.op.post('/api/start', {'row_len_m': None})
         code, armed, _, _ = operator.op.post('/api/arm', timeout_s=8.)
         if armed.get('ok'):
             break
