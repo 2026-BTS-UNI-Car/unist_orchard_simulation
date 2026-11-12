@@ -1,9 +1,9 @@
 {
   "schema": "ubts.steer_conformance.v1",
   "name": "bench_framing_error_early_brake",
-  "spec": ["2.2", "6.4", "8.2", "12.1"],
+  "spec": ["2.1", "2.2", "6.4", "8.2", "12.1"],
   "v2_map": "overflow_and_recovery",
-  "description": "BENCH에서 틀 오류 바이트와 LF가 다른 틱에 읽히는 경우(결정 12.1-48): 구동은 오류를 처음 알아챈 틱에 즉시 정지한다(V2 stopDirections). N 줄은 LF 틱이다. 과길이: 63 B는 틱 405, 64번째 내용 바이트는 410(정지), LF는 420(N - long). 제어 문자: 0x01은 650(정지), LF는 660(N - ctrl). 다음 D8은 휴지 120 ms 뒤 틱 530에 2로 시작한다(8.2절). 램프 값은 8.2절 의사 코드로 계산.",
+  "description": "BENCH에서 틀 오류 바이트와 LF가 다른 틱에 읽히는 경우(결정 12.1-48): 구동은 오류를 처음 알아챈 바이트의 틱에 즉시 정지한다(V2 stopDirections). N 줄과 나쁜 줄 계수는 LF 틱이다. LF 틱은 모두 10 ms 램프 격자 밖이라 LF 틱에 한 번 더 brake하는 구현은 다시 출발이 5틱 늦어 잡힌다. 과길이: 63 B는 틱 405, 64번째 내용 바이트는 410(정지), LF는 425(N - long). 제어 문자: 0x01은 650(정지), LF는 665(N - ctrl). CR 규칙(2.1절): CR은 850, CR 뒤의 LF 아닌 바이트는 860(정지, 850에는 서지 않는다), LF는 875(N - ctrl). 8.2절 brake는 쪽마다 zero_at = now라 다음 D8은 휴지 120 ms 뒤에 2로 시작한다: 530, 770, 980(격자는 정지 틱에 묶인다). 램프 값은 8.2절 의사 코드로 계산했다.",
   "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {}}}, "adc": {"mode": "script", "raw": 512}},
   "inputs": [
     {"tick": 100, "text": "BENCH {boot}*{crc}\n"},
@@ -12,14 +12,18 @@
     {"tick": 400, "text": "PING\n"},
     {"tick": 405, "text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"},
     {"tick": 410, "text": "X"},
-    {"tick": 420, "text": "\n"},
+    {"tick": 425, "text": "\n"},
     {"tick": 500, "text": "D8 128\n"},
     {"tick": 600, "text": "PING\n"},
     {"tick": 650, "text": "D8 6\u0001"},
-    {"tick": 660, "text": "4\n"},
-    {"tick": 700, "text": "PING\n"},
+    {"tick": 665, "text": "4\n"},
+    {"tick": 700, "text": "D8 128\n"},
     {"tick": 800, "text": "PING\n"},
-    {"tick": 850, "text": "STOP\n"}
+    {"tick": 850, "text": "D8 2\r"},
+    {"tick": 860, "text": "5"},
+    {"tick": 875, "text": "5\n"},
+    {"tick": 900, "text": "D8 128\n"},
+    {"tick": 1000, "text": "STOP\n"}
   ],
   "expect": [
     {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
@@ -29,15 +33,26 @@
     {"type": "pins", "tick": 409, "drive_l": 53, "drive_r": 0, "mcu_state": 3},
     {"id": "long_brake_at_byte", "type": "change", "channel": "drive_l", "tick": 410, "to": 0},
     {"type": "pins_window", "window": [410, 529], "drive_l": 0, "mcu_state": 3},
-    {"type": "line", "tick": 420, "text": "N - long*{crc}"},
+    {"type": "line", "tick": 425, "text": "N - long*{crc}"},
     {"type": "line", "tick": 500, "text": "P D8 0 128*{crc}"},
-    {"type": "first_change", "channel": "drive_l", "after": 501, "tick": 530, "to": 2},
+    {"id": "long_restart_on_byte_grid", "type": "first_change", "channel": "drive_l", "after": 501, "tick": 530, "to": 2},
     {"type": "pins", "tick": 649, "drive_l": 30, "mcu_state": 3},
     {"id": "ctrl_brake_at_byte", "type": "change", "channel": "drive_l", "tick": 650, "to": 0},
-    {"type": "line", "tick": 660, "text": "N - ctrl*{crc}"},
-    {"type": "pins_window", "window": [650, 849], "drive_l": 0, "mcu_state": 3},
-    {"type": "change", "channel": "mcu_state", "tick": 850, "to": 1},
-    {"type": "no_line", "window": [0, 900], "kinds": ["F", "W", "A"]}
+    {"type": "pins_window", "window": [650, 769], "drive_l": 0, "mcu_state": 3},
+    {"type": "line", "tick": 665, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 700, "text": "P D8 0 128*{crc}"},
+    {"id": "ctrl_restart_on_byte_grid", "type": "first_change", "channel": "drive_l", "after": 701, "tick": 770, "to": 2},
+    {"id": "cr_byte_does_not_brake", "type": "pins", "tick": 859, "drive_l": 22, "mcu_state": 3},
+    {"id": "cr_brake_at_next_byte", "type": "change", "channel": "drive_l", "tick": 860, "to": 0},
+    {"type": "pins_window", "window": [860, 979], "drive_l": 0, "mcu_state": 3},
+    {"type": "line", "tick": 875, "text": "N - ctrl*{crc}"},
+    {"type": "line", "tick": 900, "text": "P D8 0 128*{crc}"},
+    {"id": "cr_restart_on_byte_grid", "type": "first_change", "channel": "drive_l", "after": 901, "tick": 980, "to": 2},
+    {"type": "pins", "tick": 999, "drive_l": 5, "mcu_state": 3},
+    {"type": "pins_window", "window": [100, 999], "drive_r": 0, "mcu_state": 3},
+    {"type": "change", "channel": "drive_l", "tick": 1000, "to": 0},
+    {"type": "change", "channel": "mcu_state", "tick": 1000, "to": 1},
+    {"type": "no_line", "window": [0, 1050], "kinds": ["F", "W", "A"]}
   ],
-  "end": {"tick": 900}
+  "end": {"tick": 1050}
 }

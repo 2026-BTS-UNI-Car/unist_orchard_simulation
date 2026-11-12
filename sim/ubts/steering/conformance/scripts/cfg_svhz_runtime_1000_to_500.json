@@ -1,0 +1,29 @@
+{
+  "schema": "ubts.steer_conformance.v1",
+  "name": "cfg_svhz_runtime_1000_to_500",
+  "spec": ["4.10", "7.1", "7.5", "7.6", "5.9", "9.2"],
+  "description": "실행 중 svhz의 위상 규칙(4.10절). 레코드 svhz 1000으로 부팅해 서보 틱이 매 틱이다(보정 줄 crc=69D78DD5, 9.2·9.3절). 홀수 틱 101에 CFG svhz 500: 이미 잡힌 next_servo(101)는 그대로이고 4단계가 9단계보다 먼저라 101이 서보 틱이며, 그 next_servo += P_sv부터 새 주기 2를 쓴다. 그래서 서보 틱은 101, 103, 105, … 홀수다. 짝수 틱 200의 ARM은 서보 틱이 아니라 조향 EN이 201에 1이 된다(7.1절, 상태 줄 200의 en은 1). C는 짝수 틱 226(S 100)이다. 첫 갱신은 227(dt 2, 225부터)이고 홀수 서보 틱 s에서 cmd = floor(0.48(s - 225))다: 상태 줄 250에 11, 269에 21이라 출력 102가 269에 나가고, 상태 줄 300에 35다. 바꾸는 순간 next = last + 2로 다시 잡거나 101에 옛 증가를 쓰는 읽기(짝수 위상)는 조향 EN 200, 250에 12, 첫 출력 268, 300에 36이다. 바꿈을 쓰지 않고 1000 Hz로 두면 조향 EN 200, 250에 12, 300에 36이다.",
+  "setup": {"boot_seed": 1, "chip_id": "5A1B2C", "eeprom": {"record": {"cal_id": 7, "raw_l": 842, "raw_c": 512, "raw_r": 181, "soft_l": 935, "soft_r": -935, "pol_ok": 1, "mdir": 1, "params": {"svhz": 1000}}}, "adc": {"mode": "script", "raw": 512}},
+  "inputs": [
+    {"tick": 101, "text": "CFG svhz 500*{crc}\n"},
+    {"tick": 150, "text": "CAL GET*{crc}\n"},
+    {"tick": 200, "text": "ARM {boot}*{crc}\n"},
+    {"tick": 226, "text": "C 1 300 0 0 100*{crc}\n"}
+  ],
+  "expect": [
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"},
+    {"type": "line", "tick": 0, "text": "UBTS_STEER_V3 cal id=7 crc=69D78DD5 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"},
+    {"type": "line", "tick": 101, "text": "A CFG svhz 500*{crc}"},
+    {"type": "line", "tick": 150, "text": "UBTS_STEER_V3 cal id=7 crc=69D78DD5 left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=1*{crc}"},
+    {"type": "change", "channel": "mcu_state", "tick": 200, "to": 2},
+    {"id": "arm_tick_is_not_a_servo_tick", "type": "pins", "tick": 200, "steer_en": 0},
+    {"type": "status", "tick": 200, "fields": {"st": 2, "q": 0, "en": 1, "fl": "0000", "wd": 0, "tl": 0}},
+    {"id": "servo_phase_odd", "type": "change", "channel": "steer_en", "tick": 201, "to": 1},
+    {"id": "cmd_dt2_odd_phase", "type": "status", "tick": 250, "fields": {"st": 2, "q": 1, "L": 0, "R": 0, "en": 3, "tgt": 100, "cmd": 11, "sp": 0, "wd": 24, "tl": 276}},
+    {"type": "pins", "tick": 268, "steer_pwm": 0},
+    {"id": "first_output_odd_tick", "type": "change", "channel": "steer_pwm", "tick": 269, "to": 102},
+    {"type": "status", "tick": 300, "fields": {"cmd": 35, "sp": 102, "fl": "0000", "wd": 74, "tl": 226}},
+    {"type": "no_line", "window": [0, 400], "kinds": ["N", "F", "W", "P"]}
+  ],
+  "end": {"tick": 400}
+}
