@@ -88,6 +88,10 @@ NOISE_TOL = .10
 HOLD_BEAT_S = .1
 STATE_ACTIVE, STATE_PAUSED, STATE_ENDED = 'ACTIVE', 'PAUSED', 'ENDED'
 CLIENT_LATCHED, CLIENT_ARMED = 'LATCHED', 'ARMED'
+# Bridge snapshot states without a fault (rover_control_core: 'armed_manual' with a lease, else 'disarmed'); any other
+# state ('fault') needs an operator ack before a new run.
+HOST_PLAIN_STATES = ('disarmed', 'armed_manual')
+EXEC_RELEASE_WAIT_S = 8.        # an ended run keeps the lease up to terminal_stop_wait_s (1.5 s) before its own STOP
 CAMERA_WS = 'ws://127.0.0.1:8770/ws/camera'
 GPS_WS = 'ws://127.0.0.1:8778/ws/gps'
 CAMERA_BINARY_MAGIC = b'UBCF'                          # scripts.camera_ws_bridge (binary-v1 transport)
@@ -602,12 +606,15 @@ def ensure_idle(ctx, timeout_s=20.):
     if status['runner']['state'] in (STATE_ACTIVE, STATE_PAUSED):
         ctx.op.post('/api/end')
         ctx.wait_exec(lambda s: s['runner']['state'] not in (STATE_ACTIVE, STATE_PAUSED), 5.)
-        ctx.wait_exec(lambda s: (s.get('client') or {}).get('state') != CLIENT_ARMED, 5.)
+    # An ended run keeps the lease until the vehicle stands or terminal_stop_wait_s is over, then the executor stops
+    # the bridge itself. Wait for that whoever ended the run (the clean-up of a script posts /api/end and returns):
+    # a Start inside that time is refused with bridge_still_armed (ST-05: 15 scripts failed at their start this way).
+    ctx.wait_exec(lambda s: (s.get('client') or {}).get('state') != CLIENT_ARMED, EXEC_RELEASE_WAIT_S)
     status = ctx.exec_status()
     client = status.get('client') or {}
     if client.get('state') == CLIENT_LATCHED:
         ctx.op.post('/api/ack')
-    ready = ctx.wait_host(lambda s: bridge_ready_to_arm(s) or s.get('state') not in ('disarmed', 'armed'), timeout_s)
+    ready = ctx.wait_host(lambda s: bridge_ready_to_arm(s) or s.get('state') not in HOST_PLAIN_STATES, timeout_s)
     ctx.wait_still(10.)
     return ready
 
@@ -619,8 +626,7 @@ def start_drive(ctx, spec, moving=True, timeout_s=30., arm_attempts=3):
     info = dict(spec=spec, arm_attempts=[])
     for attempt in range(arm_attempts):
         status = ctx.exec_status()
-        if (status.get('client') or {}).get('state') == CLIENT_LATCHED or ctx.host().get('state') not in (
-                'disarmed', 'armed'):
+        if (status.get('client') or {}).get('state') == CLIENT_LATCHED or ctx.host().get('state') not in                 HOST_PLAIN_STATES:
             ctx.op.post('/api/ack')
         code, reply, _, _ = ctx.op.post('/api/start', {'row_len_m': None})
         if not reply.get('ok') and reply.get('error') != 'run_in_progress':

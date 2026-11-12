@@ -544,6 +544,62 @@ class CheckHelpersTest(unittest.TestCase):
         self.assertIsNone(EC.parse_camera_message(json.dumps(dict(type='status'))))
         self.assertIsNone(EC.jpeg_size(b'not a jpeg'))
 
+    def test_ensure_idle_waits_for_the_executor_to_release_the_lease(self):
+        # ST-05: an ended run keeps the lease until the executor's own stop (up to terminal_stop_wait_s); ensure_idle
+        # returned at once because the bridge state of an armed host is 'armed_manual', not 'armed', and the next
+        # script's Start was refused with bridge_still_armed
+        clock = [0.]
+
+        class Ctx:
+            posts = []
+            polls = 0
+
+            class hold:
+                lose = staticmethod(lambda: None)
+
+            class op:
+                @staticmethod
+                def post(route, *args, **kwargs):
+                    Ctx.posts.append((route, clock[0]))
+
+            def exec_status(self):
+                armed = clock[0] < 1.5                    # the executor stops the bridge 1.5 s after the end
+                ended = any(route == '/api/end' for route, _ in Ctx.posts)
+                return dict(runner=dict(state=EC.STATE_ENDED if ended else EC.STATE_PAUSED),
+                            client=dict(state=EC.CLIENT_ARMED if armed else 'IDLE'))
+
+            def wait_exec(self, predicate, timeout_s=5., period_s=.05):
+                end = clock[0] + timeout_s
+                while clock[0] < end:
+                    Ctx.polls += 1
+                    status = self.exec_status()
+                    if predicate(status):
+                        return status
+                    clock[0] += period_s
+                return None
+
+            def host(self):
+                armed = clock[0] < 1.5
+                return dict(state='armed_manual' if armed else 'disarmed', armed=armed, moving=False,
+                            steering_host=dict(stop_state='confirmed', stale=False))
+
+            def wait_host(self, predicate, timeout_s):
+                return predicate(self.host())
+
+            def wait_still(self, timeout_s):
+                return True
+
+        ctx = Ctx()
+        self.assertTrue(EC.ensure_idle(ctx))
+        self.assertEqual([route for route, _ in Ctx.posts], ['/api/end'])
+        self.assertGreaterEqual(clock[0], 1.5 - 1e-9)                        # it waited for the release
+        self.assertLess(clock[0], EC.EXEC_RELEASE_WAIT_S)
+        self.assertEqual(EC.HOST_PLAIN_STATES, ('disarmed', 'armed_manual'))
+        # an armed host is not 'ready' and not a fault state either
+        self.assertFalse(EC.bridge_ready_to_arm(dict(armed=True, moving=False, state='armed_manual',
+                                                     steering_host=dict(stop_state='confirmed', stale=False))))
+        self.assertIn('armed_manual', EC.HOST_PLAIN_STATES)
+
     def test_scripts_registry(self):
         names = [s['name'] for s in EC.SCRIPTS]
         self.assertEqual(sorted(names), sorted(EC.DEFAULT_ORDER))
