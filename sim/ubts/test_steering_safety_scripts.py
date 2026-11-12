@@ -39,7 +39,9 @@ CFG = dict(stp=153, stt=500, stm=20, trk=120, trt=1000, minp=102, polt=100, polp
 EXPECT_KEYS = {'end_reason', 'pause_reason', 'pause_at', 'mcu_fault', 'mcu_watchdog', 'mcu_ttl', 'host_latch',
                'arm_refused', 'stop_at', 'stop_unconfirmed', 'steer_off', 'hold_check', 'no_restart', 'a22', 'same_as',
                'client2', 'late_drive_error', 'lateral', 'loss_at', 'rate_counts', 'no_fault', 'operator_rearm_at',
-               'bridge_restart', 'boot_after_s', 'first_rule', 'stop_phase'}
+               'bridge_restart', 'boot_after_s', 'first_rule', 'stop_phase',
+               # one_press (design v2 V2-2, A17 amendment 31)
+               'link_lost_at', 'link_timeout_s', 'other_screen', 'go_refused'}
 
 
 def art_of(channels, cfg=None, **extra):

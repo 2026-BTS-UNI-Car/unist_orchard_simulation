@@ -212,6 +212,8 @@ ROLE_TABLE = {
                                                                'status files from the SIM truth (plant side)'),
     'sim/ubts/steering/verify_steer.py': (ROLE_EVALUATOR, 'G-SIM integration check (reads the truth for evaluation)'),
     'sim/ubts/steering/p6a_checks.py': (ROLE_EVALUATOR, 'P6a checks (evaluation)'),
+    'sim/ubts/steering/steer_hold_checks.py': (ROLE_EVALUATOR, 'ST-10 / ST-11 profile and straight-hold checks on the T1 '
+                                               'rig (evaluation: reads the rig truth and MCU channels; its docstring)'),
     'sim/ubts/steering/exec_checks.py': (ROLE_EVALUATOR, 'executor-in-the-stack checks of the G-SIM stack (A5(G), A13(G) R6, '
                                          'A17(G) executor items, W2 chain; evaluation)'),
     'sim/ubts/steering/p6a_client.py': (ROLE_DRIVER, 'P6a scripted clients of the control socket (SIM test driver)'),
@@ -258,6 +260,10 @@ DYNAMIC_IMPORT_EXEMPTIONS = {
     ('tools/row_executor/core.py', 'single_row_module'):
         "importlib.import_module(<controllers package> + '.single_row'): closed_loop.single_row (a decision module) "
         'next to the verified controllers module; its file is SHA-256 checked against the vendor manifest',
+    ('tools/row_executor/core.py', 'steer_control_module'):
+        "importlib.import_module(<controllers package> + '.steer_control'): closed_loop.steer_control (the row-following "
+        'controller, a decision module) next to the verified controllers module; its file is SHA-256 checked against '
+        'the vendor manifest (S1, 2026-11-13)',
 }
 # A13: the executor node subscribes to these topics only (design 2.6).
 EXECUTOR_TOPIC_ALLOWLIST = ('/scan', '/imu/data_raw', '/rover/control/requested')

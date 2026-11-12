@@ -129,7 +129,7 @@ an untouched single-row block is left out of to_dict()/digest() (existing config
                 observed end of the row support) and the steering GO rule of the continuous modes (max_differential 10-20,
                 measured authority >= 4.0 deg/s).
 """
-from dataclasses import asdict, dataclass, field, fields, replace
+from dataclasses import MISSING, asdict, dataclass, field, fields, replace
 import hashlib
 import ipaddress
 import json
@@ -349,6 +349,36 @@ class ExecutorConfig:
     steer_rotation_centre_x_m: float = -.38      # rotation centre of the side-sweep rule: the rear axle in the base frame
     steer_rotation_centre_sd_m: float = .05      # (profile rear_axle_x_in_base_m, design 6.7) and its uncertainty
 
+    # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
+    # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
+    start_mode: object = None                    # None = the profile's default (effective_start_mode): 'one_press' for
+                                                 # front_steer, 'hold_to_run' for the differential profile (history);
+                                                 # or explicitly 'one_press' / 'hold_to_run'
+    operator_timeout_s: float = .5               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
+                                                 # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31)
+    tuning_file: object = None                   # front_steer: the field tuning file (field_tuning.py, design v2 V2-5);
+                                                 # None = the package default field_tuning.default.json
+    tuning_values: dict = field(default_factory=dict)   # front_steer: the steering controller values of the loaded field
+                                                 # tuning (written by the executor loop from tuning_file, never by hand:
+                                                 # with_tuning); {} = the controller's own defaults
+
+    # --- actuator priors and estimator outputs of design v2 (V2-1 item 2, layer L1; front_steer only). Opt-in: with the
+    # defaults nothing is fed and nothing changes; an untouched block is left out of to_dict()/digest() (existing
+    # configs keep their digest). PWM is not an encoder: the prior is bounded and LiDAR + raw IMU stay the main input.
+    # Every value is a placeholder until the steered vehicle is measured (the field tuning file replaces the table).
+    prior_enabled: bool = False                  # feed the applied drive duty and the measured steering angle of the
+                                                 # steering status to the estimator; snapshot / log block 'actuator_prior'
+    prior_weight: float = 0.                     # 0 = record and monitor only; (0, 1] = scan-match seed blend and the
+                                                 # share of the bounded prediction (a failed match, a scan gap)
+    prior_speed_table: tuple = ()                # ((duty_pct, speed_m_s), ...) rising; () = the vendored placeholder table
+    prior_speed_scale: float = 1.                # k_field: table speed x scale = expected speed (field tuning 0.5-1.3)
+    prior_wheelbase_m: object = None             # yaw-rate prior v tan(steer) / L; None = no yaw-rate prior
+    prior_predict_max_s: float = 1.              # prediction bound since the last scan-matched pose (locked values):
+    prior_predict_max_m: float = .5              # whichever comes first; then PAUSED 'prediction_limit'
+    prior_mismatch_fraction: float = .2          # |table speed / LiDAR speed - 1| above this over the monitor window:
+                                                 # table_mismatch (shown and logged; never a stop)
+    corridor_quality: bool = False               # estimator 'corridor_quality' block (sides, support, ages, spread)
+
     # --- perception layers L2 local grid / L3 GNSS (design v2 V2-3, V2-1 3; PC-07, PC-12; perception_settings.py) ------
     # Both OFF by default; an untouched block is left out of to_dict()/digest() (existing configs keep their digest) and
     # the Runner builds no layer then (bit-identical). Placeholders (SIM development values), not field calibrations.
@@ -455,6 +485,7 @@ class ExecutorConfig:
         data['bench_pattern'] = [list(step) for step in self.bench_pattern]
         data['body_mask'] = [list(seg) for seg in self.body_mask]
         data['controller_overrides'] = dict(sorted(self.controller_overrides.items()))
+        data['tuning_values'] = {k: _plain(v) for k, v in sorted(self.tuning_values.items())}
         if all(data[k] == _TURN_DEFAULTS[k] for k in TURN_KEYS):
             for k in TURN_KEYS:        # untouched turn block: digest and dump of existing configs unchanged
                 del data[k]
@@ -463,6 +494,13 @@ class ExecutorConfig:
                 del data[k]
         if all(data[k] == _STEER_DEFAULTS[k] for k in STEER_KEYS):
             for k in STEER_KEYS:       # untouched steering block: the same (existing configs keep their digest)
+                del data[k]
+        if all(data[k] == _AUTONOMY_DEFAULTS[k] for k in AUTONOMY_KEYS):
+            for k in AUTONOMY_KEYS:    # untouched autonomy block (design v2): the same
+                del data[k]
+        data['prior_speed_table'] = [list(point) for point in self.prior_speed_table]
+        if all(getattr(self, k) == _PRIOR_DEFAULTS[k] for k in PRIOR_KEYS):
+            for k in PRIOR_KEYS:       # untouched design v2 block: the same
                 del data[k]
         for keys, defaults in ((LOCAL_GRID_KEYS, _LOCAL_GRID_DEFAULTS), (GNSS_KEYS, _GNSS_DEFAULTS)):
             if all(data[k] == defaults[k] for k in keys):
@@ -487,6 +525,20 @@ class ExecutorConfig:
             overrides.update(single_row_estimator_fields(self))
         overrides.update(PS.estimator_fields(self))   # local grid fusion (empty while the gain is 0)
         return overrides
+
+    def actuator_prior_settings(self):
+        """Keyword arguments of the vendored ActuatorPriorConfig (closed_loop/actuator_prior.py), or None while
+        prior_enabled is False. The status age limit is the steering status one (design v2 V2-1)."""
+        if not self.prior_enabled:
+            return None
+        settings = dict(speed_scale=float(self.prior_speed_scale),
+                        wheelbase_m=None if self.prior_wheelbase_m is None else float(self.prior_wheelbase_m),
+                        status_max_age_s=float(self.steer_status_max_age_s), weight=float(self.prior_weight),
+                        predict_max_s=float(self.prior_predict_max_s), predict_max_m=float(self.prior_predict_max_m),
+                        mismatch_fraction=float(self.prior_mismatch_fraction))
+        if self.prior_speed_table:
+            settings['speed_table'] = tuple((float(d), float(v)) for d, v in self.prior_speed_table)
+        return settings
 
     def controller_settings(self):
         """(mode, overrides) for the vendored config_for(); freshness is shared with the Runner.
@@ -528,6 +580,14 @@ SINGLE_ROW_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startsw
 _SINGLE_ROW_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in SINGLE_ROW_KEYS}
 STEER_KEYS = ('vehicle_profile',) + tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('steer_'))
 _STEER_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in STEER_KEYS}
+AUTONOMY_KEYS = ('start_mode', 'operator_timeout_s', 'tuning_file', 'tuning_values')
+_AUTONOMY_DEFAULTS = {f.name: (f.default_factory() if f.default_factory is not MISSING else f.default)
+                      for f in fields(ExecutorConfig) if f.name in AUTONOMY_KEYS}
+ONE_PRESS, HOLD_TO_RUN = 'one_press', 'hold_to_run'
+START_MODES = (ONE_PRESS, HOLD_TO_RUN)
+PRIOR_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('prior_')) + ('corridor_quality',)
+_PRIOR_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in PRIOR_KEYS}
+MAX_SPEED_TABLE_POINTS = 32
 LOCAL_GRID_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('local_grid_'))
 _LOCAL_GRID_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in LOCAL_GRID_KEYS}
 GNSS_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('gnss_'))
@@ -645,6 +705,18 @@ _SPEC.update({
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
 })
+# Autonomous start and operator link (design v2 V2-2): separate block for the same reason.
+_SPEC.update({
+    'start_mode': (str, None, None, 'nullable'), 'operator_timeout_s': (_REAL, .5, 3.),
+    'tuning_file': (str, None, None, 'nullable'), 'tuning_values': ('tuning',),
+})
+# Actuator priors and estimator outputs (design v2 V2-1): separate block for the same reason.
+_SPEC.update({
+    'prior_enabled': (bool,), 'prior_weight': (_REAL, 0., 1.), 'prior_speed_table': ('speed_table',),
+    'prior_speed_scale': (_REAL, .5, 1.3), 'prior_wheelbase_m': (_REAL, .2, 3., 'nullable'),
+    'prior_predict_max_s': (_REAL, .1, 3.), 'prior_predict_max_m': (_REAL, .05, 2.),
+    'prior_mismatch_fraction': (_REAL, .05, .9), 'corridor_quality': (bool,),
+})
 
 # Perception layers (local_grid_* / gnss_*, perception_settings.py): separate block for the same reason.
 _SPEC.update(PS.CONFIG_SPEC)
@@ -702,8 +774,77 @@ def _type_problems(cfg):
             problems += _segments_shape(value)
         elif kind == 'overrides':
             problems += _overrides_problems(value)
+        elif kind == 'speed_table':
+            problems += _speed_table_shape(value)
+        elif kind == 'tuning':
+            problems += _tuning_shape(value)
         else:
             problems += _check_scalar(name, value, spec)
+    return problems
+
+
+def _plain(value):
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    return value
+
+
+def _tuning_shape(value):
+    """tuning_values: {} or the controller values of field_tuning.controller_fields (every key known, finite numbers, the
+    speed table a list of [duty, speed]); the ranges and rules are field_tuning's (the loop loads the file)."""
+    from .field_tuning import controller_field_names
+    if not isinstance(value, dict):
+        return ['tuning_values: must be an object']
+    problems = ['tuning_values: %r is not a tuning value' % k for k in sorted(set(value) - controller_field_names())]
+    for name, v in value.items():
+        if name == 'speed_table':
+            if not isinstance(v, (list, tuple)) or not all(isinstance(p, (list, tuple)) and len(p) == 2
+                                                           and all(_is_real(x) for x in p) for p in v):
+                problems.append('tuning_values.speed_table: a list of [duty, speed]')
+        elif not _is_real(v):
+            problems.append('tuning_values.%s: must be a finite number' % name)
+    return problems
+
+
+def with_tuning(cfg, values):
+    """The executor config with the resolved field tuning values (field_tuning): tuning_values (the steering controller)
+    and the actuator prior's table and scale. Locked values that live in the executor config must equal it."""
+    from . import field_tuning as T
+    problems = T.lock_problems(values, cfg)
+    if problems:
+        raise ConfigError(problems)
+    prior = T.config_fields(values)
+    # an explicit prior table / scale of the executor config wins (a SIM experiment, e.g. prior_checks' table x 1.3)
+    if cfg.prior_speed_table:
+        del prior['prior_speed_table']
+    if cfg.prior_speed_scale != _PRIOR_DEFAULTS['prior_speed_scale']:
+        del prior['prior_speed_scale']
+    return replace(cfg, tuning_values=T.controller_fields(values), **prior).validate()
+
+
+def _speed_table_shape(value):
+    """prior_speed_table: () or 2 .. MAX_SPEED_TABLE_POINTS (duty_pct, speed_m_s) points, the duty rising inside
+    (0, 100], the speed >= 0 and never falling with the duty (the vendored SpeedTable rule), the last speed > 0."""
+    if not isinstance(value, tuple) or len(value) > MAX_SPEED_TABLE_POINTS:
+        return ['prior_speed_table: must be a tuple of at most %d points' % MAX_SPEED_TABLE_POINTS]
+    if not value:
+        return []
+    problems = []
+    if len(value) < 2:
+        problems.append('prior_speed_table: needs at least two points')
+    previous = None
+    for k, point in enumerate(value):
+        if not isinstance(point, tuple) or len(point) != 2 or not _is_real(point[0]) or not _is_real(point[1]):
+            problems.append('prior_speed_table[%d]: must be (duty_pct, speed_m_s)' % k)
+            previous = None
+            continue
+        if not (0 < point[0] <= 100 and 0 <= point[1] <= 3.):
+            problems.append('prior_speed_table[%d]: duty outside (0, 100] or speed outside [0, 3] m/s' % k)
+        if previous is not None and not (point[0] > previous[0] and point[1] >= previous[1]):
+            problems.append('prior_speed_table[%d]: the duty must rise and the speed must not fall with the duty' % k)
+        previous = point
+    if not problems and not value[-1][1] > 0:
+        problems.append('prior_speed_table: the last speed must be > 0')
     return problems
 
 
@@ -815,6 +956,8 @@ def _rule_problems(cfg):
     p += _turn_rule_problems(cfg)
     p += single_row_rule_problems(cfg)
     p += steer_rule_problems(cfg)
+    p += autonomy_rule_problems(cfg)
+    p += prior_rule_problems(cfg)
     p += PS.rule_problems(cfg)
     return p
 
@@ -1230,8 +1373,12 @@ def from_dict(data):
         values['bench_pattern'] = _tuple_of_tuples(values['bench_pattern'], 'bench_pattern', problems)
     if 'body_mask' in values:
         values['body_mask'] = _tuple_of_tuples(values['body_mask'], 'body_mask', problems)
+    if 'prior_speed_table' in values:
+        values['prior_speed_table'] = _tuple_of_tuples(values['prior_speed_table'], 'prior_speed_table', problems)
     if 'controller_overrides' in values and isinstance(values['controller_overrides'], dict):
         values['controller_overrides'] = dict(values['controller_overrides'])
+    if 'tuning_values' in values and isinstance(values['tuning_values'], dict):
+        values['tuning_values'] = dict(values['tuning_values'])
     if problems:
         raise ConfigError(problems)
     return ExecutorConfig(**values).validate()
@@ -1736,6 +1883,23 @@ def is_front_steer(cfg):
     return getattr(cfg, 'vehicle_profile', DIFFERENTIAL) == FRONT_STEER
 
 
+def effective_start_mode(cfg):
+    """The start mode of a configuration (design v2 V2-2): the explicit start_mode, else 'one_press' for front_steer and
+    'hold_to_run' for the differential profile."""
+    mode = getattr(cfg, 'start_mode', None)
+    if mode is not None:
+        return mode
+    return ONE_PRESS if is_front_steer(cfg) else HOLD_TO_RUN
+
+
+def autonomy_rule_problems(cfg):
+    """Static rules of the autonomy block: a known start mode. The operator timeout range is the field spec (0.5-3.0 s,
+    locked: config file only)."""
+    if cfg.start_mode is not None and cfg.start_mode not in START_MODES:
+        return ['start_mode: must be null or one of %s' % (START_MODES,)]
+    return []
+
+
 def steer_fault_reason(names):
     """The stop reason of MCU fault names / host latch names: the first STEER_FAULT_REASONS match (design 6.6), else the
     first STEER_LINK_FAULT_REASONS match, else None."""
@@ -1782,6 +1946,18 @@ def steer_rule_problems(cfg):
     if not abs(cfg.steer_rotation_centre_x_m) < .5 * cfg.footprint_length_m:
         p.append('front_steer: steer_rotation_centre_x_m %r outside the footprint (length %g m)'
                  % (cfg.steer_rotation_centre_x_m, cfg.footprint_length_m))
+    return p
+
+
+def prior_rule_problems(cfg):
+    """Static rules of the design v2 block: the priors need the steering status (front_steer) and a weight needs
+    prior_enabled."""
+    p = []
+    if cfg.prior_enabled and cfg.vehicle_profile != FRONT_STEER:
+        p.append('prior_enabled: needs vehicle_profile front_steer (the applied duty and the steering angle come from '
+                 'the steering status)')
+    if cfg.prior_weight > 0 and not cfg.prior_enabled:
+        p.append('prior_weight %r: needs prior_enabled' % (cfg.prior_weight,))
     return p
 
 

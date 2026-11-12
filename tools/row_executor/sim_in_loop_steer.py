@@ -17,9 +17,16 @@ lidar_yaw_offset_deg mount convention, 0 = no return, 1 mm), header = the SIM se
 time; IMU angular_velocity (0, 0, gyro_z) and linear_acceleration (sensor axes), header = stamp, receipt = arrival.
 Clock: the executor steps at 20 Hz on the rig's 10 ms grid (t = 0, 50, 100 ms ...; a late tick is skipped, never caught
 up), with the rig clock as its clock (ExecutorLoop clock = rig.clock, wall = rig.wall_clock; SteerBridgeClient too).
-Operator emulation: Start (row length optional, single-row mode) at the first tick, Arm at ARM_AT_S, press hold at
-PRESS_AT_S and keep the heartbeat; after a pause (not await_hold) release and press again with a new press id once the
-Runner would accept it (REPRESS_WAIT_S later), at most MAX_REPRESSES; never after an end; never an automatic re-arm.
+Operator emulation (the executor's start mode, config.effective_start_mode):
+  hold_to_run  Start (row length optional, single-row mode) at the first tick, Arm at ARM_AT_S, press hold at PRESS_AT_S
+               and keep the heartbeat; after a pause (not await_hold) release and press again with a new press id once the
+               Runner would accept it (REPRESS_WAIT_S later), at most MAX_REPRESSES; never after an end; never an
+               automatic re-arm.
+  one_press    (design v2 V2-2, the front_steer default) the operator screen is open from the first tick: one heartbeat of
+               SESSION per tick while it is 'visible'; Start at the first tick, Arm at ARM_AT_S, one go at PRESS_AT_S or
+               the first tick after it on which the executor's start checks pass (ExecutorLoop._go_blockers: the button
+               of the screen is on); after a pause a new go (auto_repress: REPRESS_WAIT_S later and once the checks pass,
+               at most MAX_REPRESSES); never after an end.
 Episode actions (episode spec 'actions', times in SIM s; the safety scripts use them): stop (executor emergency_stop:
 the page STOP), release (the operator lets the hold go: deadman loss), hold_lost (heartbeats stop without a release:
 the hold times out), press, end, ack, arm, start, executor_stall (no executor tick for duration_s), client2_arm /
@@ -87,12 +94,19 @@ MAX_REPRESSES = 20
 OWNER = 'row-executor:sim'
 SIM_SOCKET = '/run/ubts-steer/control.sock'   # the SIM control socket (T1 talks to the rig, the path binds the role)
 STATE_CODES = {XCORE.IDLE: 0, XCORE.PAUSED: 1, XCORE.ACTIVE: 2, XCORE.ENDED: 3}
+# Estimator columns, written only when the executor config has prior_enabled (the default trace is unchanged): the
+# estimator's latency-compensated base pose in its own odometry frame, the time it has run on the actuator prior since
+# the last scan-matched pose and the scan-match flag (evaluation of the prediction; never fed back).
+EST_COLUMNS = ('ctrl_est_x_m', 'ctrl_est_y_m', 'ctrl_est_yaw_rad', 'ctrl_est_predict_s', 'ctrl_est_odom_valid')
 CTRL_COLUMNS = ('ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold', 'ctrl_steer_required',
                 'ctrl_steer_age_s')
 # executor JSONL fields that hold wall-clock (perf_counter) values: dropped from the deterministic log digest
 WALL_FIELDS = ('loop_ms', 'proc_ms', 'max_scan_proc_s', 'last_scan_proc_s')
 ACTIONS = ('stop', 'release', 'hold_lost', 'press', 'end', 'ack', 'arm', 'start', 'executor_stall', 'client2_arm',
-           'client2_drive', 'client2_stop', 'late_drive', 'foreign_arm')
+           'client2_drive', 'client2_stop', 'late_drive', 'foreign_arm', 'go', 'screen_hidden', 'screen_visible',
+           'other_screen')
+SESSION = 'sim-screen-0001'       # one_press: the operator screen's session id
+OTHER_SESSION = 'sim-screen-0002'  # one_press: a second screen (action other_screen)
 EXECUTOR_EVENTS_KEPT = ('start', 'request', 'emergency_stop', 'bridge_error', 'bridge_stop', 'run_end', 'stop_confirmed',
                         'stop_unconfirmed', 'stop_watch_timeout', 'watchdog_stall')
 
@@ -129,8 +143,28 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')))
     values.update(overrides or {})
+    if isinstance(values.get('prior_speed_table'), list):
+        # a JSON episode spec gives the table as lists ([[duty, speed], ...]); the config field is a tuple of tuples
+        values['prior_speed_table'] = tuple(tuple(point) for point in values['prior_speed_table'])
+    if values.get('prior_enabled'):
+        # actuator priors (design v2 V2-1): the SIM 'measured' duty -> speed table and wheelbase are the profile's
+        # nominal values (SIM_ASSUMED placeholders, never the per-run speed draw), unless the overrides give them
+        values.setdefault('prior_wheelbase_m', float(value('wheelbase_m')))
+        if not values.get('prior_speed_table'):
+            values['prior_speed_table'] = profile_speed_table(profile)
     from dataclasses import replace
     return replace(XC.ExecutorConfig(), **values).validate()
+
+
+def profile_speed_table(profile, duties=(10, 20, 30, 40, 50, 60, 70, 80, 90, 100), factor=1.):
+    """The prior's (duty %, speed m/s) table from the profile's nominal drive curve (steering.drive.steady_speed_m_s:
+    profile values, not a run's draw) x factor. Points with no speed (inside the deadband) are left out."""
+    points = []
+    for duty in duties:
+        speed = round(float(SD.steady_speed_m_s(profile, duty)) * float(factor), 4)
+        if speed > 0. and (not points or speed >= points[-1][1]):
+            points.append((float(duty), speed))
+    return tuple(points)
 
 
 # --- log capture ------------------------------------------------------------------------------------------------------
@@ -242,13 +276,16 @@ class SteerExecutorInTheLoop:
         self.socket = RigSocket(self.client, on_motion=lambda yaw, speed: self.motion_log.append(
             (round(rig.now, 4), float(yaw), float(speed))))
         self.log = CaptureLog()
-        factory = SCRIPT.make_factory(self.controller_spec, cfg)
+        SCRIPT.make_factory(self.controller_spec, cfg)           # refuses a bad spec before anything starts
+        # the controller factory gets the loop's effective config (the field tuning values the loop loaded, PW-08)
         self.executor = XM.ExecutorLoop(
             cfg, motor_output_flag=True, clock=rig.clock, wall=rig.wall_clock, log=self.log,
             bridge_factory=lambda: SteerBridgeClient.from_config(cfg, transport=self.socket, owner=OWNER,
                                                                  clock=rig.clock, wall=rig.wall_clock),
             stop_transport=self.socket,
-            runner_factory=lambda c: XCORE.Runner(c, vendor_modules=(SE, SC), controller_factory=factory))
+            runner_factory=lambda c: XCORE.Runner(c, vendor_modules=(SE, SC),
+                                                  controller_factory=SCRIPT.make_factory(self.controller_spec, c)))
+        self.cfg = cfg = self.executor.config
         self.real_format = RealFormat(cfg.lidar_yaw_offset_deg)
         self.actions = sorted((dict(a) for a in actions), key=lambda a: (float(a['at_s']), a['op']))
         for action in self.actions:
@@ -261,6 +298,10 @@ class SteerExecutorInTheLoop:
         self.inputs = dict(scans=[], imus=[])
         self.input_counts = collections.Counter()
         self.phase, self.press, self.presses, self.represses = 'start', None, 0, 0
+        self.one_press = XC.effective_start_mode(cfg) == XC.ONE_PRESS
+        self.go_refused = []             # one_press: refused gos (t, error)
+        self.other_screen = []           # one_press: replies to the second screen (action other_screen)
+        self.other_future = None
         self.repress_at = None
         self.future = None
         self.start_error = None
@@ -288,6 +329,9 @@ class SteerExecutorInTheLoop:
             self._wrap_rig_timers()
         self.mcu_step_ms = []
         rig.add_trace_extras(CTRL_COLUMNS, self._ctrl_row)
+        self.est_columns = bool(cfg.prior_enabled)
+        if self.est_columns:
+            rig.add_trace_extras(EST_COLUMNS, self._est_row)
 
     # -- timing (A11): the rig's work inside an executor tick is subtracted from the executor step latency
     def _wrap_rig_timers(self):
@@ -325,9 +369,24 @@ class SteerExecutorInTheLoop:
         if d is None:
             return (0., float('nan'), float(STATE_CODES.get(runner.state, -1)), 0., 0., float('nan'))
         steer = float('nan') if d.steer_mrad is None else float(d.steer_mrad)
+        if self.one_press:
+            link = self.executor.link
+            level = link.go_active and link.last_beat is not None and self.rig.clock() - link.last_beat <= link.timeout_s
+        else:
+            level = self.executor.hold.active(self.rig.clock())
         return (float(d.throttle or 0), steer, float(STATE_CODES.get(d.state, -1)),
-                float(bool(self.executor.hold.active(self.rig.clock()))), float(bool(runner.steer_required)),
+                float(bool(level)), float(bool(runner.steer_required)),
                 age if math.isfinite(age) else float('nan'))
+
+    def _est_row(self):
+        """EST_COLUMNS of this trace row (NaN before the first scan of a run)."""
+        est = self.executor.runner.estimator
+        if est is None or est.last_scan_stamp is None:
+            return (float('nan'),) * 5
+        now = self.rig.now
+        x, y, yaw = est.base_pose(now)
+        block = est.prior.snapshot(now, est.last_scan_stamp, est.speed) if est.prior is not None else None
+        return (x, y, yaw, float('nan') if block is None else float(block['predict_s']), float(bool(est.odom_valid)))
 
     # -- sensors -> executor
     def _feed_sensors(self):
@@ -354,6 +413,9 @@ class SteerExecutorInTheLoop:
     # -- operator
     def _new_press(self):
         self.presses += 1
+        if self.one_press:
+            self.future, self.phase = self.executor.submit('go', session=SESSION), 'going'
+            return
         self.press = 'sim-press-%04d' % self.presses
         self.executor.hold_beat(self.press)
         self.phase = 'holding'
@@ -372,9 +434,17 @@ class SteerExecutorInTheLoop:
             return s is not None and runner._standstill(s)
         return True
 
+    def _go_ready(self, now):
+        return not self.executor._go_blockers(now, SESSION)
+
     def _operator(self, now):
         executor, runner = self.executor, self.executor.runner
         if not self.operator:
+            return
+        if self.one_press and self.beating:
+            executor.operator_heartbeat(SESSION)          # the screen is visible: one heartbeat per tick
+        if self.one_press and self.phase in ('armed', 'going', 'holding', 'released'):
+            self._operator_one_press(now)
             return
         if self.phase == 'start':
             self.future = executor.submit('start', row_len_m=None)
@@ -414,6 +484,33 @@ class SteerExecutorInTheLoop:
         elif self.phase == 'released' and now >= self.repress_at and self._resume_ready(now):
             self._new_press()
 
+    def _operator_one_press(self, now):
+        executor, runner = self.executor, self.executor.runner
+        if self.phase == 'armed' and now >= PRESS_AT_S - 1e-9 and self._go_ready(now):
+            self._new_press()
+        elif self.phase == 'going' and self.future.done():
+            result = self.future.result()
+            if result.get('ok'):
+                self.phase = 'holding'
+            else:
+                self.go_refused.append((round(now, 3), result.get('error')))
+                self.phase = 'armed' if runner.state == XCORE.PAUSED else 'done'
+        elif self.phase == 'holding':
+            if runner.state == XCORE.ENDED:
+                self.phase = 'done'
+            elif runner.state == XCORE.PAUSED and not executor.link.go_active:
+                if str(runner.reason).startswith('press_ignored'):
+                    self.press_ignored += 1
+                self.represses += 1
+                allowed = self.auto_repress and self.represses <= MAX_REPRESSES
+                self.phase = 'released' if allowed else 'gave_up'
+                self.repress_at = now + REPRESS_WAIT_S
+        elif self.phase == 'released':
+            if runner.state == XCORE.ENDED:
+                self.phase = 'done'
+            elif now >= self.repress_at and self._go_ready(now):
+                self._new_press()
+
     def _action(self, action, now):
         op = action['op']
         executor = self.executor
@@ -421,14 +518,23 @@ class SteerExecutorInTheLoop:
         if op == 'stop':
             executor.emergency_stop(action.get('source', 'page'))
         elif op == 'release':
-            if self.press is not None:
+            if self.one_press:
+                self.beating = False                  # one_press has no release: the screen stops its heartbeats
+            elif self.press is not None:
                 executor.hold_release(self.press)
             self.phase = 'operator_released'
-        elif op == 'hold_lost':
+        elif op in ('hold_lost', 'screen_hidden'):
             self.beating = False
-        elif op == 'press':
+        elif op == 'screen_visible':
+            self.beating = True
+        elif op in ('press', 'go'):
             self.beating = True
             self._new_press()
+        elif op == 'other_screen':
+            # one_press: a second screen opens: a heartbeat and a go of another session (refused while the first is fresh)
+            beat = executor.operator_heartbeat(OTHER_SESSION)
+            self.other_screen.append(dict(t=round(now, 3), op='heartbeat', ok=bool(beat[0]), error=beat[1]))
+            self.other_future = executor.submit('go', session=OTHER_SESSION)
         elif op == 'end':
             executor.submit('end')
         elif op == 'ack':
@@ -488,6 +594,10 @@ class SteerExecutorInTheLoop:
         self._operator(now)
         s0 = time.perf_counter()
         self.decision = self.executor.step(now)
+        if self.other_future is not None and self.other_future.done():
+            reply = self.other_future.result()
+            self.other_screen.append(dict(t=round(now, 3), op='go', ok=bool(reply.get('ok')), error=reply.get('error')))
+            self.other_future = None
         s1 = time.perf_counter()
         self.ticks += 1
         wall = (time.perf_counter() - t0) * 1e3
@@ -565,6 +675,9 @@ class SteerExecutorInTheLoop:
             executor_stall=dict(rig_stalled_ticks=self.rig_stalled_ticks,
                                 windows_ms=[list(w) for w in getattr(self.rig, 'executor_stall_windows', ())]),
             events=[list(e) for e in self.events], client2=self.client2_replies,
+            start_mode=XC.effective_start_mode(self.cfg), go_refused=[list(g) for g in self.go_refused],
+            tuning=None if self.executor.tuning is None else self.executor.tuning.brief(),
+            other_screen=list(self.other_screen),
             host_latches=[list(item) for item in self.latch_log],
             late_drive=[dict(t=item['t'], reply=dict((k, item.get('reply', {}).get(k)) for k in ('ok', 'error')))
                         for item in self.late_replies],
@@ -587,7 +700,8 @@ class SteerExecutorInTheLoop:
         table, the hold_measured STOP target; R13-3, written by the rig) + the ctrl_* executor columns + meta."""
         arrays = self.rig.trace_arrays()
         meta = json.loads(bytes(arrays['meta_json']).decode('utf-8'))
-        meta.update(schema_executor=SCHEMA, executor_columns=list(CTRL_COLUMNS),
+        meta.update(schema_executor=SCHEMA,
+                    executor_columns=list(CTRL_COLUMNS) + (list(EST_COLUMNS) if self.est_columns else []),
                     ctrl_state_codes={k: v for k, v in STATE_CODES.items()})
         arrays['meta_json'] = np.frombuffer(json.dumps(meta, sort_keys=True, separators=(',', ':'), ensure_ascii=True,
                                                        allow_nan=False).encode('utf-8'), dtype=np.uint8).copy()

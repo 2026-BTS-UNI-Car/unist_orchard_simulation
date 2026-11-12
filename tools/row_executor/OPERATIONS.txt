@@ -1,6 +1,9 @@
 row_executor 운용·프로토콜 노트 (2026-10-22, 주말 현장 MVP-0/MVP-1용)
 =====================================================================
 [조향 브랜치 사본 2026-11-09] 단일열 작업 546fa8c에서 가져온 문서다. 회전(turn_*, TURN_ASSIST.txt)·재생(replay_*, row_shadow_replay.py)·convert_1003.py·row_gate_report.py는 가져오지 않았다. 바꾼 것: docs/steering/EXECUTOR_IMPORT_KO.md.
+[앞바퀴 조향 2026-11-13] front_steer 의 시작·정지는 한 번 눌러 시작(start_mode one_press: go + 운영자 heartbeat, 끊기면
+operator_link_lost 일시정지)이다. 아래의 hold 누름 규칙은 hold_to_run(차동 기본)에만 해당한다. 최종 규약:
+docs/steering/OPERATOR_API_KO.md, 현장 조정 파일: docs/steering/FIELD_TUNING_KO.md, 바뀐 것: EXECUTOR_STEER_KO.md 13절.
 범위: tools/row_executor/{config.py, guard.py, core.py, bridge_client.py} + vendor/ + tests/.
 이 패키지는 스스로 모터 명령을 보내지 않는다. Runner는 Decision만 돌려주고, BridgeClient를 쓸지는 호출자
 (executor_main, 아직 미작성)가 정한다. 기본값 motor_output_enabled=false(SHADOW). ROS import 없음.

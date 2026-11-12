@@ -101,9 +101,11 @@ import numpy as np
 
 from . import calib_runs as CR
 from . import config as C
+from . import field_tuning as T
 from .bridge_client import (ARMED, LATCHED, BridgeClient, BridgeError, SteerBridgeClient, UnixSocketTransport,
                             recovery_hint)
-from .core import ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, Runner, ScanStamper, verify_vendor
+from .core import (ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, SINGLE_ROW_NOT_STOPS, Runner, ScanStamper,
+                   single_row_stop_category, verify_vendor)
 from .navigation_observation import NativeNavigationGate
 
 SCHEMA_LOG = 'ubts.row_executor.log.v1'
@@ -116,6 +118,7 @@ EMERGENCY_PREFIXES = ('guard_violation', 'bridge_', 'operator_stop', 'clock_regr
                       'bench_motion', 'bench_front', 'bench_odometry',          # not 'bench_pattern_complete'
                       'calib_yaw_rate', 'calib_overspeed', 'calib_heading_change')
 REQUEST_TIMEOUT_S = 5.
+GO_STILL_SPEED_M_S = .03        # one_press start check: LiDAR speed below this (design v2 V2-2 item 2, V2-5 item 4)
 # front_steer: the steering stop reasons that stop at once (op stop + LATCHED); steering_authority_insufficient is a
 # controller-authority end like a terminal hold (zero throttle with the held steering, then op stop)
 STEER_EMERGENCY_REASONS = tuple(r for r in C.STEER_STOP_REASONS if r != 'steering_authority_insufficient') + \
@@ -359,6 +362,112 @@ class HoldState:
             age = None if self.last_beat is None else round(now - self.last_beat, 3)
             return dict(active=self.press is not None and age is not None and age <= self.timeout_s,
                         beat_age_s=age, serial=self.serial, **self.counts)
+
+
+class OperatorLink:
+    """One-press start (design v2 V2-2, decision R32, docs/steering/OPERATOR_API_KO.md): the operator screen's session,
+    its heartbeats and the go latch. Thread-safe (HTTP threads beat, the main loop goes / reads / cancels).
+
+      heartbeat(session, now)  the screen is visible: binds the session when no session is bound or the bound one's
+                               link has expired, and refreshes it. Another session while the bound one is fresh is
+                               refused ('session_conflict', HTTP 409); nothing changes for the bound one.
+      go(session, now)         (main loop, after the start checks) a heartbeat of that session plus a NEW go: the level
+                               rises with a new serial (its own rising edge for the Runner).
+      current(now)             (active, serial, lost): active while a go is latched and the link is fresh. When the link
+                               expires (no heartbeat for timeout_s) the go is dropped for good and lost is True once (the
+                               loop pauses the run: operator_link_lost). A later heartbeat never revives it: only a new go
+                               does (no automatic restart).
+      cancel(why)              drops the go (a pause, an end, STOP); the session stays bound while its heartbeats go on.
+    Session ids are the screen's random ids (4..64 characters); the status shows only a short digest of the bound one.
+    """
+
+    RETIRED_MAX = 4096
+
+    def __init__(self, timeout_s=.5):
+        self.timeout_s = float(timeout_s)
+        self.lock = threading.Lock()
+        self.session = None
+        self.last_beat = None
+        self.go_active = False
+        self.serial = 0
+        self.last_cancel = None
+        self._lost_pending = False
+        self.counts = dict(beats=0, gos=0, conflicts=0, invalid=0, link_lost=0, cancels=0, bindings=0)
+
+    @staticmethod
+    def valid(session):
+        return isinstance(session, str) and 4 <= len(session) <= 64
+
+    def _fresh_locked(self, now):
+        return self.last_beat is not None and now - self.last_beat <= self.timeout_s
+
+    def _bind_locked(self, session, now):
+        if not self.valid(session):
+            self.counts['invalid'] += 1
+            return False, 'invalid_session_id'
+        if self.session is not None and session != self.session and self._fresh_locked(now):
+            self.counts['conflicts'] += 1
+            return False, 'session_conflict'
+        if session != self.session:
+            if self.go_active:                     # a new screen never inherits a go of an expired one
+                self.go_active = False
+                self.last_cancel = 'session_changed'
+            self.session = session
+            self.counts['bindings'] += 1
+        self.last_beat = float(now)
+        self.counts['beats'] += 1
+        return True, None
+
+    def heartbeat(self, session, now):
+        with self.lock:
+            self._expire_locked(now)
+            return self._bind_locked(session, now)
+
+    def conflict(self, session, now):
+        """True when another session is bound and fresh (a go of this session would be refused)."""
+        with self.lock:
+            return self.session is not None and session != self.session and self._fresh_locked(now)
+
+    def go(self, session, now):
+        with self.lock:
+            self._expire_locked(now)
+            ok, why = self._bind_locked(session, now)
+            if not ok:
+                return False, why, None
+            self.go_active = True
+            self._lost_pending = False
+            self.serial += 1
+            self.counts['gos'] += 1
+            return True, None, self.serial
+
+    def _expire_locked(self, now):
+        if self.go_active and not self._fresh_locked(now):
+            self.go_active = False
+            self.last_cancel = 'operator_link_lost'
+            self.counts['link_lost'] += 1
+            self._lost_pending = True          # kept until the main loop reads it (current())
+
+    def current(self, now):
+        with self.lock:
+            self._expire_locked(now)
+            lost, self._lost_pending = self._lost_pending, False
+            return self.go_active, self.serial, lost
+
+    def cancel(self, why):
+        with self.lock:
+            self._lost_pending = False
+            if self.go_active:
+                self.go_active = False
+                self.last_cancel = str(why)[:60]
+                self.counts['cancels'] += 1
+
+    def snapshot(self, now):
+        with self.lock:
+            age = None if self.last_beat is None else round(max(0., now - self.last_beat), 3)
+            digest = None if self.session is None else hashlib.sha256(self.session.encode('utf-8')).hexdigest()[:8]
+            return dict(fresh=self._fresh_locked(now), age_s=age, timeout_s=self.timeout_s, session=digest,
+                        go_active=self.go_active, go_serial=self.serial, last_cancel=self.last_cancel,
+                        **self.counts)
 
 
 class JsonlLog:
@@ -627,6 +736,15 @@ class ExecutorLoop:
                  navigation_test_mode=False):
         cfg.validate()
         self.file_config = cfg
+        # front_steer: the field tuning file (field_tuning.py, design v2 V2-5) is loaded here and written into the
+        # config the Runner and the steering controller use (tuning_values, the prior's table and scale)
+        self.tuning = None
+        if C.is_front_steer(cfg):
+            try:
+                self.tuning = T.State(T.load(cfg.tuning_file))
+                cfg = C.with_tuning(cfg, self.tuning.values)
+            except (T.TuningError, C.ConfigError) as exc:
+                raise ValueError('field tuning refused: %s' % '; '.join(exc.problems)) from None
         self.config = cfg
         if navigation_gate is not None and type(navigation_gate) is not NativeNavigationGate:
             raise ValueError('memory_only_typed_native_navigation_gate')
@@ -655,6 +773,11 @@ class ExecutorLoop:
         self.stamper = ScanStamper.from_config(cfg)
         self.inputs = InputBuffer()
         self.hold = HoldState(cfg.hold_timeout_s)
+        # design v2 V2-2 (R32): one_press = Start -> Arm -> one go, the screen's heartbeats keep the run going;
+        # hold_to_run = the press heartbeats above (the differential default, and an explicit option)
+        self.start_mode = C.effective_start_mode(cfg)
+        self.link = OperatorLink(cfg.operator_timeout_s)
+        self._go_reached_active = False         # one_press: the current go has resumed the run at least once
         self.log = log if log is not None else _NullLog()
         self.source_digest = source_digest
         self.steering = C.is_front_steer(cfg)
@@ -701,7 +824,8 @@ class ExecutorLoop:
         self._calib_stop_logged = None          # run id of the last 'calib_stop' event (C7)
         self._event('config', config=cfg.to_dict(), config_digest=cfg.digest(), motor_allowed=self.motor_allowed,
                     shadow_auto=self.shadow_auto, feasibility=cfg.feasibility(), source_digest=source_digest,
-                    vendor_commit=self.runner.vendor_commit)
+                    vendor_commit=self.runner.vendor_commit, start_mode=self.start_mode,
+                    tuning=None if self.tuning is None else self.tuning.brief())
 
     # --- logging -----------------------------------------------------------------------------------
     def _event(self, name, **fields):
@@ -725,13 +849,26 @@ class ExecutorLoop:
 
     # --- operator (any thread) -------------------------------------------------------------------------
     def hold_beat(self, press):
-        return self.hold.beat(press, self.clock())
+        return self.hold_beat_detail(press)[0]
 
     def hold_beat_detail(self, press):
+        if self.start_mode != C.HOLD_TO_RUN:
+            return False, 'start_mode_one_press'
         return self.hold.beat_detail(press, self.clock())
 
     def hold_release(self, press=None):
+        """True when the release was taken (hold_to_run); one_press has no hold (False, nothing changes)."""
+        if self.start_mode != C.HOLD_TO_RUN:
+            return False
         self.hold.release(press)
+        return True
+
+    def operator_heartbeat(self, session):
+        """one_press (any thread): the operator screen is visible. (ok, why); why 'session_conflict' (HTTP 409): another
+        screen's session is bound and fresh."""
+        if self.start_mode != C.ONE_PRESS:
+            return False, 'start_mode_hold_to_run'
+        return self.link.heartbeat(session, self.clock())
 
     def submit(self, kind, **kwargs):
         future = concurrent.futures.Future()
@@ -759,6 +896,7 @@ class ExecutorLoop:
         the run. stop_sent: True / False (MOTOR, the bridge did not confirm) / None (SHADOW)."""
         self.counts['emergency_stops'] += 1
         self._stop_source = str(source)[:40]
+        self.link.cancel('operator_stop')           # one_press: the go ends with the STOP (a new Start + Arm + go)
         self._stop_event.set()
         sent, error = None, None
         if self.motor_allowed:
@@ -901,6 +1039,7 @@ class ExecutorLoop:
         hold = self._hold_signal(now)
         decision = self.runner.tick(now, hold)
         self._last_decision = decision
+        self._go_after_tick()
         self._calib_events()
         if self.shadow_auto:
             self._shadow_auto_restart(now)
@@ -974,6 +1113,8 @@ class ExecutorLoop:
         return info
 
     def _hold_signal(self, now):
+        if not self.shadow_auto and self.start_mode == C.ONE_PRESS:
+            return self._go_signal(now)
         if not self.shadow_auto:
             active, serial = self.hold.current(now)
             if self.motor_allowed and (self.bridge is None or self.bridge.state != ARMED):
@@ -997,6 +1138,109 @@ class ExecutorLoop:
             self._auto_toggle = not self._auto_toggle
             return self._auto_toggle
         return False
+
+    def _go_signal(self, now):
+        """one_press: the level the Runner sees = a latched go with a fresh operator link (MOTOR: and the lease). A link
+        that expires while the run moves pauses it with operator_link_lost (zero throttle this tick, steering held); only
+        a new go resumes it (a new serial = its own rising edge, as a new press)."""
+        active, serial, lost = self.link.current(now)
+        if lost:
+            self._event('operator_link_lost', run_id=self.runner.run_id, state=self.runner.state,
+                        timeout_s=self.link.timeout_s)
+            self.runner.pause(now, 'operator_link_lost')        # ACTIVE only (a PAUSED run stays as it is)
+        if self.motor_allowed and (self.bridge is None or self.bridge.state != ARMED):
+            active = False
+        if not active:
+            self._hold_level = False
+            return False
+        if self._hold_level and serial != self._hold_serial:
+            self._hold_level = False
+            self.counts['hold_edges_split'] += 1
+            return False
+        self._hold_level, self._hold_serial = True, serial
+        return True
+
+    def _go_after_tick(self):
+        """one_press: drop the go once it no longer drives the run (a pause after it resumed the run, a refused start,
+        the end): run_state then shows 'paused' / 'ended' and only a new go resumes."""
+        if self.start_mode != C.ONE_PRESS or self.shadow_auto or not self.link.go_active:
+            return
+        runner = self.runner
+        if runner.state == ACTIVE:
+            self._go_reached_active = True
+        elif runner.state == PAUSED:
+            if self._go_reached_active or str(runner.reason).startswith('press_ignored'):
+                self.link.cancel('paused:' + str(runner.reason))
+        else:
+            self.link.cancel('run_' + str(runner.state).lower())
+
+    def _go_blockers(self, now, session=None):
+        """The reasons a go would be refused now (empty: the start button may be on). Design v2 V2-2 item 2: a run open
+        and waiting, MOTOR armed and not latched, inputs fresh for fresh_recover_s, the steering status usable, the
+        vehicle at rest, the corridor acquired and the operator link of this screen (no other screen bound)."""
+        out = []
+        if self.start_mode != C.ONE_PRESS:
+            return ['start_mode_hold_to_run']
+        runner = self.runner
+        if session is not None and self.link.conflict(session, now):
+            out.append('session_conflict')           # another screen is bound (its STOP still works for everybody)
+        elif session is None and not self.link.snapshot(now)['fresh']:
+            out.append('operator_link_not_fresh')
+        if runner.state in (IDLE, ENDED):
+            out.append('no_run')
+        elif runner.state == ACTIVE:
+            out.append('already_running')
+        if self.motor_allowed and runner.state == PAUSED:
+            client = self.bridge
+            if client is not None and client.state == LATCHED:
+                out.append('latched')
+            elif client is None or client.state != ARMED:
+                out.append('arm_first')
+        if runner.state == PAUSED:
+            fresh_since = getattr(runner, '_fresh_since', None)
+            if fresh_since is None or now - fresh_since < self.config.fresh_recover_s:
+                out.append('inputs_not_fresh')
+            if not runner._steer_ok(now):
+                out.append('steering_feedback')
+            s = runner.last_snapshot or {}
+            speed = s.get('speed')
+            moving = (s.get('still') is not True and isinstance(speed, (int, float)) and not isinstance(speed, bool)
+                      and math.isfinite(speed) and abs(speed) >= GO_STILL_SPEED_M_S)
+            if moving:
+                out.append('vehicle_moving')
+            if runner.run_kind == 'row' and s.get('corridor_valid') is not True:
+                out.append('corridor_not_acquired')
+        return out
+
+    def _run_state(self):
+        """The contract run state (docs/steering/OPERATOR_API_KO.md)."""
+        runner, client = self.runner, self.bridge
+        if self.motor_allowed and client is not None and client.state == LATCHED:
+            return 'latched'
+        if runner.state == IDLE:
+            return 'idle'
+        if runner.state == ENDED:
+            return 'ended'
+        if runner.state == ACTIVE:
+            return 'running'
+        if runner.reason == 'await_hold' and not runner.resumes:
+            if self.motor_allowed and (client is None or client.state != ARMED):
+                return 'ready'
+            return 'armed'
+        return 'paused'
+
+    def _stop_reason(self):
+        """(category, reason) of the open pause or the end (None, None while running / idle / waiting for the first go):
+        the single-row stop table plus OPERATOR_LINK_LOST (docs/steering/OPERATOR_API_KO.md)."""
+        runner = self.runner
+        if runner.state == ENDED:
+            reason = runner.end_reason
+        elif runner.state == PAUSED and runner.reason not in SINGLE_ROW_NOT_STOPS:
+            reason = runner.reason
+        else:
+            return None, None
+        category = single_row_stop_category(getattr(runner, 'single_row', None), reason)[0]
+        return category, reason
 
     def _shadow_auto_restart(self, now):
         if self.runner.state in (IDLE, ENDED):
@@ -1049,7 +1293,9 @@ class ExecutorLoop:
         self._ending_since = None
         self._ended_at = None
         self._event('start', run_id=run_id, row_len_m=row_len_m, source=source,
-                    backstop=self.runner.backstop.summary() if self.runner.backstop else None)
+                    backstop=self.runner.backstop.summary() if self.runner.backstop else None,
+                    config_digest=self._config_digest,
+                    tuning=None if self.tuning is None else self.tuning.brief())    # the run's tuning (PC-13)
         return dict(ok=True, run_id=run_id)
 
     def _req_start(self, now, row_len_m=None):
@@ -1098,8 +1344,26 @@ class ExecutorLoop:
     def _req_end(self, now):
         if self.runner.state not in (PAUSED, ACTIVE):
             return dict(ok=False, error='no_run')
+        self.link.cancel('operator_end')
         self.runner.end_run(now, 'operator_end')
         return dict(ok=True)
+
+    def _req_go(self, now, session=None):
+        """one_press: start (or resume after a pause) the open run once (design v2 V2-2). Refused with the first blocker
+        of _go_blockers (the start conditions) or 'session_conflict' (another screen is bound)."""
+        if self.start_mode != C.ONE_PRESS:
+            return dict(ok=False, error='start_mode_hold_to_run')
+        if not OperatorLink.valid(session):
+            return dict(ok=False, error='invalid_session_id')
+        blockers = self._go_blockers(now, session)
+        if blockers:
+            return dict(ok=False, error=blockers[0], blockers=blockers)
+        ok, why, serial = self.link.go(session, now)
+        if not ok:
+            return dict(ok=False, error=why)
+        self._go_reached_active = False
+        self._event('go', run_id=self.runner.run_id, serial=serial, run_state=self._run_state())
+        return dict(ok=True, run_id=self.runner.run_id, go_serial=serial)
 
     def _req_arm(self, now):
         if not self.motor_allowed:
@@ -1140,7 +1404,66 @@ class ExecutorLoop:
         state = None if self.bridge is None else self.bridge.acknowledge_latch()
         return dict(ok=True, bridge=state)
 
+    def _tuning_lock(self):
+        """Why the field tuning can not change now (None: it can): R35 / design v2 V2-5 item 4 'at rest only'."""
+        if self.tuning is None:
+            return 'no_field_tuning'
+        if self.runner.state in (PAUSED, ACTIVE):
+            return 'tuning_locked_while_running'
+        if self.bridge is not None and self.bridge.state == ARMED:
+            return 'tuning_locked_while_armed'
+        s = self.runner.last_snapshot or {}
+        speed = s.get('speed')
+        if (s.get('still') is not True and isinstance(speed, (int, float)) and not isinstance(speed, bool)
+                and math.isfinite(speed) and abs(speed) >= GO_STILL_SPEED_M_S):
+            return 'tuning_locked_vehicle_moving'
+        return None
+
+    def _req_tuning(self, now, params):
+        """front_steer POST /api/params (docs/steering/OPERATOR_API_KO.md 'field tuning'): basic keys, a preset, or a
+        save; at rest only; the change log is one 'tuning_change' event per key with the digests."""
+        lock = self._tuning_lock()
+        if lock is not None:
+            return dict(ok=False, error=lock, http=409)
+        try:
+            values, preset, changes, action = self.tuning.change(params)
+            new = C.with_tuning(self._base_config(), values) if action in ('set', 'load_preset') else self.config
+            runner = self._runner_factory(new) if new is not self.config else None
+        except (T.TuningError, C.ConfigError) as exc:
+            return dict(ok=False, error='invalid_params', problems=exc.problems, http=400)
+        except ValueError as exc:           # the steering controller refused the values (SteerFollowConfig rules)
+            return dict(ok=False, error='invalid_params', problems=[str(exc)], http=400)
+        before = self.tuning.digest
+        if action in ('save', 'save_preset'):
+            try:
+                sha = self.tuning.save(params.get('save_preset'), params.get('note', ''))
+            except (OSError, T.TuningError) as exc:
+                return dict(ok=False, error='tuning_save_failed', problems=[str(exc)], http=409)
+            self._event('tuning_save', file=self.tuning.file.path, file_sha256=sha, preset=self.tuning.preset,
+                        revision=self.tuning.revision, digest=self.tuning.digest)
+            return dict(ok=True, action=action, tuning=self.tuning.brief())
+        self.tuning.commit(values, preset)
+        run_id = self.runner.run_id
+        self.runner = runner
+        self.runner.run_id = run_id                 # run ids stay unique in the log across a tuning change
+        self.config = new
+        self._config_digest = new.digest()
+        for change in changes:
+            self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
+                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest,
+                        **change)
+        if not changes:
+            self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
+                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest)
+        return dict(ok=True, action=action, changes=changes, tuning=self.tuning.brief(), config_digest=self._config_digest)
+
+    def _base_config(self):
+        """The executor config before the field tuning (the file config of this process)."""
+        return self.file_config
+
     def _req_params(self, now, params=None):
+        if self.tuning is not None:
+            return self._req_tuning(now, params)
         if self.runner.state in (PAUSED, ACTIVE):
             return dict(ok=False, error='end_the_run_first')
         if self.bridge is not None and self.bridge.state == ARMED:
@@ -1464,12 +1787,28 @@ class ExecutorLoop:
                                 base=sr.get('base_duty_pct'), vt=sr.get('target_speed_m_s'),
                                 rem=sr.get('end_remaining_m'), conf=(sr.get('confidence') or {}).get('level'),
                                 cat=sr.get('stop_category'))
+            if sr.get('speed_cap') is not None:                 # speed governor (PC-10): binding cap and tau_loop
+                record['sr'].update(cap=sr.get('speed_cap'), tau=sr.get('tau_loop_s'))
         if self.steering:                                       # front_steer: the output and the steering feedback
             st = s.get('steering') or {}
             record.update(T=d.throttle, S=d.steer_mrad,
                           steer=dict(meas=st.get('measured_mrad'), age=st.get('age_s'), req=st.get('required'),
                                      arm=st.get('arm_state'), stop=st.get('stop_state'), faults=st.get('faults'),
                                      fault=st.get('fault_reason'), sat=st.get('authority_saturated_s')))
+        prior = s.get('actuator_prior')
+        if prior is not None:                                   # design v2 actuator prior (config prior_enabled)
+            record['prior'] = dict(fresh=prior.get('fresh'), duty=prior.get('duty_pct'), v=prior.get('speed_m_s'),
+                                   w=prior.get('yaw_rate_rad_s'), k=prior.get('online_scale'),
+                                   mon=prior.get('monitor_s'), mismatch=prior.get('table_mismatch'),
+                                   pred=prior.get('predicting'), ps=prior.get('predict_s'), pm=prior.get('predict_m'),
+                                   lim=prior.get('limit'), d=prior.get('distance_m'))
+        quality = s.get('corridor_quality')
+        if quality is not None:                                 # estimator corridor quality (config corridor_quality)
+            record['cq'] = dict(sides=quality.get('sides'), src=quality.get('source'),
+                                n=[quality.get('support_left'), quality.get('support_right')],
+                                age=quality.get('age_s'), full=quality.get('full_age_s'),
+                                one=quality.get('one_sided_run'), rej=quality.get('rejected_run'),
+                                sd=[quality.get('lateral_sd_m'), quality.get('heading_sd_rad')])
         self.log.put(_clean(record), tick=True)
         self._run_end_event(d)
         status = dict(record)
@@ -1497,6 +1836,14 @@ class ExecutorLoop:
         status['turn_observe_available'] = False    # no turn observation in this package (U-turn is out of scope)
         status['turn_output_allowed'] = False       # installed integration is INFO_ONLY, irrespective of C6
         status['controller_mode'] = self.config.mode
+        # autonomy contract (docs/steering/OPERATOR_API_KO.md): start mode, run state, operator link, the start
+        # checks of a go, the stop category, the speed governor and the field tuning
+        category, detail = self._stop_reason()
+        blockers = self._go_blockers(now) if self.start_mode == C.ONE_PRESS else []
+        status.update(start_mode=self.start_mode, run_state=self._run_state(), operator_link=self.link.snapshot(now),
+                      go_ready=self.start_mode == C.ONE_PRESS and not blockers, go_blockers=blockers,
+                      stop_reason=category, stop_detail=detail, speed=self._speed_status(d),
+                      tuning=self._tuning_status())
         if self.config.mode == C.SINGLE_ROW_MODE:
             # operator page single-row panel: telemetry of this tick (or the last run) + the estimator-frame canvas
             status['single_row'] = sr
@@ -1516,6 +1863,27 @@ class ExecutorLoop:
             status['steer_limits_mrad'] = [self.config.steer_limit_left_mrad, self.config.steer_limit_right_mrad]
         with self._status_lock:
             self._status = _clean(status)
+
+    def _speed_status(self, d):
+        """The speed block of the contract: target_mps (the configured cruise target), limit_mps (the speed reference of
+        this tick: the smallest cap of the governor) and limit_reason (the binding cap's name, or why there is none)."""
+        sr = d.summary.get('single_row') or {}
+        target = sr.get('cruise_speed_m_s')
+        if target is None:
+            target = self.config.single_row_target_speed_m_s if self.config.mode == C.SINGLE_ROW_MODE else None
+        if d.state == ACTIVE and sr.get('target_speed_m_s') is not None:
+            return dict(target_mps=target, limit_mps=sr.get('target_speed_m_s'),
+                        limit_reason=sr.get('speed_cap') or 'controller', caps=sr.get('speed_caps'))
+        return dict(target_mps=target, limit_mps=None, limit_reason='not_running' if d.state != ACTIVE else 'no_estimate',
+                    caps=None)
+
+    def _tuning_status(self):
+        """The tuning block of the contract (preset, revision, editable) and the values for the screen; the
+        differential profile has no field tuning file (its three on-site keys are 'params')."""
+        if self.tuning is None:
+            return dict(preset=None, revision=0, editable=False)
+        lock = self._tuning_lock()
+        return self.tuning.status(lock is None, lock)
 
     def _run_end_event(self, d):
         """review_correctness_day2 R6: one 'run_end' event per run with everything needed to read the end from the log

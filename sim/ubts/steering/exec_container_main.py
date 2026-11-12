@@ -201,6 +201,16 @@ class ControllerSlot:
         self.built += 1
         return self.factory()
 
+    def factory_for(self, cfg):
+        """The Runner's controller factory for the executor loop's effective config (the field tuning values the loop
+        loaded, PW-08): the current spec at every resume, built with that config."""
+        from . import scripted_control
+
+        def build():
+            self.built += 1
+            return scripted_control.make_factory(self.spec, cfg)()
+        return build
+
 
 # --- ROS input (SIM clock mode) -----------------------------------------------------------------------------------------
 class SimRosInput:
@@ -570,7 +580,8 @@ class Container:
             cfg, motor_output_flag=True, log=self.log, clock=clock, wall=wall, source_digest=self.source_digest,
             bridge_factory=lambda: SteerBridgeClient.from_config(cfg, owner=self.owner, clock=clock, wall=wall),
             stop_transport=UnixSocketTransport(cfg.socket_path, cfg.bridge_timeout_s),
-            runner_factory=lambda c: Runner(c, controller_factory=self.slot))
+            runner_factory=lambda c: Runner(c, controller_factory=self.slot.factory_for(c)))
+        self.cfg = self.loop.config               # with the field tuning the loop loaded (config.json, status digest)
         self.stepped = SteppedLoop(self.loop, self.hooks_state)
         self.hooks = ExecHooks(self.exec_dir / 'hooks.sock', self.hooks_state, loop=self.loop, slot=self.slot,
                                wall=self.wall, status_fn=self.status)
@@ -585,6 +596,7 @@ class Container:
                     profile_id=getattr(self.profile, 'profile_id', None),
                     profile_sha256=getattr(self.profile, 'sha256', None), host_profile_cal_id=self.host.cal_id,
                     source_check=self.source_check, source_digest=self.source_digest,
+                    tuning=None if self.loop.tuning is None else self.loop.tuning.brief(),
                     topics=dict(scan=SCAN_TOPIC, imu=IMU_TOPIC, human=HUMAN_TOPIC,
                                 clock=CLOCK_TOPIC if self.args.clock == 'sim' else None),
                     retired_status=self.retired, log_files_pruned=self.log_pruned,
@@ -609,7 +621,9 @@ class Container:
                                stalls_done=self.hooks_state.stalls_done, freezes=self.hooks_state.freezes,
                                events=list(self.hooks_state.events)[-20:]),
                     controller=self.slot.spec, controller_digest=self.slot.digest, controllers_built=self.slot.built,
-                    log=self.log.health(), config_digest=self.cfg.digest(), source_check=self.source_check)
+                    log=self.log.health(), config_digest=self.loop._config_digest,   # after a field tuning change too
+                    tuning=None if self.loop.tuning is None else self.loop.tuning.brief(),
+                    source_check=self.source_check)
 
 
 def main(argv=None):

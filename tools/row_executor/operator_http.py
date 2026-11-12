@@ -11,10 +11,15 @@ Access control
     equal to http://<bind_host>:<bind_port>; JSON bodies only, at most 4 KiB, strict parsing.
   * responses: no-store, no framing, a per-page CSP nonce for the single inline script.
 
-API (all JSON)
-  GET  /api/status                          the loop status (2 Hz polling by the page)
-  POST /api/hold     {"press": id}          heartbeat of a press (page: every 100 ms while held)
-  POST /api/release  {"press": id}          pointerup / blur / visibilitychange / pagehide
+API (all JSON; the autonomy contract of the front-steer executor is docs/steering/OPERATOR_API_KO.md)
+  GET  /api/status                          the loop status (2 Hz polling by the page); also start_mode, run_state,
+                                            operator_link, go_ready / go_blockers, stop_reason, speed, tuning
+  POST /api/go       {"session": id}        start_mode one_press: start / resume the open run once (409 + the first
+                                            blocker when a start condition fails, 409 session_conflict for another screen)
+  POST /api/heartbeat {"session": id}       one_press: the screen is visible (page: every 100 ms); the run pauses
+                                            (operator_link_lost) operator_timeout_s after the last one, a new go resumes
+  POST /api/hold     {"press": id}          start_mode hold_to_run only: heartbeat of a press (page: every 100 ms)
+  POST /api/release  {"press": id}          hold_to_run only: pointerup / blur / visibilitychange / pagehide
   POST /api/stop     {}                     MOTOR: op stop to the bridge at once, run ends, LATCHED (HTTP 502 when
                                             the bridge did not confirm). SHADOW: ends the shadow run only.
   POST /api/start    {"row_len_m": L}       new run (row length required in the field profile; optional in mode
@@ -22,7 +27,9 @@ API (all JSON)
   POST /api/end      {}                     end the run normally (no latch)
   POST /api/arm      {}                     MOTOR only: take the bridge lease for the current run
   POST /api/ack      {}                     acknowledge a LATCHED bridge client (does not arm)
-  POST /api/params   {base_duty_pct, reduce_duty_pct, max_differential_pct}  bounded on-site values
+  POST /api/params   differential: {base_duty_pct, reduce_duty_pct, max_differential_pct}  bounded on-site values;
+                     front_steer: the field tuning (field_tuning.py): basic keys {name: value, ...}, or {"preset": n},
+                     or {"save": true} / {"save_preset": n, "note": t}; at rest only (409), refused values 400
   POST /api/calib_start {"kind": "arc"|"rolldown"|"stop", "params": {...}}   calibration run (calib_runs.py; MOTOR
                                             with calib_motor_output_enabled only; params bounded by make_plan:
                                             arc: arc_set, step_s; rolldown: step_pct, hold_s, floor_pct; stop (C7):
@@ -171,8 +178,18 @@ class Handler(BaseHTTPRequestHandler):
             ok, why = loop.hold_beat_detail(body.get('press'))
             return self._send(200 if ok else 409, dict(ok=ok) if ok else dict(ok=False, error=why))
         if route == '/api/release':
-            loop.hold_release(body.get('press') if isinstance(body.get('press'), str) else None)
+            if not loop.hold_release(body.get('press') if isinstance(body.get('press'), str) else None):
+                return self._send(409, dict(ok=False, error='start_mode_one_press'))
             return self._send(200, dict(ok=True))
+        if route == '/api/heartbeat':
+            if set(body) - {'session'}:
+                return self._deny(400, 'unknown_parameter')
+            ok, why = loop.operator_heartbeat(body.get('session'))
+            return self._send(200 if ok else 409, dict(ok=ok) if ok else dict(ok=False, error=why))
+        if route == '/api/go':
+            if set(body) - {'session'}:
+                return self._deny(400, 'unknown_parameter')
+            return self._result(loop.request('go', session=body.get('session')))
         if route == '/api/stop':
             result = loop.emergency_stop('operator_page')
             return self._send(502 if result.get('stop_sent') is False else 200, result)
@@ -198,6 +215,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._deny(400, 'unknown_parameter')
             return self._result(loop.request('turn_observe', params=body))
         if route == '/api/params':
+            if getattr(loop, 'tuning', None) is not None:
+                # front_steer field tuning (docs/steering/OPERATOR_API_KO.md): basic keys / preset / save; 400 for a
+                # value or key the tuning refuses, 409 while a run is open, the lease is held or the vehicle moves
+                result = loop.request('params', params=body)
+                code = result.pop('http', None) or (200 if result.get('ok') else 409)
+                return self._send(code, result)
             params = {k: body[k] for k in ('base_duty_pct', 'reduce_duty_pct', 'max_differential_pct') if k in body}
             if set(body) - set(params):
                 return self._deny(400, 'unknown_parameter')
@@ -288,9 +311,12 @@ table.stale{opacity:.35}
 </div>
 <div class="card"><table id="tab"></table></div>
 <div class="card"><div>현장 설정 (run 없음·disarmed일 때만)</div>
-<div>base <input id="p_base" type="number" step="1"> reduce <input id="p_reduce" type="number" step="1">
+<div id="diffparams"><div>base <input id="p_base" type="number" step="1"> reduce <input id="p_reduce" type="number" step="1">
 diff <input id="p_diff" type="number" step="1"> <button class="small" id="params">적용</button></div>
-<div id="limits" style="color:var(--dim)"></div><div id="feas"></div></div>
+<div id="limits" style="color:var(--dim)"></div></div>
+<div id="tuning" hidden><div id="tuninginfo" style="color:var(--dim)"></div><div id="tuningform"></div>
+<div><button class="small" id="tnapply">값 적용</button> 프리셋 <select id="tnpreset"></select>
+<button class="small" id="tnload">불러오기</button></div></div><div id="feas"></div></div>
 <div class="card" id="calibcard" hidden><div><b>보정 run (C5 arc / C3b rolldown / C7 stop) · MOTOR · 열 밖 넓은 곳</b></div>
 <div>종류 <select id="c_kind"><option value="arc">arc (C5: 차등별 yaw)</option>
 <option value="rolldown">rolldown (C3b: 굴러가는 중 최저 duty)</option>
@@ -322,6 +348,11 @@ const TOKEN_HELP = "새 주소: Jetson에서 run_executor.sh logs 의 'operator 
 const $ = (id) => document.getElementById(id);
 let press = null, beatTimer = null, lastStatus = null, statusFail = 0, tokenBad = false, stopAlert = false;
 let releasing = Promise.resolve();
+// start_mode one_press (design v2 V2-2): one session id per page load, heartbeats every 100 ms while the page is visible;
+// the big button sends one go; hiding or leaving the page stops the heartbeats (the executor then pauses the run)
+let oneMode = false, oneTimer = null;
+const SESSION = (() => { const a = new Uint8Array(12); crypto.getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2, "0")).join(""); })();
 function call(path, body, timeoutMs) {
   // -> {status, body}; status 0 = no answer (network error or timeout)
   const ctl = new AbortController();
@@ -338,7 +369,7 @@ function alertBox(text, cls) { const a = $("alert"); a.textContent = text; a.cla
 $("alert").addEventListener("click", () => { if (!tokenBad) { stopAlert = false; alertBox("", ""); } });
 function badToken() {
   if (tokenBad) return;
-  tokenBad = true; release(); $("hold").disabled = true;
+  tokenBad = true; release(); oneStop(); $("hold").disabled = true;
   alertBox("토큰 무효(403): 실행기가 재시작됐다. 이 화면의 버튼(STOP 포함)은 동작하지 않는다. 차량 정지 = 대시보드 STOP / 물리 E-stop. " +
            TOKEN_HELP + ". 5초 뒤 안내 화면으로 다시 불러온다.", "bad");
   setTimeout(() => location.reload(), 5000);
@@ -356,8 +387,19 @@ function beat() {
       alertBox("다른 기기/탭의 누름과 겹쳐 둘 다 해제됐다(일시정지). 실행기 화면은 한 기기에서만 연다. 다시 누르기.", "warn");
   });
 }
+function oneBeat() {
+  if (document.hidden || tokenBad) return;
+  api("/api/heartbeat", {session: SESSION}).then(r => {
+    if (!r.ok && r.error === "session_conflict" && !stopAlert)
+      alertBox("다른 화면이 이 실행기의 운영자 연결을 쓰는 중이다: 이 화면에서는 자율 시작이 안 된다(STOP은 된다).", "warn");
+  });
+}
+function oneStart() { if (oneTimer === null && !document.hidden && !tokenBad) { oneBeat(); oneTimer = setInterval(oneBeat, 100); } }
+function oneStop() { if (oneTimer !== null) { clearInterval(oneTimer); oneTimer = null; } }
+function go() { api("/api/go", {session: SESSION}).then(show); }
 function hold(ev) {
   if (ev) ev.preventDefault();
+  if (oneMode) { if (!$("hold").disabled) go(); return; }
   if (press || $("hold").disabled) return;
   const p = newPress(); press = p; $("hold").classList.add("on");
   releasing.then(() => {            // one device: the previous release reaches the server first
@@ -366,7 +408,7 @@ function hold(ev) {
   });
 }
 function release() {
-  if (!press) return;
+  if (oneMode || !press) return;
   const p = press; press = null; clearInterval(beatTimer); beatTimer = null; $("hold").classList.remove("on");
   const body = JSON.stringify({press: p});
   // the next press waits for this release, but never longer than 0.7 s (a hung request must not block presses)
@@ -381,8 +423,10 @@ H.addEventListener("pointerdown", (e) => { H.setPointerCapture && H.setPointerCa
 for (const ev of ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"]) H.addEventListener(ev, release);
 H.addEventListener("contextmenu", (e) => e.preventDefault());
 window.addEventListener("blur", release);
-document.addEventListener("visibilitychange", () => { if (document.hidden) release(); });
-window.addEventListener("pagehide", release);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { release(); oneStop(); } else if (oneMode) oneStart();
+});
+window.addEventListener("pagehide", () => { release(); oneStop(); });
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); if (!e.repeat) hold(); }
   if (e.code === "Escape") stop();
@@ -452,6 +496,32 @@ $("turnstart").addEventListener("click", () => {
   }
   api("/api/turn_observe", p).then(show);
 });
+// front_steer field tuning (status.tuning): the basic keys only, at rest only (the executor refuses otherwise)
+let tuningFilled = false;
+function tuningCard(s) {
+  const t = s.tuning, has = !!(t && t.basic);
+  $("tuning").hidden = !has; $("diffparams").hidden = has;
+  if (!has) return;
+  if (!tuningFilled) {
+    $("tuningform").innerHTML = t.basic.map(k => "<div>" + esc(k.name) + " <input id='tn_" + esc(k.name) +
+      "' type='number' step='any'> <span style='color:var(--dim)'>" + k.low + "–" + k.high + " " + esc(k.unit) + "</span></div>").join("");
+    for (const k of t.basic) $("tn_" + k.name).value = k.value;
+    $("tnpreset").innerHTML = (t.presets || []).map(p => "<option>" + esc(p) + "</option>").join("");
+    tuningFilled = true;
+  }
+  $("tuninginfo").textContent = "조정 파일 " + (t.preset || "-") + " · rev " + t.revision + " · " +
+    (t.editable ? "변경 가능(정지 상태)" : "변경 불가: " + (t.not_editable_because || "")) + " · digest " + String(t.digest || "").slice(0, 12);
+}
+$("tnapply").addEventListener("click", () => {
+  const t = lastStatus && lastStatus.tuning, body = {};
+  for (const k of (t && t.basic) || []) {
+    const v = parseFloat($("tn_" + k.name).value);
+    if (isFinite(v) && v !== k.value) body[k.name] = v;
+  }
+  if (!Object.keys(body).length) { msg("바뀐 값이 없다", "bad"); return; }
+  api("/api/params", body).then(r => { show(r); tuningFilled = false; });
+});
+$("tnload").addEventListener("click", () => api("/api/params", {preset: $("tnpreset").value}).then(r => { show(r); tuningFilled = false; }));
 $("params").addEventListener("click", () => {
   const body = {base_duty_pct: parseInt($("p_base").value, 10), reduce_duty_pct: parseInt($("p_reduce").value, 10),
                 max_differential_pct: parseInt($("p_diff").value, 10)};
@@ -550,15 +620,23 @@ function banner(s) {
   } else {
     const armed = s.vehicle_control === "armed";
     b.className = armed ? "armed" : "MOTOR";
-    b.textContent = armed ? "MOTOR · ARMED: 누르고 있는 동안 실행기가 차량을 몬다. STOP = 차량 정지(op stop)."
+    b.textContent = armed ? (oneMode ? "MOTOR · ARMED: 한 번 누르면 열 끝까지 간다. 화면을 가리거나 닫으면 선다. STOP = 차량 정지(op stop)."
+                                     : "MOTOR · ARMED: 누르고 있는 동안 실행기가 차량을 몬다. STOP = 차량 정지(op stop).")
                           : "MOTOR · Arm 전: 실행기는 아직 차량을 몰지 않는다. STOP = 차량 정지(op stop, lease 무관).";
     if (s.row_motor === false && s.calib_allowed) b.textContent += " 이 설정은 보정 run만 출력한다(열 추종 출력 없음).";
     $("stop").textContent = "STOP (차량 정지)"; $("stop").className = "";
     $("hold").textContent = "누르고 있기 (HOLD)";
   }
+  if (oneMode) {
+    $("hold").textContent = s.run_state === "running" ? "주행 중 (STOP으로 정지)" :
+      "자율 주행 시작 (한 번 누름)" + (s.go_ready ? "" : " · 불가: " + (s.go_blockers || []).join(", "));
+    $("hold").disabled = !s.go_ready;
+  }
 }
 function render(s) {
   lastStatus = s;
+  oneMode = s.start_mode === "one_press";
+  if (oneMode) oneStart(); else oneStop();
   banner(s);
   $("mode").textContent = s.mode + (s.shadow_auto ? " auto" : "") + (s.profile === "bench" ? " BENCH: 바퀴 띄움" : "");
   $("mode").className = "badge " + s.mode;
@@ -586,7 +664,15 @@ function render(s) {
   t += row("scan 처리 [ms] · 버림", fmt(s.scan && s.scan.proc_ms, 1) + " · " + fmt(s.counts && s.counts.scans_dropped, 0));
   if (s.calib && !s.calib.end_reason) t += row("보정 단계", esc(s.calib.kind) + " " + (s.calib.step_index + 1) + "/" + s.calib.steps_total +
     " · " + (s.calib.step ? s.calib.step.join(" / ") : "-") + " · " + esc(s.calib.phase), "big");
-  t += row("hold (서버)", s.hold ? "누름" : "놓음", s.hold ? "ok" : "");
+  if (oneMode) {
+    const ol = s.operator_link || {};
+    t += row("운영자 연결 · run 상태", (ol.fresh ? "살아 있음" : "끊김") + " (" + fmt(ol.age_s, 2) + " / " + fmt(ol.timeout_s, 1) +
+      " s) · " + esc(s.run_state || "-") + (s.stop_reason ? " · " + esc(s.stop_reason) : ""), ol.fresh ? "ok" : "bad");
+    const sp = s.speed || {};
+    t += row("목표 / 상한 속도 [m/s]", fmt(sp.target_mps, 2) + " / " + fmt(sp.limit_mps, 2) + " (" + esc(sp.limit_reason || "-") + ")");
+  } else {
+    t += row("hold (서버)", s.hold ? "누름" : "놓음", s.hold ? "ok" : "");
+  }
   t += row("bridge", b ? esc(b.state) + (b.latch_reason ? " (" + esc(b.latch_reason) + ")" : "") : (s.mode === "MOTOR" ? "disarmed (Arm 전)" : "연결 없음 (SHADOW)"), b && b.state === "LATCHED" ? "bad" : "");
   t += row("stale/pause 수", fmt(s.stale_events, 0) + " / " + fmt(s.pauses, 0));
   const logText = {ok: "정상", failing: "실패", stalled: "지연(디스크 응답 없음)", capped: "용량 한도(tick 중단)"}[lg.state] || esc(lg.state);
@@ -605,6 +691,7 @@ function render(s) {
     ", diff " + (lim.max_differential_pct || []).join("–") + " (cap·안쪽 바퀴 규칙으로 추가 제한). diff를 낮추면 yaw 권한(측정 × 새 diff / 파일 diff)과 " +
     "max_yaw가 함께 낮아진다: 지금 yaw 권한 " + fmt(yp.measured_yaw_at_max_diff_deg_s, 2) + " °/s, max_yaw " + fmt(yp.max_yaw_rate_deg_s, 1) + " °/s.";
   calibCard(s);
+  tuningCard(s);
   $("turncard").hidden = !s.turn_observe_available;
   const o = s.turn_observe, om = o && o.measurements || {};
   $("turnstart").disabled = !s.turn_observe_available || s.state === "ACTIVE" || s.state === "PAUSED";

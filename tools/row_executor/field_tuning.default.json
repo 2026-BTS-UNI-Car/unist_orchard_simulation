@@ -1,0 +1,102 @@
+{
+ "note": "placeholder values (자리값): the steered vehicle is not measured yet",
+ "preset": "default",
+ "presets": {
+  "slow_030": {
+   "battery": "",
+   "note": "target 0.30 m/s (placeholder example)",
+   "surface": "",
+   "values": {
+    "advanced": {},
+    "basic": {
+     "target_speed_m_s": 0.3
+    }
+   }
+  },
+  "soft_ground": {
+   "battery": "",
+   "note": "soft or wet ground: table speed x 0.85 (placeholder example)",
+   "surface": "soft",
+   "values": {
+    "advanced": {
+     "surface_scale": 0.85
+    },
+    "basic": {}
+   }
+  }
+ },
+ "schema": "ubts.field_tuning.v1",
+ "values": {
+  "advanced": {
+   "approach_speed_m_s": 0.2,
+   "approach_window_m": 1.5,
+   "battery_scale": 1.0,
+   "corridor_weak_age_s": 0.6,
+   "d_blind_m": 0.15,
+   "d_scan_m": 0.05,
+   "duty_fall_pct_s": 15.0,
+   "duty_max_pct": 70,
+   "duty_rise_pct_s": 5.0,
+   "end_stop_offset_m": 0.61,
+   "fresh_slow_age_s": 0.3,
+   "k_r": 0.0,
+   "lateral_accel_max_m_s2": 0.3,
+   "lateral_slow_full_m": 0.4,
+   "lateral_slow_start_m": 0.15,
+   "loop_fixed_s": 0.24,
+   "min_speed_m_s": 0.2,
+   "speed_integral_limit_pct": 15.0,
+   "speed_ki_pct_per_m": 15.0,
+   "speed_kp_pct_s_per_m": 30.0,
+   "speed_table": [
+    [
+     25.0,
+     0.239
+    ],
+    [
+     80.0,
+     0.709
+    ],
+    [
+     90.0,
+     0.715
+    ],
+    [
+     100.0,
+     0.899
+    ]
+   ],
+   "steer_filter_s": 0.25,
+   "steer_follow_limit_deg": 12.0,
+   "steer_slow_start": 0.8,
+   "surface_scale": 1.0,
+   "trim_gain_rad_per_m_s": 0.05,
+   "trim_limit_deg": 3.0
+  },
+  "basic": {
+   "k_d": 1.0,
+   "k_psi": 1.0,
+   "lookahead_base_m": 1.5,
+   "lookahead_max_m": 3.0,
+   "lookahead_per_speed_s": 1.25,
+   "speed_scale": 1.0,
+   "steer_rate_fraction": 0.75,
+   "target_speed_m_s": 0.4
+  },
+  "locked": {
+   "duty_cap_pct": 75,
+   "front_margin_m": 0.35,
+   "guard_heading_deg": 25.0,
+   "imu_max_age_s": 0.4,
+   "lidar_max_age_s": 0.45,
+   "max_speed_m_s": 0.5,
+   "operator_timeout_s": 0.5,
+   "overspeed_margin_m_s": 0.05,
+   "overspeed_s": 1.0,
+   "prior_predict_max_m": 0.5,
+   "prior_predict_max_s": 1.0,
+   "stall_guard_s": 0.35,
+   "steer_status_max_age_s": 0.3
+  }
+ }
+}

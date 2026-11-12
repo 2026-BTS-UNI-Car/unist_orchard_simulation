@@ -46,6 +46,25 @@ class PageScriptTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_one_press_button_heartbeats_and_tuning_card(self):
+        o = self.out['one_press']
+        self.assertGreaterEqual(o['beatsVisible'], 5)                      # every 100 ms while visible
+        self.assertEqual(len(o['beatSessions']), 1)                        # one session per page
+        self.assertEqual(o['gos'], [{'session': o['beatSessions'][0]}])  # one go, the same session
+        self.assertEqual(o['holds'], 0)                                    # no hold endpoints in one_press
+        self.assertEqual(o['hiddenBeats'], 0)                              # hidden page: no heartbeat
+        self.assertGreater(o['backBeats'], 0)                              # visible again: heartbeats again
+        self.assertIn('자율 주행 시작', o['holdText'])
+        self.assertFalse(o['holdDisabled'])
+        self.assertTrue(o['blockedDisabled'])
+        self.assertIn('inputs_not_fresh', o['blockedText'])
+        self.assertIn('한 번 누르면 열 끝까지', o['banner'])
+        self.assertFalse(o['tuningHidden'])
+        self.assertTrue(o['diffHidden'])
+        self.assertIn("tn_k_d", o['form'])
+        self.assertIn('slow_030', o['presets'])
+        self.assertIn('rev 0', o['info'])
+
     def test_calibration_card(self):
         c = self.out['calib']
         self.assertFalse(c['cardHidden'])

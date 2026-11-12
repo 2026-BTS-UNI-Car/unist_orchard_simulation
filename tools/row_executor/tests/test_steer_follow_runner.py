@@ -72,5 +72,72 @@ class RowFollowSlotTest(unittest.TestCase):
         self.assertEqual(out[-1][1].state, PAUSED)         # no restart without a new press
 
 
+@unittest.skipIf(SCIPY_PROBLEM, SCIPY_PROBLEM)
+class VendoredControllerTest(unittest.TestCase):
+    """The vehicle executor (no controller factory given) builds the vendored row-following controller with the field
+    tuning values of its config (core.steer_control_module, vendor/closed_loop_copy/steer_control.py)."""
+
+    def test_default_factory_is_the_vendored_row_follow_controller(self):
+        from row_executor import config as C, field_tuning as T
+        cfg = C.with_tuning(ExecutorConfig(**MOTOR).validate(), T.resolve({'target_speed_m_s': .3}))
+        runner = Runner(cfg)
+        self.assertEqual(runner.steer_control.__name__, 'row_executor.vendor.closed_loop_copy.steer_control')
+        controller = runner._new_controller()
+        self.assertEqual(type(controller).__name__, 'RowFollowController')
+        self.assertEqual(controller.config.cruise_speed_m_s, .3)
+        self.assertEqual(controller.config.rate_deg_s, cfg.steer_rate_limit_deg_s)
+        with open(runner.steer_control.__file__, 'rb') as a, open(os.path.join(SIM_DIR, 'closed_loop',
+                                                                               'steer_control.py'), 'rb') as b:
+            self.assertEqual(a.read(), b.read())            # the vendored copy is the SIM-tree file
+
+
+class HoldOnce:
+    """A steering controller stand-in: FOLLOW at standstill, then one HOLD with the given reason / recoverable flag."""
+
+    def __init__(self, reason, recoverable, after=5):
+        from closed_loop.steer_control import SteerCommand
+        self.command, self.reason, self.recoverable, self.after = SteerCommand, reason, recoverable, after
+        self.steps, self.state, self.pending, self.phase_events = 0, 'FOLLOW', None, []
+
+    def step(self, t, s):
+        self.steps += 1
+        if self.steps > self.after:
+            self.state = 'HOLD'
+            return self.command('HOLD', self.reason, 0, None, self.recoverable)
+        return self.command('FOLLOW', 'follow_cruise', 0, 0)
+
+    def current_phase(self):
+        return 'FOLLOW'
+
+    def telemetry(self):
+        return dict(cap='scan', caps=dict(cruise=.4, scan=.25), target_speed_m_s=.25, tau_loop_s=.33)
+
+
+@unittest.skipIf(SCIPY_PROBLEM, SCIPY_PROBLEM)
+class GovernorHoldTest(unittest.TestCase):
+    """The steering controller's governor holds (PC-10): recoverable ones pause the run and count with the stale pauses,
+    the others end it; the speed telemetry reaches the single-row block (the status 'speed' of the contract)."""
+
+    def run_hold(self, reason, recoverable):
+        cfg = ExecutorConfig(**MOTOR).validate()
+        runner = Runner(cfg, controller_factory=lambda: HoldOnce(reason, recoverable))
+        driver = L.FakeTimeDriver(runner, lambda t: SCENE, t0=2000.)
+        runner.start_run(driver.t, None)
+        driver.run(1.5, hold=False)
+        return runner, driver.run(1., hold=True)
+
+    def test_recoverable_hold_pauses_and_counts(self):
+        for reason in ('speed_cap_below_min', 'overspeed'):
+            runner, out = self.run_hold(reason, True)
+            self.assertEqual((runner.state, runner.reason), (PAUSED, reason))
+            self.assertEqual(runner.stale_events, 1)
+            sr = [d.summary.get('single_row') for _, d in out if d.state == ACTIVE][-1]
+            self.assertEqual((sr['speed_cap'], sr['cruise_speed_m_s'], sr['tau_loop_s']), ('scan', .4, .33))
+
+    def test_terminal_hold_ends(self):
+        runner, out = self.run_hold('row_end', False)
+        self.assertEqual((runner.state, runner.end_reason), (ENDED, 'row_end'))
+
+
 if __name__ == '__main__':
     unittest.main()

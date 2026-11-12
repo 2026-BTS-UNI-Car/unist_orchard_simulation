@@ -343,6 +343,27 @@ def evaluate_script(entry, art, result):
         got = [(r['op'], r['ok'], r['error']) for r in s['client2']]
         want = [tuple(x) for x in exp['client2']]
         _item(items, 'second client replies', got == want, got, want)
+    if 'other_screen' in exp:
+        got = [(r['op'], r['ok'], r['error']) for r in s.get('other_screen') or ()]
+        want = [tuple(x) for x in exp['other_screen']]
+        _item(items, 'second screen refused (one_press, A17 amendment 31)', got == want, got, want)
+    if exp.get('link_lost_at') is not None:
+        # A17 amendment 31: the operator link lost (the screen's heartbeats stop at link_lost_at) -> the executor's drive
+        # command is 0 at most operator_timeout_s + one tick (50 ms) later
+        tr = art['trace']
+        t, throttle = np.asarray(tr['t_s'], dtype=float), np.asarray(tr['ctrl_throttle_pct'], dtype=float)
+        at = float(exp['link_lost_at'])
+        limit = at + float(exp.get('link_timeout_s', .5)) + .05
+        zero = np.flatnonzero((t >= at - 1e-9) & (throttle == 0.))
+        first = None if not len(zero) else round(float(t[zero[0]]), 3)
+        moving = bool(np.any((t >= at - 1e-9) & (t < at + .01) & (throttle > 0.)))
+        _item(items, 'operator link lost -> zero drive command within operator_timeout_s + 1 tick',
+              moving and first is not None and first <= limit + 1e-9, first, round(limit, 3),
+              'driving at the loss' if moving else 'NOT driving at the loss (script problem)')
+    if 'go_refused' in exp:
+        errors = [g[1] for g in s.get('go_refused') or ()]
+        _item(items, 'go after the stop refused', bool(errors) and errors[0] in _as_tuple(exp['go_refused']), errors,
+              list(_as_tuple(exp['go_refused'])))
     if 'late_drive_error' in exp:
         errors = [r['reply'].get('error') for r in s['late_drive']]
         _item(items, 'late drive refused', errors[:1] == [exp['late_drive_error']], errors, exp['late_drive_error'])

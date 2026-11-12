@@ -355,9 +355,11 @@ class SteerMonitorTest(unittest.TestCase):
 # --- runner ------------------------------------------------------------------------------------------------------------
 @unittest.skipIf(SCIPY_PROBLEM, SCIPY_PROBLEM or '')
 class SteerRunnerTest(unittest.TestCase):
-    def test_needs_a_steering_controller(self):
-        with self.assertRaises(ValueError):
-            Runner(steer_config())
+    def test_default_steering_controller_is_the_vendored_row_follow(self):
+        # until 2026-11-13 a front_steer Runner without a controller factory was refused (no vendored steering
+        # controller); now it builds the vendored row-following controller (core.steer_control_module)
+        runner = Runner(steer_config())
+        self.assertEqual(type(runner._new_controller()).__name__, 'RowFollowController')
 
     def test_decisions_are_throttle_and_steer_with_equal_duty(self):
         controller = StubSteer(throttle=40, step=2)
@@ -651,6 +653,56 @@ class SteerBridgeClientTest(unittest.TestCase):
         self.assertEqual(c.state, ARMED)
         self.assertEqual(c.last_precheck, dict(problem=None, rearm=True))
         self.assertFalse(c.operator_ack)
+
+
+def idle_stale_status(**over):
+    """The bridge status of the first G-SIM Arm of 2026-11-12: a steering_status_stale latch set while nobody held the
+    lease (BOOT marker, state 'fault'), the status itself fresh again."""
+    status = good_status(steering=dict(block(faults=['BOOT', 'steering_status_stale'])),
+                         steering_host=dict(host(arm_state='none', stop_state='confirmed'),
+                                            latches={'steering_status_stale': dict(detail='no status line for 159 ms')}),
+                         state='fault')
+    status.update(over)
+    return status
+
+
+class FirstArmTest(unittest.TestCase):
+    """The first Arm after an idle status-line gap (docs/steering/OPERATOR_API_KO.md 'first Arm'): the Arm press clears
+    an idle-time steering_status_stale latch; any other fault, a stale status, a lease or a pending STOP still refuse."""
+
+    def test_idle_stale_latch_is_cleared_by_the_arm(self):
+        t = FakeSteerBridge(idle_stale_status())
+        c = client(t)
+        c.arm()
+        self.assertEqual(c.state, ARMED)
+        self.assertEqual(c.last_precheck['idle_latches'], ['steering_status_stale'])
+        self.assertEqual(c.last_precheck['first_problem'], 'steering_fault:steering_status_stale')
+        self.assertEqual(c.counts['idle_latch_rearms'], 1)
+        self.assertEqual(t.requests[-1]['op'], 'arm')
+
+    def test_other_faults_and_stale_status_still_refuse(self):
+        cases = [
+            idle_stale_status(steering=dict(block(faults=['steering_status_stale', 'STALL']))),
+            idle_stale_status(steering_host=dict(host(stop_state='confirmed'),
+                                                 latches={'steering_status_stale': {}, 'stop_unconfirmed': {}})),
+            idle_stale_status(steering=dict(block(faults=['steering_status_stale'], age_ms=400))),
+            idle_stale_status(armed=True),
+            idle_stale_status(steering_host=dict(host(stop_state='pending'), latches={'steering_status_stale': {}})),
+        ]
+        for status in cases:
+            t = FakeSteerBridge(status)
+            c = client(t)
+            with self.assertRaises(BridgeError) as ctx:
+                c.arm()
+            self.assertIn('arm_precheck:steering_fault:', str(ctx.exception))
+            self.assertNotIn('arm', [r['op'] for r in t.requests])
+            self.assertEqual(c.state, LATCHED)
+
+    def test_idle_latch_only(self):
+        from row_executor.bridge_client import idle_latch_only
+        self.assertEqual(idle_latch_only(idle_stale_status()), ('steering_status_stale',))
+        self.assertEqual(idle_latch_only(good_status()), ())
+        self.assertEqual(idle_latch_only(None), ())
 
 
 if __name__ == '__main__':
