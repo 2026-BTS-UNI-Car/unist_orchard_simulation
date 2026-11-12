@@ -351,6 +351,32 @@ STEER_PRECHECK_IGNORED_BITS = ('BOOT', 'TTL', 'SOFTLIMIT')
 # Host latches (steer_bridge_core LATCH_NAMES) that an operator re-arm clears (spec 12.1-75): after acknowledge_latch()
 # the precheck lets the arm go to the bridge, which refuses it with the code while the condition is still there.
 STEER_REARM_STATES = ('disarmed', 'fault')
+# Host latches that may stand while NO client holds the lease and that the operator's Arm press itself clears (the first
+# Arm of the G-SIM runs of 2026-11-12, docs/steering/OPERATOR_API_KO.md): steering_status_stale is latched by the bridge
+# on a status-line gap even when nobody drives (G-SIM: a Gazebo clock stall of 0.11-0.19 s wall slowed the MCU
+# emulator's status lines while the stack stood idle). With no lease no output was affected; the arm still needs the
+# status to be fresh NOW (the rearm precheck checks stale, age_ms, the STOP confirmation, no lease, no motion), and the
+# bridge's arm clears the latch.
+STEER_IDLE_CLEARABLE_LATCHES = ('steering_status_stale',)
+
+
+def idle_latch_only(status):
+    """The idle-clearable host latches of a status whose ONLY faults they are (no MCU fault bit, no other latch) and
+    which nobody holds (not armed, no lease, state disarmed / fault); () otherwise."""
+    if not isinstance(status, dict):
+        return ()
+    steering, host = status.get('steering'), status.get('steering_host')
+    if not isinstance(steering, dict) or not isinstance(host, dict):
+        return ()
+    latches = host.get('latches')
+    if not isinstance(latches, dict) or not latches or not set(latches) <= set(STEER_IDLE_CLEARABLE_LATCHES):
+        return ()
+    faults = {str(name) for name in steering.get('faults') or () if name not in STEER_PRECHECK_IGNORED_BITS}
+    if not faults or not faults <= set(latches):
+        return ()
+    if status.get('armed') is not False or status.get('state') not in STEER_REARM_STATES or host.get('arm_state') == 'pending':
+        return ()
+    return tuple(sorted(latches))
 
 
 def steer_arm_precheck(status, *, expect_cal_id, allow_sim, limit_left_mrad, limit_right_mrad, status_max_age_s=.3,
@@ -508,11 +534,21 @@ class SteerBridgeClient(BridgeClient):
                 raise BridgeError('already_armed')
             status = self.status()
             rearm = self.operator_ack
-            problem = steer_arm_precheck(status, expect_cal_id=self.expect_cal_id, allow_sim=self.allow_sim,
-                                         limit_left_mrad=self.limit_left_mrad, limit_right_mrad=self.limit_right_mrad,
-                                         status_max_age_s=self.status_max_age_s,
-                                         snapshot_max_age_s=self.snapshot_max_age_s, now=self.wall(), rearm=rearm)
+
+            def check(rearm):
+                return steer_arm_precheck(status, expect_cal_id=self.expect_cal_id, allow_sim=self.allow_sim,
+                                          limit_left_mrad=self.limit_left_mrad, limit_right_mrad=self.limit_right_mrad,
+                                          status_max_age_s=self.status_max_age_s,
+                                          snapshot_max_age_s=self.snapshot_max_age_s, now=self.wall(), rearm=rearm)
+            problem = check(rearm)
             self.last_precheck = dict(problem=problem, rearm=rearm)
+            idle = idle_latch_only(status) if problem is not None and not rearm else ()
+            if idle and check(True) is None:
+                # a latch the bridge set while nobody held the lease (STEER_IDLE_CLEARABLE_LATCHES): this Arm press is
+                # the operator action that clears it; everything else of the precheck still holds (rearm rules)
+                self.last_precheck = dict(problem=None, rearm=True, idle_latches=list(idle), first_problem=problem)
+                self.counts['idle_latch_rearms'] = self.counts.get('idle_latch_rearms', 0) + 1
+                problem = None
             if problem:
                 self._fail('arm_precheck:' + problem, status, send_stop=False)
             try:
