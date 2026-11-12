@@ -14,7 +14,7 @@
 # 이 파일은 저장소에 빈 판(모든 value null)으로 둔다. 실제 값을 넣은 판은 같은 이름으로 커밋해도 되고,
 # 새 프로필 파일과 보고서가 그 내용을 다시 담는다.
 schema: ubts.steer_spec_input.v1
-base_profile: front_steer_v0_2_placeholder     # 바탕 프로필(profiles/ 안 이름)
+base_profile: front_steer_v0_3_placeholder     # 바탕 프로필(profiles/ 안 이름). v0.3 = v0.2 값
 new_profile_id: null                           # null이면 front_steer_v1_spec_<가장 늦은 측정일 또는 오늘>
 description: null
 fields:

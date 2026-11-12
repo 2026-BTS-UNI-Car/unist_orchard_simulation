@@ -63,7 +63,7 @@ def test_template_fields_match_the_tool_and_the_profile():
 def test_empty_input_gives_the_base_values(tmp_path):
     code, out, report = _run(tmp_path, TEMPLATE)
     assert code == 0
-    base = vp.load_profile(vp.PROFILES_DIR / 'front_steer_v0_2_placeholder.yaml')
+    base = vp.load_profile(vp.PROFILES_DIR / 'front_steer_v0_3_placeholder.yaml')
     new = vp.load_profile(report['candidate_path'])
     assert all(new.value(n) == base.value(n) for n in base.names())
     assert report['changed'] == [] and report['firmware']['cfg_diff'] == []

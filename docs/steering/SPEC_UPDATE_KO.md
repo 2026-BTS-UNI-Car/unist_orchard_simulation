@@ -3,7 +3,8 @@
 - 작성: 2026-11-13 (묶음 S3)
 - 고칠 파일은 하나다: `sim/ubts/steering/profiles/steer_spec_input.yaml`
 - 돌릴 명령도 하나다: `tools/steer_sim/apply_spec.py`
-- 바탕 프로필: `front_steer_v0_2_placeholder`(스키마 v3, `STEER_PROFILE_V02_KO.md`). 질문 번호는 `VEHICLE_SPEC_REQUEST_KO.md`와 같다.
+- 바탕 프로필: `front_steer_v0_3_placeholder`(스키마 v3, 값은 v0.2와 같다. `STEER_PROFILE_V03_KO.md`, `STEER_PROFILE_V02_KO.md`). 질문 번호는 `VEHICLE_SPEC_REQUEST_KO.md`와 같다. 기본 프로필은 아직 v0.1이다(개정 43 ② 불합격: 정지 전폭 쓸기의 THERMAL 예산).
+- 남은 자리값 충돌: THERMAL 예산(`thermal_proxy`)은 모터 정격(Q11)이 오면 정한다. 사양 입력 뒤 개정 40 ②·43 ②와 같은 정상 대본을 새 사전등록으로 다시 돈다.
 - 사양 값이 들어가도 결과는 "일부 실측 기반 SIM 결과"다. 현장 검증이 아니다. 펌웨어 쓰기, 벤치 시험, 실차 주행, Jetson 설치는 사용자가 현장에서 한다.
 
 ## 1. 흐름
