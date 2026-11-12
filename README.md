@@ -9,7 +9,8 @@ UNIST BTS 유니주행차 팀의 과수원 로버 시뮬레이션 저장소입�
 
 - 조향 장치의 값(조향 모터, 가변저항, 치수)은 모두 자리값입니다. 이 저장소의 수치는 자리값 기반 시뮬레이션 결과이며
   현장 성능이 아닙니다.
-- 설계와 결정 기록은 `docs/steering/` 에 있습니다. `docs/steering/DESIGN_v1_KO.md` 부터 읽으면 됩니다.
+- 설계와 결정 기록은 `docs/steering/` 에 있습니다. `docs/steering/DESIGN_v1_KO.md` 부터 읽고, 바뀐 곳은 개정 문서
+  `docs/steering/DESIGN_v2_KO.md` 를 봅니다. 지연 값의 근거는 `docs/steering/TIMING_BASELINE_KO.md` 입니다.
 - 이 저장소는 옛 시뮬레이션 저장소에서 조향 시뮬레이션이 실제로 쓰는 파일만 골라 옮겨 만들었습니다. 출처와 범위는
   `docs/provenance/IMPORT_NOTES_KO.md`, 파일별 출처표는 `docs/provenance/IMPORT_MANIFEST.json` 입니다.
 
