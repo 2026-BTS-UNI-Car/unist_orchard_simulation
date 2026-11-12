@@ -613,6 +613,9 @@ class T1Rig:
         self._bridge_restart_reset = False
         self.bridge_events = []                           # (kind, t_ms) of bridge_restart faults (evaluation)
         self._stall_triggers = []                         # executor_stall after='f_ttl', not started yet
+        # SIM stand-in for steered wheels lifted off the ground (identification bench, design 3.9 B0 / B2): the
+        # actuator gets the moving (no tyre scrub) load and start PWM although the car stands
+        self.steer_wheels_lifted = False
         self.executor_stall_windows = []                  # (t0_ms, t1_ms, trigger) of executor_stall faults
         for item in runtime_faults:
             self.fault(item.kind, at_s=item.at_s, **item.params)
@@ -847,7 +850,8 @@ class T1Rig:
         speed = plant.v
         out_base = self.fw.step(ba.SteerStepInput(dt_s=PLANT_DT_S, mode='firmware', steer_en=True,
                                                   vehicle_speed_m_s=speed,
-                                                  vehicle_stopped=abs(speed) < STANDSTILL_SPEED_M_S,
+                                                  vehicle_stopped=(abs(speed) < STANDSTILL_SPEED_M_S
+                                                                   and not self.steer_wheels_lifted),
                                                   supply_scale=self._supply_scale()))
         out = self.fw.last
         self._deliver_mcu_bytes(out.tx)

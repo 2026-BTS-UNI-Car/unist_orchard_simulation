@@ -171,6 +171,12 @@ class IdentRig(tr.T1Rig):
         """SIM stand-in for wheels lifted off the ground (B7 load): forward motion blocked, duty applied."""
         self.plant.forward_blocked = bool(lifted)
 
+    def set_steering_lifted(self, lifted):
+        """SIM stand-in for the steered wheels lifted off the ground (design 3.9: B0 and B2 on a lifted front): the
+        steering actuator gets the moving load and start PWM (t1_rig steer_wheels_lifted). The B0 CAL POL retry uses
+        it (IDENT_KO.md 7); the other bench tests keep the standing values (IDENT_KO.md 9)."""
+        self.steer_wheels_lifted = bool(lifted)
+
     def place(self, x, y, yaw):
         """SIM stand-in for the operator putting the stopped car back on a start mark between drives (in the field
         they drive or push it there). Standing still only; the steering and the MCU are not touched."""

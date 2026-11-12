@@ -632,7 +632,23 @@ def stop_events(series_list):
                 tags.append('forward request held < ~0.5-1 s before')
             if k + 1 < len(m) and not tl.request_zero(m, k + 1):
                 tags.append('next request not 0 (re-press)')
-            if hard:
+            lines = getattr(s.rec, 'stop_lines', None)
+            if hard and lines:
+                lo = float(m.t[k - 1])
+                found = sidecar_brake(lines, lo - .2, t_status + .2)
+                if found is not None:
+                    t_cmd, unc = found
+                    basis = ('hard stop: MCU status lines (steering sidecar): between the last line with drive and the '
+                             'first line with drive 0')
+                else:
+                    t_cmd, unc = None, None
+                    basis = 'hard stop: no drive -> 0 step of the MCU status lines in the steering sidecar'
+                    tags.append('brake not found in the steering sidecar')
+            elif hard:
+                # 2 Hz motor log only (audit AUD3A-03): the LiDAR deceleration onset (3 cm lag) comes after the brake
+                # by the time the lag needs to grow, so the distance from it is too short (SIM: 0 .. 0.04 m against
+                # 0.05 .. 0.12 m of the brake model). The command time is not resolved: the event is not clean; the
+                # estimate stays in the detail with its basis. Give the steering sidecar (--steer-sidecar).
                 lo = float(m.t[k - 1])
                 t_dec = _decel_onset(s, lo, t_status)
                 if t_dec is not None:
@@ -643,6 +659,7 @@ def stop_events(series_list):
                     t_cmd = .5 * (lo + t_status)
                     unc = .5 * (t_status - lo)
                     basis = 'hard stop: between the last forward status and the first zero status (midpoint)'
+                tags.append('hard stop command time unresolved (2 Hz motor log; give the steering sidecar)')
             else:
                 t_cmd, basis = tl.fade_start(m, k, prev_duty)
                 unc = .1
@@ -665,7 +682,8 @@ def stop_events(series_list):
             axis = s.axis_at(i0) if np.isfinite(s.theta[i0]) else None
             ev = dict(rid=s.rid, label=s.label, kind='hard_stop' if hard else 'release', prev_req=[int(l), int(rr)],
                       straight=bool(l == rr), prev_duty_pct=r(prev_duty, 1), t_rel=r(t_status - m.t[0], 1),
-                      basis=basis, t_cmd_uncertainty_s=r(unc, 2), tags=tags)
+                      basis=basis, t_cmd_uncertainty_s=None if unc is None else r(unc, 3), tags=tags,
+                      t_cmd_wall_s=None if t_cmd is None else r(t_cmd, 3))
             if axis is None:
                 ev['tags'].append('no pose at the stop')
                 ev['clean'] = False
@@ -701,6 +719,23 @@ def stop_events(series_list):
 
 
 STOP_LATENCY_S = .1             # [assumed] STOP -> bridge -> serial -> MCU duty 0 -> motor torque change
+
+
+def sidecar_brake(lines, lo, hi):
+    """(command time, half width) of a brake in the MCU status lines between host times lo and hi: the first pair of
+    consecutive lines with a drive output and then both outputs 0 (the MCU brakes at the tick it parses STOP; the lines
+    come every 50 ms): the midpoint of the two lines' MCU times. None when there is no such pair."""
+    prev = None
+    for row in lines:
+        if row['t'] < lo:
+            prev = row
+            continue
+        if row['t'] > hi:
+            break
+        if prev is not None and max(abs(prev['L']), abs(prev['R'])) > 0 and row['L'] == 0 and row['R'] == 0:
+            return .5 * (prev['t'] + row['t']), .5 * (row['t'] - prev['t'])
+        prev = row
+    return None
 
 
 def _decel_onset(s, lo, hi, lag_m=.03):
