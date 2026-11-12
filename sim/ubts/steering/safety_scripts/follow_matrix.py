@@ -19,7 +19,7 @@ started, and the A22 rule after the terminal moment (measure.command_after). Eve
 (자리값 기반 SIM 결과), not field performance.
 
 CLI (from sim/ubts): python -B -m steering.safety_scripts.follow_matrix --out <folder outside the repository>
-                     [--workers N (<= 4)] [--only NAME ...]      |      --prereg   (print the pre-registration JSON)
+                     [--workers N (<= 4)] [--only NAME ...] [--seeds N ...]   |   --prereg   (print the JSON)
 """
 from __future__ import annotations
 
@@ -253,9 +253,10 @@ def run_one(item):
                 config_digest=result['config_digest'], wall_s=round(time.perf_counter() - started, 1))
 
 
-def run_all(out_dir, workers=1, only=None):
+def run_all(out_dir, workers=1, only=None, seeds=None):
     started = time.perf_counter()
-    items = [(c, seed, out_dir) for c in CONDITIONS for seed in c['seeds'] if not only or c['name'] in only]
+    items = [(c, seed, out_dir) for c in CONDITIONS for seed in c['seeds']
+             if (not only or c['name'] in only) and (not seeds or seed in seeds)]
     if workers > 1:
         from concurrent.futures import ProcessPoolExecutor
         with ProcessPoolExecutor(max_workers=min(4, workers)) as pool:
@@ -263,7 +264,7 @@ def run_all(out_dir, workers=1, only=None):
     else:
         rows = [run_one(item) for item in items]
     report = dict(schema=SCHEMA, prereg=PREREG_ID, result_kind=A.RESULT_KIND, field_validated=False,
-                  complete=not only, criteria=CRITERIA, runs=len(rows), passed=sum(1 for r in rows if r['ok']),
+                  complete=not only and not seeds, criteria=CRITERIA, runs=len(rows), passed=sum(1 for r in rows if r['ok']),
                   ok=bool(rows) and all(r['ok'] for r in rows), rows=rows, workers=workers,
                   wall_s=round(time.perf_counter() - started, 1))
     os.makedirs(out_dir, exist_ok=True)
@@ -278,6 +279,7 @@ def main(argv=None):
     p.add_argument('--out')
     p.add_argument('--workers', type=int, default=1)
     p.add_argument('--only', nargs='*')
+    p.add_argument('--seeds', nargs='*', type=int)
     p.add_argument('--prereg', action='store_true')
     args = p.parse_args(argv)
     if args.prereg:
@@ -288,7 +290,7 @@ def main(argv=None):
     from steering.scene_spec import inside_repository
     if inside_repository(args.out):
         raise SystemExit('refused: %s lies inside the repository (runs live outside)' % args.out)
-    report = run_all(args.out, args.workers, args.only)
+    report = run_all(args.out, args.workers, args.only, args.seeds)
     for row in report['rows']:
         failed = [c['check'] for c in row['checks'] if not c['ok']]
         m = row['metrics']
@@ -297,8 +299,9 @@ def main(argv=None):
             m.get('row_end_error_m'), m.get('lateral_rmse_m'), m.get('lateral_p95_m'), m.get('lateral_max_m'),
             m.get('heading_rmse_deg'), m.get('heading_max_deg'), m.get('speed_max_m_s'), m.get('min_clearance_m'),
             '' if not failed else 'failed: ' + '; '.join(failed)))
-    print('%s: %d of %d runs pass, %.0f s' % ('PASS' if report['ok'] else 'FAIL', report['passed'], report['runs'],
-                                              report['wall_s']))
+    print('%s: %d of %d runs pass%s, %.0f s' % ('PASS' if report['ok'] else 'FAIL', report['passed'], report['runs'],
+                                                '' if report['complete'] else ' (partial: not the whole matrix)',
+                                                report['wall_s']))
     return 0 if report['ok'] else 1
 
 

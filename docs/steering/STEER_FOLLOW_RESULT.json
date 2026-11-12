@@ -1,0 +1,1964 @@
+{
+ "complete": true,
+ "criteria": {
+  "after_terminal_window_s": 3.0,
+  "heading_max_deg": 15.0,
+  "heading_rmse_deg": 5.0,
+  "lateral_max_m": 0.5,
+  "lateral_p95_m": 0.35,
+  "lateral_rmse_m": 0.2,
+  "min_clearance_m": 0.0,
+  "rest_speed_m_s": 0.02,
+  "row_end_error_m": 1.0,
+  "speed_max_m_s": 0.5,
+  "stale_drive_zero_s": 0.1
+ },
+ "field_validated": false,
+ "ok": true,
+ "passed": 15,
+ "prereg": "steer_follow_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "rows": [
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1957,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0407,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0739,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.0861,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 0.679,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 1.722,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.44,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.08,
+     "ok": true
+    }
+   ],
+   "condition": "nominal",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "ac13ceb47f6ad3f772713526c9071a78010856d1f2036c374af6f76a574750f1",
+    "serial_log_sha256": "88c519bf4f4d6500ee0333993f1a62398654c9f1d72351e5dfdfdead40f2763e",
+    "trace_content_sha256": "ac82f8f23186e1a6e50b84a8cead1cde17c89e50e21344180310c8e3a2684147"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 66.5,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.26,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 66.5,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 1.722,
+    "heading_rmse_deg": 0.679,
+    "lateral_max_m": 0.0861,
+    "lateral_p95_m": 0.0739,
+    "lateral_rmse_m": 0.0407,
+    "min_clearance_m": 1.1957,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.47,
+    "rest_y_m": 0.04,
+    "rest_yaw_deg": -1.746,
+    "row_end_error_m": 0.08,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.366
+   },
+   "name": "follow_nominal_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 11.7
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1608,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.047,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.1032,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1193,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.032,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 2.117,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.434,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.091,
+     "ok": true
+    }
+   ],
+   "condition": "nominal",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "056814000aeafae896d09b8a346ad3275af1541a5a109e6813bfc57f23f63ab2",
+    "serial_log_sha256": "bcda88d9f39b6ba24343948ac805e891567113808993ef5d1ca6f25c09112e24",
+    "trace_content_sha256": "43add392eb12737b2bcd523e11bf7986de544beda348dfd3de85c9efc30d9267"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 68.4,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.06,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 68.4,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 2.117,
+    "heading_rmse_deg": 1.032,
+    "lateral_max_m": 0.1193,
+    "lateral_p95_m": 0.1032,
+    "lateral_rmse_m": 0.047,
+    "min_clearance_m": 1.1608,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.481,
+    "rest_y_m": -0.066,
+    "rest_yaw_deg": -0.91,
+    "row_end_error_m": 0.091,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.434,
+    "speed_mean_m_s": 0.356
+   },
+   "name": "follow_nominal_s1",
+   "ok": true,
+   "seed": 1,
+   "wall_s": 11.9
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1687,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0474,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0862,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1013,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.103,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 2.193,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.434,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.068,
+     "ok": true
+    }
+   ],
+   "condition": "nominal",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "25d11958ea94c726c0f510614365feaa382ad0a003769a8ae6067885b7266eeb",
+    "serial_log_sha256": "6fedd97384df086b7da94dee3fb7f1a22ecc3e042c5ab24fed605c3a14833427",
+    "trace_content_sha256": "57c3507824b2adb71f090502f7a542c5fbadca9ed27d5b141d96f40ef0600115"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 69.8,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.36,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 69.8,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 2.193,
+    "heading_rmse_deg": 1.103,
+    "lateral_max_m": 0.1013,
+    "lateral_p95_m": 0.0862,
+    "lateral_rmse_m": 0.0474,
+    "min_clearance_m": 1.1687,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.458,
+    "rest_y_m": 0.06,
+    "rest_yaw_deg": -1.255,
+    "row_end_error_m": 0.068,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.434,
+    "speed_mean_m_s": 0.348
+   },
+   "name": "follow_nominal_s2",
+   "ok": true,
+   "seed": 2,
+   "wall_s": 12.1
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1986,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0326,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0727,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.0812,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 0.764,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 1.513,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.451,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.071,
+     "ok": true
+    }
+   ],
+   "condition": "nominal",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "0e8400043cc7565a3ef2441aa6e7c0bea3a45a0501ad77ab60c797e0819132da",
+    "serial_log_sha256": "79e0b10e315f910df58e3b70b8759f2d3e1f27249f2d23f04587175e20111ca3",
+    "trace_content_sha256": "95a7382bdcd25c874e1ff923dff5b61497b826035c1375bbf02940826be31a4a"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 66.1,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 64.7,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 66.1,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 1.513,
+    "heading_rmse_deg": 0.764,
+    "lateral_max_m": 0.0812,
+    "lateral_p95_m": 0.0727,
+    "lateral_rmse_m": 0.0326,
+    "min_clearance_m": 1.1986,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.461,
+    "rest_y_m": 0.024,
+    "rest_yaw_deg": -0.652,
+    "row_end_error_m": 0.071,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.451,
+    "speed_mean_m_s": 0.368
+   },
+   "name": "follow_nominal_s3",
+   "ok": true,
+   "seed": 3,
+   "wall_s": 11.5
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1773,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0422,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0744,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.0944,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.243,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 2.356,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.446,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.045,
+     "ok": true
+    }
+   ],
+   "condition": "nominal",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "21f9c28794b78b8227c2de381347ec010d443f6b6bf6cb7afbb9a12f330108f9",
+    "serial_log_sha256": "f2f500a67eb58bd505e984e453d0f915ced335c0132f6953388f475e85bb41f9",
+    "trace_content_sha256": "67c89b3f6d18ea3bff6ee419cfc6e58c6b2d82fe2f4e5a3ff4607de99530e868"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 66.6,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.3,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 66.6,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 2.356,
+    "heading_rmse_deg": 1.243,
+    "lateral_max_m": 0.0944,
+    "lateral_p95_m": 0.0744,
+    "lateral_rmse_m": 0.0422,
+    "min_clearance_m": 1.1773,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.435,
+    "rest_y_m": 0.043,
+    "rest_yaw_deg": 0.937,
+    "row_end_error_m": 0.045,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.446,
+    "speed_mean_m_s": 0.365
+   },
+   "name": "follow_nominal_s4",
+   "ok": true,
+   "seed": 4,
+   "wall_s": 11.2
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 0.88,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0417,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0948,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.4,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.804,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 9.905,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.462,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.058,
+     "ok": true
+    }
+   ],
+   "condition": "lateral_p040",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "af036c9dfad3dd5f4b4d34289e24150f6e2223a54719250fc7ff5df4c24057d2",
+    "serial_log_sha256": "9ab0b65000b10da14c5f3f15d1033e48e10e5346b2d7e0006371a6e9ae3d66fa",
+    "trace_content_sha256": "0b0ea49176f5344d0659634f36a007770e3d064e5e892fc4b4cb6d1a5f3c1dbb"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 70.8,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.43,
+    "drive_start_s": 3.61,
+    "drive_stop_s": 69.5,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 70.8,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 9.905,
+    "heading_rmse_deg": 1.804,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0948,
+    "lateral_rmse_m": 0.0417,
+    "min_clearance_m": 0.88,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.448,
+    "rest_y_m": 0.005,
+    "rest_yaw_deg": 0.367,
+    "row_end_error_m": 0.058,
+    "settle_m": 6.0,
+    "speed_max_m_s": 0.462,
+    "speed_mean_m_s": 0.355
+   },
+   "name": "follow_lateral_p040_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 12.0
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 0.88,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0553,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.085,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.4,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.729,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 11.826,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.44,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.066,
+     "ok": true
+    }
+   ],
+   "condition": "lateral_n040",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "85f9adad9f09c24320e9f7bdc0a280fdc0f57600f0b757211bf569e969e6a64f",
+    "serial_log_sha256": "2838b82157bf022c220d989d2f9001c8ee87f7a13578299b708d65f85bf37cbb",
+    "trace_content_sha256": "179d21a01a1572ad518d69c8b360497d82fc0bc03cf9682e9a84e68da7a9b971"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 69.5,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.46,
+    "drive_start_s": 3.51,
+    "drive_stop_s": 68.2,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 69.5,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 11.826,
+    "heading_rmse_deg": 1.729,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.085,
+    "lateral_rmse_m": 0.0553,
+    "min_clearance_m": 0.88,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.457,
+    "rest_y_m": 0.026,
+    "rest_yaw_deg": -2.185,
+    "row_end_error_m": 0.066,
+    "settle_m": 6.0,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.362
+   },
+   "name": "follow_lateral_n040_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 11.3
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1612,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0446,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0794,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1095,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.742,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 8.0,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.415,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.048,
+     "ok": true
+    }
+   ],
+   "condition": "heading_p8",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "c7b52de3cd63baf6145217bc4dcad0232bc33637e6f6436a7a5493a29b79aaaf",
+    "serial_log_sha256": "5c54ac692ce32793f8aab8a5e77320aa93139b5081f683b8b4aa4a226d11a2a2",
+    "trace_content_sha256": "596f0362cb5cfb036e45a02a1527e560cd0c755a45e352c3198387a5c6743c2d"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 73.6,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.38,
+    "drive_start_s": 3.21,
+    "drive_stop_s": 72.2,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 73.6,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.742,
+    "lateral_max_m": 0.1095,
+    "lateral_p95_m": 0.0794,
+    "lateral_rmse_m": 0.0446,
+    "min_clearance_m": 1.1612,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.438,
+    "rest_y_m": -0.038,
+    "rest_yaw_deg": 2.13,
+    "row_end_error_m": 0.048,
+    "settle_m": 6.0,
+    "speed_max_m_s": 0.415,
+    "speed_mean_m_s": 0.339
+   },
+   "name": "follow_heading_p8_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 12.3
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1194,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.046,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0989,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1664,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.484,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 8.0,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.443,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.074,
+     "ok": true
+    }
+   ],
+   "condition": "heading_n8",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "37e3f7de895e2319c150d736cf401d2d5efb970f5ee0dcee50c321370ec51a04",
+    "serial_log_sha256": "8bc56ca4312b66b52ed21ece9363273bc6dbbeb36d7f63ceef2e08c8fc8ad11c",
+    "trace_content_sha256": "08c82d8da54186b79a5f15dfaeb53febae1d45fd53f2668be298346dc373b543"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 70.3,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.41,
+    "drive_start_s": 3.01,
+    "drive_stop_s": 69.06,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 70.3,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.484,
+    "lateral_max_m": 0.1664,
+    "lateral_p95_m": 0.0989,
+    "lateral_rmse_m": 0.046,
+    "min_clearance_m": 1.1194,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.464,
+    "rest_y_m": -0.032,
+    "rest_yaw_deg": 0.118,
+    "row_end_error_m": 0.074,
+    "settle_m": 6.0,
+    "speed_max_m_s": 0.443,
+    "speed_mean_m_s": 0.354
+   },
+   "name": "follow_heading_n8_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 10.5
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1772,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0387,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0846,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1066,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 0.881,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 1.761,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.431,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.062,
+     "ok": true
+    }
+   ],
+   "condition": "steer_zero_p2",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "ff97d717e6a3a0f98155715e576748a1dd0aad85622446122686c5ed1934b204",
+    "serial_log_sha256": "8cc83c3a1fd683dd1ef15b1bd41ad4851f87fe49171ec98ba3d44d3c46241636",
+    "trace_content_sha256": "17797a0ba6b1be389f1fb7a9442612675704e65227d7483692bce57e32750339"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 68.9,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.6,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 68.9,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 1.761,
+    "heading_rmse_deg": 0.881,
+    "lateral_max_m": 0.1066,
+    "lateral_p95_m": 0.0846,
+    "lateral_rmse_m": 0.0387,
+    "min_clearance_m": 1.1772,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.452,
+    "rest_y_m": -0.01,
+    "rest_yaw_deg": -0.312,
+    "row_end_error_m": 0.062,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.431,
+    "speed_mean_m_s": 0.352
+   },
+   "name": "follow_steer_zero_p2_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 9.9
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.2014,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0369,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0674,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.0763,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.055,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 2.128,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.439,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.074,
+     "ok": true
+    }
+   ],
+   "condition": "steer_zero_n2",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "cd3d07bdba1c9757c9d62683a9a702c1c8a8a7b4a1f49066bb8d9519389aeaee",
+    "serial_log_sha256": "f224a9c5b55d176a1f28e57021a162eedca17065dcfe881803a9ce221c1968a9",
+    "trace_content_sha256": "eee4fe3d094021ffd56a224eaab356650d241d349355b21f8069b96312f226df"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 67.4,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.41,
+    "drive_start_s": 1.31,
+    "drive_stop_s": 66.0,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 67.4,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 2.128,
+    "heading_rmse_deg": 1.055,
+    "lateral_max_m": 0.0763,
+    "lateral_p95_m": 0.0674,
+    "lateral_rmse_m": 0.0369,
+    "min_clearance_m": 1.2014,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.464,
+    "rest_y_m": 0.032,
+    "rest_yaw_deg": -1.531,
+    "row_end_error_m": 0.074,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.439,
+    "speed_mean_m_s": 0.362
+   },
+   "name": "follow_steer_zero_n2_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 10.3
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.1756,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0468,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.0936,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.1048,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.086,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 1.857,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.45,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.057,
+     "ok": true
+    }
+   ],
+   "condition": "side_pull",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "11ec357b0c48fe1c6c3254dba04f5968c7f44e430bf91fbd403d827505383ab4",
+    "serial_log_sha256": "018722c953cf38e0355ddf194ee18a21e57cf2b76ff8088fa6ee0ca519cbfdf9",
+    "trace_content_sha256": "187b5dcb03c74bb87cc09e15c5b8113f073014fa493ee8d6c23f125582e181c6"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 65.5,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 64.2,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 65.5,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 1.857,
+    "heading_rmse_deg": 1.086,
+    "lateral_max_m": 0.1048,
+    "lateral_p95_m": 0.0936,
+    "lateral_rmse_m": 0.0468,
+    "min_clearance_m": 1.1756,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.447,
+    "rest_y_m": -0.036,
+    "rest_yaw_deg": 1.77,
+    "row_end_error_m": 0.057,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.45,
+    "speed_mean_m_s": 0.371
+   },
+   "name": "follow_side_pull_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 9.5
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.185,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends at the row end",
+     "limit": "row_end",
+     "measured": "row_end",
+     "ok": true
+    },
+    {
+     "check": "no pause after the drive started",
+     "limit": "none",
+     "measured": [],
+     "ok": true
+    },
+    {
+     "check": "lateral RMSE",
+     "limit": "<= 0.2 m",
+     "measured": 0.0384,
+     "ok": true
+    },
+    {
+     "check": "lateral p95",
+     "limit": "<= 0.35 m",
+     "measured": 0.083,
+     "ok": true
+    },
+    {
+     "check": "lateral max",
+     "limit": "<= 0.5 m",
+     "measured": 0.0949,
+     "ok": true
+    },
+    {
+     "check": "heading RMSE",
+     "limit": "<= 5 deg",
+     "measured": 1.219,
+     "ok": true
+    },
+    {
+     "check": "heading max",
+     "limit": "<= 15 deg",
+     "measured": 2.397,
+     "ok": true
+    },
+    {
+     "check": "true speed max",
+     "limit": "<= 0.5 m/s",
+     "measured": 0.439,
+     "ok": true
+    },
+    {
+     "check": "row end stop position e",
+     "limit": "[-1, +1] m",
+     "measured": 0.043,
+     "ok": true
+    }
+   ],
+   "condition": "lidar_dropout_0p2",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "6f8f8155d8d830ba899dbce74d73b116281400db2f73dd6520e28d6b87ca3803",
+    "serial_log_sha256": "a07e002ed80b413e53494c8608dc39a45e61e38ca56bdfa7011a17435c96559c",
+    "trace_content_sha256": "57d653f9c92e514c000c27f71cfa2cde1bf9a48ca2329443ce2449cbac6b0033"
+   },
+   "expect": "row_end",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 66.4,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.1,
+    "drove": true,
+    "end_reason": "row_end",
+    "ended_at_s": 66.4,
+    "final_reason": "row_end",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 2.397,
+    "heading_rmse_deg": 1.219,
+    "lateral_max_m": 0.0949,
+    "lateral_p95_m": 0.083,
+    "lateral_rmse_m": 0.0384,
+    "min_clearance_m": 1.185,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 23.433,
+    "rest_y_m": -0.011,
+    "rest_yaw_deg": 0.318,
+    "row_end_error_m": 0.043,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.439,
+    "speed_mean_m_s": 0.366
+   },
+   "name": "follow_lidar_dropout_0p2_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 10.3
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 1.2222,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": null,
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0502,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "first pause is stale_lidar",
+     "limit": "stale_lidar",
+     "measured": [
+      20.3,
+      "stale_lidar"
+     ],
+     "ok": true
+    },
+    {
+     "check": "drive command 0 after the scan is stale",
+     "limit": "<= 0.1 s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no restart",
+     "limit": false,
+     "measured": false,
+     "ok": true
+    }
+   ],
+   "condition": "lidar_stale_1p0",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "3b62ef42f9e76c11a65d3d75e5f855825a02333c09f8aa924f0fa703f0fbc64d",
+    "serial_log_sha256": "45f2cb291f0ac0a3f026695d7aba9f843006e6cbbc3cbc8c55121a53f895f64f",
+    "trace_content_sha256": "ef5603cfa9df1fcdaa67b352f55b7448b872e581f96f45f4518c86b4c2fd2ede"
+   },
+   "expect": "stale_lidar",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 20.3,
+     "max_target_move_deg": 0.0502,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 6.93,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.3,
+    "drove": true,
+    "end_reason": null,
+    "ended_at_s": null,
+    "final_reason": "stale_lidar",
+    "final_state": "PAUSED",
+    "first_pause": [
+     20.3,
+     "stale_lidar"
+    ],
+    "heading_max_deg": 1.55,
+    "heading_rmse_deg": 0.725,
+    "lateral_max_m": 0.0517,
+    "lateral_p95_m": 0.0494,
+    "lateral_rmse_m": 0.0294,
+    "min_clearance_m": 1.2222,
+    "pauses_after_start": [
+     "stale_lidar"
+    ],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 7.081,
+    "rest_y_m": -0.008,
+    "rest_yaw_deg": -1.091,
+    "restart_after_stale": false,
+    "row_end_error_m": -16.309,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.429,
+    "speed_mean_m_s": 0.364,
+    "stale_drive_zero_s": 0.0,
+    "stale_first_tick_s": 20.3
+   },
+   "name": "follow_lidar_stale_1p0_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 20.6
+  },
+  {
+   "checks": [
+    {
+     "check": "no contact",
+     "limit": "> 0 m",
+     "measured": 0.3959,
+     "ok": true
+    },
+    {
+     "check": "at rest at the end",
+     "limit": "<= 0.02 m/s",
+     "measured": 0.0,
+     "ok": true
+    },
+    {
+     "check": "no guard violation",
+     "limit": "none",
+     "measured": "obstacle_ahead",
+     "ok": true
+    },
+    {
+     "check": "no commanded steering move after the terminal moment (A22 rule)",
+     "limit": "passed",
+     "measured": {
+      "complete": true,
+      "executor_command_move_deg": 0.0,
+      "max_target_move_deg": 0.0,
+      "passed": true
+     },
+     "ok": true
+    },
+    {
+     "check": "ends with obstacle_ahead",
+     "limit": "obstacle_ahead",
+     "measured": "obstacle_ahead",
+     "ok": true
+    }
+   ],
+   "condition": "obstacle",
+   "config_digest": "aba53594434ade712922619fb6d8a0b262c9bae92de1eed92c8baaf346d45a5b",
+   "digests": {
+    "executor_log_sha256": "93b91fc5bffbcf08d337985f7d7bf0b5f38b3705a91cb98282dbf2200aca0609",
+    "serial_log_sha256": "6c7c568e1911a576b4b6f951caabca296a4f911d1e016d4dffad00de0d0b11f5",
+    "trace_content_sha256": "65d004f193dfca30bdeced72f37147c93cb75d7122a3604cb45b761d38df9ba1"
+   },
+   "expect": "obstacle_ahead",
+   "metrics": {
+    "after_terminal": {
+     "auto_centre": false,
+     "complete": true,
+     "executor_command_move_deg": 0.0,
+     "from_s": 31.0,
+     "max_target_move_deg": 0.0,
+     "passed": true,
+     "tolerance_deg": 1.0
+    },
+    "distance_m": 10.75,
+    "drive_start_s": 1.31,
+    "drive_stop_s": 29.7,
+    "drove": true,
+    "end_reason": "obstacle_ahead",
+    "ended_at_s": 31.0,
+    "final_reason": "obstacle_ahead",
+    "final_state": "ENDED",
+    "first_pause": null,
+    "heading_max_deg": 1.996,
+    "heading_rmse_deg": 0.958,
+    "lateral_max_m": 0.0696,
+    "lateral_p95_m": 0.0606,
+    "lateral_rmse_m": 0.0298,
+    "min_clearance_m": 0.3959,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "rest_x_m": 10.872,
+    "rest_y_m": -0.08,
+    "rest_yaw_deg": -1.045,
+    "row_end_error_m": -12.518,
+    "settle_m": 0.0,
+    "speed_max_m_s": 0.438,
+    "speed_mean_m_s": 0.378
+   },
+   "name": "follow_obstacle_s0",
+   "ok": true,
+   "seed": 0,
+   "wall_s": 5.8
+  }
+ ],
+ "runs": 15,
+ "schema": "ubts.steer_sim.follow_matrix.v1",
+ "wall_s": 55.4,
+ "workers": 4
+}
