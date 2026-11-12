@@ -7,6 +7,7 @@
 - 답을 기다리며 멈추지 않는다. 답이 오기 전에는 각 질문의 기본값으로 진행한다(R4).
 - 답이 오면 프로필 파일을 고치지 않는다. 새 파일(`front_steer_v1_measured_<YYYYMMDD>.yaml`)을 만들고 민감도 시험을 다시 돈다(P9).
 - 지금 프로필: `sim/ubts/steering/profiles/front_steer_v0_placeholder.yaml`.
+- 2026-11-12: 설계 개정 `DESIGN_v2_KO.md`가 Q1·Q4·Q8·Q11의 기본값과 조향 하드웨어 가정(벨트로 이은 가변저항, 일반 DC 모터, 리밋 스위치 없음)을 바꿨다(개정 V2-1·V2-6, `DECISIONS_KO.md` R31·R36). 이 요청서의 질문 개정은 따로 한다(ST-09).
 
 ---
 
