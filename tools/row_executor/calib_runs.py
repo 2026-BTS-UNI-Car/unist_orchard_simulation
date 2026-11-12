@@ -355,8 +355,9 @@ def lidar_yaw(scans, min_span_s=1., ok_fraction=LIDAR_OK_FRACTION):
 
 
 def ls_gain(rows, key):
-    """Least-squares gain through the origin of rows[key] on rows['diff'], weighted by seconds (field_calib's
-    _ls_gain definition): sum w y d / sum w d^2 [deg/s per % of R-L]."""
+    """Least-squares gain through the origin of rows[key] on rows['diff'], weighted by seconds (the single-row branch's
+    field_calib _ls_gain definition; that analyser is not in the steering branch): sum w y d / sum w d^2 [deg/s per % of
+    R-L]."""
     num = sum(r['seconds'] * r[key] * r['diff'] for r in rows if r.get(key) is not None)
     den = sum(r['seconds'] * r['diff'] ** 2 for r in rows if r.get(key) is not None)
     return num / den if den > 0 else None

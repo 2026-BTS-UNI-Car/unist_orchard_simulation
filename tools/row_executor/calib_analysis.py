@@ -9,10 +9,13 @@ runs older than DAY_WINDOW_H (12 h) before the newest calibration run are left o
 (review_safety_day2 N7: a run on another surface must not slip into the config).
 
 Unified field procedure (2026-10-22, README_FIELD.txt 12): this module is the executor-log READER and summary. It no
-longer writes a config (--out-config is refused): the ONE config generator is tools/field_calib/make_field_config.py
-(calibration and final stage), which reads the runs through load_runs / field_day / summarize / config_fragment /
-c5_segments / usable_stop here and applies the decision table and the steering GO rule of config.py (field decision
-rules block) together with the recording measurements (C1, C2, C3 with the stopwatch, C4, C6, C7 cross-check).
+longer writes a config (--out-config is refused): on the single-row branch the ONE config generator was
+tools/field_calib/make_field_config.py (calibration and final stage), which read the runs through load_runs / field_day /
+summarize / config_fragment / c5_segments / usable_stop here and applied the decision table and the steering GO rule of
+config.py (field decision rules block) together with the recording measurements (C1, C2, C3 with the stopwatch, C4, C6,
+C7 cross-check). Steering branch: make_field_config.py, recommend.py, run_field_calib.sh and steps.c5_arc of the single-row branch (546fa8c) were not imported to the steering branch (differential history; docs/steering/EXECUTOR_IMPORT_KO.md). The front_steer
+calibration runs are refused (config.steer_rule_problems); the front_steer GO keys come from the steering
+identification through tools/field_calib/steer_go_config.py (IDENT_KO.md).
 
 What it reads (format: OPERATIONS.txt 10):
   event 'config'        one per executor process (separates run ids of different processes)
@@ -36,8 +39,8 @@ Outputs
                        'calib_stop_test', rounded up to the cm). Each value comes from the NEWEST run of its kind; when that
                        run is not usable and an older one is taken, the note says so ('fallback'; make_field_config then
                        refuses to write, exit 4, unless --allow-older: review_safety_day2 N7).
-  analyser adapter     c5_segments(run): the arc steps as tools/field_calib (field calibration branch of 2026-10-22)
-                       steps.c5_arc 'segments' rows (rid, label, req, diff, t_rel, seconds, samples, method,
+  analyser adapter     c5_segments(run): the arc steps as tools/field_calib (field calibration branch of 2026-10-22;
+                       steps.c5_arc is not in the steering branch's tools/field_calib) steps.c5_arc 'segments' rows (rid, label, req, diff, t_rel, seconds, samples, method,
                        yaw_lidar_dps, yaw_imu_dps, yaw_net_dps, yaw_imu_net_dps, speed_m_s, gain_dps_per_pct,
                        radius_m, side), so its least-squares gain (_ls_gain) can pool executor arcs with recording arcs.
 """
@@ -436,14 +439,15 @@ def main(argv=None):
     ap.add_argument('--all-days', action='store_true', help='also runs older than %g h before the newest one (N7)'
                     % DAY_WINDOW_H)
     ap.add_argument('--out-fragment')
-    ap.add_argument('--out-config', help='refused: the config generator is tools/field_calib/make_field_config.py')
+    ap.add_argument('--out-config', help='refused: the config generator was tools/field_calib/make_field_config.py of '
+                                         'the single-row branch (not imported here)')
     ap.add_argument('--json', help='write the full summary JSON here')
     args = ap.parse_args(argv)
     if args.out_config:
-        print('--out-config is refused: the ONE config generator of the unified field procedure is '
-              'tools/field_calib/make_field_config.py (calib / final stage: decision table, steering GO rule, C7; '
-              'README_FIELD.txt 12). Wrapper: bash ~/field-calib/tools/field_calib/run_field_calib.sh config calib|final '
-              '--result <recording out>/calib_result.json', file=sys.stderr)
+        print('--out-config is refused: the ONE config generator of the unified field procedure was '
+              'tools/field_calib/make_field_config.py of the single-row branch (decision table, steering GO rule, C7; '
+              'README_FIELD.txt 12); it and its wrapper run_field_calib.sh were not imported to the steering branch. '
+              'front_steer GO keys: tools/field_calib/steer_go_config.py', file=sys.stderr)
         return 2
     paths = args.files or find_logs(args.log_dir)
     if not paths:
@@ -479,8 +483,8 @@ def main(argv=None):
     if args.out_fragment:
         _write_json(args.out_fragment, frag['fragment'])
     if frag['fallback']:
-        print('WARNING: %s would come from an OLDER run (the newest run of that kind is not usable): make_field_config '
-              'refuses it without --allow-older (N7)' % ', '.join(frag['fallback']))
+        print('WARNING: %s would come from an OLDER run (the newest run of that kind is not usable): the single-row '
+              'make_field_config refused it without --allow-older (N7)' % ', '.join(frag['fallback']))
     if args.json:
         _write_json(args.json, dict(schema=SCHEMA, summaries=summaries, fragment=frag, counts=counts,
                                     c5_segments=[row for r in runs for row in c5_segments(r)]))

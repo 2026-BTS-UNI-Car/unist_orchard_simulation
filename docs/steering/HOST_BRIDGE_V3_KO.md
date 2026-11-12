@@ -97,9 +97,11 @@ flowchart LR
 | `arm_rejected` [추가] | 운영자 재무장의 ARM에 MCU `N` 거절(사유는 상세 칸) |
 | `arm_unconfirmed` [추가] | ARM 뒤 `arm.confirm_ms` 안에 `st` = 2 상태 줄이 없음 |
 | `internal_error` [추가] | 요청 처리·`step()`·래퍼 루프의 예상하지 못한 예외. 정지하고 루프는 계속 돈다 |
+| `mcu_ttl_expired` [추가, 4단계] | lease와 확인된 ARM이 있을 때 MCU C TTL 만료(`F TTL` 줄, 또는 ARMED 상태 줄 `fl`의 TTL 비트)를 읽었는데, 그 읽기 `TTL_INPUT_LAG_S`(50 ms [자리값]) 전의 루프에서 운영자 입력 기한이 아직 남아 있었다(C 줄을 잃었거나 늦었다). 바로 STOP하고 lease를 버린다. 입력 기한이 이미 지난 TTL(정지 상태 throttle 0에서 기한이 끝나 C를 더 보내지 않은 경우)은 예정된 끝이라 래치하지 않고 `ttl_expected`로만 센다(`DECISIONS_KO.md` R18 결정 1) |
 
 - `arm`이 운영자 재무장이다. 조건(4.2 오류 코드 표의 arm 조건)이 모두 풀린 뒤에만 받는다. 래치는 MCU가 그 ARM을 확인할 때(첫 `st` = 2 상태 줄) 지운다(V3 규격 12.1-75). ARM의 `N` 거절, 확인 없음, 쓰기 실패는 래치를 그대로 두고 `arm_rejected`·`arm_unconfirmed`(쓰기 실패는 `hardware_fault`)를 더한다. 확인 전에 STOP을 쓰면 그 재무장은 끝나고 래치는 그대로다. 그래서 `state`가 `fault`로 남는다(검토 RH-01: 예전에는 ARM을 보내기 전에 지워, 거절된 재무장 뒤 MCU 결함이 남은 채 `disarmed`가 되었다). 조건이 남은 래치는 arm을 그 코드로 거절한다.
 - 래치가 있고 lease가 없으면 `state`는 `fault`다(`motor_pwm.py` 허용값 안).
+- `mcu_ttl_expired`(4단계, R18 결정 1): MCU 규격 6.3에서는 TTL이 조건이라 다음 `C`가 TTL 비트를 지우고 120 ms 휴지 뒤 다시 출발한다. 실행기는 TTL을 drive 응답(100 ms마다)에서만 보므로 그 사이 브리지의 자동 `C` 재전송이 운영자 모르게 다시 출발시킬 수 있었다. 이제 브리지가 `F TTL` 줄(잃어도 ARMED 상태 줄의 TTL 비트)에서 스스로 멈추고, 운영자 재무장 전에는 `C`를 내지 않는다. 래치 판단의 기준은 최근 16번 루프의 (시각, 입력 기한) 기록이다. 50 ms는 MCU 만료와 그 줄을 읽는 사이(줄 시간, USB 지연, 루프 한 번, 약 35 ms 이하) 호스트가 새 요청에 답한 경우를 예정된 끝으로 보기 위한 여유다. 보수적인 쪽의 한계: 정지 중 TTL 비트가 남은 채 운영자가 다시 누른 직후 첫 `C` 하나를 잃으면 래치한다(재무장 필요). MCU 쪽 TTL 래치는 P9 펌웨어 후보로 둔다. 시험: `test_steer_bridge_core.py` TTL 래치 시험 6개, `test_steering_host_firmware.py` LinkLossTest, T1 대본 `c_line_loss_ttl*`, `bridge_stall_ttl`, `c_line_loss_ttl_executor_stall*`, 위상 훑기 `steering.safety_scripts.ttl_window`.
 - `steering_ineffective`는 센서에서 나온 움직임 표본(gyro, LiDAR 속도)을 받을 때만 돈다. 표본은 op `motion`(lease 보유자, 2절) 또는 같은 프로세스의 `core.observe_motion(yaw_rate_rad_s, speed_m_s)`로 온다. 참값을 넣지 않는다. 실행기가 op `motion`으로 보내는 것이 실행기 쪽 공급원이다(T1: `t1_rig.RigClient.observe_motion`). 래퍼는 요청을 코어에 그대로 넘기므로 T2·T3에서도 같은 op가 된다. G-SIM 실행기 쪽 연결은 P6a다.
 
 ## 4. 시간 규칙

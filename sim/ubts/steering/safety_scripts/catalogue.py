@@ -33,6 +33,10 @@ expect keys (all optional):
   late_drive_error  the expected refusal of the late drive (stop_barrier)
   lateral         True: the A17 lateral deviation during a link loss (analytic arc, +-10 % or +-0.01 m)
   rate_counts     the false-detection count group of a normal script ('normal' scripts)
+  first_rule      True with a tuple mcu_fault: the found code must be the one the spec 6.7 recomputation trips first
+                  (the earliest expected tick of the candidate codes, +-1 tick)
+  stop_phase      True: a STOP phase script (the STOP request off the bridge grid or the status lines shifted;
+                  audit AUD3A-09); its STOP items are judged as stop_at and listed in the A17 STOP phase table
 Every value of the scripts is a placeholder of the SIM (자리값 기반 SIM 결과).
 """
 from __future__ import annotations
@@ -92,6 +96,19 @@ script('mid_row_stop_w2', 'safety', 'operator STOP in the middle of a developmen
 script('mid_row_stop_w0', 'safety', 'operator STOP while driving on the W0 test floor (STOP timing, hold, no restart)',
        episode('mid_row_stop_w0', actions=[action('stop', 6.)], duration_s=12.),
        dict(end_reason='operator_stop', stop_at=6., hold_check=True, no_restart=True, a22=True))
+# STOP phases (audit AUD3A-09): the executor ticks every 50 ms, so a STOP at 6.05 s waits 10 ms for the 20 ms bridge
+# step (6.06 s); the bridge on the odd 10 ms grid moves the 6.0 s STOP off the grid; the boot delay moves the MCU status
+# line phase (the STOP confirmation). The rig runs host code on the 10 ms plant grid: a request between two plant steps
+# is not representable (T1_RIG_KO.md 2).
+script('mid_row_stop_off_grid', 'safety', 'mid_row_stop_w0 with the STOP at 6.05 s (between two bridge steps) and the '
+       'status lines 5 ms later (boot delay 75)',
+       episode('mid_row_stop_off_grid', actions=[action('stop', 6.05)], rig={'boot_delay_ticks': 75}, duration_s=12.),
+       dict(end_reason='operator_stop', stop_at=6.05, stop_phase=True, hold_check=True, no_restart=True))
+script('mid_row_stop_bridge_phase', 'safety', 'mid_row_stop_w0 with the bridge on the odd 10 ms grid (the 6.0 s STOP '
+       'waits for 6.01 s) and the status lines 10 ms earlier (boot delay 60)',
+       episode('mid_row_stop_bridge_phase', actions=[action('stop', 6.)],
+               rig={'bridge_phase_ms': 10, 'boot_delay_ticks': 60}, duration_s=12.),
+       dict(end_reason='operator_stop', stop_at=6., stop_phase=True, hold_check=True, no_restart=True))
 script('deadman_release', 'safety', 'the operator lets the hold go while driving: pause, zero throttle at once, steering '
        'held, no restart (no new press)',
        episode('deadman_release', controller=segments(_drive_then(8., 40, 4.)), actions=[action('release', 5.)],
@@ -103,7 +120,7 @@ script('hold_lost', 'safety', 'the operator page stops sending heartbeats (page 
 script('c_line_loss_ttl', 'safety', 'C lines stop reaching the MCU (link to the MCU lost for 0.4 s, under the watchdog): '
        'MCU C TTL brake, steering kept; the executor ends the run (no restart by the next C)',
        episode('c_line_loss_ttl', faults=[fault('link_loss', duration_s=.4, direction='to_mcu')], duration_s=10.),
-       dict(end_reason='link_ttl_expired', mcu_ttl=True, no_restart=True, a22=True))
+       dict(end_reason='link_ttl_expired', mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
 # Review RS-01: the MCU status-line phase and the host loop phase are unrelated on the vehicle. With these phases the C
 # line written right after the link returns reaches the MCU before the next status line, clears the TTL bit and would
 # restart the drive 120 ms after the TTL brake; only the F TTL line (counted by the host) shows the event. The executor
@@ -113,17 +130,36 @@ script('c_line_loss_ttl_status_phase', 'safety', 'c_line_loss_ttl with the MCU s
        'host F TTL count, no restart',
        episode('c_line_loss_ttl_status_phase', faults=[fault('link_loss', at_s=4.97, duration_s=.32, direction='to_mcu')],
                rig={'boot_delay_ticks': 60}, duration_s=10.),
-       dict(end_reason='link_ttl_expired', mcu_ttl=True, no_restart=True, a22=True))
+       dict(end_reason='link_ttl_expired', mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
 script('c_line_loss_ttl_catalogue_phase60', 'safety', 'c_line_loss_ttl (5.0 s, 0.4 s) with the status lines 10 ms '
        'earlier (boot delay 60 ms): the TTL bit appears late; no drive restart before the STOP',
        episode('c_line_loss_ttl_catalogue_phase60', faults=[fault('link_loss', duration_s=.4, direction='to_mcu')],
                rig={'boot_delay_ticks': 60}, duration_s=10.),
-       dict(end_reason='link_ttl_expired', mcu_ttl=True, no_restart=True, a22=True))
+       dict(end_reason='link_ttl_expired', mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
 script('c_line_loss_ttl_bridge_phase', 'safety', 'c_line_loss_ttl with the host bridge loop on the odd 10 ms grid '
        '(bridge_phase_ms 10)',
        episode('c_line_loss_ttl_bridge_phase', faults=[fault('link_loss', duration_s=.4, direction='to_mcu')],
                rig={'bridge_phase_ms': 10}, duration_s=10.),
-       dict(end_reason='link_ttl_expired', mcu_ttl=True, no_restart=True, a22=True))
+       dict(end_reason='link_ttl_expired', mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
+# DECISIONS R18 decision 1 (audit AUD3A-04): the executor tick is late right after the C TTL (rig fault executor_stall
+# from the time the F TTL line reaches the host). Before the host latch mcu_ttl_expired the bridge's automatic C resends
+# drove again 120 ms after the TTL brake while the executor stalled; now the bridge stops on the F TTL line itself. The
+# executor ends on the latch, or on its own stale steering status after the stall (both stop reasons are valid).
+TTL_STALL_ENDS = ('link_ttl_expired', 'steering_feedback_stale', 'bridge_error')
+script('c_line_loss_ttl_executor_stall', 'safety', 'c_line_loss_ttl (5.0 s, 0.32 s) and the executor loop stalled for '
+       '0.3 s from the F TTL line: the host latches mcu_ttl_expired and stops; no restart',
+       episode('c_line_loss_ttl_executor_stall',
+               faults=[fault('link_loss', duration_s=.32, direction='to_mcu'),
+                       fault('executor_stall', duration_s=.3, after='f_ttl')], duration_s=10.),
+       dict(end_reason=TTL_STALL_ENDS, mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
+script('c_line_loss_ttl_executor_stall_phase', 'safety', 'c_line_loss_ttl_executor_stall with the status lines 10 ms '
+       'earlier (boot delay 60), the bridge on the odd 10 ms grid, the loss 4.97 .. 5.29 s and a 0.5 s stall that starts '
+       '20 ms after the F TTL line',
+       episode('c_line_loss_ttl_executor_stall_phase',
+               faults=[fault('link_loss', at_s=4.97, duration_s=.32, direction='to_mcu'),
+                       fault('executor_stall', at_s=4.97, duration_s=.5, after='f_ttl', delay_s=.02)],
+               rig={'boot_delay_ticks': 60, 'bridge_phase_ms': 10}, duration_s=10.),
+       dict(end_reason=TTL_STALL_ENDS, mcu_ttl=True, host_latch='mcu_ttl_expired', no_restart=True, a22=True))
 script('link_loss_watchdog_brake', 'safety', 'link watchdog 200 ms (CFG wd 200, under the C TTL of 300 ms) and the link '
        'to the MCU lost for 0.5 s while driving: the watchdog itself brakes the moving vehicle (W line, drive 0 at the '
        'W tick, DISARMED), steering hold (review RS-03)',
@@ -135,6 +171,11 @@ script('executor_stall', 'safety', 'the executor loop stops for 1.5 s (no drive)
        'ends when the executor comes back',
        episode('executor_stall', actions=[action('executor_stall', 5., duration_s=1.5)], duration_s=10.),
        dict(end_reason=('bridge_error', 'link_ttl_expired'), mcu_ttl=True, no_restart=True))
+script('bridge_stall_ttl', 'host', 'the bridge loop stops for 0.335 s while driving (the TTL ends, the watchdog does '
+       'not): the bridge reads the F TTL line when it runs again, latches mcu_ttl_expired and stops before any C line',
+       episode('bridge_stall_ttl', faults=[fault('bridge_stall', duration_s=.335)], duration_s=10.),
+       dict(end_reason=('link_ttl_expired', 'bridge_error'), mcu_ttl=True, host_latch='mcu_ttl_expired',
+            no_restart=True))
 script('bridge_stall_watchdog', 'safety', 'the bridge loop stops for 1.5 s: MCU C TTL then link watchdog, DISARMED',
        episode('bridge_stall_watchdog', faults=[fault('bridge_stall', duration_s=1.5)], duration_s=10.),
        dict(end_reason=('link_watchdog', 'link_ttl_expired', 'bridge_error', 'mcu_disarmed'), mcu_ttl=True,
@@ -166,6 +207,27 @@ script('driver_stuck_isolated', 'fault', 'steering driver stuck on at -60 % (to 
        episode('driver_stuck_isolated', faults=[fault('driver_stuck_on', pwm=-.6)],
                rig={'record_overrides': {'polp': 1000}}),
        dict(end_reason='steering_driver_fault', mcu_fault='DRV_STUCK', steer_off=True, no_restart=True))
+# Audit AUD3A-18: faults inside the potentiometer range and a dead driver (no POT_* range rule can see them). The
+# expectation comes from the spec 6.7 recomputation of the candidate rules (first_rule): the code found must be the one
+# whose rule trips first. A 6 deg step while driving gives a large servo output (gain 15 %/deg: about 230 >= stp 153).
+script('pot_stuck_step', 'fault', 'potentiometer reading frozen at 3.0 s, then a 6 deg step while driving: the servo '
+       'pushes, the reading stays (STALL, or TRACK under the STALL output level)',
+       episode('pot_stuck_step', controller=segments(_drive_then(4., 40, 6.)), faults=[fault('pot_stuck', at_s=3.)],
+               rig={'report_adc': True}),
+       dict(end_reason=('steering_stalled', 'steering_not_following'), mcu_fault=('STALL', 'TRACK'), first_rule=True,
+            steer_off=True, no_restart=True))
+script('pot_reversed_step', 'fault', 'potentiometer sign reversed at 3.0 s (wheels near straight: no jump), then a 6 deg '
+       'step while driving: the reading moves against the servo output (POLARITY)',
+       episode('pot_reversed_step', controller=segments(_drive_then(4., 40, 6.)),
+               faults=[fault('pot_reversed', at_s=3.)], rig={'report_adc': True}),
+       dict(end_reason=('steering_polarity_fault', 'steering_stalled', 'steering_not_following'),
+            mcu_fault=('POLARITY', 'STALL', 'TRACK'), first_rule=True, steer_off=True, no_restart=True))
+script('driver_dead_step', 'fault', 'steering driver output dead from 3.0 s, then a 6 deg step while driving: large servo '
+       'output, no motion (STALL)',
+       episode('driver_dead_step', controller=segments(_drive_then(4., 40, 6.)), faults=[fault('driver_dead', at_s=3.)],
+               rig={'report_adc': True}),
+       dict(end_reason=('steering_stalled', 'steering_not_following'), mcu_fault=('STALL', 'TRACK'), first_rule=True,
+            steer_off=True, no_restart=True))
 script('stall_jam', 'fault', 'steering jammed, then a 15 deg step while driving (large output, no motion)',
        episode('stall_jam', controller=segments(_drive_then(4., 40, 15.)), faults=[fault('stall', at_s=2.5)]),
        dict(end_reason='steering_stalled', mcu_fault='STALL', steer_off=True, no_restart=True))

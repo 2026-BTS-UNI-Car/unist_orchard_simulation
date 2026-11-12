@@ -39,7 +39,7 @@ CFG = dict(stp=153, stt=500, stm=20, trk=120, trt=1000, minp=102, polt=100, polp
 EXPECT_KEYS = {'end_reason', 'pause_reason', 'pause_at', 'mcu_fault', 'mcu_watchdog', 'mcu_ttl', 'host_latch',
                'arm_refused', 'stop_at', 'stop_unconfirmed', 'steer_off', 'hold_check', 'no_restart', 'a22', 'same_as',
                'client2', 'late_drive_error', 'lateral', 'loss_at', 'rate_counts', 'no_fault', 'operator_rearm_at',
-               'bridge_restart', 'boot_after_s'}
+               'bridge_restart', 'boot_after_s', 'first_rule', 'stop_phase'}
 
 
 def art_of(channels, cfg=None, **extra):
@@ -259,25 +259,79 @@ class ReviewFixTest(unittest.TestCase):
 
     def test_watchdog_brake_item_only_when_moving(self):
         serial = [dict(dir='h2m', t_ms=4860, first_tick=4861, last_tick=4862, text='C 7 300 102 102 0*AA', note='')]
+        # the watchdog result of spec 6.4 (audit AUD3A-08 items): WATCHDOG latch bit from the W tick in the fault mask
+        # and in the status lines the host reads, steering HOLD for hloss (default 2000 ms) then OFF, the run ended
+        serial += [dict(dir='m2h', t_ms=t, first_tick=t, last_tick=t + 2, note='',
+                        text='S %d %d 1 7 0 0 3 512 10 12 12 0 1000 500 0*00' % (t, t // 50)) for t in (5400, 5450)]
+        mcu_result = dict(fault_bits=[(0, 0), (5363, 0x1000)], steer_mode=[(0, 1), (5363, 2), (7363, 0)])
         base = dict(spec=dict(faults=[], actions=[]), expect=dict(mcu_watchdog=True), name='x', group='safety')
         lines = [('W 5363*00', 5363, 5364)]
         result = dict(digests={}, wall_s=0.)
-        summary = dict(end_reason=None, events=[], executor_events=[], timing={})
+        summary = dict(end_reason='link_watchdog', events=[], executor_events=[], timing={})
         cfg = dict(CFG, wd=500)
         moving = art_of(dict(drive_l=[(0, 102), (5363, 0)], drive_r=[(0, 102), (5363, 0)],
-                             mcu_state=[(0, 2), (5363, 1)]), cfg=cfg, serial=serial, lines=lines, summary=summary)
+                             mcu_state=[(0, 2), (5363, 1)], **mcu_result), cfg=cfg, serial=serial, lines=lines,
+                        summary=summary)
         ev = A.evaluate_script(base, moving, result)
         item = [i for i in ev['items'] if i['item'].startswith('watchdog -> drive 0')][0]
         self.assertIs(item['ok'], True)
         braked = art_of(dict(drive_l=[(0, 102), (5162, 0)], drive_r=[(0, 102), (5162, 0)],
-                             mcu_state=[(0, 2), (5363, 1)]), cfg=cfg, serial=serial, lines=lines, summary=summary)
+                             mcu_state=[(0, 2), (5363, 1)], **mcu_result), cfg=cfg, serial=serial, lines=lines,
+                        summary=summary)
         ev = A.evaluate_script(base, braked, result)
         item = [i for i in ev['items'] if i['item'].startswith('watchdog -> drive 0')][0]
         self.assertIsNone(item['ok'])                 # not applicable: the TTL brake came first
         self.assertTrue(ev['passed'])
+        # the same run without the latch bit in the status lines fails the A17 'latch' clause (AUD3A-08)
+        unlatched = [dict(r, text=r['text'].replace(' 1000 500 ', ' 0000 500 ')) for r in serial]
+        ev_bad = A.evaluate_script(base, dict(braked, serial=unlatched), result)
+        self.assertFalse(ev_bad['passed'])
+        self.assertIs([i for i in ev_bad['items'] if i['item'].startswith('watchdog latch bit kept')][0]['ok'], False)
         table = A.a17_table([dict(ev, group='safety')])
         self.assertTrue(table['passed'])
         self.assertEqual(len(table['not_applicable']), 1)
+
+    def test_watchdog_latch_and_hold_end_at_an_mcu_reset(self):
+        # usb_unplug_replug_reset: opening the port again resets the NodeMCU (spec 10.7) inside the hloss window; the
+        # reset clears the RAM latch bit and ends the steering HOLD (pins OFF), the new boot reports BOOT
+        serial = [dict(dir='h2m', t_ms=4960, first_tick=4961, last_tick=4962, text='C 7 300 102 102 0*AA', note='')]
+        serial += [dict(dir='m2h', t_ms=t, first_tick=t, last_tick=t + 2, note='',
+                        text='S %d %d 1 7 0 0 3 512 10 12 12 0 1000 500 0*00' % (t, t // 50)) for t in (5500, 5550)]
+        base = dict(spec=dict(faults=[], actions=[]), expect=dict(mcu_watchdog=True), name='x', group='mandatory')
+        summary = dict(end_reason='link_hardware_fault', events=[], executor_events=[], timing={})
+        channels = dict(drive_l=[(0, 102), (5463, 0)], drive_r=[(0, 102), (5463, 0)],
+                        mcu_state=[(0, 2), (5463, 1), (6000, 255), (6070, 1)],
+                        fault_bits=[(0, 0), (5463, 0x1000), (6000, 0), (6070, 0x4000)],
+                        steer_mode=[(0, 1), (5463, 2), (6000, 0)])
+        art = art_of(channels, cfg=dict(CFG, wd=500), serial=serial, lines=[('W 5463*00', 5463, 5463)],
+                     summary=summary)
+        ev = A.evaluate_script(base, art, dict(digests={}, wall_s=0.))
+        by = dict((i['item'], i) for i in ev['items'])
+        self.assertIs(by['watchdog latch bit kept until the next operator ARM (MCU and status lines)']['ok'], True)
+        hold = by['watchdog -> steering HOLD (measured position) for hloss, then OFF']
+        self.assertIs(hold['ok'], True)
+        self.assertEqual(hold['limit']['off_tick'], 6000)
+        self.assertTrue(ev['passed'], [i for i in ev['items'] if i['ok'] is False])
+        # the port closed until the reset: no status line reached the host, only the MCU part is judged; without the
+        # reset the host must see the bit (no line is then a failure)
+        quiet = dict(art, serial=serial[:1])
+        ev = A.evaluate_script(base, quiet, dict(digests={}, wall_s=0.))
+        item = [i for i in ev['items'] if i['item'].startswith('watchdog latch bit kept')][0]
+        self.assertIs(item['ok'], True)
+        self.assertEqual(item['measured'], dict(until_arm_tick=6000, lines=0, ended_by_reset=True))
+        no_reset = dict(channels, mcu_state=[(0, 2), (5463, 1)], fault_bits=[(0, 0), (5463, 0x1000)])
+        ev = A.evaluate_script(base, art_of(no_reset, cfg=dict(CFG, wd=500), serial=serial[:1],
+                                            lines=[('W 5463*00', 5463, 5463)], summary=summary),
+                               dict(digests={}, wall_s=0.))
+        self.assertIs([i for i in ev['items'] if i['item'].startswith('watchdog latch bit kept')][0]['ok'], False)
+        # without the reset the HOLD must last hloss: OFF at the reset tick is then a failure
+        early = dict(channels, mcu_state=[(0, 2), (5463, 1)], fault_bits=[(0, 0), (5463, 0x1000)])
+        ev = A.evaluate_script(base, art_of(early, cfg=dict(CFG, wd=500), serial=serial,
+                                            lines=[('W 5463*00', 5463, 5463)], summary=summary),
+                               dict(digests={}, wall_s=0.))
+        hold = [i for i in ev['items'] if i['item'].startswith('watchdog -> steering HOLD')][0]
+        self.assertIs(hold['ok'], False)
+        self.assertEqual(hold['limit']['off_tick'], 5463 + 2000)
 
     def test_partial_runs_report_only_what_ran(self):
         self.assertIsNone(A.a17_table([])['passed'])

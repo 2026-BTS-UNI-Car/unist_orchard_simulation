@@ -52,20 +52,25 @@ def artefacts(facade, spec):
     keep = ('t_s', 'cmd_throttle_pct', 'cmd_steer_target_mrad', 'cmd_stop_mode', 'steer_target_rad', 'drive_applied_pct',
             'drive_request_pct', 'truth_v_m_s', 'truth_x_m', 'truth_y_m', 'truth_yaw_rad', 'truth_delta_eq_rad',
             'truth_hold_position_rad', 'truth_curvature_1_m', 'truth_field_y_m', 'truth_mcu_state', 'drive_en', 'steer_en',
-            'host_lease', 'host_state', 'ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold')
+            'host_lease', 'host_state', 'host_arm_state', 'ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state',
+            'ctrl_hold')
     return dict(
         spec=spec, summary=facade.summary(), serial=rig.serial_log(), lines=lines, channels=channels,
         cfg=dict(cal.get('params') or {}), cal=dict((k, v) for k, v in cal.items() if k != 'params'),
         host=dict(status_hz=hp.status_hz, stop_confirm_s=hp.stop_confirm_s,
                   stop_resend_interval_s=hp.stop_resend_interval_s, stop_resend_max=hp.stop_resend_max,
                   c_ttl_max_ms=hp.c_ttl_max_ms, watchdog_ms=hp.watchdog_ms, status_gap_s=hp.status_gap_s,
-                  bridge_period_ms=rig.config.bridge_period_ms, limit_left_mrad=hp.limit_left_mrad,
-                  limit_right_mrad=hp.limit_right_mrad, mark_left_mrad=hp.mark_left_mrad,
-                  mark_right_mrad=hp.mark_right_mrad),
+                  bridge_period_ms=rig.config.bridge_period_ms, bridge_phase_ms=rig.config.bridge_phase_ms,
+                  limit_left_mrad=hp.limit_left_mrad, limit_right_mrad=hp.limit_right_mrad,
+                  mark_left_mrad=hp.mark_left_mrad, mark_right_mrad=hp.mark_right_mrad, arm_confirm_s=hp.arm_confirm_s,
+                  track_error_mrad=hp.track_error_mrad, track_duration_s=hp.track_duration_s,
+                  seq_gap_missing=hp.seq_gap_missing, seq_gap_window_s=hp.seq_gap_window_s,
+                  ineffective=dict(hp.ineffective), wheelbase_m=hp.wheelbase_m),
         trace={k: np.asarray(trace[k]) for k in keep if k in trace}, latches=list(facade.latch_log),
         boot_delay_ticks=int(rig.config.boot_delay_ticks), servo_hz=float(rig.profile.value('servo_hz')),
         hold_tolerance_rad=max(math.radians(1.), 2. * math.radians(float(rig.profile.value('servo_deadband_deg')))),
         bridge_events=[list(e) for e in getattr(rig, 'bridge_events', ())],
+        motion=[tuple(m) for m in getattr(facade, 'motion_log', ())],
         rig_counters=dict(rig.counters))
 
 
@@ -497,33 +502,54 @@ def hold_error(art, t0_s, duration_s):
     return float(np.max(np.abs(eq[k0:k1] - ref))) if k1 > k0 else 0.
 
 
+A22_REST_V_M_S = .02            # 'at rest' of the automatic-centring test (the A22 window, as before audit AUD3A-07)
+
+
 def command_after(art, t0_s, duration_s=3.):
-    """A22: the commanded steering (MCU servo target, steer_target_rad) after t0 for duration_s: largest move from the
-    value at t0, the hold reference at t0, and a move toward 0 at rest (automatic centring). The whole window must be
-    in the trace (review P4R-06): a trace that ends before t0 + duration_s gives passed False, complete False (not
-    measured; the script's duration must be longer)."""
+    """A22: the commanded steering (MCU servo target, steer_target_rad) after the terminal moment t0 for duration_s,
+    judged by the evaluator's STEER_AFTER_TERMINAL rule (evaluate_steer.steer_after_terminal; one definition, audit
+    AUD3A-07): (a) no move beyond the hold tolerance from the command at t0, (b) a stop that moves the command must move
+    it to the steering position at the stop (truth_hold_position_rad: the MCU filtered potentiometer position a
+    hold_measured STOP holds, R13-3), also when the MCU applies the stop after t0 (the STOP that lands after the
+    executor's terminal moment: the rows where the MCU leaves ARMED, evaluate_steer.mcu_stop_rows), and no move toward 0
+    at rest (automatic centring). Plus the executor's own command (ctrl_steer_mrad) does not move beyond the tolerance.
+    The whole window must be in the trace (review P4R-06): a trace that ends before t0 + duration_s gives passed False,
+    complete False (not measured; the script's duration must be longer). The rule's window is cut at t0 + duration_s."""
+    from steering import evaluate_steer as ES
     tr = art['trace']
-    t = tr['t_s']
+    t = np.asarray(tr['t_s'], dtype=float)
     k0 = int(np.searchsorted(t, t0_s - 1e-9))
     k1 = int(np.searchsorted(t, t0_s + duration_s + 1e-9))
     if k0 >= len(t) or k1 <= k0:
         return None
     row_dt = float(np.median(np.diff(t))) if len(t) > 1 else 0.
     complete = bool(float(t[-1]) >= t0_s + duration_s - .5 * row_dt - 1e-9)
-    target = tr['steer_target_rad'].astype(float)
-    hold = tr['truth_hold_position_rad'].astype(float)
-    base = float(target[k0])
-    seg = target[k0:k1]
     tol = art['hold_tolerance_rad']
-    moved = float(np.max(np.abs(seg - base)))
-    rest = np.abs(tr['truth_v_m_s'][k0:k1]) < .02
-    toward_zero = bool(np.any(rest & (np.abs(seg) < abs(base) - tol)))
-    ctrl = tr['ctrl_steer_mrad'][k0:k1].astype(float) / 1000.
+
+    def column(name, dtype=float):
+        value = tr.get(name)
+        return None if value is None else np.asarray(value)[:k1].astype(dtype)
+
+    target = column('steer_target_rad')
+    hold = column('truth_hold_position_rad')
+    drive = column('drive_request_pct')
+    stop_code = column('cmd_stop_mode', np.int64)
+    state = column('truth_mcu_state', np.int64)
+    stop_rows = [] if state is None else ES.mcu_stop_rows(dict(truth_mcu_state=state))
+    rule = ES.steer_after_terminal(t[:k1], target, drive, stop_code, column('truth_v_m_s'), [(k0, 'terminal_t_s')],
+                                   tol, A22_REST_V_M_S, hold_position=hold,
+                                   hold_source='command_before' if hold is None else 'truth_hold_position',
+                                   true_eq=column('truth_delta_eq_rad'), stop_rows=stop_rows)
+    window = rule['windows'][0]
+    ctrl = np.asarray(tr['ctrl_steer_mrad'], dtype=float)[k0:k1] / 1000.
     ctrl_defined = ctrl[np.isfinite(ctrl)]
     ctrl_move = float(np.max(np.abs(ctrl_defined - ctrl_defined[0]))) if len(ctrl_defined) else 0.
     return dict(window_s=[round(float(t[k0]), 3), round(float(t[k1 - 1]), 3)], required_s=round(float(duration_s), 3),
-                complete=complete, target_at_start_deg=round(math.degrees(base), 4),
-                hold_position_deg=round(math.degrees(float(hold[max(0, k0 - 1)])), 4),
-                max_target_move_deg=round(math.degrees(moved), 4), tolerance_deg=round(math.degrees(tol), 4),
-                executor_command_move_deg=round(math.degrees(ctrl_move), 4), auto_centre=toward_zero,
-                passed=bool(complete and moved <= tol + 1e-9 and not toward_zero and ctrl_move <= tol + 1e-9))
+                complete=complete, target_at_start_deg=window['command_at_start_deg'],
+                hold_position_deg=window['hold_position_deg'],
+                max_target_move_deg=window['max_dev_from_command_deg'], tolerance_deg=round(math.degrees(tol), 4),
+                stop_moved_command=window['stop_moved_command'], mcu_stops=window['mcu_stops'],
+                rule='evaluate_steer.steer_after_terminal (STEER_AFTER_TERMINAL a, b)',
+                executor_command_move_deg=round(math.degrees(ctrl_move), 4), auto_centre=window['auto_centre'],
+                passed=bool(complete and not window['violated'] and not window['auto_centre']
+                            and ctrl_move <= tol + 1e-9))

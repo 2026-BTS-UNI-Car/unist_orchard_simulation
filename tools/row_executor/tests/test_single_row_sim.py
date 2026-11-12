@@ -170,6 +170,19 @@ class EpisodeBuildTest(unittest.TestCase):
         self.assertEqual(R.resolve_corridor(self.catalogue, '042301:L5-R4:fwd')[0]['corridor_id'], 'c03')
         self.assertRegex(R.label_digest(entry, direction), '^[0-9a-f]{64}$')
 
+    def test_sealed_corridors_are_refused(self):
+        # audit AUD3A-21: the sealed directions and the reverse of a sealed row pair are reserved for the steering
+        # pre-registration; refused by the corridor id and by the line-pair label, before any world is built
+        for spec in ('042301:c01:fwd', '042301:c04:fwd', '042301:c07:fwd', '042301:c04:rev', '042301:c07:rev'):
+            with self.subTest(spec=spec):
+                with self.assertRaisesRegex(ValueError, 'reserved for the steering pre-registration'):
+                    R.resolve_corridor(self.catalogue, spec)
+        entry = [e for e in self.catalogue['corridors'] if (e['record'], e['corridor_id']) == ('042301', 'c04')][0]
+        label = R.corridor_label(entry, 'fwd').split(':')[1]
+        with self.assertRaisesRegex(ValueError, 'sealed'):
+            R.resolve_corridor(self.catalogue, '042301:%s:fwd' % label)
+        self.assertEqual(R.resolve_corridor(self.catalogue, CORRIDOR)[0]['corridor_id'], 'c03')    # development
+
     def test_holdout_seeds_need_a_freeze(self):
         args = R.argparse.Namespace(prereg=False, episode=['P_fit1003:nominal:%s:7' % CORRIDOR], corridors=None,
                                     plants=None, conditions=None, seeds=None, freeze=None, selection=None,

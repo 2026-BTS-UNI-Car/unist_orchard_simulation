@@ -820,6 +820,154 @@ class HostFaultTest(unittest.TestCase):
         self.assertEqual(rig.core.snapshot['updated_at'], 0.0)
 
 
+class TtlLatchTest(unittest.TestCase):
+    """DECISIONS R18 decision 1: an MCU C TTL expiry while the host still had a valid operator input (C lines lost or
+    late) latches mcu_ttl_expired and stops at once: no C line until an operator re-arm, so the next C cannot restart
+    the drive after the TTL brake. The TTL at the end of the host's own input deadline does not latch."""
+
+    @staticmethod
+    def lose_host_lines(rig, start_t, end_t):
+        """Host -> MCU bytes written in [start_t, end_t) never reach the fake MCU (the link to the MCU is down)."""
+        original = rig.mcu.tick
+
+        def tick(now, _original=original):
+            device = rig.mcu.device
+            kept = [(w, d) for w, d in device.take_timed() if not start_t - 1e-9 <= w < end_t - 1e-9]
+            device.transport._to_device.extend(kept)
+            _original(now)
+        rig.mcu.tick = tick
+
+    @staticmethod
+    def drop_mcu_lines(rig, prefix):
+        """MCU lines that start with prefix are lost on the way to the host."""
+        original = rig.mcu._send
+
+        def send(now, body, _original=original):
+            if body.startswith(prefix):
+                rig.mcu.sent_lines.append((now, b'(lost) ' + body.encode('ascii')))
+                return
+            _original(now, body)
+        rig.mcu._send = send
+
+    def driving(self, latency_s=0.0, throttle=30, steer_mrad=100):
+        rig = ts.Rig(latency_s=latency_s)
+        rig.ready()
+        reply = rig.arm()
+        reply = rig.submit(drive(reply, throttle, steer_mrad))
+        return rig, reply
+
+    def keep_driving(self, rig, reply, until_t, throttle=30, steer_mrad=100, period_s=0.1):
+        """A fresh drive every period_s (like the executor) while the lease lasts; returns the last reply."""
+        while rig.clock.t < until_t and rig.core.control.lease:
+            reply = rig.submit(drive(reply, throttle, steer_mrad))
+            if not reply.get('ok'):
+                break
+            rig.run_until(lambda: rig.clock.t >= until_t or not rig.core.control.lease, period_s - rig.step_s)
+        return reply
+
+    def test_lost_c_lines_latch_and_stop_at_the_f_ttl_line(self):
+        rig, reply = self.driving()
+        t_loss = rig.clock.t + 0.105
+        self.lose_host_lines(rig, t_loss, t_loss + 0.4)
+        self.keep_driving(rig, reply, t_loss + 0.6)
+        latch = rig.core.latches['mcu_ttl_expired']
+        f_ttl = [t for t, line in rig.mcu.sent_lines if line.startswith(b'F TTL')]
+        self.assertEqual(len(f_ttl), 1)
+        self.assertAlmostEqual(latch['since'], f_ttl[0], delta=1e-9)       # read and latched in the same step
+        self.assertIn('F TTL line', latch['detail'])
+        self.assertIsNone(rig.core.control.lease)
+        self.assertEqual(rig.core.control.reason, 'mcu_ttl_expired')
+        self.assertIn(latch['since'], tx_times(rig, 'STOP'))                # the host's own STOP in that step
+        self.assertEqual(c_lines(rig, latch['since'] - 1e-9), [])          # no C line after the latch
+        rig.run(0.5)                                                        # the link is back: a STOP resend lands
+        self.assertEqual((rig.mcu.st, rig.mcu.L, rig.mcu.R), (1, 0, 0))
+        self.assertEqual(rig.core.snapshot['state'], 'fault')
+        self.assertIn('mcu_ttl_expired', rig.core.snapshot['steering']['faults'])
+        self.assertIsNone(rig.core.control.lease)                           # no automatic re-arm
+        self.assertEqual(c_lines(rig, latch['since'] - 1e-9), [])
+        rig.arm()                                                           # operator re-arm clears the latch
+        self.assertEqual(rig.core.latches, {})
+
+    def test_c_sent_after_the_expiry_is_stopped_well_inside_the_rest(self):
+        # the F TTL line reaches the host 30 ms late; a fresh drive in between sends a C that clears the TTL at the
+        # MCU (the real MCU would drive again 120 ms after the TTL brake, spec 8.2): the host still stops on the F line
+        rig, reply = self.driving(latency_s=0.03)
+        rig.run_until(lambda: rig.clock.t > c_lines(rig)[-1][0] + 1e-9, 0.1)   # just after a C write
+        t_c = c_lines(rig)[-1][0]
+        self.lose_host_lines(rig, t_c + 0.005, t_c + 0.32)
+        reply = self.keep_driving(rig, reply, t_c + 0.3)
+        rig.run_until(lambda: rig.mcu.ttl_count >= 1, 0.2)
+        e = [t for t, line in rig.mcu.sent_lines if line.startswith(b'F TTL')][0]
+        rig.run_until(lambda: rig.clock.t >= e + 0.009, 0.1)
+        self.assertIsNotNone(rig.core.control.lease)                        # the F line is not read yet
+        reply = rig.submit(drive(reply, 30, 100))                           # a C after the expiry (link back)
+        self.assertTrue(reply['ok'])
+        first_c_after = [c for c in c_lines(rig, e)][0][0]
+        rig.run(0.05)
+        latch = rig.core.latches['mcu_ttl_expired']
+        stop_t = [t for t in tx_times(rig, 'STOP') if t >= first_c_after][0]
+        self.assertLessEqual(stop_t - first_c_after, 0.03 + 0.011)           # far inside the 120 ms rest
+        self.assertAlmostEqual(latch['since'], stop_t, delta=1e-9)
+        self.assertEqual(c_lines(rig, stop_t), [])
+
+    def test_ttl_bit_in_the_status_lines_latches_when_the_f_line_is_lost(self):
+        rig, reply = self.driving()
+        self.drop_mcu_lines(rig, 'F TTL')
+        t_loss = rig.clock.t + 0.105
+        self.lose_host_lines(rig, t_loss, t_loss + 0.5)
+        self.keep_driving(rig, reply, t_loss + 0.6)
+        latch = rig.core.latches['mcu_ttl_expired']
+        self.assertIn('status line TTL bit', latch['detail'])
+        self.assertEqual(rig.core.counters['mcu_fault_TTL'], 0)
+        self.assertIsNone(rig.core.control.lease)
+        self.assertEqual(c_lines(rig, latch['since'] - 1e-9), [])
+
+    def test_ttl_at_the_end_of_the_input_deadline_does_not_latch(self):
+        # throttle 0 at standstill: the lease is kept past the input deadline (no C resend), the MCU C TTL ends the
+        # command (HOST_BRIDGE_V3_KO.md 2, spec 6.3): no latch, the lease stays
+        rig, reply = self.driving(throttle=0)
+        rig.run(1.2)
+        self.assertGreaterEqual(rig.core.counters['mcu_fault_TTL'], 1)
+        self.assertGreaterEqual(rig.core.counters['ttl_expected'], 1)
+        self.assertNotIn('mcu_ttl_expired', rig.core.latches)
+        self.assertIsNotNone(rig.core.control.lease)
+        reply = rig.submit(drive(reply, 30, 100))                            # the operator drives on: no re-arm
+        self.assertTrue(reply['ok'])
+        rig.run(0.2)
+        self.assertNotIn('mcu_ttl_expired', rig.core.latches)
+        self.assertGreater(len(c_lines(rig, rig.clock.t - 0.2)), 2)
+
+    def test_a_fresh_request_at_the_deadline_expiry_does_not_latch(self):
+        # the operator drives on in the very step of the deadline expiry (F line read in that step, or 30 ms late):
+        # the request came after the expiry, so the expiry was the host's own deadline
+        for latency_s in (0.0, 0.03):
+            with self.subTest(latency_s=latency_s):
+                rig, reply = self.driving(latency_s=latency_s, throttle=0)
+                mcu = rig.mcu
+
+                def ttl_in_the_next_step():
+                    pending = any(d.startswith(b'C ') for _, d in rig.transport._to_device)
+                    return (not pending and mcu.c_t is not None          # the fake MCU's own TTL expression
+                            and round(rig.clock.t + rig.step_s, 9) - mcu.c_t >= mcu.c_ttl / 1000.0)
+                self.assertTrue(rig.run_until(ttl_in_the_next_step, 1.0))
+                reply = rig.submit(drive(reply, 30, 100))                     # MCU TTL fires in this step
+                self.assertTrue(reply['ok'])
+                self.assertEqual(mcu.ttl_count, 1)
+                rig.run(0.1)
+                self.assertNotIn('mcu_ttl_expired', rig.core.latches)
+                self.assertIsNotNone(rig.core.control.lease)
+                self.assertGreaterEqual(rig.core.counters['ttl_expected'], 1)
+
+    def test_no_lease_no_latch(self):
+        rig, reply = self.driving()
+        rig.submit({'op': 'stop'})
+        rig.run(0.2)
+        rig.mcu.st = 2                                     # a stray TTL line of a device the host does not drive
+        rig.mcu._send(rig.clock.t, 'F TTL 9 %d' % rig.mcu.ms(rig.clock.t))
+        rig.run(0.05)
+        self.assertNotIn('mcu_ttl_expired', rig.core.latches)
+
+
 class RobustnessTest(unittest.TestCase):
     def test_bad_ops_and_defects_never_leave_step(self):
         # 2026-11-09 review: a lease owner sending op as a list ended the wrapper loop (TypeError out of step()).

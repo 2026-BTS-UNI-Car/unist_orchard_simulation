@@ -18,8 +18,14 @@ snapshot after each tick. On top of that:
   * host faults latched until an operator re-arm: steering_status_stale, mcu_reset_detected, calibration_mismatch,
     hardware_profile_mismatch, sim_identity_mismatch, steering_not_following, steering_ineffective,
     status_seq_gap, stop_unconfirmed, mcu_disarmed, mcu_state_mismatch, c_rejected, hardware_fault, arm_rejected,
-    arm_unconfirmed, internal_error. The re-arm clears them only when the MCU confirms the ARM (st ARMED); a refused
-    or unconfirmed ARM keeps them
+    arm_unconfirmed, internal_error, mcu_ttl_expired. The re-arm clears them only when the MCU confirms the ARM
+    (st ARMED); a refused or unconfirmed ARM keeps them
+  * C TTL latch (DECISIONS R18 decision 1): an MCU C TTL expiry (an F TTL line, or the TTL bit of an ARMED status
+    line) while the host holds a lease and still had a valid operator input when the MCU's last C ran out (C lines
+    were lost or late) stops at once and latches mcu_ttl_expired: no further C line until an operator re-arm, so the
+    next C can never restart the drive 120 ms after the TTL brake (spec 6.3, 8.2) without the operator. The TTL at the
+    end of the host's own input deadline (throttle 0 at standstill: lease kept, no C resend, spec 6.3) is the expected
+    end of the command and does not latch
   * transport errors never escape step(): they latch hardware_fault, close the link and reopen it later
     (no automatic re-arm). Any other exception in a step or a request latches internal_error and stops
   * op motion: the lease holder (the executor) gives sensor-derived motion samples (gyro yaw rate, estimated
@@ -47,11 +53,18 @@ STEER_STATE_SCHEMA = 'ubts.steer_state.v1'
 MOTION_FRESH_S = 0.2          # steering_ineffective needs a motion sample at most this old [proposal]
 MOTION_LIMITS = (10.0, 10.0)  # op motion: |yaw_rate_rad_s|, |speed_m_s| at most these (a sanity range) [proposal]
 
-# Host latch names (cleared only by an operator re-arm whose preconditions pass).
+# Host latch names (cleared only by an operator re-arm whose preconditions pass). New names go at the end (the T1 rig
+# trace keeps one bit per name in this order).
 LATCH_NAMES = ('steering_status_stale', 'mcu_reset_detected', 'calibration_mismatch', 'hardware_profile_mismatch',
                'sim_identity_mismatch', 'steering_not_following', 'steering_ineffective', 'status_seq_gap',
                'stop_unconfirmed', 'mcu_disarmed', 'mcu_state_mismatch', 'c_rejected', 'hardware_fault',
-               'arm_rejected', 'arm_unconfirmed', 'internal_error')
+               'arm_rejected', 'arm_unconfirmed', 'internal_error', 'mcu_ttl_expired')
+TTL_BIT = 0x0800                       # fl TTL (spec 5.3): set by a C TTL expiry, cleared by the next C or DISARMED
+# mcu_ttl_expired (R18 decision 1): the operator input deadline the host had TTL_INPUT_LAG_S before it read the TTL
+# event decides whether the expiry was the host's own (deadline passed: no latch) or lost / late C lines (latch). The lag
+# keeps a fresh request that the host answered between the MCU's expiry and the read of its F line (line time, USB
+# latency, one loop period: about 35 ms at most) from turning the expected deadline TTL into a latch [proposal].
+TTL_INPUT_LAG_S = 0.05
 # Error codes the steer bridge adds to the RoverControl / Bridge ones (design 4.2 list first).
 ERROR_CODES = ('firmware_v3_required', 'steering_uncalibrated', 'calibration_mismatch', 'hardware_profile_mismatch',
                'polarity_check_missing', 'steer_profile_required', 'differential_command_rejected',
@@ -394,6 +407,9 @@ class SteerBridgeCore:
         self._banner_wanted = False   # an MCU reset was seen in the status lines, the new banner is not here yet
         self._next_info_t = None
         self._clear_on_confirm = False   # an operator re-arm clears the latches when the MCU confirms the ARM
+        # (poll time, operator input deadline or None without a lease) of the recent link polls: the reference of the
+        # mcu_ttl_expired rule (R18 decision 1, _ttl_event)
+        self._input_history = collections.deque(maxlen=16)
 
     # -- requests (same rules as the V2 Bridge)
     def submit(self, request):
@@ -617,6 +633,7 @@ class SteerBridgeCore:
         self._banner_wanted = False
         self._next_info_t = None
         self._clear_on_confirm = False
+        self._input_history.clear()
 
     def _want_banner(self, now):
         """After an MCU reset seen only in the status lines (ms went back, n restarted), the boot banner may have
@@ -699,6 +716,9 @@ class SteerBridgeCore:
         link = self.link
         if link.state == 'closed':
             return
+        # the operator input deadline as this poll sees it, before this step answers a request (_ttl_event)
+        control = self.control
+        self._input_history.append((self.clock(), control.input_until if control.lease else None))
         for event in link.poll():
             kind = event['type']
             if kind == 'link_error':
@@ -800,6 +820,9 @@ class SteerBridgeCore:
         if s['st'] != 1 and not self.control.lease and self._arm_pending_t is None and self._stop is None:
             self._latch('mcu_state_mismatch', 'MCU %s without a host lease' % s['state'])
             self._assert_stop('mcu_state_mismatch')
+        if s['st'] == 2 and s['fl'] & TTL_BIT:
+            # the F TTL line itself may be lost; the bit stays in the ARMED status lines until a C reaches the MCU
+            self._ttl_event(t, 'status line TTL bit', count=False)
         if self._hold is not None and not s['en'] & 2 and t > self._hold[0]:
             self._hold = None   # the MCU ended the HOLD (steering EN 0)
         self._track_monitor(t, s)
@@ -839,12 +862,47 @@ class SteerBridgeCore:
         self.counters['mcu_fault_' + line['code']] += 1
         if line['code'] == 'TTL':
             self._stop_mode = 'brake' if self.hp.ttl_expiry_drive_mode == 'brake' else 'release'
+            self._ttl_event(event['t'], 'F TTL line')
         elif line['code'] == 'CRC':
             self._stop_mode = 'brake'
             self._hold = (event['t'], self.hp.hold_s['loss'])
         elif line['code'] != 'NOCAL':
             self._stop_mode = 'release' if line['code'] == 'THERMAL' else 'brake'
             self._hold = None
+
+    def _ttl_reference(self, t):
+        """The operator input deadline (None: no lease) of the latest poll at least TTL_INPUT_LAG_S before t; the
+        oldest poll kept when none is that old; None when no poll is kept."""
+        limit = t - TTL_INPUT_LAG_S + self.TIME_EPS_S
+        for poll_t, until in reversed(self._input_history):
+            if poll_t <= limit:
+                return until
+        return self._input_history[0][1] if self._input_history else None
+
+    def _ttl_event(self, t, source, count=True):
+        """An MCU C TTL expiry seen at t (an F TTL line, or the TTL bit of an ARMED status line).
+
+        DECISIONS R18 decision 1: with a lease and a confirmed ARM, an expiry the host did not cause stops at once and
+        latches mcu_ttl_expired; the lease goes with the stop, so no C line leaves the host until an operator re-arm
+        and the next C cannot restart the drive after the TTL brake (spec 6.3: a new C clears TTL and drives again
+        after the 120 ms rest of 8.2). 'Did not cause': the operator input was still valid TTL_INPUT_LAG_S before
+        this read (the host would have sent C lines: they were lost or late). An expiry at the end of the host's own
+        input deadline (the lease kept at throttle 0, spec 6.3, HOST_BRIDGE_V3_KO.md 2) is the expected end of the
+        command: counted (ttl_expected), not latched. No reference (no lease at that poll: the lease is newer than
+        the lag, so this ARM's C lines cannot have run out yet) is not the expected end: it latches."""
+        control = self.control
+        if not (control.lease and self._arm_confirmed):
+            return
+        until = self._ttl_reference(t)
+        if until is not None and until <= t + self.TIME_EPS_S:
+            if count:
+                self.counters['ttl_expected'] += 1
+            return
+        valid = 'an unknown time' if until is None else '%d ms' % int(round((until - t) * 1000.0))
+        self._latch('mcu_ttl_expired', '%s while the operator input was valid for %s more (C lines lost or late)'
+                    % (source, valid))
+        self.last_error = 'mcu_ttl_expired'
+        self._stop_control('mcu_ttl_expired')
 
     def _on_watchdog(self, event):
         self.mcu_events.append(dict(t=event['t'], kind='W', ms=event['line']['ms']))

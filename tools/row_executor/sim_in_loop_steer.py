@@ -25,7 +25,9 @@ the page STOP), release (the operator lets the hold go: deadman loss), hold_lost
 the hold times out), press, end, ack, arm, start, executor_stall (no executor tick for duration_s), client2_arm /
 client2_drive / client2_stop (a second screen or the CLI on the same bridge), late_drive (a STOP and, queued right
 after it, a drive with the executor's lease: 09-19 'late drive after STOP').
-Rig faults: episode spec 'faults' [{kind, at_s, params}] (t1_rig RigFault; model faults at construction).
+Rig faults: episode spec 'faults' [{kind, at_s, params}] (t1_rig RigFault; model faults at construction). The rig fault
+executor_stall (params duration_s, after None or 'f_ttl', delay_s) stops the executor ticks here while the rig says so
+(rig.executor_stalled()); with after 'f_ttl' the window starts when an F TTL line reaches the host (+ delay_s).
 Truth isolation (A13): the executor and the client see only RigClient replies, the rig clock and the converted sensor
 messages; the trace's truth_* columns and the MCU channels are written by the rig / this harness for evaluation only.
 Outputs (write()): TRACE.npz (the rig trace with truth_hold_position_rad: the MCU filtered potentiometer position, the
@@ -83,6 +85,7 @@ PRESS_AT_S = 1.2
 REPRESS_WAIT_S = .3
 MAX_REPRESSES = 20
 OWNER = 'row-executor:sim'
+SIM_SOCKET = '/run/ubts-steer/control.sock'   # the SIM control socket (T1 talks to the rig, the path binds the role)
 STATE_CODES = {XCORE.IDLE: 0, XCORE.PAUSED: 1, XCORE.ACTIVE: 2, XCORE.ENDED: 3}
 CTRL_COLUMNS = ('ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold', 'ctrl_steer_required',
                 'ctrl_steer_age_s')
@@ -121,7 +124,7 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
         steer_range_measured=True, steer_wheel_soft_margin_deg=float(value('steer_soft_margin_deg')),
         steer_min_pwm_pct=float(value('steer_min_pwm_pct')), steer_zero_offset_deg=0.,
         steer_servo_deadband_deg=float(value('servo_deadband_deg')), steer_polarity_checked=True,
-        steer_cal_id=int(rig.config.cal_id), steer_allow_sim=True,
+        steer_cal_id=int(rig.config.cal_id), steer_allow_sim=True, socket_path=SIM_SOCKET,
         steer_rotation_centre_x_m=float(value('rear_axle_x_in_base_m')),
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')))
@@ -199,16 +202,23 @@ def imu_message(packet):
 
 class RigSocket:
     """The executor's transport in T1: the RigClient's requests; a request while the rig has no bridge process
-    (bridge_restart) raises the socket transport's TransportError, like UnixSocketTransport on a refused connection."""
+    (bridge_restart) raises the socket transport's TransportError, like UnixSocketTransport on a refused connection.
+    on_motion(t, yaw_rate_rad_s, speed_m_s): called with every op motion sample the bridge accepted (evaluation of the
+    host steering_ineffective time; the executor never sees it)."""
 
-    def __init__(self, client):
+    def __init__(self, client, on_motion=None):
         self._client = client
+        self._on_motion = on_motion
 
     def __call__(self, request):
         try:
-            return self._client(request)
+            reply = self._client(request)
         except TR.BridgeUnavailable as exc:
             raise TransportError('socket_error:%s' % exc) from None
+        if (self._on_motion is not None and isinstance(request, dict) and request.get('op') == 'motion'
+                and isinstance(reply, dict) and reply.get('ok') is True):
+            self._on_motion(request.get('yaw_rate_rad_s'), request.get('speed_m_s'))
+        return reply
 
 
 # --- the facade ------------------------------------------------------------------------------------------------------
@@ -221,7 +231,9 @@ class SteerExecutorInTheLoop:
         self.cfg = cfg
         self.controller_spec = dict(controller_spec)
         self.client = rig.client(OWNER)
-        self.socket = RigSocket(self.client)
+        self.motion_log = []             # (t, yaw rate, speed) of the op motion samples the bridge took (evaluation)
+        self.socket = RigSocket(self.client, on_motion=lambda yaw, speed: self.motion_log.append(
+            (round(rig.now, 4), float(yaw), float(speed))))
         self.log = CaptureLog()
         factory = SCRIPT.make_factory(self.controller_spec, cfg)
         self.executor = XM.ExecutorLoop(
@@ -248,6 +260,7 @@ class SteerExecutorInTheLoop:
         self.press_ignored = 0
         self.beating = True
         self.stall_until_ms = None
+        self.rig_stalled_ticks = 0       # ticks skipped by the rig fault executor_stall
         self.next_tick_ms = 0
         self.ticks = 0
         self.skipped_ticks = 0
@@ -454,6 +467,11 @@ class SteerExecutorInTheLoop:
             self.skipped_ticks += 1
             return None
         self.stall_until_ms = None
+        if rig.executor_stalled():
+            # rig fault executor_stall (e.g. right after an F TTL line: the window of DECISIONS R18 decision 1)
+            self.skipped_ticks += 1
+            self.rig_stalled_ticks += 1
+            return None
         t0 = time.perf_counter()
         inner0 = self._inner_s
         self._feed_sensors()
@@ -534,6 +552,8 @@ class SteerExecutorInTheLoop:
             bridge_counts=None if bridge is None else dict(bridge.counts), executor_counts=dict(executor.counts),
             steer_feedback_fed=None if runner.steer_monitor is None else runner.steer_monitor.fed,
             ticks=self.ticks, skipped_ticks=self.skipped_ticks, inputs=dict(self.input_counts),
+            executor_stall=dict(rig_stalled_ticks=self.rig_stalled_ticks,
+                                windows_ms=[list(w) for w in getattr(self.rig, 'executor_stall_windows', ())]),
             events=[list(e) for e in self.events], client2=self.client2_replies,
             host_latches=[list(item) for item in self.latch_log],
             late_drive=[dict(t=item['t'], reply=dict((k, item.get('reply', {}).get(k)) for k in ('ok', 'error')))
