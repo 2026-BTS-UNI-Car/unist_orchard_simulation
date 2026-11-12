@@ -50,4 +50,22 @@
 
 ## 6. 시험
 
-`python -B -m pytest -p no:cacheprovider sim/ubts/test_steering_stack.py`(또는 unittest). 8개: 프로젝트 이름 규칙, 자기 프로젝트의 up·run·down(예산 라벨, 10분 대기, `-p`, `down -t 20`, `-v` 없음, 영수증), 한 번에 하나, 남의 스택을 내리거나 쓰지 못함(잠금이 없을 때도), 다른 조향 프로젝트 컨테이너가 돌면 거절, 예산 시간 초과면 아무것도 올리지 않음, 표시 파일과 부하 확인 기록, 내린 뒤 남은 것이 있으면 잠금 유지. Docker를 쓰지 않는다.
+`python -B -m pytest -p no:cacheprovider sim/ubts/test_steering_stack.py`(또는 unittest). 9개: 프로젝트 이름 규칙, 자기 프로젝트의 up·run·down(예산 라벨, 10분 대기, `-p`, `down -t 20`, `-v` 없음, 영수증), 한 번에 하나, 남의 스택을 내리거나 쓰지 못함(잠금이 없을 때도), 다른 조향 프로젝트 컨테이너가 돌면 거절, 예산 시간 초과면 아무것도 올리지 않음, 표시 파일과 부하 확인 기록, 내린 뒤 남은 것이 있으면 잠금 유지, override 파일(`--override`)이 `up`·`run`·`down`에 같이 쓰임. Docker를 쓰지 않는다.
+
+## 7. 기본 이미지, override, 그림·영상 갈무리 (2026-11-12 ST-05)
+
+- compose 기본 이미지는 `ubts-steer-sim:wf4b`다(실행기 패키지와 S2 형식 노드 포함). 그냥 `up`이면 `/scan`(실차 형식)이 나온다. 실행기는 `--profile executor`로 켠다. 측정 결과는 `S2_NODE_EXEC_KO.md` 7절.
+- `stack.py up --override <파일>`(여러 번 가능)은 compose override 파일을 스택 파일 뒤에 더한다. 잠금 파일에 남아 `run`·`ps`·`down`이 같은 파일을 쓴다. 쓰는 곳: 검사 컨테이너에만 고친 검사 코드 스냅숏을 붙일 때, field1010 장면의 지도·목록을 sim에 읽기 전용으로 붙일 때.
+- 그림과 영상은 돌고 있는 스택에서 `tools/steer_sim/capture_media.py`로 갈무리한다(스택을 올리거나 내리지 않는다). 문서에 넣는 파일은 `docs/steering/figures/`에 두고 캡션에 '자리값 기반 SIM 결과'를 적는다.
+
+```
+# 차량 카메라 프레임(sim 컨테이너의 카메라 WebSocket), 영상, 한 장
+python -I tools/steer_sim/capture_media.py camera --project ubts-steer-<작업> --seconds 70 --out <기록>/media/cam
+python -I tools/steer_sim/capture_media.py clip --frames <기록>/media/cam --out <파일>.mp4 --every 2 --max-mb 5
+python -I tools/steer_sim/capture_media.py still --frames <기록>/media/cam --index 40 --out <파일>.png
+# 대시보드 rover-control 화면(대시보드 서비스가 켜진 스택, 이 PC의 playwright와 Chrome)
+python -I tools/steer_sim/capture_media.py page --out <파일>.png --wait-s 12
+```
+
+- 개요(Overview) 화면에는 PC 주소가 보인다. rover-control 화면만 갈무리하고, 넣기 전에 사용자 이름·주소·좌표가 없는지 눈으로 본다.
+- 실행기와 검사를 같이 쓰는 스택(대시보드 없음)에서는 화면 갈무리를 할 수 없다. 화면은 기본 스택에서, 주행 영상은 실행기 스택에서 따로 갈무리한다.

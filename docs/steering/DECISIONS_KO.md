@@ -378,7 +378,7 @@
   1. conf_fu: 적합성 후속, 확정(R21).
   2. p4_gaps: 실행기 쪽 빈틈, 마무리했다(`EXECUTOR_STEER_KO.md` 12절). 식별 쪽 편집은 아직이다(A18 실행 필요).
   3. g_gaps: G-SIM 쪽 빈틈. Docker 검증 전(`P6A_HEADLESS_KO.md` 16절). 자르기 노드의 빠른 경로(`scan_unobserved_clip.py`, `raster_ops.py`의 해당 부분)는 떼어 저장소 밖 패치로 보류했다(ST-04 조건: `test_field_world`와 A7 재측정 통과).
-  4. s2exec: S2 형식 노드와 실행기 컨테이너. Docker 검증 전(`S2_NODE_EXEC_KO.md`).
+  4. s2exec: S2 형식 노드와 실행기 컨테이너. Docker 검증 전(`S2_NODE_EXEC_KO.md`). 2026-11-12 ST-05: 새 이미지 `ubts-steer-sim:wf4b`(compose 기본)에서 스택 측정을 했다. 통과한 것과 남은 것은 그 문서 7·10절.
   5. record: 조향 사이드카 기록과 별도 bag. Docker 검증 전(`STEER_RECORDING_KO.md`).
   6. ui: 계획 결정 13대로 조종 규칙과 그 시험만 남겼다(`dashboard/static/steer-control-rules.js`, `test_steer_control_rules.mjs`, A14 옛 화면 검사와 요청 계약 `test_steering_ui_routes.py`). 화면(HTML, CSS, 표시 모형, 위쪽 그림), SIM 표시 피드(`steer_state_feed.py`)와 그 시험, 표시 시험 6개는 저장소에 넣지 않았다(저장소 밖 `held/ui_screen_draft/`와 원래 묶음에 바이트 그대로 있다). 새 조향 화면은 대시보드 저장소에서 이 규칙 위에 만든다. 화면 문구 '이 차량은 조향 화면만 쓴다'(A14 화면 쪽)도 그쪽 몫이다.
 - 두 작업에 걸친 파일: `test_steering_gz_model.py`(g_gaps 소유)의 바뀐 줄은 s2exec의 Dockerfile 변경 때문이라 s2exec 묶음에 넣었다. 그 밖에는 한 파일이 두 작업에 걸치지 않았다.

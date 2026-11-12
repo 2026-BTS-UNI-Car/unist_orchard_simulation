@@ -5,7 +5,7 @@
 - 합격 기준: `SIM_ACCEPTANCE_KO.md` A5, A13(개정 11), A17(7.2.1, 개정 4·7·10), A19(G, 개정 17). 기준은 바꾸지 않았다.
 - 모든 값은 자리값 프로필 v0.1(`front_steer_v0_1_placeholder`)에서 온다. 결과는 **자리값 기반 SIM 결과**다. 현장 검증이 아니다. 이 문서에는 GNSS 좌표, 지도 원점, 실제 기록의 궤적 절대값이 없다.
 - 이 단계의 스택 측정은 개발 값이다. 시간 민감 판정(실차 시계 A17 STOP, A10 W2)은 R20대로 다른 단계가 돌지 않는 최종 자격 검사에서 다시 한다.
-- **Docker 검증 전(2026-11-12).** 4단계 작업 흐름이 2026-11-09에 멈췄을 때 이 단계는 스택 측정 중이었다. 그 변경을 새 저장소로 옮겼고(`DECISIONS_KO.md` R22) Docker 없이 도는 시험(`test_steering_s2_node.py`, `test_steering_exec_container.py`, `test_steering_gz_model.py`, `test_steering_truth_isolation.py`)만 확인했다. 7~12절은 스택 측정(ST-05) 뒤에 채운다. compose 기본 이미지는 아직 `ubts-steer-sim:p6a`(실행기 패키지 없음)이고, 새 이미지는 ST-05가 커밋한 트리로 만든다. 스택을 올리고 내리는 규칙은 `STACK_OPERATIONS_KO.md`다.
+- **스택 측정(ST-05, 2026-11-12).** 새 이미지 `ubts-steer-sim:wf4a`(커밋 3289d16)와 `ubts-steer-sim:wf4b`(커밋 c2b1941)를 만들었다. 둘 다 실행기 패키지와 S2 형식 노드가 들어 있다. compose 기본 이미지는 `ubts-steer-sim:wf4b`다. 실행기 컨테이너와 S2 형식 노드가 스택에서 도는 것, `/scan`이 실차 형식으로 나오는 것, 대본 제어기 run 하나가 실행기를 거쳐 끝나는 것을 확인했다. 측정한 값은 7절, 남은 것은 10절이다. 스택을 올리고 내리는 규칙은 `STACK_OPERATIONS_KO.md`다.
 
 ## 1. 요약
 
@@ -13,7 +13,7 @@
 2. 실행기 컨테이너 `sim/ubts/steering/exec_container_main.py`와 compose 서비스 `executor`(프로필 `executor`)를 만들었다. 실제 실행기(`tools/row_executor`)가 대본 제어기를 슬롯에 넣고 MOTOR 모드로 돈다. 제어 소켓만으로 브리지와 말한다. `--clock wall|sim` 두 모드가 있다.
 3. 감독기(`supervisor_steer.py`)에 S2 노드 준비 확인, 옛 상태 파일 정리(감사 G06), steer 역할의 브리지 신호 걸이를 더했다.
 4. 검사 모듈 `sim/ubts/steering/exec_checks.py`를 만들었다: A13(G) 실행기 구독, A5(G) `/scan`·IMU·카메라·가상 GPS, W2 감지 사슬, A17(G) 실행기 고리 대본 22개.
-5. `docker/Dockerfile.ubts-steer`가 `tools/row_executor`를 복사하고 새 모듈을 import해 본다. 새 이미지는 만들지 않았다(이미지 ID 상한은 통합 단계 몫). 이 단계의 스택은 `ubts-steer-sim:p6a`에 스냅숏 소스를 읽기 전용으로 붙여 돌렸다(9절).
+5. `docker/Dockerfile.ubts-steer`가 `tools/row_executor`를 복사하고 새 모듈을 import해 본다. 새 이미지는 ST-05(2026-11-12)에서 만들었다(9절). 2026-11-09의 개발 스택은 `ubts-steer-sim:p6a`에 스냅숏 소스를 읽기 전용으로 붙여 돌렸다.
 
 ## 2. S2 형식 노드
 
@@ -73,7 +73,7 @@
 | 항목 | 값 |
 |---|---|
 | compose 서비스 | `executor`, 프로필 `executor`(그냥 `up`으로는 켜지지 않는다) |
-| 이미지 | 같은 기반 이미지(`UBTS_STEER_IMAGE`). WF-4 Dockerfile이 `tools/row_executor`를 `/opt/ubts/tools/row_executor`로 복사한다. p6a 이미지에는 없어 override로 붙인다 |
+| 이미지 | 같은 기반 이미지(`UBTS_STEER_IMAGE`). Dockerfile이 `tools/row_executor`를 `/opt/ubts/tools/row_executor`로 복사한다. `wf4a`부터 이미지에 들어 있다(p6a에는 없다) |
 | 네트워크·IPC | `service:sim`(ROS 도메인 43, FastDDS 공유 메모리, sim 네트워크 이름공간의 127.0.0.1) |
 | 볼륨 | `control:/run/ubts-steer`만. runtime 볼륨(SIM 상태·참값 파일)과 에뮬레이터 hooks 볼륨은 붙이지 않는다 |
 | 메모리·CPU | 512m, 1.5 CPU |
@@ -137,22 +137,47 @@ python3 -B -m steering.exec_container_main --clock wall|sim [--controller JSON] 
     [--skip-source-check] [--max-runtime-s S]
 ```
 
-## 5. compose 사용법
+## 5. 쓰는 법
+
+### 5.1 스택 올리기와 내리기
+
+- 기본 이미지는 `ubts-steer-sim:wf4b`다(`UBTS_STEER_IMAGE`로 바꾼다). 이 이미지에는 실행기 패키지와 S2 형식 노드가 있다.
+- 그냥 `up`(프로필 없음)은 sim, steer, recorder, dashboard를 켠다. S2 형식 노드는 sim 안에서 기본으로 돈다. 그래서 `/scan`(실차 형식)이 나오고 대시보드 LiDAR 패널에 스캔이 보인다(7.6절). 끄려면 `UBTS_STEER_S2_NODE=none`.
+- 실행기는 프로필 `executor`를 줘야 켜진다. 다른 override 파일이나 환경 변수는 필요 없다.
+- 측정 작업은 `tools/steer_sim/stack.py`로 올리고 내린다(프로젝트 이름 `ubts-steer-<작업>`, 예산 예약, 잠금; `STACK_OPERATIONS_KO.md`).
 
 ```
-python -I <tools>/docker_budget.py acquire --label <표지> --gib 6
-# 전체 스택(6.0 GiB): sim, dashboard, steer, recorder, executor
-docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor up -d
 # 실행기와 검사(5.5 GiB): 대시보드 없이
-docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor up -d sim steer recorder executor
-docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor run --rm --no-deps check \
-    python3 -B -m steering.exec_checks <검사> --out /runs/<폴더>
-docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor down -t 20     # -v 없이
-python -I <tools>/docker_budget.py release --label <표지>
+python -I tools/steer_sim/stack.py up --project ubts-steer-<작업> --profile executor sim steer recorder executor
+python -I tools/steer_sim/stack.py run --project ubts-steer-<작업> -- python3 -B -m steering.exec_checks <검사> --out /runs/<폴더>
+python -I tools/steer_sim/stack.py down --project ubts-steer-<작업> --receipt <영수증.json>      # -v 없이
 ```
 
-- `run`에는 `--no-deps`와 `up` 때와 같은 환경 값을 쓴다(P6A 6절).
-- p6a 이미지에는 `tools/row_executor`가 없다. 새 이미지 전까지는 override로 `/opt/ubts/tools/row_executor`(그리고 커밋할 `sim/ubts`, `dashboard/scripts`)를 읽기 전용으로 붙인다(9절).
+- 환경: `UBTS_STEER_SCENE`(w0_force | w1_force | field1010), `UBTS_STEER_CLOCK`(wall | sim), `UBTS_STEER_RUNS_DIR`(검사 컨테이너의 `/runs`), `UBTS_STEER_BUDGET_TOOL`, `UBTS_STEER_STACK_STATE`. `up` 때의 값이 잠금 파일에 남고 `run`·`down`이 그대로 쓴다.
+- 손으로 볼 때(사용자의 로컬 보기 스택, 프로젝트 `ubts-steer`): `docker compose -p ubts-steer -f compose.ubts-steer.yaml up -d`. 실행기까지는 `--profile executor up -d`(6.0 GiB, 검사 컨테이너 자리는 없다).
+
+### 5.2 제어기를 고르는 법
+
+- 실행기 컨테이너의 주 모듈은 `steering.exec_container_main`이다. Runner의 `controller_factory`는 `ControllerSlot(spec, cfg)`이고, 이 슬롯은 `steering.scripted_control.make_factory(spec, executor_cfg)`가 돌려준 무인자 공장을 재개마다 부른다.
+- spec은 JSON 객체 `{"kind": ..., ...}`다. kind는 `scripted_control.KINDS`의 `straight_hold`, `segments`, `hold_still` 셋이다. 기본은 `{"kind": "straight_hold", "drive_pct": 40, "distance_m": 8.0}`.
+- spec을 주는 길은 셋이다.
+  1. 컨테이너 시작 때: 환경 변수 `UBTS_STEER_EXEC_CONTROLLER`(JSON 글 또는 파일 경로. compose가 executor 서비스에 넘긴다) 또는 명령줄 `--controller`.
+  2. run 사이: SIM 걸이 소켓 `/run/ubts-steer/exec/hooks.sock`의 `{"op": "controller", "spec": {...}}`(ACTIVE 중에는 거부). `exec_checks`의 `start_drive`가 이 길을 쓴다.
+  3. 검사 명령: `steering.exec_checks drive --controller '<JSON>'`(안에서 2번을 부른다).
+- 제어기 객체가 갖춰야 하는 것(`scripted_control._Base`와 같다): `step(t, s)`가 `SteerCommand(state, reason, throttle, steer_mrad)`(속성 `left`, `right` = throttle)를 돌려준다. `t`는 재개 뒤 시간(s), `s`는 실행기 스냅숏(dict)이다. 그리고 `current_phase()`, `telemetry()`, 속성 `state`, `reason`, `pending`, `counts`, `phase_events`.
+- 행 추종 제어기를 넣을 때: `scripted_control.KINDS`와 `make_factory`에 kind를 하나 더하거나(예 `row_follow`), `ControllerSlot.set`이 다른 공장을 고르게 한다. 그 뒤 새 이미지를 만든다(9.3절). 지금은 대본 제어기만 있다.
+
+### 5.3 run을 밖에서 시작하고 멈추는 법
+
+- 지금 있는 길은 실행기의 운영자 페이지(`operator_http`, sim 네트워크 이름공간의 127.0.0.1:8097)다. 토큰은 `/run/ubts-steer/exec/log/operator_token.txt`(control 볼륨, 0600)에 있다. 대시보드 컨테이너에서는 닿지 않는다. 설계 v2 R32의 '한 번 눌러 시작'은 아직 없다(누르고 있는 동안만 달리는 hold-to-run이다).
+- 순서(`exec_checks.start_drive`): `POST /api/start {"row_len_m": null}` → 브리지가 arm 받을 준비가 될 때까지 기다림 → `POST /api/arm` → 누름 시작과 심장 박동 `POST /api/hold`(약 100 ms마다) → Runner가 ACTIVE.
+- 멈춤: 누름을 놓으면(`POST /api/release` 또는 박동이 끊김) PAUSED, `POST /api/stop`은 운영자 STOP(래치, `POST /api/ack`로 풂), `POST /api/end`는 run 끝. 제어기가 스스로 끝내면(예 `script_distance`) ENDED가 된다.
+- 끝난 run은 차가 설 때까지 또는 `terminal_stop_wait_s`(1.5 s) 동안 임대를 쥐고 있다가 스스로 STOP을 보낸다. 다음 Start는 그 뒤에 한다(`exec_checks.ensure_idle`이 기다린다).
+- 검사 컨테이너에서 한 번에 하는 명령이 `steering.exec_checks drive`다(Start, Arm, 누름, 끝날 때까지 기다림, 결과 `EXEC_DRIVE.json`).
+
+```
+python -I tools/steer_sim/stack.py run --project ubts-steer-<작업> -- python3 -B -m steering.exec_checks drive \n    --out /runs/drive --distance 8 [--controller '<JSON>']
+```
 
 ## 6. 검사 (`exec_checks.py`)
 
@@ -166,26 +191,209 @@ python -I <tools>/docker_budget.py release --label <표지>
 | `safety` | A17(G) 실행기 고리 대본 22개(7절 표). 항목마다 측정값과 등록 기준. 실차 시계에서는 대본마다 A10 유효성(개정 10). 몰아 받은 A19(G) 정상 대본 오검출 |
 | `drive` | 대본 제어기 run 하나와 실행기의 입력 수용(개발) |
 
-## 7. 결과
+## 7. 결과 (ST-05, 2026-11-12)
 
-(작성 중: 스택 측정 뒤 채운다.)
+모두 자리값 기반 SIM 결과다. 현장 검증이 아니다. 기록 폴더는 저장소 밖 `runs/steer_docker_20261112/sessions/<세션>/`이다(이 PC). 호스트 부하 판정은 `STACK_OPERATIONS_KO.md` 2절의 확인이고, '바쁨'인 세션의 시간 값은 개발 값으로만 본다.
+
+### 7.1 세션
+
+| 세션 | 이미지 | 장면 | 시계 | 서비스 | 호스트 부하 | 한 것 |
+|---|---|---|---|---|---|---|
+| `sr11_w0` | wf4a | w0_force | wall | sim, steer, recorder, dashboard | 바쁨(가용 메모리 5,748 MB) | `verify_steer` 통과, P6a 그래프 통과 |
+| `st05_dev1` | wf4a + 작업 트리 검사 코드 | w0_force | wall | sim, steer, recorder, executor | 바쁨(다른 작업의 pytest) | 그래프, `/scan`, IMU, 대본 run |
+| `st05_w0_wall` | wf4a + 검사 코드 | w0_force | wall | sim, steer, recorder, executor | 조용함 | 그래프, `/scan`, IMU, A17(G) 1차 |
+| `st05_w0_wall2` | wf4a + 검사 코드 스냅숏 | w0_force | wall | sim, steer, recorder, executor | 시작 때 조용함, 실행 중 멈춤 있음 | A17(G) 2차(검사 고침 뒤) |
+| `st05_w1_default` | wf4b | w1_force | wall | sim, steer, recorder, dashboard(그냥 `up`) | 바쁨(CPU 51~65 %) | 그래프(실행기 없음), 대시보드 화면, 카메라 프레임 |
+| `st05_w1_exec` | wf4b | w1_force | wall | sim, steer, recorder, executor | 조용함 | 그래프, 표시, 대본 run, 카메라 영상 |
+
+### 7.2 A13(G) 실행기 구독 (개정 11의 R6)
+
+`st05_w0_wall`(wf4a)과 `st05_w1_exec`(wf4b)에서 통과했다. 값은 두 세션이 같다.
+
+| 항목 | 값 | 판정 |
+|---|---|---|
+| 발견 끝남, R1~R5 발견 0 | 0 | 통과 |
+| 실행기 노드 구독(R6) | `/scan`, `/imu/data_raw`, `/rover/control/requested`(와 `/parameter_events`, `/rosout`) | 통과 |
+| 실행기의 참값·금지 토픽 구독 | 0 | 통과 |
+| `/clock` 구독(실차 시계 모드) | 없음 | 통과 |
+| S2 노드 입력 / `/scan` 발행자 | `/sim/scan` 하나 / `ubts_steer_s2_format` 하나 | 통과 |
+
+### 7.3 A5(G)
+
+`/scan`(W0, `st05_w0_wall`, 조용한 호스트): 통과.
+
+| 항목 | 값 | 기준 | 판정 |
+|---|---|---|---|
+| 받은 스캔 | 196 | > 0 | 통과 |
+| 형식(3240빔, 각, frame, 한계, 음수·비유한 없음) | 어긋남 없음 | 없음 | 통과 |
+| 반사 없는 빔 | 스캔마다 3216개 이상, 모두 0.0 | 0.0 | 통과 |
+| 주기(헤더 stamp) | 10.0 Hz, 틈 0 | 10 Hz | 통과 |
+| 주기(수신, 벽시계) | 9.9997 Hz | 보고 | - |
+| F-SIM 변환과 바이트 동일 | 196개 비교, 다름 0 | 다름 0 | 통과 |
+| S2 노드 계수 | 입력 480 = 출력 480, 거부 0, stamp 틈 0 | 같음, 0, 0 | 통과 |
+| `lidar_yaw_offset_deg` | 179.08 | 179.08 | 통과 |
+| W0 기둥(관례 확인) | 기둥 6개, 확인 240번, 가장 큰 오차 0.0288 m | 0.1 m 이하 | 통과 |
+| 정지 거리 잡음 sd | 0.0103 m | 보고 | - |
+
+- 바쁜 호스트(`st05_dev1`)에서는 S2 노드 계수의 stamp 틈이 1이어서 그 한 항목이 실패였다(스캔 218개, 바이트 비교 184개 다름 0, 기둥 132번 0.0249 m, 잡음 0.00999 m). 앞 단계에서 빠진 스캔을 노드가 센 것이다.
+
+IMU(W0, `st05_w0_wall`): 통과. 주기 32.791 Hz(기준 33.0 ±10 %), frame `imu_link`, 자세 미제공(-1), 자이로 잡음 sd 0.002314 / 0.002341 / 0.002263 rad/s(모델 0.002268 ±10 %), 가속도 잡음 sd 0.03729 / 0.03535 / 0.03505 m/s²(모델 0.03607 ±10 %), 기록 중 차 정지.
+
+표시(W1, `st05_w1_exec`, wf4b, 조용한 호스트): 통과. `/camera/image_raw` 640×360, 30.3 Hz(SIM, 기준 30 ±10 %), 카메라 WebSocket의 JPEG 한 장을 640×360으로 해독, 가상 GPS가 0 N 0 E 근처, GPS WebSocket 스냅숏 받음.
+
+### 7.4 A17(G) 실행기 고리 (실차 시계, W0, 개발 값)
+
+- 대본 22개(운영자 STOP 5번 반복은 한 대본)를 두 번 돌렸다. 1차(`st05_w0_wall`)는 검사 코드 결함(8절 1) 때문에 대본 15개가 시작하지 못했다. 2차(`st05_w0_wall2`)는 고친 검사 코드로 돌렸다.
+- 2차 결과: 항목 26개(운영자 STOP 5개 포함) 가운데 통과 16, 실패 3, 무효 7. 전체 판정은 통과가 아니다.
+- 2차 실행 중 호스트가 여러 번 멈췄다: 에뮬레이터 `/clock` 벽시계 틈이 100 ms를 넘은 것이 14번, 가장 긴 틈 1.72 s, RTF 창 47개 중 1개가 0.9 미만(중앙값 1.000, 최소 0.881). 무효 7개는 A10 유효성 규칙(개정 10)이 그 틈 때문에 낸 것이다.
+
+운영자 STOP(5번, 모두 통과):
+
+| 항목 | 1차(조용한 호스트) | 2차 | 기준 |
+|---|---|---|---|
+| STOP 요청 → STOP 바이트 | 1.2 ~ 14.8 ms | 3.5 ~ 18.2 ms | 20 ms 이하 |
+| STOP 바이트 → 호스트 확인 | 20.5 ~ 60.7 ms | 40.4 ~ 60.8 ms | 100 ms 이하 |
+| MCU STOP → 구동 0 | 0 틱 | 0 틱 | 2 틱 이하 |
+| 조향 유지 오차 | 0.14 ~ 0.39° | 0.18 ~ 0.30° | max(1°, 2 × 불감대) 이하 |
+| 자동 재시작 | 0 | 0 | 0 |
+
+2차의 나머지:
+
+| 판정 | 대본 |
+|---|---|
+| 통과 | `deadman_release`, `hold_lost`, `link_watchdog`, `steering_status_loss`, `second_screen_and_cli`, `mcu_reset`, `usb_unplug`, `half_frame`, `crc_one_line`, `bridge_stall`, `bridge_forced_kill` |
+| 실패 | `executor_freeze`, `executor_forced_kill`: 구동 0·차 정지·자동 재시작 0은 통과했고, `input_expired_after_last_request_s` 값을 검사가 얻지 못했다(null). `stop_unconfirmed`: STOP 다시 보내기가 6번(기준 5번)이고 시각이 20.2, 100.2, 160.3, 200.3, 260.4, 300.4 ms였다(기준 100, 150, 200, 250, 300의 첫 루프 틱). 400.8 ms의 `stop_unconfirmed` 래치는 통과 |
+| 무효(A10 규칙) | `c_ttl_link_returns`, `fault_stop`, `executor_loop_stall`, `crc_burst`, `range_error`, `output_guard`, `system_time_change` |
+
+- 1차에서 본 것: `system_time_change`, `bridge_stall`, `bridge_forced_kill` 통과. `output_guard`는 종료 사유(`guard_violation:steer_rate_above_limit`)와 래치는 맞았고 `violating_target_not_sent`가 실패였다(C 줄의 S 값 0, 55, 107, 144). 이 대본은 2차에서 무효라 다시 판정되지 않았다.
+- 정상 대본 오검출(A19(G) 몫): 0건(정상 SIM 시간 152.6 s). SIM이 만든 멈춤 래치 3건은 규칙대로 따로 셌다.
+- 원인을 가르지 않은 실패 3개와 무효 7개는 조용한 호스트에서 다시 돌려야 한다(10절). 기준은 바꾸지 않았다.
+
+### 7.5 실행기를 거친 대본 run
+
+W1(`st05_w1_exec`, wf4b, 조용한 호스트), 제어기 `{"kind": "straight_hold", "drive_pct": 40, "distance_m": 8.0}`, 명령 `steering.exec_checks drive --out /runs/drive --distance 8`.
+
+| 항목 | 값 |
+|---|---|
+| 끝남 / 사유 | ENDED / `script_distance` |
+| 이동(참값, 평가용) | 8.126 m |
+| SIM 시간 | 29.53 s |
+| 실행기 틱 / 빠뜨린 틱 / 루프 예외 | 2241 / 0 / 0 |
+| 받아들인 스캔 / 버린 스캔 | 927 / 6 |
+| 통로가 유효한 틱 | 626 |
+| 보낸 동작 요청 | 235 |
+| 에뮬레이터 `/clock` 틈(run 동안, 20 ms 넘음) | 0 |
+| Arm | 첫 요청 409(`arm_precheck:steering_fault:steering_status_stale`), 0.65 s 뒤 둘째 요청 200 |
+
+- W0(`st05_dev1`, 바쁜 호스트, 거리 6 m)에서는 run이 거리에서 끝나지 않았다: 100 s 동안 32.85 m를 갔고 Runner 사유는 `hold_dead_reckoning`, 통로가 유효한 틱은 0이었다. W0에는 열이 없다. 검사가 `/api/end`로 끝냈다. 행 추종 확인은 열이 있는 장면(w1_force)에서 한다.
+- 판정 기준이 있는 검사가 아니다(개발 run). 행 추종 제어기는 아직 없다.
+
+### 7.6 기본 스택의 `/scan`과 대시보드 LiDAR 패널
+
+`st05_w1_default`: 프로필과 override 없이 올린 스택(sim, steer, recorder, dashboard), 이미지 wf4b.
+
+- `/scan` 발행자는 `ubts_steer_s2_format` 하나다. S2 노드 상태: running, 3240빔, frame `laser`, 입력 653 = 출력 653, 거부 0(바쁜 호스트라 stamp 틈 2).
+- LiDAR 다리(`lidar_bridge_status.json`): `scan_topic_alive` 참, 마지막 스캔 나이 0.027 s, 점 1583개, frame `laser`.
+- 대시보드 `http://127.0.0.1:18090/rover-control`의 LiDAR 패널에 스캔이 보인다(아래 그림: 900점, Source live). p6a 이미지에는 S2 노드가 없어 `/scan`이 나오지 않는다.
+- 같은 세션의 `exec_checks graph --no-executor`는 실행기 항목 둘(`executor_node_present`, `executor_subscribes_its_inputs`)만 실패했다. 실행기를 켜지 않은 스택이라 그렇다. R1~R5 발견 0, S2 노드 항목은 통과.
+
+### 7.7 그림과 영상
+
+모두 실제 실행에서 갈무리했다(자리값 기반 SIM 결과, 현장 검증 아님). 도구는 `tools/steer_sim/capture_media.py`다.
+
+![조향 G-SIM 대시보드 rover-control 화면](figures/gsim_dashboard_rover_control_w1.png)
+
+그림 1. 자리값 기반 SIM 결과. 기본 스택(이미지 wf4b, 장면 w1_force)의 SIM 대시보드 rover-control 화면. 왼쪽 LiDAR 패널이 실차 형식 `/scan`을, 가운데가 Gazebo 차량 카메라를 보여 준다. 세션 `st05_w1_default`.
+
+```
+python -I tools/steer_sim/capture_media.py page --out <기록>/media/dashboard_rover_control.png --wait-s 12
+```
+
+![열 사이에 선 차량의 카메라](figures/gsim_camera_row_w1.png)
+
+그림 2. 자리값 기반 SIM 결과. 장면 w1_force에서 열 사이에 선 차량의 Gazebo 카메라 한 장(640×360). 아래 파란 띠는 차체다. 세션 `st05_w1_default`.
+
+```
+python -I tools/steer_sim/capture_media.py camera --project ubts-steer-<작업> --seconds 3 --out <기록>/media/cam_static
+python -I tools/steer_sim/capture_media.py still --frames <기록>/media/cam_static --index 40 --out docs/steering/figures/gsim_camera_row_w1.png
+```
+
+영상 1. 자리값 기반 SIM 결과. [figures/gsim_exec_drive_w1.mp4](figures/gsim_exec_drive_w1.mp4)(H.264, 640×360, 18 s, 2.2 MB). 7.5절의 대본 run(실행기를 거친 직진 유지 8 m)을 차량 카메라로 본 것이다. 행 추종 제어가 아니다. 세션 `st05_w1_exec`.
+
+```
+# 대본 run 바로 앞에 시작해 70 s 동안 프레임을 받는다(받은 2085장, 29.8 fps)
+python -I tools/steer_sim/capture_media.py camera --project ubts-steer-<작업> --seconds 70 --out <기록>/media/cam_drive
+python -I tools/steer_sim/capture_media.py clip --frames <기록>/media/cam_drive --out docs/steering/figures/gsim_exec_drive_w1.mp4 --first 240 --last 780 --every 2 --max-mb 5
+```
+
+- 화면 갈무리는 이 PC의 playwright 패키지와 설치된 Chrome을 쓴다(호스트에 딸린 부분). 개요(Overview) 화면에는 PC 주소가 보이므로 rover-control 화면만 갈무리한다.
+- 그림과 영상에 사용자 이름, 주소, 좌표가 없는 것을 눈으로 확인했다.
 
 ## 8. 발견한 것
 
-(작성 중)
+1. `exec_checks.ensure_idle`이 브리지 상태 `armed_manual`을 평범한 상태로 보지 않았고, 끝난 run이 임대를 놓기 전에 다음 대본이 Start를 요청했다(`bridge_still_armed`로 대본 15개가 시작 못 함). 고쳤다: 대본마다 클라이언트가 ARMED를 떠날 때까지 기다린다(시험 `test_ensure_idle_waits_for_the_executor_to_release_the_lease`).
+2. A19(G) 판정 둘(`p6a_checks`): `host_not_following`의 기준 줄을 찾지 못하던 것(래퍼가 코어 단계 뒤에 상태를 내서 래치 줄의 목표가 비어 있다), 감시(watchdog) 사례가 `mcu_disarmed`를 기대하던 것(호스트는 R18 결정 1의 `mcu_ttl_expired`를 낸다)을 고쳤다. 조용한 호스트에서 다시 돌리는 일은 ST-04 몫이다.
+3. 실행기의 첫 Arm 요청이 `steering_status_stale`로 거절되고 0.65 s 뒤 둘째 요청이 받아들여졌다(W0와 W1 run 모두). Start 직후 조향 상태가 아직 신선하지 않은 때다. 한 번 눌러 시작(R32)을 만들 때 볼 것.
+4. W0에서는 `straight_hold`가 거리에서 끝나지 않았다(7.5절). 통로가 없으면 Runner가 `hold_dead_reckoning`에 머문다.
+5. 여러 세션에서 스택 시작 뒤 에뮬레이터의 가장 긴 벽시계 틈이 약 0.34 s로 기록됐다(`clock_wall_gap_max_us_since_start` 336,000 ~ 342,000). 7.5절의 run 동안에는 20 ms를 넘는 틈이 없었다. 원인은 가르지 않았다(ST-04의 멈춤 탐침 `steering.p6a_stall_probe` 몫).
+6. `exec_checks graph --no-executor`는 발견 기대 목록에서만 실행기를 빼고 실행기 항목은 그대로 판정한다(실행기 없는 스택에서 두 항목 실패).
+7. A17(G) 2차의 실패 셋(7.4절): `input_expired_after_last_request_s`를 얻지 못함(둘), `stop_unconfirmed`의 다시 보내기 한 번 더. 검사 쪽 문제인지 동작 문제인지 가르지 않았다.
 
 ## 9. 이미지와 스냅숏
 
-(작성 중)
+### 9.1 이미지
+
+| 태그 | ID | 소스 커밋 | 내용 |
+|---|---|---|---|
+| `ubts-steer-sim:wf4a` | sha256:6415f81496344ab7e22be4640708e5a69c4075a21fc7053317e8f6633972b73b | 3289d16 | 실행기 패키지와 S2 형식 노드가 든 첫 이미지 |
+| `ubts-steer-sim:wf4b` | sha256:fbd0a5eb4235c7a17273efac38e5fbfcce1d234f970097176d2dd323a5f6f37f | c2b1941 | wf4a + 검사 코드 고침(8절 1·2). compose 기본 이미지 |
+
+- 기반 이미지는 둘 다 이 PC의 로컬 기반(`ubts-sim-clean-tenth:…@sha256:6209168a…`)이다. 공개 꾸러미로 다시 만드는 정의는 `docker/Dockerfile.base`에 있고 아직 만들지 않았다(`docs/provenance/BASE_IMAGE_KO.md`).
+- 두 이미지 모두 `/opt/ubts/STEER_IMAGE_MANIFEST.json`을 커밋과 견줬다: 파일 576개의 SHA-256이 커밋 blob과 같고, `source_commit`이 맞고, `firmware_build_id`는 04353B49다.
+- wf4a → wf4b에서 이미지에 든 소스의 차이는 검사 코드와 시험 5개 파일뿐이다(`exec_checks.py`, `p6a_checks.py`, 시험 셋). 스택이 돌리는 프로세스(감독기, 에뮬레이터, 브리지, S2 노드, 실행기)의 소스는 같다.
+- wf4a 안에서 돌린 시험(Python 3.12.3, numpy 1.26.4): 조향 1085 통과·10 건너뜀, 월드 20, 실행기 441 통과·13 건너뜀, 호스트 127, 현장 보정 21, 적합성 대본 92/92(네이티브와 백엔드 각각). wf4b에서는 다시 돌리지 않았다.
+
+### 9.2 검사 코드 스냅숏
+
+- 이미지가 만들어진 뒤 검사 코드를 고쳤을 때는 `sim/ubts` 스냅숏을 검사 컨테이너에만 읽기 전용으로 붙였다(`stack.py up --override <파일>`). 스택 프로세스는 이미지의 소스로 돈다. `st05_dev1`, `st05_w0_wall`, `st05_w0_wall2`가 이 방식이다. wf4b 세션은 이미지의 자기 소스만 썼다.
+
+### 9.3 다음 이미지 만드는 법
+
+```
+python -I <tools>/docker_budget.py acquire --label <표지> --gib 4
+docker build -f docker/Dockerfile.ubts-steer \
+  --build-arg BASE_IMAGE_ID=$(docker image inspect --format '{{.Id}}' ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29) \
+  --build-arg SOURCE_COMMIT=$(git rev-parse HEAD) \
+  --build-arg SOURCE_STATUS_SHA256=$(git status --porcelain | sha256sum | cut -d' ' -f1) \
+  --build-arg IMAGE_TAG_HINT=ubts-steer-sim:<태그> -t ubts-steer-sim:<태그> .
+python -I <tools>/docker_budget.py release --label <표지>
+```
+
+- 작업 트리가 깨끗한 커밋에서 만든다(빌드 문맥이 작업 트리다). 만든 뒤 매니페스트를 커밋과 견준다. 기본 태그를 바꿀 때는 `compose.ubts-steer.yaml`의 기본값과 Dockerfile의 `IMAGE_TAG_HINT` 기본값을 같은 커밋에서 바꾼다. 옛 이미지(p5, wf3, p6a, wf4a, wf4b)는 지우지 않는다.
 
 ## 10. 시험하지 않은 것
 
-(작성 중)
+| 항목 | 왜 | 돌리는 법 |
+|---|---|---|
+| A17(G) 무효 7개와 실패 3개의 재판정 | 2차 실행 중 호스트 멈춤. 원인 가르기는 하지 않음 | 조용한 호스트에서 `steering.exec_checks safety --out /runs/safety`(W0, wall, 약 5분). 일부만: `--only <대본 이름>` |
+| A17(G) SIM 시계 모드 | 조용한 호스트에서 돌리지 못함 | `UBTS_STEER_CLOCK=sim`으로 스택을 올리고 같은 명령 |
+| W2 감지 사슬(`chain`) | field1010 장면 준비(지도·목록 마운트)가 필요 | field1010 스택(override로 지도와 목록을 sim에 읽기 전용으로 붙임, `UBTS_STEER_FIELD_SPEC`)에서 `steering.exec_checks chain --out /runs/chain` |
+| A10(W2) RTF 240 s | 긴 측정, 조용한 호스트가 필요 | 같은 field1010 스택에서 `steering.p6a_checks rtf --seconds 240 --warmup-s 20 --out /runs/a10`(기준: 중앙값 0.8 이상) |
+| field1010의 자르기 노드 + S2 노드 | 위와 같음 | 위 스택의 `scan` 검사 |
+| W0의 표시 검사, wf4b의 `/scan`·IMU 검사 | W1 표시와 wf4a의 값으로 대신함(스택 쪽 소스는 같다) | `steering.exec_checks scan|imu|display` |
+| wf4b 안의 전체 시험 | wf4a에서 돌림. 차이는 검사 코드 5개 파일 | 9.1절의 시험 묶음 |
+| 한 번 눌러 시작(R32), 대시보드에서 운영자 페이지로 가는 길 | 아직 만들지 않음 | - |
+| 행 추종 제어기를 넣은 run | 제어기가 아직 없음 | 5.2절 |
 
 ## 11. 다른 단계에 넘기는 것
 
-(작성 중)
+- 행 추종 제어기(`sim/ubts/closed_loop/steer_control.py` 예정): 5.2절의 길로 슬롯에 넣고, 9.3절대로 새 이미지를 만들고, w1_force에서 5.3절의 `drive` 명령과 7.7절의 갈무리 명령을 그대로 쓴다.
+- ST-04: A19(G) 판정 고침(8절 2)을 조용한 호스트에서 다시 확인, 약 0.34 s 멈춤의 원인.
+- ST-06: 조향 기록 사이드카를 recorder 역할에 붙이는 일은 스택에서 확인하지 못해 넣지 않았다.
+- 통합 단계: 시간 민감 판정(A17 STOP, A10 W2)의 최종 자격 검사(R20).
 
 ## 12. 시험
 
-(작성 중)
+- Docker 없이: `sim/ubts/test_steering_exec_container.py`(30 통과, 1 건너뜀), `test_steering_s2_node.py`, `test_steering_stack.py`, `test_steering_capture_media.py`(4), `test_steering_p6a_checks_units.py`(13).
+- 이미지 안: 9.1절.
+- 스택: 7절.
