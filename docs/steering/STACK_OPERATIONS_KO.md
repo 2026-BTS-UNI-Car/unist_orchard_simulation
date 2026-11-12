@@ -54,7 +54,7 @@
 
 ## 7. 기본 이미지, override, 그림·영상 갈무리 (2026-11-12 ST-05)
 
-- compose 기본 이미지는 `ubts-steer-sim:wf4b`다(실행기 패키지와 S2 형식 노드 포함). 그냥 `up`이면 `/scan`(실차 형식)이 나온다. 실행기는 `--profile executor`로 켠다. 측정 결과는 `S2_NODE_EXEC_KO.md` 7절.
+- compose 기본 이미지는 `ubts-steer-sim:wf4c`다(실행기 패키지, S2 형식 노드, 열 추종 제어기 포함. 2026-11-12에 wf4b에서 바꿈). 그냥 `up`이면 `/scan`(실차 형식)이 나온다. 실행기는 `--profile executor`로 켠다. 측정 결과는 `S2_NODE_EXEC_KO.md` 7절.
 - `stack.py up --override <파일>`(여러 번 가능)은 compose override 파일을 스택 파일 뒤에 더한다. 잠금 파일에 남아 `run`·`ps`·`down`이 같은 파일을 쓴다. 쓰는 곳: 검사 컨테이너에만 고친 검사 코드 스냅숏을 붙일 때, field1010 장면의 지도·목록을 sim에 읽기 전용으로 붙일 때.
 - 그림과 영상은 돌고 있는 스택에서 `tools/steer_sim/capture_media.py`로 갈무리한다(스택을 올리거나 내리지 않는다). 문서에 넣는 파일은 `docs/steering/figures/`에 두고 캡션에 '자리값 기반 SIM 결과'를 적는다.
 

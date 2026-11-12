@@ -1,6 +1,7 @@
 # Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
 # GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0).
-# Default image ubts-steer-sim:wf4b (2026-11-12: the executor package and the S2 format node are in the image, so
+# Default image ubts-steer-sim:wf4c (2026-11-12: the executor package, the S2 format node and the row-following
+# controller of the executor slot, kind row_follow, are in the image; from wf4a on the S2 node is in the image, so
 # "up" publishes /scan in the real-rover format; ubts-steer-sim:p6a had /sim/scan only). UBTS_STEER_IMAGE picks
 # another image.
 # Never start together with the ubts-sim stack or the fullsensor stack. Reserve 6 GiB with docker_budget.py first:
@@ -71,7 +72,7 @@ x-environment: &environment
   UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
 services:
   sim:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     init: true
     ipc: shareable
     shm_size: 512mb
@@ -122,7 +123,7 @@ services:
       start_period: 240s
       retries: 6
   steer:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -142,7 +143,7 @@ services:
     stop_grace_period: 20s
     restart: "no"
   recorder:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -160,7 +161,7 @@ services:
     stop_grace_period: 20s
     restart: "no"
   dashboard:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     init: true
     working_dir: /opt/ubts/dashboard
     command: ["python3", "-B", "-m", "dashboard_server"]
@@ -196,7 +197,7 @@ services:
   # memory) and mounts the control volume only: no runtime volume (SIM status files) and no emulator hooks. Clock
   # mode = UBTS_STEER_CLOCK (wall | sim, the same value as the bridge wrapper). Profile executor (not started by "up").
   executor:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     profiles: ["executor"]
     init: true
     network_mode: "service:sim"
@@ -229,7 +230,7 @@ services:
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
   # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
   check:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4b}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     profiles: ["check"]
     init: true
     network_mode: "service:sim"

@@ -5,7 +5,7 @@
 - 합격 기준: `SIM_ACCEPTANCE_KO.md` A5, A13(개정 11), A17(7.2.1, 개정 4·7·10), A19(G, 개정 17). 기준은 바꾸지 않았다.
 - 모든 값은 자리값 프로필 v0.1(`front_steer_v0_1_placeholder`)에서 온다. 결과는 **자리값 기반 SIM 결과**다. 현장 검증이 아니다. 이 문서에는 GNSS 좌표, 지도 원점, 실제 기록의 궤적 절대값이 없다.
 - 이 단계의 스택 측정은 개발 값이다. 시간 민감 판정(실차 시계 A17 STOP, A10 W2)은 R20대로 다른 단계가 돌지 않는 최종 자격 검사에서 다시 한다.
-- **스택 측정(ST-05, 2026-11-12).** 새 이미지 `ubts-steer-sim:wf4a`(커밋 3289d16)와 `ubts-steer-sim:wf4b`(커밋 c2b1941)를 만들었다. 둘 다 실행기 패키지와 S2 형식 노드가 들어 있다. compose 기본 이미지는 `ubts-steer-sim:wf4b`다. 실행기 컨테이너와 S2 형식 노드가 스택에서 도는 것, `/scan`이 실차 형식으로 나오는 것, 대본 제어기 run 하나가 실행기를 거쳐 끝나는 것을 확인했다. 측정한 값은 7절, 남은 것은 10절이다. 스택을 올리고 내리는 규칙은 `STACK_OPERATIONS_KO.md`다.
+- **스택 측정(ST-05, 2026-11-12).** 새 이미지 `ubts-steer-sim:wf4a`(커밋 3289d16)와 `ubts-steer-sim:wf4b`(커밋 c2b1941)를 만들었다. 둘 다 실행기 패키지와 S2 형식 노드가 들어 있다. compose 기본 이미지는 그 뒤 `ubts-steer-sim:wf4c`(열 추종 제어기 포함, `STEER_FOLLOW_GSIM_RESULT_KO.md`)로 바꿨다. 실행기 컨테이너와 S2 형식 노드가 스택에서 도는 것, `/scan`이 실차 형식으로 나오는 것, 대본 제어기 run 하나가 실행기를 거쳐 끝나는 것을 확인했다. 측정한 값은 7절, 남은 것은 10절이다. 스택을 올리고 내리는 규칙은 `STACK_OPERATIONS_KO.md`다.
 
 ## 1. 요약
 
@@ -141,7 +141,7 @@ python3 -B -m steering.exec_container_main --clock wall|sim [--controller JSON] 
 
 ### 5.1 스택 올리기와 내리기
 
-- 기본 이미지는 `ubts-steer-sim:wf4b`다(`UBTS_STEER_IMAGE`로 바꾼다). 이 이미지에는 실행기 패키지와 S2 형식 노드가 있다.
+- 기본 이미지는 `ubts-steer-sim:wf4c`다(`UBTS_STEER_IMAGE`로 바꾼다). 이 이미지에는 실행기 패키지, S2 형식 노드, 열 추종 제어기(`row_follow`)가 있다. 7절의 측정은 wf4a·wf4b에서 했다.
 - 그냥 `up`(프로필 없음)은 sim, steer, recorder, dashboard를 켠다. S2 형식 노드는 sim 안에서 기본으로 돈다. 그래서 `/scan`(실차 형식)이 나오고 대시보드 LiDAR 패널에 스캔이 보인다(7.6절). 끄려면 `UBTS_STEER_S2_NODE=none`.
 - 실행기는 프로필 `executor`를 줘야 켜진다. 다른 override 파일이나 환경 변수는 필요 없다.
 - 측정 작업은 `tools/steer_sim/stack.py`로 올리고 내린다(프로젝트 이름 `ubts-steer-<작업>`, 예산 예약, 잠금; `STACK_OPERATIONS_KO.md`).
@@ -159,13 +159,13 @@ python -I tools/steer_sim/stack.py down --project ubts-steer-<작업> --receipt 
 ### 5.2 제어기를 고르는 법
 
 - 실행기 컨테이너의 주 모듈은 `steering.exec_container_main`이다. Runner의 `controller_factory`는 `ControllerSlot(spec, cfg)`이고, 이 슬롯은 `steering.scripted_control.make_factory(spec, executor_cfg)`가 돌려준 무인자 공장을 재개마다 부른다.
-- spec은 JSON 객체 `{"kind": ..., ...}`다. kind는 `scripted_control.KINDS`의 `straight_hold`, `segments`, `hold_still` 셋이다. 기본은 `{"kind": "straight_hold", "drive_pct": 40, "distance_m": 8.0}`.
+- spec은 JSON 객체 `{"kind": ..., ...}`다. kind는 `scripted_control.KINDS`의 `straight_hold`, `segments`, `hold_still`과 열 추종 제어기 `row_follow`(`closed_loop/steer_control.py`, wf4c부터)다. 기본은 `{"kind": "straight_hold", "drive_pct": 40, "distance_m": 8.0}`.
 - spec을 주는 길은 셋이다.
   1. 컨테이너 시작 때: 환경 변수 `UBTS_STEER_EXEC_CONTROLLER`(JSON 글 또는 파일 경로. compose가 executor 서비스에 넘긴다) 또는 명령줄 `--controller`.
   2. run 사이: SIM 걸이 소켓 `/run/ubts-steer/exec/hooks.sock`의 `{"op": "controller", "spec": {...}}`(ACTIVE 중에는 거부). `exec_checks`의 `start_drive`가 이 길을 쓴다.
   3. 검사 명령: `steering.exec_checks drive --controller '<JSON>'`(안에서 2번을 부른다).
 - 제어기 객체가 갖춰야 하는 것(`scripted_control._Base`와 같다): `step(t, s)`가 `SteerCommand(state, reason, throttle, steer_mrad)`(속성 `left`, `right` = throttle)를 돌려준다. `t`는 재개 뒤 시간(s), `s`는 실행기 스냅숏(dict)이다. 그리고 `current_phase()`, `telemetry()`, 속성 `state`, `reason`, `pending`, `counts`, `phase_events`.
-- 행 추종 제어기를 넣을 때: `scripted_control.KINDS`와 `make_factory`에 kind를 하나 더하거나(예 `row_follow`), `ControllerSlot.set`이 다른 공장을 고르게 한다. 그 뒤 새 이미지를 만든다(9.3절). 지금은 대본 제어기만 있다.
+- 열 추종 제어기는 kind `row_follow`로 들어왔다(`make_factory`가 `closed_loop.steer_control`로 넘긴다). 스택에서 돌린 결과는 `STEER_FOLLOW_GSIM_RESULT_KO.md`다.
 
 ### 5.3 run을 밖에서 시작하고 멈추는 법
 
@@ -173,7 +173,8 @@ python -I tools/steer_sim/stack.py down --project ubts-steer-<작업> --receipt 
 - 순서(`exec_checks.start_drive`): `POST /api/start {"row_len_m": null}` → 브리지가 arm 받을 준비가 될 때까지 기다림 → `POST /api/arm` → 누름 시작과 심장 박동 `POST /api/hold`(약 100 ms마다) → Runner가 ACTIVE.
 - 멈춤: 누름을 놓으면(`POST /api/release` 또는 박동이 끊김) PAUSED, `POST /api/stop`은 운영자 STOP(래치, `POST /api/ack`로 풂), `POST /api/end`는 run 끝. 제어기가 스스로 끝내면(예 `script_distance`) ENDED가 된다.
 - 끝난 run은 차가 설 때까지 또는 `terminal_stop_wait_s`(1.5 s) 동안 임대를 쥐고 있다가 스스로 STOP을 보낸다. 다음 Start는 그 뒤에 한다(`exec_checks.ensure_idle`이 기다린다).
-- 검사 컨테이너에서 한 번에 하는 명령이 `steering.exec_checks drive`다(Start, Arm, 누름, 끝날 때까지 기다림, 결과 `EXEC_DRIVE.json`).
+- 검사 컨테이너에서 한 번에 하는 명령이 `steering.exec_checks drive`다(Start, Arm, 누름, 끝날 때까지 기다림, 결과 `EXEC_DRIVE.json`). 열 추종 run을 평가까지 하는 것은 `steering.exec_checks follow`다.
+- 검사 컨테이너 없이 호스트에서 run을 시작·정지하는 도구가 `steering.exec_run`이다(`docker exec`로 실행기 컨테이너에서 `start`·`stop`·`status`, sim 컨테이너에서 `reset`). 누름 박동을 이 도구가 보낸다. 쓰는 법은 `STEER_FOLLOW_GSIM_RESULT_KO.md` 5절.
 
 ```
 python -I tools/steer_sim/stack.py run --project ubts-steer-<작업> -- python3 -B -m steering.exec_checks drive \n    --out /runs/drive --distance 8 [--controller '<JSON>']
@@ -346,7 +347,8 @@ python -I tools/steer_sim/capture_media.py clip --frames <기록>/media/cam_driv
 | 태그 | ID | 소스 커밋 | 내용 |
 |---|---|---|---|
 | `ubts-steer-sim:wf4a` | sha256:6415f81496344ab7e22be4640708e5a69c4075a21fc7053317e8f6633972b73b | 3289d16 | 실행기 패키지와 S2 형식 노드가 든 첫 이미지 |
-| `ubts-steer-sim:wf4b` | sha256:fbd0a5eb4235c7a17273efac38e5fbfcce1d234f970097176d2dd323a5f6f37f | c2b1941 | wf4a + 검사 코드 고침(8절 1·2). compose 기본 이미지 |
+| `ubts-steer-sim:wf4b` | sha256:fbd0a5eb4235c7a17273efac38e5fbfcce1d234f970097176d2dd323a5f6f37f | c2b1941 | wf4a + 검사 코드 고침(8절 1·2) |
+| `ubts-steer-sim:wf4c` | sha256:8ff8e78e906cec718ac9d69536f25a3275074ca3ebbd965bc06181c8e2acb8f0 | becf605 | 열 추종 제어기(`row_follow`), 추정기 선택 입력, `exec_checks follow`, `exec_run`. compose 기본 이미지. 매니페스트 595개 파일 = 커밋 blob. 이미지 안 시험은 새·바뀐 시험 파일 12개(263 통과, 1 건너뜀), 적합성 92/92 두 전송, 참값 격리만 돌렸다 |
 
 - 기반 이미지는 둘 다 이 PC의 로컬 기반(`ubts-sim-clean-tenth:…@sha256:6209168a…`)이다. 공개 꾸러미로 다시 만드는 정의는 `docker/Dockerfile.base`에 있고 아직 만들지 않았다(`docs/provenance/BASE_IMAGE_KO.md`).
 - 두 이미지 모두 `/opt/ubts/STEER_IMAGE_MANIFEST.json`을 커밋과 견줬다: 파일 576개의 SHA-256이 커밋 blob과 같고, `source_commit`이 맞고, `firmware_build_id`는 04353B49다.
@@ -383,7 +385,7 @@ python -I <tools>/docker_budget.py release --label <표지>
 | W0의 표시 검사, wf4b의 `/scan`·IMU 검사 | W1 표시와 wf4a의 값으로 대신함(스택 쪽 소스는 같다) | `steering.exec_checks scan|imu|display` |
 | wf4b 안의 전체 시험 | wf4a에서 돌림. 차이는 검사 코드 5개 파일 | 9.1절의 시험 묶음 |
 | 한 번 눌러 시작(R32), 대시보드에서 운영자 페이지로 가는 길 | 아직 만들지 않음 | - |
-| 행 추종 제어기를 넣은 run | 제어기가 아직 없음 | 5.2절 |
+| 행 추종 제어기를 넣은 run | 했다(2026-11-12) | `STEER_FOLLOW_GSIM_RESULT_KO.md` |
 
 ## 11. 다른 단계에 넘기는 것
 
