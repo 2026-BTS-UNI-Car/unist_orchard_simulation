@@ -166,6 +166,54 @@ class RealMessagesTest(unittest.TestCase):
         self.assertLessEqual(set(sc.FRAME_FIELDS[3:]), set(line_messages[0]))
 
 
+class RecorderRoleTest(unittest.TestCase):
+    """The recorder role of the stack supervisor runs the sidecar next to the pinned recorder (ST-06)."""
+
+    def test_sidecar_is_a_child_of_the_recorder_role(self):
+        import os
+        from steering import supervisor_steer as sup
+        args = sup.build_parser().parse_args(['--role', 'recorder', '--runtime-dir', '/runtime'])
+        if not os.environ.get('UBTS_STEER_SIDECAR'):
+            self.assertEqual(sup.sidecar_of(args), sup.DEFAULT_SIDECAR)
+        children = sup.recorder_children(args)
+        self.assertEqual([c.name for c in children][0], 'data_recorder')
+        if not os.environ.get('UBTS_STEER_SIDECAR'):
+            self.assertEqual([c.name for c in children], ['data_recorder', 'steering_sidecar'])
+        for off in ('none', 'off', '0', 'NONE'):
+            args = sup.build_parser().parse_args(['--role', 'recorder', '--sidecar', off])
+            self.assertIsNone(sup.sidecar_of(args))
+            self.assertEqual([c.name for c in sup.recorder_children(args)], ['data_recorder'])
+
+    def test_command_parses_with_the_sidecars_parser(self):
+        from steering import supervisor_steer as sup
+        command = sup.sidecar_command(sup.DEFAULT_SIDECAR, Path('/runtime'))
+        self.assertEqual(command[1:4], ['-B', '-m', 'steering.steering_sidecar'])
+        args = sc.build_parser().parse_args(command[4:])
+        self.assertEqual(Path(args.archive_dir).as_posix(), '/runtime/recordings')
+        self.assertEqual(args.recorder_url, sc.DEFAULT_RECORDER_URL)
+        self.assertEqual(Path(args.host_profile).as_posix(), sc.DEFAULT_HOST_PROFILE)
+        self.assertEqual(Path(args.status_file).as_posix(), sc.DEFAULT_STATUS_FILE)
+        self.assertFalse(args.no_bag)
+        # the status file is one of the recorder role's files (moved away at the role's start, audit G06)
+        self.assertIn(sup.SIDECAR_STATUS, sup.ROLE_STATUS_FILES['recorder'])
+        self.assertEqual('/runtime/' + sup.SIDECAR_STATUS, sc.DEFAULT_STATUS_FILE)
+
+    def test_readiness_states_are_the_sidecars_live_states(self):
+        from steering import supervisor_steer as sup
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / sup.SIDECAR_STATUS
+            probe = sup.json_file_ready(path, lambda d: d.get('state') in sup.SIDECAR_READY_STATES)
+            import time
+            for state, ready in (('idle', True), ('recording', True), ('starting', True), ('failed', False),
+                                 ('stopped', False)):
+                path.write_text(json.dumps(dict(state=state, updated_at=time.time())), encoding='utf-8')
+                self.assertEqual(bool(probe()), ready, state)
+
+    def test_compose_passes_the_switch_to_the_recorder(self):
+        text = (Path(__file__).resolve().parents[2] / 'compose.ubts-steer.yaml').read_text(encoding='utf-8')
+        self.assertIn('UBTS_STEER_SIDECAR: ${UBTS_STEER_SIDECAR:-}', text)
+
+
 class MotorJsonlTest(unittest.TestCase):
     """What the pinned recorder writes into motor.jsonl in the steering SIM (design 4.5 first bullet)."""
 
