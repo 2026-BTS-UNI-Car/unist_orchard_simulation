@@ -1047,6 +1047,45 @@ def s_fault_stop(ctx):
                         injection_wall=injection_wall), normal_until_tick=mark['tick'])
 
 
+DRIVE_LOOKBACK_S = 1.0          # executor drives come at send_hz 10 Hz (every 0.1 s); the mark window (0.05 s) is shorter
+
+
+def last_executor_drive(mark_wall, injection_wall, lookback_s=DRIVE_LOOKBACK_S, entries=None):
+    """The executor's last op drive request (bridge event log) before the injection. ctx.logs() keeps the bridge
+    entries from 0.05 s before the mark only, shorter than the executor's send period (send_hz 10 Hz = 0.1 s): the
+    last drive before the injection was often outside that window (ST-05 A17(G) 2nd run: value null twice). Here the
+    log is read again from lookback_s before the mark. entries: the bridge log entries (default: read BRIDGE_LOG)."""
+    if entries is None:
+        entries = read_jsonl(BRIDGE_LOG)
+    found = [e for e in entries if e.get('kind') == 'request' and e.get('op') == 'drive' and
+             str(e.get('owner') or '').startswith('row-executor') and
+             mark_wall - lookback_s <= e.get('wall', 0.) < injection_wall]
+    return found[-1] if found else None
+
+
+def stop_writes(bridge, after_t):
+    """STOP lines the bridge wrote at or after after_t, split into the ones a stop request wrote (between an op stop
+    request and its reply: the bridge writes STOP at once for every op stop) and the bridge's own resends (written by
+    its loop on the 50 ms grid). The executor page's STOP sends op stop twice by design: emergency_stop() at once
+    from the HTTP thread, then the main loop's _handle_stop() latches its client with one more op stop (ST-05 A17(G)
+    2nd run: a STOP 20.2 ms after the first, counted as a 6th resend). Returns (request_writes, resends,
+    stop_request_times)."""
+    requests, pending = [], []
+    for e in bridge:
+        if e.get('op') != 'stop' or e.get('t') is None:
+            continue
+        if e['kind'] == 'request':
+            pending.append(e['t'])
+        elif e['kind'] == 'reply' and pending:
+            requests.append((pending.pop(0), e['t']))        # handler threads may overlap: first in, first out
+    requests.extend((t, float('inf')) for t in pending)
+    tx = [e for e in bridge if e['kind'] == 'tx' and str(e.get('head') or '').startswith('STOP') and
+          e['t'] >= after_t]
+    by_request = [e for e in tx if any(a <= e['t'] <= b for a, b in requests)]
+    resends = [e for e in tx if not any(a <= e['t'] <= b for a, b in requests)]
+    return by_request, resends, [a for a, _ in requests if a >= after_t]
+
+
 def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=False):
     """Common part of the executor-side outages (loop stall, process freeze): the run, the injection, the
     measurement of the bridge's input deadline / the executor's stall watchdog, no restart."""
@@ -1065,10 +1104,7 @@ def _executor_outage(ctx, name, inject, observe_s=4., expect_watchdog_event=Fals
     wd_events = executor_events(records, ('watchdog_stall',), after_wall=mark['wall'] - .01)
     states = [e for e in bridge if e.get('kind') == 'state']
     expired = first(states, lambda e: e.get('reason') == 'input_expired')
-    owner_requests = [e for e in bridge if e.get('kind') == 'request' and e.get('op') == 'drive' and
-                      str(e.get('owner') or '').startswith('row-executor')]
-    before_stall = [e for e in owner_requests if e.get('wall', 0.) < injection_wall]
-    last_request = before_stall[-1] if before_stall else None
+    last_request = last_executor_drive(mark['wall'], injection_wall)
     status = ctx.try_exec_status() or {}
     runner = status.get('runner') or {}
     criteria = [
@@ -1284,6 +1320,11 @@ def s_stop_unconfirmed(ctx):
     req = first(bridge, lambda e: e['kind'] == 'request' and e.get('op') == 'stop')
     stops = [e for e in bridge if e['kind'] == 'tx' and e['head'].startswith('STOP') and req and e['t'] >= req['t']]
     t0 = stops[0]['t'] if stops else None
+    # resends = the bridge's own STOP lines; a STOP written by a further op stop (the executor page sends two, see
+    # stop_writes) is not a resend. Both lists are kept in the details (all_stop_writes_ms is the old count).
+    by_request, own_resends, stop_requests = stop_writes(bridge, req['t']) if req else ([], [], [])
+    all_writes = [round((e['t'] - t0) * 1000., 1) for e in stops[1:]] if t0 is not None else []
+    stops = [stops[0]] + [e for e in own_resends if e['t'] > stops[0]['t']] if stops else []
     resend = [round((e['t'] - t0) * 1000., 1) for e in stops[1:]] if t0 is not None else []
     latch = first(bridge, lambda e: e['kind'] == 'state' and 'stop_unconfirmed' in e.get('latches', []))
     latch_ms = None if (latch is None or t0 is None) else round((latch['t'] - t0) * 1000., 1)
@@ -1307,7 +1348,10 @@ def s_stop_unconfirmed(ctx):
                           'STOP confirmation: stop_unconfirmed or stop_watch_timeout)', None)]
     return _finish(ctx, 'stop_unconfirmed', step0, before, criteria,
                    dict(start=start, mark=mark, http_code=code, resend_ms=resend, resend_ticks=resend_ticks,
-                        latch_ms=latch_ms, loop_ticks_logged=len(ticks), injection_wall=http_wall),
+                        latch_ms=latch_ms, loop_ticks_logged=len(ticks), injection_wall=http_wall,
+                        all_stop_writes_ms=all_writes,
+                        stop_requests_ms=[None if t0 is None else round((t - t0) * 1000., 1) for t in stop_requests],
+                        stop_writes_by_request=len(by_request)),
                    normal_until_tick=mark['tick'])
 
 

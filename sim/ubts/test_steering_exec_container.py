@@ -600,6 +600,46 @@ class CheckHelpersTest(unittest.TestCase):
                                                      steering_host=dict(stop_state='confirmed', stale=False))))
         self.assertIn('armed_manual', EC.HOST_PLAIN_STATES)
 
+    def test_last_executor_drive_looks_back_beyond_the_mark_window(self):
+        # ST-05 A17(G) 2nd run: input_expired_after_last_request_s was null twice; the mark window of ctx.logs() is
+        # 0.05 s and the executor drives at send_hz 10 Hz, so its last drive before the injection was outside it
+        mark_wall, injection_wall = 100.0, 100.002
+        entries = [dict(kind='request', op='drive', owner='row-executor:gsim-1', t=50.0, wall=99.5),
+                   dict(kind='request', op='drive', owner='row-executor:gsim-1', t=50.1, wall=99.9),
+                   dict(kind='request', op='drive', owner='p6a-check', t=50.12, wall=99.92),
+                   dict(kind='request', op='keepalive', owner='row-executor:gsim-1', t=50.13, wall=99.93),
+                   dict(kind='request', op='drive', owner='row-executor:gsim-1', t=50.2, wall=100.01)]
+        old_window = [e for e in entries if e['wall'] >= mark_wall - .05]
+        self.assertIsNone(EC.last_executor_drive(mark_wall, injection_wall, entries=old_window))
+        found = EC.last_executor_drive(mark_wall, injection_wall, entries=entries)
+        self.assertEqual((found['t'], found['owner']), (50.1, 'row-executor:gsim-1'))
+        self.assertIsNone(EC.last_executor_drive(mark_wall, injection_wall, lookback_s=.05, entries=entries))
+        self.assertGreaterEqual(EC.DRIVE_LOOKBACK_S, 2. / 10.)            # two send periods of send_hz 10 Hz at least
+
+    def test_stop_writes_split_request_writes_from_resends(self):
+        # ST-05 A17(G) 2nd run: STOP lines at 0, 20.2, 100.2, 160.3, 200.3, 260.4, 300.4 ms; the one at 20.2 ms was
+        # the second op stop of the executor page (emergency_stop, then the main loop's _handle_stop)
+        t0 = 10.0
+        bridge = [dict(kind='request', op='stop', t=t0 - .001), dict(kind='tx', head='STOP\n', t=t0),
+                  dict(kind='reply', op='stop', t=t0 + .001),
+                  dict(kind='request', op='stop', t=t0 + .0201), dict(kind='tx', head='STOP\n', t=t0 + .0202),
+                  dict(kind='reply', op='stop', t=t0 + .0203)]
+        for ms in (100.2, 160.3, 200.3, 260.4, 300.4):
+            bridge.append(dict(kind='tx', head='STOP\n', t=t0 + ms / 1000.))
+        bridge.append(dict(kind='tx', head='C 0 0\n', t=t0 + .31))
+        bridge.sort(key=lambda e: e['t'])
+        by_request, resends, requests = EC.stop_writes(bridge, t0 - .001)
+        self.assertEqual(len(by_request), 2)
+        self.assertEqual([round((e['t'] - t0) * 1000., 1) for e in resends], [100.2, 160.3, 200.3, 260.4, 300.4])
+        self.assertEqual(len(requests), 2)
+        # overlapping handler threads (request, request, reply, reply) still pair both requests
+        overlap = [dict(kind='request', op='stop', t=1.0), dict(kind='request', op='stop', t=1.001),
+                   dict(kind='tx', head='STOP\n', t=1.0005), dict(kind='tx', head='STOP\n', t=1.0015),
+                   dict(kind='reply', op='stop', t=1.002), dict(kind='reply', op='stop', t=1.003),
+                   dict(kind='tx', head='STOP\n', t=1.1)]
+        by_request, resends, _ = EC.stop_writes(overlap, 1.0)
+        self.assertEqual((len(by_request), len(resends)), (2, 1))
+
     def test_scripts_registry(self):
         names = [s['name'] for s in EC.SCRIPTS]
         self.assertEqual(sorted(names), sorted(EC.DEFAULT_ORDER))
