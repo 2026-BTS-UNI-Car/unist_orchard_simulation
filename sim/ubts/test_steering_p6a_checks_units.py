@@ -140,6 +140,31 @@ class HostTimingTest(unittest.TestCase):
         checks.host_timing(self.ctx(rows), case, 'steering_not_following', 'not_following')
         self.assertTrue(case['passed'], case['criteria'])
         self.assertAlmostEqual(case['host_timing']['reference_t'], expected, places=6)
+        # the real wrapper publishes the latching line after the stop of the latch: target_mrad None on that line and
+        # after it, state DISARMED later (ST-04: the reference was not found on stack data)
+        real = [dict(r) for r in rows]
+        for r in real:
+            if r['received_monotonic'] >= expected - 1e-9:
+                r['target_mrad'] = None
+        case = self.case()
+        checks.host_timing(self.ctx(real), case, 'steering_not_following', 'not_following')
+        self.assertTrue(case['passed'], case['criteria'])
+        self.assertAlmostEqual(case['host_timing']['reference_t'], expected, places=6)
+        # the error clears for one line before the duration is over: the rule time starts again (a latch at the first
+        # time is then early: the criterion fails)
+        cleared = [dict(r) for r in real]
+        cleared[25]['angle_mrad'] = 299.                      # 0.75 s after the step: inside the error band
+        case = self.case()
+        checks.host_timing(self.ctx(cleared), case, 'steering_not_following', 'not_following')
+        self.assertFalse(case['passed'])
+        # the request ends (target None) before the duration: no rule time at all
+        ended = [dict(r) for r in rows]
+        for r in ended[30:]:
+            r['target_mrad'] = None
+        case = self.case()
+        checks.host_timing(self.ctx(ended), case, 'steering_not_following', 'not_following')
+        self.assertFalse(case['passed'])
+        self.assertIsNone(case['host_timing'].get('reference_t'))
 
     def test_n_line_and_banner_in_both_clocks(self):
         self.write('emulator.jsonl', [dict(kind='m2h', session=1, tick=500, done=501, t=5.5, mono=30.0,

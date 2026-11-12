@@ -1550,13 +1550,19 @@ def check_faults(ctx, args):
         tha=50, thw=1)), drive=(0, 0), trigger=steer_to(380), observe_s=1.5, host_latch='THERMAL',
         rule=('THERMAL', 'trip')))
     # link and serial faults
+    # Host side of the two link cases (DECISIONS R18 decision 1, the host latch mcu_ttl_expired): the MCU -> host
+    # direction still works, so the host reads the F TTL line while the client's input is valid, latches
+    # mcu_ttl_expired and stops. In the watchdog case the C TTL (300 ms) ends before the watchdog (500 ms): the host
+    # has already latched and dropped the lease when the W line comes, so the DISARMED of the watchdog is no
+    # mcu_disarmed latch (before the latch existed this case expected mcu_disarmed).
     cases.append(fault_case(ctx, 'ttl', 'TTL', restart=fresh_session('a19_link'), drive=(30, 0),
                             trigger=lambda c: c.hooks.link(direction='to_mcu', duration_ms=400)['start_tick'],
-                            observe_s=1.5, expected=lambda t, emu: ttl_expected(emu, t)))
+                            observe_s=1.5, expected=lambda t, emu: ttl_expected(emu, t),
+                            host_latch='mcu_ttl_expired'))
     cases.append(fault_case(ctx, 'watchdog', None, line_prefix='W ', drive=(30, 0),
                             trigger=lambda c: c.hooks.link(direction='to_mcu', duration_ms=900)['start_tick'],
                             observe_s=1.5, expected=lambda t, emu: watchdog_expected(emu, t, p.get('wd', 500)),
-                            host_latch='mcu_disarmed'))
+                            host_latch='mcu_ttl_expired'))
     cases.append(fault_case(ctx, 'crc', 'CRC', drive=(30, 0),
                             trigger=lambda c: c.hooks.corrupt(kind='crc', count=p.get('crcn', 5))['tick'],
                             observe_s=1.5, expected=lambda t, emu: crc_expected(emu, t, p.get('crcn', 5))))
@@ -2322,18 +2328,26 @@ def host_timing(ctx, case, latch, rule):
                 lo, hi = 0., 2. * loop
                 out.update(last_status_received=max(before), status_gap_s=faults['status_gap_s'])
         elif rule == 'not_following':
-            rows = sorted({m['received_monotonic']: m for m in states if m['received_monotonic'] <= t_latch + loop
-                           and m.get('target_mrad') is not None and m.get('angle_mrad') is not None}.items())
+            # The bridge wrapper publishes a line's state after the core step that read it: the line that latched
+            # carries target_mrad None (the stop of the latch cleared the request), so the rule time is the first line
+            # received track_duration after the error began whose published state either still shows the error or
+            # has no target any more (ST-04: with the lines without a target left out, the reference was never found).
+            rows = sorted({m['received_monotonic']: m for m in states
+                           if m['received_monotonic'] <= t_latch + loop}.items())
             since = None
             expected_line = None
             for received, m in rows:
-                if abs(m['target_mrad'] - m['angle_mrad']) > faults['track_error_mrad'] and m.get('state') in (
-                        'ARMED', 'armed', 2):
-                    if since is None:
-                        since = received
-                    elif received - since >= faults['track_duration_s']:
+                known = m.get('target_mrad') is not None and m.get('angle_mrad') is not None
+                error = (known and m.get('state') in ('ARMED', 'armed', 2)
+                         and abs(m['target_mrad'] - m['angle_mrad']) > faults['track_error_mrad'])
+                if since is not None and received - since >= faults['track_duration_s']:
+                    if error or m.get('target_mrad') is None:
                         expected_line = received
                         break
+                    since = None
+                elif error:
+                    if since is None:
+                        since = received
                 else:
                     since = None
             if expected_line is not None:
