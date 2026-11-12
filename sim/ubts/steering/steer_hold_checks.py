@@ -106,7 +106,8 @@ def _fault_cases():
 
 
 def _disturbance_cases(profile):
-    skip = ba.belt_skip_injection(profile, T0 + 1., teeth=-1)
+    belt = profile.has('belt_tooth_step_deg')           # a schema v2 profile (v0, v0.1) has no belt model: no R3
+    skip = ba.belt_skip_injection(profile, T0 + 1., teeth=-1) if belt else None
     within = dict(group='within', expect=())
     above = dict(group='above', expect=ABOVE_DEFINED)
     report = dict(group='report', expect=())
@@ -127,6 +128,8 @@ def _disturbance_cases(profile):
         'R4': dict(report, torque=(2.5, 3.), runtime=[('motor_power_off', T0)], purpose='steering motor power off at '
                    't0 + +2.5 N m 3 s (back-driven)'),
     }
+    if not belt:
+        del cases['R3']
     for name, case in cases.items():
         torque = case.get('torque')
         case['model'] = ([_torque(T0, *torque)] if torque else []) + list(case.get('model_extra', ()))
@@ -188,7 +191,7 @@ def _f_lines(art):
     return out
 
 
-def run_episode(set_name, case_name, seed, profile_path=None, build_dir=None):
+def run_episode(set_name, case_name, seed, profile_path=None, build_dir=None, with_trace=False):
     profile = vp.load_profile(profile_path) if profile_path else vp.load_profile(PROFILE_V02)
     case = cases_of(set_name, profile)[case_name]
     view = _profile_view(profile, case)
@@ -225,6 +228,9 @@ def run_episode(set_name, case_name, seed, profile_path=None, build_dir=None):
     record = dict(set=set_name, case=case_name, seed=int(seed), group=case['group'], purpose=case.get('purpose'),
                   identity=identity, errors=errors, armed=armed, latches=latches, wall_s=None)
     record.update(_measure(case, trace, art, view, end_tick))
+    if with_trace:   # figures (tools/steer_sim/steer_model_figures.py): every 5th plant step
+        record['trace'] = {k: [round(float(x), 6) for x in list(trace[k])[::5]]
+                           for k in ('t_s', 'truth_delta_eq_rad', 'truth_x_m', 'truth_y_m', 'truth_v_m_s')}
     record['wall_s'] = round(time.perf_counter() - started, 2)
     return record
 
