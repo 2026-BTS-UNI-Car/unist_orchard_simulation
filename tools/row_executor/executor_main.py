@@ -210,6 +210,8 @@ class InputBuffer:
         self.imu = collections.deque(maxlen=imu_depth)
         self.human = None
         self.counts = dict(scans=0, imu=0, human=0, scan_overflow=0, imu_overflow=0)
+        self.gnss = collections.deque(maxlen=16)
+        self.gnss_counts = dict(received=0, overflow=0)
 
     def put_scan(self, receipt, msg):
         with self.lock:
@@ -224,6 +226,21 @@ class InputBuffer:
                 self.counts['imu_overflow'] += 1
             self.imu.append((receipt, msg))
             self.counts['imu'] += 1
+
+    def put_gnss(self, receipt, msg):
+        """GNSS layer input (gnss_mode not off): its own FIFO and counters, so the scan / IMU counts of the log are
+        unchanged when no GNSS message arrives."""
+        with self.lock:
+            if len(self.gnss) == self.gnss.maxlen:
+                self.gnss_counts['overflow'] += 1
+            self.gnss.append((receipt, msg))
+            self.gnss_counts['received'] += 1
+
+    def take_gnss(self):
+        with self.lock:
+            items = list(self.gnss)
+            self.gnss.clear()
+            return items
 
     def put_human(self, receipt, text):
         cmd = human_command(text)
@@ -823,6 +840,10 @@ class ExecutorLoop:
     def on_imu_msg(self, receipt, msg):
         self.inputs.put_imu(float(receipt), msg)
 
+    def on_gnss_msg(self, receipt, msg):
+        """A GNSS message (NavSatFix-like, or the SIM's local-metre fix): GNSS layer only (gnss_mode not off)."""
+        self.inputs.put_gnss(float(receipt), msg)
+
     def on_human_msg(self, receipt, text):
         self.inputs.put_human(float(receipt), text)
 
@@ -1057,7 +1078,12 @@ class ExecutorLoop:
                 continue
             if self.runner.feed_imu(receipt, gyro, acc):
                 self.counts['imu_fed'] += 1
+        gnss = self.inputs.take_gnss()
+        for receipt, msg in gnss:
+            self.runner.feed_gnss(receipt, msg)
         info = dict(received=len(scans), imu=len(imus))
+        if gnss:
+            info['gnss'] = len(gnss)
         if scans:
             stamps = []
             for receipt, msg in scans:
@@ -1749,6 +1775,10 @@ class ExecutorLoop:
             record['inner_lim'] = s['inner_limited_ticks']
         if s.get('no_motion_drive_s'):
             record['nomo'] = s['no_motion_drive_s']             # day-2 N9 budget in use
+        if 'local_grid' in s:                                   # perception layer L2 (local_grid_enabled)
+            record['grid'] = s['local_grid']
+        if 'gnss' in s:                                         # perception layer L3 (gnss_mode not off)
+            record['gnss'] = s['gnss']
         sr = s.get('single_row')
         if sr is not None:                                      # single-row mode: compact per-tick telemetry
             record['sr'] = dict(ph=sr.get('phase'), lref=sr.get('lateral_reference_m'), look=sr.get('lookahead_error_deg'),
@@ -1825,6 +1855,8 @@ class ExecutorLoop:
                 end_stop_offset_m=self.config.single_row_end_stop_offset_m,
                 max_row_length_m=self.config.single_row_max_row_length_m,
                 localisation=C.SINGLE_ROW_LOCALISATION)
+        if self.config.local_grid_publish:
+            status['local_grid_map'] = self.runner.local_grid_export(now)   # bounded, at most every publish period
         if self.steering:
             status['vehicle_profile'] = self.config.vehicle_profile
             status['steering'] = s.get('steering')
@@ -1996,7 +2028,8 @@ def run_watchdog(loop, stop_event, period=.05):
 class RosInput:
     """rclpy subscriptions -> ExecutorLoop input buffers (receipt = time.monotonic() at callback entry)."""
 
-    def __init__(self, loop, scan_topic='/scan', imu_topic='/imu/data_raw', human_topic='/rover/control/requested'):
+    def __init__(self, loop, scan_topic='/scan', imu_topic='/imu/data_raw', human_topic='/rover/control/requested',
+                 gnss_topic='/gps/fix'):
         import rclpy
         from rclpy.executors import SingleThreadedExecutor
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -2015,6 +2048,10 @@ class RosInput:
         self.node.create_subscription(Imu, imu_topic, lambda m: loop.on_imu_msg(mono(), m), sensor_qos(50))
         if human_topic:
             self.node.create_subscription(String, human_topic, lambda m: loop.on_human_msg(mono(), m.data), 5)
+        if loop.config.gnss_mode != 'off' and gnss_topic:
+            # GNSS layer input only (A13 revision 30): gnss_layer reads it, never the estimator or a command
+            from sensor_msgs.msg import NavSatFix
+            self.node.create_subscription(NavSatFix, gnss_topic, lambda m: loop.on_gnss_msg(mono(), m), sensor_qos(5))
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(self.node)
         self.thread = threading.Thread(target=self._spin, name='row-executor-ros', daemon=True)
@@ -2057,6 +2094,7 @@ def parse_args(argv=None):
     p.add_argument('--scan-topic', default='/scan')
     p.add_argument('--imu-topic', default='/imu/data_raw')
     p.add_argument('--human-topic', default='/rover/control/requested')
+    p.add_argument('--gnss-topic', default='/gps/fix', help='GNSS layer input, subscribed only with gnss_mode not off')
     p.add_argument('--no-http', action='store_true', help='SHADOW only: run without the operator page')
     p.add_argument('--skip-source-check', action='store_true', help='development only; refused with --motor-output')
     return p.parse_args(argv)
@@ -2110,7 +2148,7 @@ def main(argv=None):
     ros = None
     try:
         try:
-            ros = RosInput(loop, args.scan_topic, args.imu_topic, args.human_topic or None)
+            ros = RosInput(loop, args.scan_topic, args.imu_topic, args.human_topic or None, args.gnss_topic)
         except ImportError as exc:
             print('rclpy/sensor_msgs not importable (source the ROS setup first): %s' % exc, file=sys.stderr)
             return 4

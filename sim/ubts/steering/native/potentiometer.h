@@ -7,6 +7,10 @@
 //   r1 = r0 + linearity * N * sin(2 pi (r0 - center) / N)
 //   s_v = supply_scale * (1 - sag * |applied PWM|); r2 = s_v * r1 (r1 if ratiometric)
 //   raw = clamp(round_half_away(r2 + eps) + jump counts, 0, N - 1), eps ~ N(0, sd * noise scale)
+// Belt (optional steer_ext block, profile schema v3): before all of that the measured angle passes the belt. The pot
+// shaft angle theta_s (steering scale) follows theta_meas through a play of width belt_play (play operator), and a
+// slip offset is added: a friction-belt creep (random walk, sd belt_creep x sqrt(travel)) and tooth skips (Poisson in
+// pot-side travel, +-one tooth step each). Without the block theta_s = theta_meas and no draw is made.
 // Overrides after that: pot_stuck holds the first sample at or after at_s, pot_short gives
 // N - 1, pot_open gives 0 (open wins). One noise draw per sample, always, so the stream does
 // not depend on the fault state.
@@ -35,7 +39,9 @@ class Potentiometer {
  public:
   Potentiometer();
   void configure(const PotConfig &cfg);
-  void reset(uint64_t seed);  // new noise stream, stuck capture cleared
+  void configure_belt(const ExtConfig &ext);  // optional steer_ext belt terms (after configure)
+  void reset(uint64_t seed);  // new noise stream, stuck capture cleared, belt state restarted
+  double belt_offset() const { return belt_offset_; }  // accumulated belt slip (rad, steering scale)
   int sample(double motor_angle, double link_angle, double t, double applied_pwm, double supply_scale,
              const PotFaults &faults);
   bool clipped() const { return clipped_; }
@@ -48,6 +54,10 @@ class Potentiometer {
   Stream noise_;
   bool captured_, captured_clipped_, clipped_;
   int captured_raw_;
+  // steer_ext belt
+  bool belt_on_, belt_started_;
+  double belt_half_play_, belt_creep_, belt_skip_, belt_step_, belt_shaft_, belt_offset_;
+  Stream belt_rng_;
 };
 
 }  // namespace ubts_steer

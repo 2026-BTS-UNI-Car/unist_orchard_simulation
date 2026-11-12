@@ -60,6 +60,7 @@ STANDSTILL_RED_S = 1.
 STANDSTILL_SAFE_LEAD_DEG = 2.5
 STANDSTILL_TURN_TIMEOUT_S = 120.
 OPERATOR_PERIOD_S = .1          # operator input at 10 Hz (browser 7 Hz, executor 10 Hz)
+POL_MIN_COUNTS = 4              # spec 7.10: CAL POL passes with |d1|, |d2| >= 4 raw counts [firmware placeholder]
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,11 @@ class Plan:
     f3_drive_s: float = 10.
     f3_reverse: bool = True
     drive_tests: tuple = ('F5', 'F4', 'F2', 'F3', 'F1')   # F1 last: its long legs move the car the most
+    # B7 load, third part (audit AUD3A-16): ARMED with the drive duty on and a slow steering target sweep, so the
+    # steering PWM is on while the noise is measured (0: not run; the registered A18 plan ran without it)
+    b7_servo_sweep_s: float = 0.
+    b7_servo_sweep_permille: int = 150
+    b7_servo_sweep_period_s: float = 10.
 
 
 class SessionError(RuntimeError):
@@ -264,6 +270,17 @@ class BenchSession:
         t.note('soft', soft_l=soft_l, soft_r=soft_r)
         ack = t.pol()
         t.note('pol', ok=ack['ok'], d1=ack['d1'], d2=ack['d2'])
+        if not ack['ok'] and ack['d1'] * ack['d2'] < 0 and min(abs(ack['d1']), abs(ack['d2'])) < POL_MIN_COUNTS:
+            # the pulses moved the right way but less than the firmware minimum (spec 7.10: 4 counts): a slow actuator
+            # at standstill (A18 variant B: 3 / -3 counts, R18 decision 18). The field procedure runs B0 / B2 with the
+            # front lifted (design 3.9); the stand-in lifts the steered wheels and repeats CAL POL once
+            t.note('pol_retry_lifted', d1=ack['d1'], d2=ack['d2'])
+            self.rig.set_steering_lifted(True)
+            try:
+                ack = t.pol()
+            finally:
+                self.rig.set_steering_lifted(False)
+            t.note('pol', ok=ack['ok'], d1=ack['d1'], d2=ack['d2'], lifted=True)
         if not ack['ok']:
             raise SessionError('B0 CAL POL failed: %r' % (ack,))
         cal = t.save()
@@ -519,6 +536,23 @@ class BenchSession:
         t.command(left=0, right=0)
         t.run(1.)
         t.note('servo_load_off')
+        sweep_s = float(self.plan.b7_servo_sweep_s)
+        if sweep_s > 0.:
+            # third part (audit AUD3A-16): the drive duty on and the steering target moving slowly (triangle), so the
+            # servo drives the steering motor: the noise with the steering PWM on (analysis: local line residual)
+            amp, period = int(self.plan.b7_servo_sweep_permille), float(self.plan.b7_servo_sweep_period_s)
+            centre = int(self.tool.status['pos'])
+            t.note('servo_sweep_on', duty=153, amplitude_permille=amp, period_s=period)
+            t.command(left=153, right=153)
+            start = self.rig.now
+            while self.rig.now - start < sweep_s:
+                phase = ((self.rig.now - start) / period) % 1.
+                tri = 4. * phase - 1. if phase < .5 else 3. - 4. * phase
+                t.command(steer_permille=centre + amp * tri)
+                t.run(.05)
+            t.command(steer_permille=centre, left=0, right=0)
+            t.run(1.)
+            t.note('servo_sweep_off')
         t.disarm()
         t.run(2.)
         self.rig.set_wheels_lifted(False)

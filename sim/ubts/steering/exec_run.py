@@ -45,6 +45,12 @@ MODEL_NAME = 'ubts_rover'
 OFFSET_DROP_M = .05                 # extra height of a shifted start (the terrain differs beside the spawn point)
 ARM_ATTEMPTS = 6
 ARM_RETRY_S = .6
+# Arm refusals worth a retry (acknowledge + new run + arm again): the stale-status host latch a SIM status gap leaves while
+# nobody holds the lease (an executor from before 2026-11-13 refuses its first Arm with it; a newer one clears it itself:
+# bridge_client.idle_latch_only) and the bridge-not-ready states right after the stack starts. Any other refusal (a
+# steering fault, a calibration or identity mismatch, a polarity check) ends the request: no automatic acknowledgement.
+ARM_RETRY_ERRORS = ('arm_precheck:steering_fault:steering_status_stale', 'arm_precheck:steering_status_stale',
+                    'arm_precheck:stop_unconfirmed', 'arm_precheck:bridge_snapshot_stale', 'arm_precheck:status_not_ok')
 RELEASE_WAIT_S = 8.                 # an ended run keeps the lease up to terminal_stop_wait_s before its own STOP
 PAUSE_GIVE_UP_S = 15.
 GO_WAIT_S = 20.                     # one_press: how long the go waits for the executor's start checks
@@ -246,10 +252,22 @@ def start_run(operator, spec, out=print, limit_s=600., period_s=1., sleep=time.s
         return EXIT_NO_START, dict(error='start_refused:%s' % reply.get('error'))
     armed = None
     for attempt in range(ARM_ATTEMPTS):
+        if attempt:
+            # A refused arm (e.g. arm_precheck:steering_fault:steering_status_stale: a bridge host latch left by a SIM
+            # status gap) latches the executor's bridge client and ends the run, so the next arm only got
+            # start_a_run_first (gsim_final 2026-11-13: six refusals, exit 4). As exec_checks.start_drive does:
+            # acknowledge the latch (an operator re-arm) and start a new run before the next arm.
+            status = operator.status() or {}
+            if (status.get('client') or {}).get('state') == X.CLIENT_LATCHED:
+                operator.op.post('/api/ack')
+            if (status.get('runner') or {}).get('state') != X.STATE_PAUSED:
+                operator.op.post('/api/start', {'row_len_m': None})
         code, armed, _, _ = operator.op.post('/api/arm', timeout_s=8.)
         if armed.get('ok'):
             break
         out('arm attempt %d refused: %s' % (attempt + 1, armed.get('error')))
+        if armed.get('error') not in ARM_RETRY_ERRORS:
+            break                                    # a real refusal: no automatic acknowledgement, no retry
         sleep(ARM_RETRY_S)
     if not (armed or {}).get('ok'):
         operator.op.post('/api/end')

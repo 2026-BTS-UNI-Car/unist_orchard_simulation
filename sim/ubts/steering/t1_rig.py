@@ -63,6 +63,7 @@ import numpy as np
 
 from . import backend_api as ba
 from . import flat_world as fw
+from . import gnss_sim
 from . import host_profile_export as hpe
 from . import steered_plant as sp
 from .actuator_link import FirmwareSteeringBackend
@@ -84,7 +85,8 @@ RAMP_STEP_MAX = 13                        # largest MCU ramp step (255/s x 50 ms
 WALL_EPOCH_S = 1.7e9                      # wall clock = epoch + SIM time (+ wall_clock_jump faults)
 LIDAR_Z_M = .6                            # closed_loop.harness scan height (the casters ignore z)
 VEHICLE_PROFILE = 'front_steer'
-PURPOSES = dict(plant=1, lidar_noise=2, mcu_boot=201, mcu_chip=202)   # plant / lidar as closed_loop.harness
+PURPOSES = dict(plant=1, lidar_noise=2, mcu_boot=201, mcu_chip=202,   # plant / lidar as closed_loop.harness
+                gnss=301)                                             # virtual GNSS (gnss_sim; only when configured)
 ENV_DASHBOARD_DIR = 'UBTS_STEER_DASHBOARD_DIR'
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DASHBOARD_DIR = REPO_ROOT / 'dashboard'
@@ -95,7 +97,7 @@ STOP_STATE_CODES = {'none': 0, 'pending': 1, 'unconfirmed': 2, 'confirmed': 3}
 HOST_STATE_CODES = {'starting': 0, 'disarmed': 1, 'armed_manual': 2, 'fault': 3}   # snapshot 'state' (-1: other)
 # v1 actuator / potentiometer injections (construction time; LOCKSTEP 9) and rig aliases
 MODEL_FAULTS = ('jam', 'slow', 'driver_dead', 'driver_stuck_on', 'polarity_reversed', 'pot_open', 'pot_short',
-                'pot_stuck', 'pot_noise_x10', 'pot_jump', 'pot_slip', 'pot_drift', 'pot_reversed')
+                'pot_stuck', 'pot_noise_x10', 'pot_jump', 'pot_slip', 'pot_drift', 'pot_reversed', 'steer_torque')
 # 'thermal': an overloaded (slow) steering actuator keeps the servo output above the THERMAL proxy level; at 0.3 x the
 # rate it still moves more than the STALL / TRACK thresholds (spec 6.7), so the MCU's THERMAL proxy is what trips.
 MODEL_FAULT_ALIASES = {'stall': ('jam', {}), 'pot_noise': ('pot_noise_x10', {'scale': 10.}),
@@ -328,6 +330,7 @@ class RigConfig:
     serial_log: bool = True
     report_servo: bool = True
     report_adc: bool = False          # evaluation channel adc_read (raw ADC per tick; P4 A19 POT_NOISE timing check)
+    gnss: object = None               # None (no GNSS packets) or a gnss_sim spec dict (stored as canonical JSON text)
 
     def __post_init__(self):
         for name in ('record_overrides', 'host_overrides'):
@@ -335,6 +338,7 @@ class RigConfig:
             if isinstance(value, dict):
                 object.__setattr__(self, name, tuple(sorted(value.items())))
         object.__setattr__(self, 'faults', tuple(self.faults))
+        object.__setattr__(self, 'gnss', gnss_sim.canonical(self.gnss))
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed < 2 ** 32:
             raise RigError('rig_seed_must_be_u32')
         if self.bridge_period_ms % PLANT_STEP_MS or self.bridge_period_ms <= 0:
@@ -588,6 +592,11 @@ class T1Rig:
         if self.lidar_period_ms % PLANT_STEP_MS:
             raise RigError('lidar period %d ms is not on the 10 ms plant grid' % self.lidar_period_ms)
         self._imu_next_ms = 1000. / self.imu_rate_hz
+        self.gnss_sim = None
+        if config.gnss is not None:
+            antenna = profile.value('gnss_antenna_pose_in_base')
+            self.gnss_sim = gnss_sim.GnssEmulator(config.gnss, stream_seed(self.seed, self.stream_key, PURPOSES['gnss']),
+                                                  (float(antenna['x']), float(antenna['y'])))
         self._packets = []
         self._sensor_seq = 0
         self._last_scan_arrival = -math.inf
@@ -613,6 +622,9 @@ class T1Rig:
         self._bridge_restart_reset = False
         self.bridge_events = []                           # (kind, t_ms) of bridge_restart faults (evaluation)
         self._stall_triggers = []                         # executor_stall after='f_ttl', not started yet
+        # SIM stand-in for steered wheels lifted off the ground (identification bench, design 3.9 B0 / B2): the
+        # actuator gets the moving (no tyre scrub) load and start PWM although the car stands
+        self.steer_wheels_lifted = False
         self.executor_stall_windows = []                  # (t0_ms, t1_ms, trigger) of executor_stall faults
         for item in runtime_faults:
             self.fault(item.kind, at_s=item.at_s, **item.params)
@@ -847,7 +859,8 @@ class T1Rig:
         speed = plant.v
         out_base = self.fw.step(ba.SteerStepInput(dt_s=PLANT_DT_S, mode='firmware', steer_en=True,
                                                   vehicle_speed_m_s=speed,
-                                                  vehicle_stopped=abs(speed) < STANDSTILL_SPEED_M_S,
+                                                  vehicle_stopped=(abs(speed) < STANDSTILL_SPEED_M_S
+                                                                   and not self.steer_wheels_lifted),
                                                   supply_scale=self._supply_scale()))
         out = self.fw.last
         self._deliver_mcu_bytes(out.tx)
@@ -963,6 +976,13 @@ class T1Rig:
                 self._packets.append(dict(kind='imu', seq=self._sensor_seq, stamp_s=t / 1000.,
                                           arrival_s=t / 1000. + self.config.imu_latency_s,
                                           gyro_z_rad_s=sample['gyro_z_rad_s'], accel_m_s2=tuple(sample['accel_m_s2'])))
+        if self.gnss_sim is not None:
+            fix = self.gnss_sim.sample(t / 1000., plant.x, plant.y, plant.yaw)
+            if fix is not None:
+                self._sensor_seq += 1
+                latency = fix.pop('latency_s')
+                self._packets.append(dict(kind='gnss', seq=self._sensor_seq, stamp_s=t / 1000.,
+                                          arrival_s=t / 1000. + latency, **fix))
 
     def _blacked(self, which, t_ms):
         params = self._window_params('sensor_blackout', t_ms)
@@ -971,7 +991,9 @@ class T1Rig:
     def poll_sensors(self):
         """Sensor packets readable now (arrival <= now), in arrival order, each returned once. Scan: kind 'scan',
         stamp_s (SIM sensor time), arrival_s, ranges (float32, SIM beams, inf = no return), angle_min,
-        angle_increment, range_max. IMU: kind 'imu', stamp_s, arrival_s, gyro_z_rad_s, accel_m_s2 (sensor frame)."""
+        angle_increment, range_max. IMU: kind 'imu', stamp_s, arrival_s, gyro_z_rad_s, accel_m_s2 (sensor frame).
+        GNSS (only with RigConfig.gnss): kind 'gnss', stamp_s, arrival_s, east_m, north_m (local metres of the virtual
+        receiver frame, gnss_sim), hacc_m, fix_ok."""
         now = self.now + 1e-9
         ready = [p for p in self._packets if p['arrival_s'] <= now]
         if ready:
@@ -1315,6 +1337,10 @@ class T1Rig:
         out['t_s'] = self.now
         return out
 
+    def gnss_report(self):
+        """Evaluation counters of the virtual GNSS (gnss_sim.GnssEmulator.report), None without GNSS."""
+        return None if self.gnss_sim is None else self.gnss_sim.report()
+
     def mcu_channel(self, name):
         return self.fw.channel(name)
 
@@ -1358,6 +1384,8 @@ class T1Rig:
                    imu_latency_s=self.config.imu_latency_s, injections=[dict(i) for i in self.injections],
                    record_overrides=self.config.record_override_dict(), host_overrides=self.config.host_override_dict(),
                    result_kind=RESULT_KIND)
+        if self.config.gnss is not None:
+            out['gnss'] = json.loads(self.config.gnss)
         if include_files:
             out['native_executable_sha256'] = self.fw.executable_sha256
         return out

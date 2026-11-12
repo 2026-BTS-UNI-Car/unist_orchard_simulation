@@ -132,7 +132,9 @@ class HostTimingTest(unittest.TestCase):
         rows = []
         for k in range(60):                                  # every 50 ms; the target steps at line 10
             target = 300 if k >= 10 else 0
-            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED'))
+            # cmd_permille == target_permille: the MCU servo ramp has reached its goal (amendment 43)
+            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED',
+                             target_permille=target, cmd_permille=target))
         since = 20. + .05 * 10
         expected = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - since >= 1.5 - 1e-9)
         self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102., expected + .004, ['steering_not_following'])])
@@ -165,6 +167,40 @@ class HostTimingTest(unittest.TestCase):
         checks.host_timing(self.ctx(ended), case, 'steering_not_following', 'not_following')
         self.assertFalse(case['passed'])
         self.assertIsNone(case['host_timing'].get('reference_t'))
+        # amendment 43: while the MCU ramp slews (cmd != tgt, lines 10..19) the bridge does not count; the rule time
+        # starts at line 20, so the reference moves by 0.5 s
+        slewing = [dict(r) for r in rows]
+        for r in slewing[10:20]:
+            r['cmd_permille'] = r['target_permille'] - 100
+        later = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - (20. + .05 * 20) >= 1.5 - 1e-9)
+        self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102.5, later + .004, ['steering_not_following'])])
+        case = self.case()
+        checks.host_timing(self.ctx(slewing), case, 'steering_not_following', 'not_following')
+        self.assertTrue(case['passed'], case['criteria'])
+        self.assertAlmostEqual(case['host_timing']['reference_t'], later, places=6)
+
+    def test_not_following_uses_the_lines_of_its_own_case(self):
+        # gsim_final 2026-11-13 w0_a17: an error stretch of an earlier case (68 s before, also latched) was taken as
+        # the reference (latch - reference 65.9 s); the lines before the case's mark are left out now
+        early = [dict(received_monotonic=5. + .05 * k, target_mrad=300, angle_mrad=10., state='ARMED',
+                      target_permille=300, cmd_permille=300) for k in range(40)]   # 2 s of error long before the case
+        rows = []
+        for k in range(60):
+            target = 300 if k >= 10 else 0
+            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED',
+                             target_permille=target, cmd_permille=target))       # ramp settled (amendment 43)
+        since = 20. + .05 * 10
+        expected = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - since >= 1.5 - 1e-9)
+        self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102., expected + .004, ['steering_not_following'])])
+        case = self.case()
+        case['mark']['mono'] = 19.9
+        checks.host_timing(self.ctx(early + rows), case, 'steering_not_following', 'not_following')
+        self.assertTrue(case['passed'], case['criteria'])
+        self.assertAlmostEqual(case['host_timing']['reference_t'], expected, places=6)
+        # without the mark's monotonic time (older records) every line counts and the early stretch wins
+        case = self.case()
+        checks.host_timing(self.ctx(early + rows), case, 'steering_not_following', 'not_following')
+        self.assertFalse(case['passed'])
 
     def test_n_line_and_banner_in_both_clocks(self):
         self.write('emulator.jsonl', [dict(kind='m2h', session=1, tick=500, done=501, t=5.5, mono=30.0,

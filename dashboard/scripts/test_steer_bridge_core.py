@@ -731,6 +731,40 @@ class HostFaultTest(unittest.TestCase):
         self.assertLess(latch['since'] - t0, 1.5 + 0.12)
         self.assertEqual(rig.core.control.reason, 'steering_not_following')
 
+    def test_not_following_counts_only_after_the_mcu_ramp_settles(self):
+        # amendment 43: a slow MCU ramp (480 permille/s = 12 deg/s at 40 permille/deg) toward 300 mrad (about 688
+        # permille) takes about 1.4 s; the 1.5 s count starts when cmd reaches the target, not at the request
+        rig = ts.Rig()
+        rig.ready()
+        reply = rig.arm()
+        rig.mcu.stuck_pos = 0
+        rig.mcu.cmd_rate_pm_s = 480.0
+        t0 = rig.clock.t
+        while rig.core.control.lease and rig.clock.t - t0 < 5.0:
+            reply = rig.submit(drive(reply, 0, 300))
+            rig.run(0.2)
+        latch = rig.core.latches['steering_not_following']
+        self.assertGreaterEqual(latch['since'] - t0, 1.4 + 1.5)    # the old rule latched at 1.5 .. 1.62 s
+        self.assertLess(latch['since'] - t0, 3.6)
+
+    def test_slewing_that_never_settles_does_not_latch(self):
+        # a request that reverses every 1.2 s with a ramp needing about 4 s: the error stays large but the MCU is still
+        # slewing (its TRACK rule watches that phase), so the host does not latch
+        rig = ts.Rig()
+        rig.ready()
+        reply = rig.arm()
+        rig.mcu.stuck_pos = 0
+        rig.mcu.cmd_rate_pm_s = 480.0
+        t0 = rig.clock.t
+        k = 0
+        while rig.clock.t - t0 < 6.0:
+            target = 400 if (k // 6) % 2 == 0 else -400
+            reply = rig.submit(drive(reply, 0, target))
+            rig.run(0.2)
+            k += 1
+        self.assertNotIn('steering_not_following', rig.core.latches)
+        self.assertTrue(rig.core.control.lease)
+
     def test_steering_ineffective_with_a_motion_source(self):
         for yaw_rate, expect in ((0.0, True), (0.4 * math.tan(0.2) / 0.76, False)):
             with self.subTest(yaw_rate=yaw_rate):

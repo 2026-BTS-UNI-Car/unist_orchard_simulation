@@ -2,7 +2,7 @@
 
 - 작성: 2026-11-12. 코드는 2026-11-09 4단계 작업 흐름(WF-4)의 record 단계가 썼고, 그 단계는 스택에서 개발 녹화 1회를 돌리던 중 사용 한도로 멈췄다. 변경을 새 저장소로 옮겼다(`DECISIONS_KO.md` R22).
 - 설계: `DESIGN_v1_KO.md` 4.5, 8.3 P6b. 합격 기준: `SIM_ACCEPTANCE_KO.md` A23(바꾸지 않았다).
-- **Docker 검증 전.** Docker 없이 도는 시험만 확인했다(`test_steering_sidecar.py`, `test_steering_sidecar_bag.py`(POSIX 신호·프로세스 그룹: Linux에서만), `test_steering_sidecar_host.py`). A23 판정과 이 문서의 결과 절은 ST-06이 쓴다. 모든 값은 자리값 기반 SIM 결과이고 현장 검증이 아니다.
+- 2026-11-13: 스택 녹화 1회로 A23 을 판정했다(4절). 그 전까지는 Docker 없이 도는 시험만 확인했다(`test_steering_sidecar.py`, `test_steering_sidecar_bag.py`(POSIX 신호·프로세스 그룹: Linux에서만), `test_steering_sidecar_host.py`). A23 판정과 이 문서의 결과 절은 ST-06이 쓴다. 모든 값은 자리값 기반 SIM 결과이고 현장 검증이 아니다.
 
 ## 1. 무엇을 하나
 
@@ -25,3 +25,11 @@
 - 11/09 개발 녹화의 누락 11.5 %(기록 15.4 Hz)의 원인(상태 전달 경로, 사이드카 시작 지연, 스택 부하).
 - 녹화 1회로 A23 항목(스키마, 20 Hz와 누락률, stale 표시, 설명자 SHA, 보정표 사본, 별도 bag 토픽·개수)을 판정하고 이 문서에 결과를 쓴다.
 - compose·감독기 연결(기록기 역할에 사이드카와 bag 프로세스 넣기)은 아직 없다. 11/09 개발 녹화는 저장소 밖 덮어쓰기 compose 파일로 돌렸다(`runs/wf4/record/compose.record.yaml`).
+
+## 4. 결과 (ST-06, 2026-11-13)
+
+- recorder 역할이 사이드카를 돌린다(`supervisor_steer.py`, `UBTS_STEER_SIDECAR=none`이면 끔). 스택 녹화 1회(손실 주입 없음)에서
+  `check_recording`의 A23 14항목이 모두 참이었다: 274줄, MCU 손실 0(20.0 Hz), stale 0, 설명자 SHA·보정표 사본 일치, 별도 bag
+  `/rover/steering/state` 138개. 11/09 의 누락 11.5 %는 일부러 넣은 1.5 s 손실이었다. 별도 bag 은 녹화의 약 절반만 담았다
+  (`ros2 bag` 시작 지연으로 보임). 2절의 위치(녹화 폴더 안 `steering/`)는 목록에 섞이지 않는 것을 확인했다.
+- 세부: `GSIM_GAPS_RESULT_KO.md` 5절. 자리값 기반 SIM 결과다.

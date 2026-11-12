@@ -215,3 +215,20 @@
 | Q27 | 배터리 전압과 모터 전류를 기록할 수 있는가(Q13 다시 묻기). 안 되면 주행 전후 멀티미터 값을 메모할 수 있는가 | 같은 duty 속도가 배터리에 따라 달라진다. 10월 기록에는 전압이 없어 배터리 영향을 알 수 없었다 | 기록 없음. 현장 절차서에 주행 전후 전압 메모 칸을 둔다 |
 | Q28 | 벨트와 가변저항을 덮는 덮개가 있는가(풀, 흙, 물) | 과수원에서 벨트에 풀이 끼거나 가변저항에 흙이 들어가면 각도가 튄다 | 덮개 없음. 각도 튐 감시를 켠다 |
 | Q29 | 조향 장치를 단 뒤 낮은 duty(25~60 %)에서 차가 얼마나 빠른가 | 자율 주행 속도대의 실측이 거의 없다(40 % 미만은 0초). 구동 표의 그 칸이 ±20 % 넘게 틀릴 수 있다 | 10월 분석의 외삽 직선(v = 0.00855·duty + 0.025, 조향 장착 전 차). 현장 재측정 절차(PW-11)로 고친다 |
+
+## 9. 답을 SIM에 넣는 칸 (2026-11-13, ST-17 준비)
+
+답과 실측은 `sim/ubts/steering/profiles/steer_spec_input.yaml` 한 파일에 적고 `tools/steer_sim/apply_spec.py`를 돌린다(`SPEC_UPDATE_KO.md`). 칸 이름은 아래 질문 번호와 프로필 매개변수 이름이다.
+
+| 질문 | 칸 |
+|---|---|
+| Q2 | `wheelbase_m`, `track_front_m`, `track_rear_m`, `kingpin_width_m`, `wheel_radius_front_m`, `wheel_radius_rear_m`, `steer_mech_limit_deg`, `steer_ackermann_ratio`, `footprint_length_m`, `footprint_width_m`, `mass_kg` |
+| Q10 | `steer_type`, `steer_backlash_deg` |
+| Q11 | `steer_self_locking`, `steer_motor_stall_torque_nm`, `steer_motor_stall_current_a`, `steer_gear_ratio`, `steer_rate_max_deg_s`, `steer_rate_standstill_deg_s`, `steer_min_pwm_pct`, `steer_min_pwm_standstill_pct` |
+| Q22 | `belt_type`, `belt_pulley_teeth_pot`, `belt_pulley_teeth_steer`(입력 전용), `pot_to_steer_ratio` |
+| Q23 | `belt_pot_play_deg`, `pot_location`, `pot_range_deg` |
+| Q24 | `pot_adc_end_raws`(입력 전용, [왼쪽 끝, 가운데, 오른쪽 끝] ADC), `pot_turn_deg_end_to_end`(입력 전용) |
+| Q25 | `steer_limit_switch` |
+| Q26 | `steer_supply_shared_with_drive` |
+
+Q27·Q28·Q29는 SIM 프로필 칸이 아니다(전압 기록, 덮개, 낮은 duty 속도는 현장 절차와 구동 표 PW-11에서 다룬다). 벨트 모형과 외란 모형은 `STEER_EXT_MODEL_KO.md`에 있다.

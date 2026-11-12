@@ -20,7 +20,20 @@ double round_half_away(double x) {
 }  // namespace
 
 Potentiometer::Potentiometer()
-    : n_(1024), g_(0.0), captured_(false), captured_clipped_(false), clipped_(false), captured_raw_(0) {}
+    : n_(1024),
+      g_(0.0),
+      captured_(false),
+      captured_clipped_(false),
+      clipped_(false),
+      captured_raw_(0),
+      belt_on_(false),
+      belt_started_(false),
+      belt_half_play_(0.0),
+      belt_creep_(0.0),
+      belt_skip_(0.0),
+      belt_step_(0.0),
+      belt_shaft_(0.0),
+      belt_offset_(0.0) {}
 
 void Potentiometer::configure(const PotConfig &cfg) {
   cfg_ = cfg;
@@ -28,8 +41,20 @@ void Potentiometer::configure(const PotConfig &cfg) {
   g_ = static_cast<double>(n_) * cfg.to_steer_ratio * (1.0 + cfg.gain_error) / cfg.range_rad;
 }
 
+void Potentiometer::configure_belt(const ExtConfig &ext) {
+  belt_half_play_ = 0.5 * ext.belt_play_rad;
+  belt_creep_ = ext.belt_creep_sd_rad_per_sqrt_rad;
+  belt_skip_ = ext.belt_skip_per_rad;
+  belt_step_ = ext.belt_tooth_step_rad;
+  belt_on_ = belt_half_play_ > 0.0 || belt_creep_ > 0.0 || belt_skip_ > 0.0;
+}
+
 void Potentiometer::reset(uint64_t seed) {
   noise_.seed(seed, kStreamPotNoise);
+  belt_rng_.seed(seed, kStreamBeltSlip);
+  belt_started_ = false;
+  belt_shaft_ = 0.0;
+  belt_offset_ = 0.0;
   captured_ = false;
   captured_clipped_ = false;
   captured_raw_ = 0;
@@ -40,6 +65,23 @@ int Potentiometer::sample(double motor_angle, double link_angle, double t, doubl
                           const PotFaults &faults) {
   const double n = static_cast<double>(n_);
   double theta = cfg_.at_motor ? motor_angle : link_angle;
+  if (belt_on_) {
+    if (!belt_started_) {
+      belt_started_ = true;
+      belt_shaft_ = theta;
+    }
+    const double before = belt_shaft_;
+    if (belt_shaft_ < theta - belt_half_play_) belt_shaft_ = theta - belt_half_play_;
+    if (belt_shaft_ > theta + belt_half_play_) belt_shaft_ = theta + belt_half_play_;
+    const double travel = std::fabs(belt_shaft_ - before);
+    if (travel > 0.0) {
+      if (belt_creep_ > 0.0) belt_offset_ += belt_creep_ * std::sqrt(travel) * belt_rng_.normal();
+      if (belt_skip_ > 0.0 && belt_rng_.uniform() < -std::expm1(-belt_skip_ * travel)) {
+        belt_offset_ += belt_rng_.uniform() < 0.5 ? -belt_step_ : belt_step_;
+      }
+    }
+    theta = belt_shaft_ + belt_offset_;
+  }
   theta += cfg_.drift_rad_per_s * t;
   if (faults.reversed) theta = -theta;
   theta += faults.slip_rad + faults.drift_rad;

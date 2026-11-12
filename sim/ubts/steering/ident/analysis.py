@@ -497,6 +497,47 @@ def b7_noise(folders):
             out['servo_load'] = dict(samples=int(len(held)), raw_sd=_r(float(np.std(held)), 3) if len(held) else None,
                                      steer_pwm_on_fraction=_r(float(np.mean(data.sp[idx] != 0)), 3) if len(held) else None,
                                      note='drive duty on and the servo holding (steering PWM pulses); raw counts')
+        won = [n['t'] for n in data.events('servo_sweep_on')]
+        woff = [n['t'] for n in data.events('servo_sweep_off')]
+        if won and woff:
+            out['servo_sweep'] = _sweep_noise(data, won[0] + 1., woff[0] - 1.)
+    return out
+
+
+SWEEP_WINDOW_S = .5             # B7 servo sweep: local straight line over this window (the target moves slowly)
+
+
+def _sweep_noise(data, t0, t1):
+    """Noise with the steering PWM on (audit AUD3A-16): raw minus a straight line fitted over each SWEEP_WINDOW_S
+    window (the slow target sweep moves the position nearly linearly inside a window); sd of the residuals of the
+    windows in which the steering PWM was on in most status lines."""
+    idx = np.nonzero((data.t >= t0) & (data.t <= t1))[0]
+    residuals, used, windows = [], 0, 0
+    if len(idx) < 5:
+        return dict(samples=int(len(idx)), raw_sd_line_residual=None, note='too few status lines')
+    start = data.t[idx[0]]
+    while start + SWEEP_WINDOW_S <= data.t[idx[-1]]:
+        w = idx[(data.t[idx] >= start) & (data.t[idx] < start + SWEEP_WINDOW_S)]
+        start += SWEEP_WINDOW_S
+        if len(w) < 5:
+            continue
+        windows += 1
+        if np.mean(data.sp[w] != 0) < .5:
+            continue
+        used += 1
+        a, b = np.polyfit(data.t[w] - data.t[w[0]], data.raw[w], 1)
+        residuals.extend(data.raw[w] - (a * (data.t[w] - data.t[w[0]]) + b))
+    res = np.asarray(residuals, dtype=float)
+    return dict(samples=int(len(res)), windows=windows, windows_with_pwm=used,
+                raw_sd_line_residual=_r(float(np.std(res, ddof=2)) if len(res) > 2 else None, 3),
+                steer_pwm_on_fraction=_r(float(np.mean(data.sp[idx] != 0)), 3),
+                note='slow target sweep with the drive duty on: raw minus a local line (%.1f s windows with the '
+                     'steering PWM on in most lines); raw counts' % SWEEP_WINDOW_S)
+
+
+def _unused_b7_tail():
+    """(kept for the line order of this module; no use)"""
+    out = {}
     return out
 
 
@@ -713,8 +754,10 @@ def f3_duty_speed(root, rid, workers=1, cache_dir=None):
     """F3 through the imported drive tools (drive_calib.analyse: C2, C3 v(duty), C7)."""
     tools_path()
     from field_calib import drive_calib
+    sidecar = Path(root) / '_steering' / rid / 'steering.jsonl'
     recs, skipped = drive_calib.open_recordings(str(root), [rid], workers=1, hashes=False, cache_dir=cache_dir,
-                                                log=lambda *a: None)
+                                                log=lambda *a: None,
+                                                steer_sidecars={rid: str(sidecar)} if sidecar.is_file() else None)
     results, _ = drive_calib.analyse(recs, workers=workers, log=lambda *a: None, skipped=skipped, cache_dir=cache_dir)
     table = {d: dict(v_p50_m_s=_r((row.get('v_p10_p50_p90') or [None, None, None])[1]),
                      segment_p50_m_s=_r((row.get('segment_speed_p10_p50_p90') or [None, None, None])[1]),
@@ -724,8 +767,15 @@ def f3_duty_speed(root, rid, workers=1, cache_dir=None):
     c7 = results['c7']['kinds']
     return dict(schema=SCHEMA, test='F3', duty_speed=table, axis=results['axis'], lidar_imu=results['lidar_imu'],
                 c2=dict(b_fwd_pct=lad.get('b_fwd_pct'), bracketed=lad.get('bracketed')),
-                c7={k: dict(clean=v['clean'], distance_m_p50=(v['distance_m_p10_p50_p90'] or [None, None])[1])
+                c7={k: dict(clean=v['clean'], distance_m_p50=(v['distance_m_p10_p50_p90'] or [None, None])[1],
+                            events=[dict((key, e.get(key)) for key in ('t_cmd_wall_s', 'distance_m', 'speed_at_command_m_s',
+                                                                      'time_s', 'clean', 'basis'))
+                                    for e in results['c7']['detail'] if e.get('kind') == k])
                     for k, v in c7.items()},
+                c2_note='C2 (breakaway ladder) needs a rising duty ladder from standstill; F3 has none, so C2 is '
+                        'normally not bracketed (untested here: audit AUD3A-16)',
+                reverse_note='the reverse runs are recorded; no reverse duty -> speed analysis (the executor never '
+                             'reverses; untested here: audit AUD3A-16)',
                 drive_result=drive_calib._json_safe(results))
 
 

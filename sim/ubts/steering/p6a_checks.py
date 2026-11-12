@@ -2332,13 +2332,21 @@ def host_timing(ctx, case, latch, rule):
             # carries target_mrad None (the stop of the latch cleared the request), so the rule time is the first line
             # received track_duration after the error began whose published state either still shows the error or
             # has no target any more (ST-04: with the lines without a target left out, the reference was never found).
+            # Only the lines of this case (from its mark on, gsim_final 2026-11-13 w0_a17): the observer keeps every
+            # state of the run, and an error stretch of an earlier case (track_model_noise, 68 s before, also latched
+            # steering_not_following) gave the reference (latch - reference 65.9 s).
+            start = mark.get('mono') if clock == 'wall' else mark.get('sim')
             rows = sorted({m['received_monotonic']: m for m in states
-                           if m['received_monotonic'] <= t_latch + loop}.items())
+                           if m['received_monotonic'] <= t_latch + loop and
+                           (start is None or m['received_monotonic'] >= start - .05)}.items())
             since = None
             expected_line = None
             for received, m in rows:
                 known = m.get('target_mrad') is not None and m.get('angle_mrad') is not None
-                error = (known and m.get('state') in ('ARMED', 'armed', 2)
+                # amendment 43: the bridge counts only lines whose MCU servo ramp has settled (cmd == tgt; the soft
+                # limit clip of the goal is not in the published state, requests stay inside the soft limits)
+                settled = m.get('cmd_permille') is not None and m.get('cmd_permille') == m.get('target_permille')
+                error = (known and settled and m.get('state') in ('ARMED', 'armed', 2)
                          and abs(m['target_mrad'] - m['angle_mrad']) > faults['track_error_mrad'])
                 if since is not None and received - since >= faults['track_duration_s']:
                     if error or m.get('target_mrad') is None:

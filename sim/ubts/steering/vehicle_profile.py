@@ -44,6 +44,12 @@ A per-run parameter (shape PER_RUN) may also hold a plain number: a fixed per-ru
 (scenario conditions such as a fixed zero offset). per_run_value(seed, name) gives the
 value of a run in both cases; sample() draws only the distributions.
 
+Schema v3 (ubts.vehicle_profile.v3, profile v0.2 and later): the v2 parameters plus the groups I (belt
+potentiometer, end switches, steering supply) and J (external steering torque) of V3_PARAMETER_GROUPS. A v2 file
+keeps loading with the v2 parameter set (its results stay reproducible); has(name) tells whether a view has a
+parameter. v3 also refuses at load what v2 only warns about: pot end stops outside the calibration window, a
+calibration half width below MARK_HALF_WIDTH_MIN counts, and end switches (not modelled, no MCU pin).
+
 Pure Python + PyYAML (safe loader only). No numpy.
 """
 from __future__ import annotations
@@ -62,6 +68,10 @@ import yaml
 from . import geometry
 
 SCHEMA = 'ubts.vehicle_profile.v2'
+SCHEMA_V3 = 'ubts.vehicle_profile.v3'
+SCHEMAS = (SCHEMA, SCHEMA_V3)
+MARK_HALF_WIDTH_MIN = 50      # counts between the centre mark and each end mark (fw_eeprom.MARK_WINDOW_SPAN_MIN)
+MARK_INSET_DEG = 1.0          # calibration marks at the equivalent mechanical limit - 1 deg (LOCKSTEP 11.11)
 PROFILES_DIR = Path(__file__).resolve().parent / 'profiles'
 DEFAULT_PROFILE_ID = 'front_steer_v0_1_placeholder'
 DEFAULT_PROFILE_PATH = PROFILES_DIR / (DEFAULT_PROFILE_ID + '.yaml')
@@ -82,7 +92,7 @@ REQUIRED_FIELDS_DERIVED = ('unit', 'provenance', 'identify', 'derived_from')
 WHERE_VALUES = ('mcu', 'host', 'executor')
 IDENTIFY_WORDS = ('none', 'part', 'design', 'photo', 'wiring', 'standstill_record', 'jetson_config',
                   'sim_compare', 'record_analysis')
-IDENTIFY_TEST_PATTERN = re.compile(r'(B(10|[0-9])|F[1-6]|Q(1[0-6]|[1-9]))\Z')
+IDENTIFY_TEST_PATTERN = re.compile(r'(B(10|[0-9])|F[1-6]|Q(2[0-9]|1[0-9]|[1-9]))\Z')
 DISTRIBUTIONS = {'uniform': ('low', 'high'), 'normal': ('mean', 'sd')}
 CURVE_NAMES = ('P_fit1003', 'field1010')
 _PROFILE_ID = re.compile(r'[a-z0-9_]+\Z')
@@ -138,7 +148,20 @@ PARAMETER_GROUPS = (
         'camera_pose_in_base', 'gnss_antenna_pose_in_base', 'self_reflection_mask')),
 )
 PARAMETER_NAMES = tuple(name for _, names in PARAMETER_GROUPS for name in names)
-GROUP_OF = {name: group for group, names in PARAMETER_GROUPS for name in names}
+# Schema v3 groups added after the v2 groups (ST-10 belt potentiometer, ST-11 external torque, ST-17 spec fields).
+V3_PARAMETER_GROUPS = (
+    ('I_belt_and_supply', (
+        'belt_type', 'belt_pulley_teeth_pot', 'belt_tooth_step_deg', 'belt_pot_play_deg', 'belt_creep_sd_deg_per_100deg',
+        'belt_skip_per_10000deg', 'pot_travel_deg', 'pot_cal_half_width_counts', 'steer_limit_switch',
+        'steer_supply_shared_with_drive')),
+    ('J_steer_disturbance', (
+        'steer_backdrive_coast_gain', 'steer_self_lock_breakaway_nm', 'steer_disturbance_design_nm',
+        'steer_terrain_impacts', 'steer_terrain_push')),
+)
+PARAMETER_GROUPS_V3 = PARAMETER_GROUPS + V3_PARAMETER_GROUPS
+PARAMETER_NAMES_V3 = tuple(name for _, names in PARAMETER_GROUPS_V3 for name in names)
+NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3}
+GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V3 for name in names}
 
 # Names the steered plant (F-SIM SteeredPlant, P1/P2) reads; geometry.PROFILE_NAMES come on top.
 PLANT_PROFILE_NAMES = (
@@ -216,6 +239,11 @@ SHAPES = {
     'imu_rate_hz': INTEGER, 'imu_gyro_scale': _keys(NUMBER, 'mean', 'sd'),
     'imu_vibration_still_m_s2': _keys(NUMBER, 'low', 'high'), 'camera_pose_in_base': _POSE_SHAPE,
     'gnss_antenna_pose_in_base': _POSE_SHAPE, 'self_reflection_mask': INTEGER,
+    # schema v3
+    'belt_type': STRING, 'belt_pulley_teeth_pot': INTEGER, 'steer_limit_switch': STRING,
+    'steer_supply_shared_with_drive': BOOL,
+    'steer_terrain_impacts': _keys(NUMBER, 'rate_per_m', 'torque_sd_nm', 'duration_s'),
+    'steer_terrain_push': _keys(NUMBER, 'sd_nm', 'corr_length_m'),
 }
 
 
@@ -513,6 +541,59 @@ def _main_line(get):
     return fit_duty_speed_line(curve_fit_points(get, get('forward_curve')['main']))
 
 
+_EQ_LIMIT_INPUTS = ('steer_mech_limit_deg', 'steer_type', 'wheelbase_m', 'kingpin_width_m', 'steer_ackermann_ratio')
+_LINK_INPUTS = _EQ_LIMIT_INPUTS + ('steer_zero_offset_deg', 'steer_lr_asymmetry', 'steer_link_table')
+_POT_TRAVEL_INPUTS = _LINK_INPUTS + ('pot_to_steer_ratio', 'steer_backlash_deg', 'pot_location')
+_CAL_MARK_INPUTS = _LINK_INPUTS + ('pot_to_steer_ratio', 'pot_range_deg', 'adc_bits', 'pot_gain_error', 'pot_center_raw',
+                                   'pot_linearity_pct')
+
+
+def _link_of_delta(get):
+    """link(delta_eq) on the nominal link: zero offset at its centre value, left / right gain, link table inverse."""
+    zero = math.radians(_nominal_number(get('steer_zero_offset_deg')))
+    lr = float(get('steer_lr_asymmetry'))
+    table = geometry.LinkTable(get('steer_link_table'))
+
+    def link(delta):
+        u = delta - zero
+        return table.pot_from_wheel(u / (1. + lr) if u >= 0. else u / (1. - lr))
+    return link
+
+
+def pot_travel_deg(get):
+    """Pot shaft rotation (deg) from the right to the left end stop: the link travel (plus the backlash when the pot
+    sits on the motor side) times pot_to_steer_ratio. Compare with pot_range_deg (the electrical range)."""
+    left, right = geometry.equivalent_limits(_wheel_limits_rad(get), 0., get('steer_type'), get('wheelbase_m'),
+                                             get('kingpin_width_m'), get('steer_ackermann_ratio'))
+    link = _link_of_delta(get)
+    play = math.radians(get('steer_backlash_deg')) if get('pot_location') == 'motor' else 0.
+    return math.degrees(link(left) - link(-right) + play) * get('pot_to_steer_ratio')
+
+
+def _nominal_raw(get):
+    n = 2. ** get('adc_bits')
+    gain = n * get('pot_to_steer_ratio') * (1. + get('pot_gain_error')) / math.radians(get('pot_range_deg'))
+    centre = float(get('pot_center_raw'))
+    linearity = get('pot_linearity_pct') / 100.
+
+    def raw(theta):
+        r0 = centre + gain * theta
+        return r0 + linearity * n * math.sin(2. * math.pi * (r0 - centre) / n)
+    return raw
+
+
+def cal_mark_half_widths(get):
+    """(left, right) count distances of the end calibration marks from the centre mark (LOCKSTEP 11.11: marks at the
+    equivalent mechanical limit - MARK_INSET_DEG and at 0, nominal noise-free pot, backlash centred). The firmware
+    refuses marks closer than MARK_HALF_WIDTH_MIN counts (fw_eeprom.marks_valid)."""
+    left, right = geometry.equivalent_limits(_wheel_limits_rad(get), 0., get('steer_type'), get('wheelbase_m'),
+                                             get('kingpin_width_m'), get('steer_ackermann_ratio'))
+    inset = math.radians(MARK_INSET_DEG)
+    link, raw = _link_of_delta(get), _nominal_raw(get)
+    centre = raw(link(0.))
+    return abs(raw(link(left - inset)) - centre), abs(centre - raw(link(-(right - inset))))
+
+
 _SOFT_LIMIT_INPUTS = ('steer_mech_limit_deg', 'steer_soft_margin_deg', 'steer_ackermann_ratio', 'wheelbase_m',
                       'kingpin_width_m', 'steer_type')
 _CURVE_INPUTS = ('forward_curve', 'drive_curve_P_fit1003', 'drive_curve_field1010_measured')
@@ -536,6 +617,12 @@ DERIVATIONS = {
         _CURVE_INPUTS + ('wheel_radius_rear_m', 'wheel_radius_front_m', 'drive_wheels'),
         lambda get: _main_line(get)['r_omega0_m_s'] / drive_wheel_radius(get)),
     'drive_deadband_frac': (_CURVE_INPUTS, lambda get: _main_line(get)['deadband_pct'] / 100.),
+    # schema v3
+    'belt_tooth_step_deg': (
+        ('belt_pulley_teeth_pot', 'pot_to_steer_ratio'),
+        lambda get: 360. / get('belt_pulley_teeth_pot') / get('pot_to_steer_ratio')),
+    'pot_travel_deg': (_POT_TRAVEL_INPUTS, lambda get: pot_travel_deg(get)),
+    'pot_cal_half_width_counts': (_CAL_MARK_INPUTS, lambda get: min(cal_mark_half_widths(get))),
 }
 
 
@@ -585,6 +672,33 @@ def _semantic_checks(values):
             raise ProfileError('bad_value', name, 'need decel_median > 0, decel_log_sd >= 0, onset_s >= 0')
     if values['sim_mcu_tick_hz'] % values['servo_hz']:
         raise ProfileError('bad_value', 'servo_hz', 'sim_mcu_tick_hz must be a multiple of servo_hz')
+
+
+def _semantic_checks_v3(values, strict_pot=True):
+    """Schema v3 checks (design v2 V2-6.5, decisions R36). strict_pot False (scenario overrides with
+    allow_out_of_range) leaves the pot range checks to warnings()."""
+    if values['steer_limit_switch'] != 'none':
+        raise ProfileError('not_modelled', 'steer_limit_switch',
+                           'end switches are not modelled: the ESP8266 has one free pin (D4) and the firmware V3 reads '
+                           'no switch; give the wiring with the specification first (SPEC_UPDATE_KO.md, Q25)')
+    if values['belt_skip_per_10000deg'] > 0. and values['belt_type'] != 'timing':
+        raise ProfileError('bad_value', 'belt_skip_per_10000deg', 'tooth skips need belt_type timing')
+    if not strict_pot:
+        return
+    get = values.__getitem__
+    low, high = sorted(pot_end_stop_raws(get))
+    window = values['cal_end_raw_window']
+    if low < window['min_raw'] or high > window['max_raw']:
+        raise ProfileError('pot_range_exceeded', 'pot_to_steer_ratio',
+                           'the steering travel x pot_to_steer_ratio puts the end stops at raw %.1f / %.1f, outside '
+                           'cal_end_raw_window %d..%d (pot_range_deg %g, pot_travel_deg %.1f): a smaller belt ratio or '
+                           'a pot with a wider range' % (low, high, window['min_raw'], window['max_raw'],
+                                                          values['pot_range_deg'], pot_travel_deg(get)))
+    half = min(cal_mark_half_widths(get))
+    if half < MARK_HALF_WIDTH_MIN:
+        raise ProfileError('pot_cal_half_width_small', 'pot_to_steer_ratio',
+                           'the calibration marks are %.1f counts from the centre (need >= %d, fw marks_valid): a larger '
+                           'belt ratio' % (half, MARK_HALF_WIDTH_MIN))
 
 
 # --- consistency warnings ----------------------------------------------------------------------------------------
@@ -706,6 +820,14 @@ class VehicleProfile:
     def names(self):
         """Parameter names in file order."""
         return list(self._records)
+
+    def has(self, name):
+        """True when this view has the parameter (schema v3 names are absent from a v2 file)."""
+        return name in self._records
+
+    @property
+    def schema_version(self):
+        return 3 if self.schema == SCHEMA_V3 else 2
 
     def _record(self, name):
         try:
@@ -962,6 +1084,8 @@ def _finish_records(records, derived_bounds=True):
     resolved = {name: rec['value'] for name, rec in records.items() if rec['provenance'] != 'DERIVED'}
     stale = {name: rec['stale_after_mod'] for name, rec in records.items() if rec['provenance'] != 'DERIVED'}
     _semantic_checks(resolved)
+    if 'belt_type' in records:
+        _semantic_checks_v3(resolved, strict_pot=derived_bounds)
     computing = set()
 
     def get(name):
@@ -1031,8 +1155,10 @@ def parse_profile(data, origin='<memory>'):
     for key in REQUIRED_TOP_LEVEL_KEYS:
         if key not in doc:
             raise ProfileError('top_level_key_missing', '', key)
-    if doc['schema'] != SCHEMA:
-        raise ProfileError('schema_mismatch', '', '%r (need %r)' % (doc['schema'], SCHEMA))
+    if doc['schema'] not in NAMES_OF_SCHEMA:
+        raise ProfileError('schema_mismatch', '', '%r (need one of %r)' % (doc['schema'], SCHEMAS))
+    schema = doc['schema']
+    names_of_schema = NAMES_OF_SCHEMA[schema]
     profile_id = doc['profile_id']
     if not isinstance(profile_id, str) or not _PROFILE_ID.match(profile_id):
         raise ProfileError('bad_profile_id', '', repr(profile_id))
@@ -1042,14 +1168,14 @@ def parse_profile(data, origin='<memory>'):
     params = doc['parameters']
     if not isinstance(params, dict):
         raise ProfileError('bad_document', '', 'parameters must be a mapping')
-    unknown = sorted(str(k) for k in set(params) - set(PARAMETER_NAMES))
+    unknown = sorted(str(k) for k in set(params) - set(names_of_schema))
     if unknown:
         raise ProfileError('parameter_unknown', unknown[0], ', '.join(unknown))
-    missing = [name for name in PARAMETER_NAMES if name not in params]
+    missing = [name for name in names_of_schema if name not in params]
     if missing:
         raise ProfileError('parameter_missing', missing[0], ', '.join(missing))
-    all_names = set(PARAMETER_NAMES)
-    records = {name: _validate_record(name, params[name], all_names) for name in PARAMETER_NAMES}
+    all_names = set(names_of_schema)
+    records = {name: _validate_record(name, params[name], all_names) for name in names_of_schema}
     for name, rec in records.items():
         if rec['provenance'] == 'DERIVED' and name not in DERIVATIONS:
             raise ProfileError('derivation_unknown', name)
@@ -1057,7 +1183,7 @@ def parse_profile(data, origin='<memory>'):
             raise ProfileError('derived_tag_required', name, 'computed from %s; tag it DERIVED (got %s)'
                                % (', '.join(DERIVATIONS[name][0]), rec['provenance']))
     records, _ = _finish_records(records)
-    return VehicleProfile(schema=SCHEMA, profile_id=profile_id, description=description, sha256=digest,
+    return VehicleProfile(schema=schema, profile_id=profile_id, description=description, sha256=digest,
                           origin=origin, records=records)
 
 

@@ -136,6 +136,8 @@ import json
 import math
 import posixpath
 
+from . import perception_settings as PS   # stdlib only (local_grid_* / gnss_* blocks)
+
 SCHEMA = 'ubts.row_executor.config.v1'
 PROFILES = ('field', 'bench')
 BENCH_ACK = 'WHEELS_OFF_GROUND'
@@ -377,6 +379,30 @@ class ExecutorConfig:
                                                  # table_mismatch (shown and logged; never a stop)
     corridor_quality: bool = False               # estimator 'corridor_quality' block (sides, support, ages, spread)
 
+    # --- perception layers L2 local grid / L3 GNSS (design v2 V2-3, V2-1 3; PC-07, PC-12; perception_settings.py) ------
+    # Both OFF by default; an untouched block is left out of to_dict()/digest() (existing configs keep their digest) and
+    # the Runner builds no layer then (bit-identical). Placeholders (SIM development values), not field calibrations.
+    local_grid_enabled: bool = False             # rolling occupancy grid in the estimator's odometry frame (local_grid.py)
+    local_grid_cell_m: float = .10               # cell size [m]
+    local_grid_length_m: float = 20.             # window along the grid axis [m] (30 % of it behind the vehicle)
+    local_grid_width_m: float = 10.              # window across [m]
+    local_grid_every_n_scans: int = 2            # grid update (insert + row-line fit) every N processed scans
+    local_grid_free_beam_step: int = 0           # 0 = hits only; N = every N-th beam also marks free cells
+    local_grid_min_hits: int = 3                 # occupied = hit in >= this many updates (persistence)
+    local_grid_fusion_gain: float = 0.           # > 0: grid lines -> estimator corridor observations (source local_grid)
+    local_grid_fuse_width: bool = False          # fusion also pulls the band width
+    local_grid_publish: bool = False             # bounded grid serialisation in the executor status (operator map)
+    local_grid_publish_period_s: float = .5      # ... at most this often
+    local_grid_publish_max_bytes: int = 16384    # ... text size cap (the bitmap is pooled until it fits)
+    gnss_mode: str = 'off'                       # 'off' | 'log_only' | 'geofence' (gnss_layer.py; never a steering input)
+    gnss_max_hacc_m: float = 10.                 # quality gate: horizontal accuracy <= this
+    gnss_max_age_s: float = 2.5                  # ... and age <= this (older = GNSS absent, a normal state)
+    gnss_jump_gate_m: float = 3.                 # jump rejection: innovation against the dead-reckoned last fix
+    gnss_fence_margin_m: float = 10.             # fence margin max(this, 3 x hacc) around the row rectangle
+    gnss_fence_confirm: int = 3                  # consecutive accepted fixes outside before the fence trips
+    gnss_course_baseline_m: float = 15.          # odometry path of a course window (alignment, drift)
+    gnss_course_tolerance_deg: float = 45.       # course drift flag (a gross check: GNSS course is not a heading)
+
     # --- assisted headland turn (TurnAssist; opt-in, default DISABLED; TURN_DESIGN.txt 3.10) ------
     # With the defaults below no turn run can command any output (observe / dry runs only) and the
     # row executor is unchanged; an untouched turn block is left out of to_dict()/digest().
@@ -476,6 +502,10 @@ class ExecutorConfig:
         if all(getattr(self, k) == _PRIOR_DEFAULTS[k] for k in PRIOR_KEYS):
             for k in PRIOR_KEYS:       # untouched design v2 block: the same
                 del data[k]
+        for keys, defaults in ((LOCAL_GRID_KEYS, _LOCAL_GRID_DEFAULTS), (GNSS_KEYS, _GNSS_DEFAULTS)):
+            if all(data[k] == defaults[k] for k in keys):
+                for k in keys:         # untouched perception block: the same (existing configs keep their digest)
+                    del data[k]
         return data
 
     def digest(self):
@@ -493,6 +523,7 @@ class ExecutorConfig:
         if self.mode == SINGLE_ROW_MODE:
             # single-row estimator options (other modes: the EstimatorConfig defaults, i.e. the original rules)
             overrides.update(single_row_estimator_fields(self))
+        overrides.update(PS.estimator_fields(self))   # local grid fusion (empty while the gain is 0)
         return overrides
 
     def actuator_prior_settings(self):
@@ -557,6 +588,10 @@ START_MODES = (ONE_PRESS, HOLD_TO_RUN)
 PRIOR_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('prior_')) + ('corridor_quality',)
 _PRIOR_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in PRIOR_KEYS}
 MAX_SPEED_TABLE_POINTS = 32
+LOCAL_GRID_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('local_grid_'))
+_LOCAL_GRID_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in LOCAL_GRID_KEYS}
+GNSS_KEYS = tuple(f.name for f in fields(ExecutorConfig) if f.name.startswith('gnss_'))
+_GNSS_DEFAULTS = {f.name: f.default for f in fields(ExecutorConfig) if f.name in GNSS_KEYS}
 
 
 # --- field specification -----------------------------------------------------------------------
@@ -682,6 +717,9 @@ _SPEC.update({
     'prior_predict_max_s': (_REAL, .1, 3.), 'prior_predict_max_m': (_REAL, .05, 2.),
     'prior_mismatch_fraction': (_REAL, .05, .9), 'corridor_quality': (bool,),
 })
+
+# Perception layers (local_grid_* / gnss_*, perception_settings.py): separate block for the same reason.
+_SPEC.update(PS.CONFIG_SPEC)
 
 # Vendored ControlConfig defaults (closed_loop/controllers.py; tests compare them with the vendored file).
 # With motor output the field profile may not configure anything looser (review S6).
@@ -920,6 +958,7 @@ def _rule_problems(cfg):
     p += steer_rule_problems(cfg)
     p += autonomy_rule_problems(cfg)
     p += prior_rule_problems(cfg)
+    p += PS.rule_problems(cfg)
     return p
 
 

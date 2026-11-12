@@ -157,6 +157,15 @@ match and predicts across a failed match / a scan gap (prior_weight > 0), bounde
                 beyond the bound and never decides a row end.
   reporting     Decision.summary['actuator_prior'] (speed / yaw-rate prior, online scale, table_mismatch, prediction
                 time and distance) and, with corridor_quality, summary['corridor_quality'].
+
+Perception layers (design v2 V2-3 / V2-1 3, PC-07 / PC-12; perception_layers.py, OFF by default and then never built):
+  local grid    with local_grid_enabled every processed scan also goes to the run's rolling occupancy grid (after the
+                estimator); its row-line fit goes back to the estimator as a corridor observation only with
+                local_grid_fusion_gain > 0 (estimator.on_corridor_observation, source 'local_grid', the estimator's own
+                gates). Summary block 'local_grid'; local_grid_export() for the operator map.
+  GNSS          with gnss_mode 'log_only' / 'geofence' feed_gnss() takes the fixes; they never reach the estimator or a
+                command. 'geofence' ENDS a row run ('gnss_geofence') when confirmed fixes leave the row rectangle (wide
+                margins); 'log_only' only reports. Summary block 'gnss'.
 """
 import collections
 from dataclasses import dataclass, field
@@ -170,6 +179,7 @@ import time
 import numpy as np
 
 from . import calib_runs as CR
+from . import perception_settings as PS
 from .config import FRONT_STEER, SINGLE_ROW_MODE, single_row_time_cap_speed, steer_fault_reason
 from .guard import Backstop, MotionOdometer, OutputGuard, SteerOutputGuard, sensor_reports_motion
 
@@ -205,6 +215,7 @@ DEFAULT_STEER_CONTROLLER = {'kind': 'row_follow'}    # front_steer without a con
 SINGLE_ROW_EXECUTOR_CATEGORIES = {
     'operator_stop': 'OPERATOR_OR_BACKSTOP',                 # page / dashboard STOP (emergency_stop)
     'operator_link_lost': 'OPERATOR_LINK_LOST',              # one_press: the operator screen's heartbeats stopped (R32)
+    'gnss_geofence': 'OPERATOR_OR_BACKSTOP',                 # GNSS layer fence (gnss_mode geofence, perception_layers)
     'reacquire_needs_press': 'PERCEPTION_OR_LOCALISATION',   # corridor re-acquisition wait (Runner pause)
     'stall_guard': 'SENSOR',                                 # loop stall pause (the repeat limit is SENSOR in the table)
     'prediction_limit': 'SENSOR',                            # actuator prior bound reached (a proposal; design v2 5)
@@ -898,6 +909,10 @@ class Runner:
             self.steer_monitor = SteerMonitor(config)
         self.stats = dict(imu_in=0, imu_rejected=0, imu_stamp_drop=0, scans_in=0, scans_rejected={},
                           scan_stamp_drop=0, last_scan_proc_s=None, max_scan_proc_s=0.)
+        self.perception = None              # local grid / GNSS layers (perception_layers.py), only when one is on
+        if PS.enabled(config):
+            from .perception_layers import PerceptionLayers
+            self.perception = PerceptionLayers(config)
         self.run_id = 0
         self.state = IDLE
         self.run_kind = None
@@ -966,6 +981,9 @@ class Runner:
         self._reset_run_state()
         self._last_tick = float(t)
         self.state, self.reason = PAUSED, 'await_hold'
+        if self.perception is not None:
+            self.perception.new_run(t, self.config.single_row_max_row_length_m if self.single_row is not None
+                                    else self.config.max_row_len_m)
         return self.run_id
 
     def start_run(self, t, row_len_m=None):
@@ -1143,7 +1161,16 @@ class Runner:
         self.stats['last_scan_proc_s'] = proc
         self.stats['max_scan_proc_s'] = max(self.stats['max_scan_proc_s'], proc)
         stats['proc_s'] = proc
+        if self.perception is not None:
+            self.perception.on_scan(self.estimator, stamp, r, amin, inc)
         return stats
+
+    def feed_gnss(self, t, msg):
+        """A GNSS message received at executor time t (gnss_mode not off; perception_layers / gnss_layer). The outcome
+        string, or None when the GNSS layer is off or no run is open. Never an estimator input."""
+        if self.perception is None or not self._run_open():
+            return None
+        return self.perception.on_gnss(float(t), msg, self.estimator)
 
     def feed_steering(self, t, block, host=None):
         """front_steer: the steering block (and steering_host block) of a bridge reply received at executor time t.
@@ -1283,6 +1310,13 @@ class Runner:
             moving = self._last_output != (0, 0) or not s.get('still', False)
             reason = self.backstop.check(now, s.get('distance_m'), moving, sensor_reports_motion(s))
             if reason is not None:
+                self._end(reason)
+                return self._decision(0, 0, s)
+        if self.perception is not None:
+            self.perception.tick(now, self.estimator)
+            reason = self.perception.end_reason() if self.run_kind == 'row' else None
+            if reason is not None:
+                self._prev_hold = hold
                 self._end(reason)
                 return self._decision(0, 0, s)
         if self.steering and self.steer_required:
@@ -1769,6 +1803,8 @@ class Runner:
             out['guard_violation'] = self.last_violation
         if self.single_row is not None and self.run_kind == 'row':
             out['single_row'] = self._sr_block(s)
+        if self.perception is not None and self.estimator is not None:
+            out.update(self.perception.summary(self._tick_now if self._tick_now is not None else 0., self.estimator))
         if self.steering:
             now = self._tick_now if self._tick_now is not None else 0.
             out['steering'] = dict(self.steer_monitor.summary(now), required=bool(self.steer_required),
@@ -1801,6 +1837,12 @@ class Runner:
             out['controller_state'] = self.controller.state
             out['controller_reason'] = self.controller.reason
         return out
+
+    def local_grid_export(self, now):
+        """Bounded grid serialisation for the operator map (local_grid_publish), None when off or without a run."""
+        if self.perception is None or self.estimator is None:
+            return None
+        return self.perception.export(now, self.estimator)
 
     def backstop_summary(self):
         """Backstop.summary() + expected_rest_m: where the vehicle comes to rest after the distance rule ends the

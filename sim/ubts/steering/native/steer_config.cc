@@ -19,7 +19,8 @@ const double kMaxPotGainCountsPerRad = 1e9;
 
 const char *const kInjectionNames[kInjKindCount] = {
     "jam",      "slow",      "driver_dead",   "driver_stuck_on", "polarity_reversed", "pot_open",    "pot_short",
-    "pot_stuck", "pot_noise_x10", "pot_jump", "pot_slip",        "pot_drift",         "pot_reversed"};
+    "pot_stuck", "pot_noise_x10", "pot_jump", "pot_slip",        "pot_drift",         "pot_reversed",
+    "steer_torque"};
 
 std::string format_double(double x) {
   char buf[40];
@@ -351,10 +352,20 @@ void parse_injections(const json::Document &doc, int index, int level, std::vect
         inj.value = params.number("rate_rad_per_s", -100.0, 100.0);
         break;
       }
+      case kInjSteerTorque: {
+        static const char *const p[] = {"torque_nm", "duration_s"};
+        params.require_keys(p, 2);
+        inj.value = params.number("torque_nm", -1000.0, 1000.0);
+        inj.duration_s = params.number("duration_s", 0.0, 1e9, true);
+        break;
+      }
       default: {
         params.require_keys(0, 0);
         break;
       }
+    }
+    if (level == kLevelL0 && inj.kind == kInjSteerTorque) {
+      throw ConfigError(item.key_path("kind") + ": steer_torque needs the PWM actuator (L1); L0 is an ideal servo");
     }
     if (level == kLevelL0 &&
         (inj.kind == kInjDriverDead || inj.kind == kInjDriverStuckOn || inj.kind == kInjPolarityReversed)) {
@@ -362,6 +373,38 @@ void parse_injections(const json::Document &doc, int index, int level, std::vect
                         " needs the PWM actuator (L1); L0 is an ideal servo");
     }
     out->push_back(inj);
+  }
+}
+
+// Optional block "steer_ext" (profile schema v3). Every key is required inside the block.
+void parse_ext(const ObjectView &e, const ActuatorConfig &act, ExtConfig *out) {
+  static const char *const keys[] = {"belt_play_rad",          "belt_creep_sd_rad_per_sqrt_rad", "belt_skip_per_rad",
+                                     "belt_tooth_step_rad",    "supply_rate_scale",              "backdrive_coast_gain",
+                                     "self_lock_breakaway_nm", "impact_rate_per_m",              "impact_torque_sd_nm",
+                                     "impact_duration_s",      "push_sd_nm",                     "push_corr_length_m"};
+  e.require_keys(keys, sizeof keys / sizeof keys[0]);
+  out->present = true;
+  out->belt_play_rad = e.number("belt_play_rad", 0.0, 0.5);
+  out->belt_creep_sd_rad_per_sqrt_rad = e.number("belt_creep_sd_rad_per_sqrt_rad", 0.0, 1.0);
+  out->belt_skip_per_rad = e.number("belt_skip_per_rad", 0.0, 1000.0);
+  out->belt_tooth_step_rad = e.number("belt_tooth_step_rad", 0.0, kPi);
+  out->supply_rate_scale = e.number("supply_rate_scale", 0.0, 2.0, true);
+  out->backdrive_coast_gain = e.number("backdrive_coast_gain", 1.0, 100.0);
+  out->self_lock_breakaway_nm = e.number("self_lock_breakaway_nm", 0.0, 1e4);
+  out->impact_rate_per_m = e.number("impact_rate_per_m", 0.0, 1000.0);
+  out->impact_torque_sd_nm = e.number("impact_torque_sd_nm", 0.0, 1e4);
+  out->impact_duration_s = e.number("impact_duration_s", 0.0, 10.0);
+  out->push_sd_nm = e.number("push_sd_nm", 0.0, 1e4);
+  out->push_corr_length_m = e.number("push_corr_length_m", 0.0, 1e6, true);
+  if (out->belt_skip_per_rad > 0.0 && !(out->belt_tooth_step_rad > 0.0)) {
+    throw ConfigError("steer_ext.belt_tooth_step_rad: must be > 0 when belt_skip_per_rad > 0");
+  }
+  if (out->impact_rate_per_m > 0.0 && !(out->impact_duration_s > 0.0)) {
+    throw ConfigError("steer_ext.impact_duration_s: must be > 0 when impact_rate_per_m > 0");
+  }
+  const bool torque_model = out->impact_rate_per_m > 0.0 || out->push_sd_nm > 0.0;
+  if (torque_model && !(act.stall_torque_nm > 0.0)) {
+    throw ConfigError("actuator.stall_torque_nm: must be > 0 with the steer_ext torque model");
   }
 }
 
@@ -474,11 +517,20 @@ Config parse_config(const std::string &line) {
     static const char *const keys_v2[] = {"protocol",      "mode",       "seed",     "mcu_tick_hz", "profile_id",
                                           "profile_sha256", "profile_overrides", "geometry", "actuator", "pot",
                                           "test_servo",    "mcu",        "injections", "firmware"};
-    if (v2) {
-      top.require_keys(keys_v2, sizeof keys_v2 / sizeof keys_v2[0]);
-    } else {
-      top.require_keys(keys_v1, sizeof keys_v1 / sizeof keys_v1[0]);
+    // "steer_ext" (profile schema v3) is optional in both protocols: without it every extension term is off.
+    bool has_ext = false;
+    {
+      const json::Node &root = parsed.node(parsed.root());
+      for (size_t i = 0; i < root.keys.size(); ++i) has_ext = has_ext || root.keys[i] == "steer_ext";
     }
+    std::vector<const char *> key_set;
+    if (v2) {
+      key_set.assign(keys_v2, keys_v2 + sizeof keys_v2 / sizeof keys_v2[0]);
+    } else {
+      key_set.assign(keys_v1, keys_v1 + sizeof keys_v1 / sizeof keys_v1[0]);
+    }
+    if (has_ext) key_set.push_back("steer_ext");
+    top.require_keys(&key_set[0], key_set.size());
     Config cfg;
     const std::string protocol = top.string("protocol");
     if (protocol == kProtocolV1) {
@@ -522,6 +574,12 @@ Config parse_config(const std::string &line) {
     parse_pot(top.object("pot"), &cfg.pot);
     parse_servo(top.object("test_servo"), cfg.tick_hz, &cfg.servo);
     parse_injections(parsed, top.child("injections"), cfg.actuator.level, &cfg.injections);
+    if (has_ext) parse_ext(top.object("steer_ext"), cfg.actuator, &cfg.ext);
+    for (size_t i = 0; i < cfg.injections.size(); ++i) {
+      if (cfg.injections[i].kind == kInjSteerTorque && !(cfg.actuator.stall_torque_nm > 0.0)) {
+        throw ConfigError("actuator.stall_torque_nm: must be > 0 with a steer_torque injection");
+      }
+    }
     if (cfg.protocol == 2) {
       const json::Node &firmware = top.node("firmware");
       if (cfg.mode == kModeFirmware) {
