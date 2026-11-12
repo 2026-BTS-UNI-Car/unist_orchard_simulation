@@ -68,3 +68,4 @@
 - 실행기 연결(PC-06): 브리지 응답의 상태 줄을 `on_actuator`에 넣기, 설정 키, 예측 한도에서 일시정지(`prediction_limit`), 기록 칸. 만들다 멈췄다. 이 저장소에는 없다.
 - 등록 한도로 재는 빠른 SIM 확인(`lidar_blackout_1p0`, 표 ±30 %)은 하지 않았다.
 - 국소 격자 층(PC-07)은 시작하지 않았다. 외부 관측 자리가 그 연결점이다.
+  - 2026-11-13 갱신: 국소 격자 층이 이 자리를 쓴다(source `local_grid`, 실행기 설정 `local_grid_fusion_gain`). `LOCAL_GRID_KO.md`. 추정기는 바꾸지 않았다.

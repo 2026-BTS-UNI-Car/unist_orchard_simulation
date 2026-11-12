@@ -206,7 +206,7 @@ def fig03(plt, summary, out):
     for k, (q, color) in enumerate(zip(('p50', 'p90', 'p99'), FF.BLUES[1:4])):
         ax.bar(x + (k - 1) * .26, [v[k] for v in values], width=.25, color=color, label=q)
     ax.axhline(15., color=FF.RED, lw=1., ls='--')
-    ax.text(len(names) + .45, 15., ' PC p99 목표 15 ms', color=FF.RED, fontsize=8, va='bottom', ha='right')
+    ax.text(-.45, 15.5, 'PC p99 목표 15 ms', color=FF.RED, fontsize=8, va='bottom', ha='left')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=20, fontsize=8, ha='right')
     ax.set_ylabel('벽시계 [ms] (PC)')
