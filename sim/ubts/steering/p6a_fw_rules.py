@@ -22,10 +22,22 @@ rules to give the first tick at which each code trips (native session ticks, the
   end of tick n (monitor_end_of_tick with en[n] as the servo mode): run_pol (|u| >= minp, same sign), run_stall
     (|u| >= stp), the DRV_STUCK run of decision 12.1-70 (stuck_run_step), the thermal ring
 
-TRACK is not computed: its run needs the firmware's cmd (the servo ramp), which the image's native program does not
-report (report_servo is newer). A code that is latched is not reported again; this module gives the first trip only.
-The servo mode at the fault step is taken from the EN pin of the previous tick (exact for the counters: a servo that
-is not live has EN 0 and u 0; the JOG and POL calibration modes are not used by the A19 cases).
+TRACK (spec 6.7, decision 12.1-69) needs the firmware's cmd (the servo ramp). With the evaluation-only report_servo
+channels of lockstep v2 (servo_pos, servo_tgt, servo_cmd, steer_mode after each tick; decision R18-11) the record
+has them, and the rule is (WF-4 g_gaps; fw_monitor.cpp monitor_faults):
+    servo mode at the fault step of tick n: steer_mode[n - 1] in (ACTIVE, HOLD)
+    cmd at the fault step: servo_cmd[n - 1] in a servo mode, else pos[n] (monitor_adc sets cmd = P outside the servo)
+    progress: n >= stt and (pos[n] - pos[n - stt]) x sgn(cmd - pos[n]) > stm
+    run_track: +1 when servo and |cmd - pos[n]| > trk and no progress, else 0; TRACK trips when servo and run_track
+               >= trt
+  pos is the firmware's own P (servo_pos); the recomputed pos (median, raw_to_permille) is compared with it tick by
+  tick (pos_mismatch_ticks, a check of this module). The mode at the fault step is the mode after tick n - 1: a C line,
+  a STOP or the watchdog that changes the mode inside tick n before step 6 is not seen. Entering a servo mode gives
+  |cmd - P| = 0 at that tick either way; a mode left inside tick n can count one tick more (a trip needs trt ticks in
+  a row). Without the servo channels (report_servo off, older native programs) TRACK is not computed.
+A code that is latched is not reported again; this module gives the first trip only. The servo mode of POLARITY,
+DRV_STUCK and STALL is taken from the EN pin of the previous tick (exact for the counters: a servo that is not live
+has EN 0 and u 0; the JOG and POL calibration modes are not used by the A19 cases).
 Pure Python (no numpy). Placeholder-based SIM results, not field validation.
 """
 from __future__ import annotations
@@ -33,7 +45,9 @@ from __future__ import annotations
 from .native import fw_eeprom
 
 NOT_RUNNING = 255
-CODES = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'THERMAL', 'SOFTLIMIT')
+CODES = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'THERMAL', 'SOFTLIMIT',
+         'TRACK')
+SERVO_MODES = (1, 2)                     # steer_mode ACTIVE, HOLD (lockstep_v2.STEER_MODE_NAMES)
 STUCK_IDLE, STUCK_BRAKE, STUCK_DRIFT = 0, 1, 2
 SAT16 = 0xFFFF
 
@@ -102,6 +116,13 @@ class FirmwareTrace:
         self.pwm = series['steer_pwm']
         self.en = series['steer_en']
         self.fault_bits = series['fault_bits']
+        self.servo_available = bool((session.get('firmware') or {}).get('report_servo'))
+        self.servo = None
+        if self.servo_available:
+            self.servo = {}
+            for channel in ('servo_pos', 'servo_tgt', 'servo_cmd', 'steer_mode'):
+                _, _, values = channel_series(record, channel, 0)
+                self.servo[channel] = values[start - first:end]
         self._evaluate()
 
     def native_tick(self, n):
@@ -205,9 +226,35 @@ class FirmwareTrace:
             if is_hot:
                 thermal_cnt += 1
         self.trips = trips
+        self.pos_mismatch_ticks = None
+        if self.servo is not None:
+            self._evaluate_track()
+
+    def _evaluate_track(self):
+        """TRACK from the report_servo channels (module docstring); also the recomputed pos against servo_pos."""
+        p = self.params
+        pos_fw, cmd_fw, mode = self.servo['servo_pos'], self.servo['servo_cmd'], self.servo['steer_mode']
+        self.pos_mismatch_ticks = sum(1 for a, b in zip(self.pos, pos_fw) if a != b)
+        trk, trt, stt, stm = int(p['trk']), int(p['trt']), int(p['stt']), int(p['stm'])
+        run_track = 0
+        trips = []
+        for n in range(len(pos_fw)):
+            servo = n > 0 and mode[n - 1] in SERVO_MODES
+            pos = pos_fw[n]
+            cmd = cmd_fw[n - 1] if servo else pos
+            progress = n >= stt and (pos - pos_fw[n - stt]) * _sgn(cmd - pos) > stm
+            if servo and abs(cmd - pos) > trk and not progress:
+                run_track = min(run_track + 1, SAT16)
+            else:
+                run_track = 0
+            if servo and run_track >= trt:
+                trips.append(n)
+        self.trips['TRACK'] = trips
 
     def first_trip(self, code, after_tick=None):
         """Native tick of the first trip of code at or after after_tick (native), or None."""
+        if code == 'TRACK' and self.servo is None:
+            raise TraceError('TRACK needs the report_servo channels (servo_cmd, steer_mode) in the record')
         if code not in self.trips:
             raise KeyError(code)
         start = 0 if after_tick is None else after_tick - self.setup_tick
@@ -226,7 +273,8 @@ class FirmwareTrace:
         return dict(setup_tick=self.setup_tick, boots=self.boots, ticks=len(self.raw), last_tick=self.last_tick,
                     first_trips={code: (None if not ticks else self.native_tick(ticks[0]))
                                  for code, ticks in self.trips.items()},
+                    servo_channels=self.servo is not None, pos_mismatch_ticks=self.pos_mismatch_ticks,
                     params={k: self.params[k] for k in ('med', 'nsd', 'nsw', 'jmp', 'jmpw', 'pvmin', 'pvmax', 'polp',
                                                         'polt', 'dsm', 'dst', 'stp', 'stt', 'stm', 'thp', 'thw',
-                                                        'tha', 'db', 'minp')},
+                                                        'tha', 'db', 'minp', 'trk', 'trt')},
                     calibration=self.cal)

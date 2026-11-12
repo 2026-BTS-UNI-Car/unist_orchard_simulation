@@ -32,6 +32,7 @@ import time
 CONTROL_SOCKET = os.environ.get('ROVER_CONTROL_SOCKET', '/run/ubts-steer/control.sock')
 HOOK_SOCKET = os.environ.get('UBTS_STEER_HOOK_SOCKET', '/run/ubts-steer-emu/hooks.sock')
 VEHICLE_PROFILE = 'front_steer'
+POSES_KEPT = 4000                         # truth poses by stamp kept by the observer (about 2 min at 30 Hz)
 OBSERVER_NODE = 'ubts_steer_p6a_check'
 STOP_MODES = ('brake', 'release', 'expire')
 
@@ -238,6 +239,7 @@ class SimObserver:
         self.rover_status = None
         self.imu = collections.deque(maxlen=20000)
         self.joints = collections.deque(maxlen=200000)          # (sim s, {name: (position, velocity)})
+        self.pose_by_stamp = collections.OrderedDict()           # stamp ns -> ((x, y, z), (qx, qy, qz, qw)), truth
         self._joint_subscription = None
         self.node.create_subscription(Clock, '/clock', self._clock, best)
         if record_truth:
@@ -272,6 +274,29 @@ class SimObserver:
         p, q, tw = msg.pose.pose.position, msg.pose.pose.orientation, msg.twist.twist
         self.odom.append((msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9, p.x, p.y, yaw_of(q), tw.linear.x,
                           tw.angular.z))
+        stamp = int(msg.header.stamp.sec) * 1000000000 + int(msg.header.stamp.nanosec)
+        self.pose_by_stamp[stamp] = ((p.x, p.y, p.z), (q.x, q.y, q.z, q.w))
+        while len(self.pose_by_stamp) > POSES_KEPT:
+            self.pose_by_stamp.popitem(last=False)
+
+    def record_scans(self, topic, count, timeout_s=60.):
+        """Subscribe a LaserScan topic and collect count messages: (stamp ns, receipt monotonic, receipt SIM s of this
+        node's /clock, angle_min, angle_increment, ranges). Evaluation side (e.g. /sim/scan_clipped, G13)."""
+        from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+        from sensor_msgs.msg import LaserScan
+        rows = []
+
+        def on_scan(msg):
+            rows.append((int(msg.header.stamp.sec) * 1000000000 + int(msg.header.stamp.nanosec), time.monotonic(),
+                         self.sim_time, float(msg.angle_min), float(msg.angle_increment), list(msg.ranges)))
+        qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=20, reliability=ReliabilityPolicy.BEST_EFFORT)
+        sub = self.node.create_subscription(LaserScan, topic, on_scan, qos)
+        try:
+            self.spin_until(lambda: len(rows) >= count, timeout_s)
+            self.spin_for(.3)                    # the poses of the last stamps
+        finally:
+            self.node.destroy_subscription(sub)
+        return rows[:count]
 
     def _truth(self, msg):
         try:

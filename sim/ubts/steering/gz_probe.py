@@ -27,6 +27,13 @@ The force-mode A1 groups also report the per-delta eta(delta) form with K = 0 (S
 amendment 3) with its residuals and a linear eta(delta) fit for A12, and the turning speed loss
 against the F-SIM drag loss range (turning_speed_loss).
 
+a25_firmware steps at standstill (WF-4 g_gaps, decision R19-9): the phase 3 steps (20 -> -20 deg swings) went beyond
+the placeholder THERMAL budget of the firmware (more than tha = 5000 hot ticks |pwm| >= thp in thw = 30 s: F THERMAL
+5001 at 23,755 ms, reproduced without Gazebo by the same host rule). a25_firmware is a normal script of A19(G), so its
+standstill steps are now at most 5 deg from 0 (swings of 10 deg, 376 hot ticks in the worst 30 s, margin 4624); the
+old steps run in the report group thermal_firmware_report, which expects the THERMAL latch and is not a normal script
+(result normal_script false). The registered A25 groups a25_l0 and a25_native keep the old steps (no firmware there).
+
 A12 twin groups (a12_w0 on W0, a12_w2 on the field1010 mode R scene; P7): the open-loop scripts of
 field_world.a12_twin (maneuvers 'schedule') with the F-SIM direct runner's command timing (commands
 every 50 ms, 50 ms latency, the MCU drive ramp of the F-SIM plant, the equivalent soft-limit clamp)
@@ -81,13 +88,17 @@ A4_RELEASE_TARGET_M = (.56 * .85, .60 * 1.15)   # release target 0.56-0.60 m +-1
 HEADING_SPREAD_TOL = .01             # start-direction independence: radii within +-1 % of their mean
 LIMIT_TOL_RAD = 1e-6                 # A21: a joint angle beyond its limit by more than this is an exceedance
 GROUPS = ('a1_kinematic', 'a1_force', 'a1_force_ideal', 'a1_ackermann', 'a4_drive', 'a4_tau_sweep', 'a21_limits',
-          'a25_l0', 'a25_native', 'a25_firmware', 'fdir_aniso', 'a12_w0', 'a12_w2')
+          'a25_l0', 'a25_native', 'a25_firmware', 'thermal_firmware_report', 'fdir_aniso', 'a12_w0', 'a12_w2')
 A12_GROUPS = ('a12_w0', 'a12_w2')
 DIAGNOSTIC_GROUPS = ('a1_force_ideal', 'a4_tau_sweep', 'fdir_aniso')     # reported, no registered criterion of their own
-A25_GROUPS = ('a25_l0', 'a25_native', 'a25_firmware')
+A25_GROUPS = ('a25_l0', 'a25_native', 'a25_firmware', 'thermal_firmware_report')
 # a25_firmware: the A25 measurement with the firmware-mode backend (phase 3 task: a report, not the registered judgement,
 # which uses the L0 and the native L1 test_servo models). Its check is A25_firmware_report.
-REPORT_GROUPS = ('a25_firmware',)
+REPORT_GROUPS = ('a25_firmware', 'thermal_firmware_report')
+NOT_NORMAL_GROUPS = ('thermal_firmware_report',)       # A19(G): faults are expected (not a normal script)
+A25_STEPS_DEG = ((0., 0.), (2., 20.), (12., -20.), (22., 5.), (32., -5.), (42., 23.), (52., 0.))
+# firmware standstill steps within the placeholder thermal budget (module docstring; R18-3: steps of at most 5 deg)
+A25_FIRMWARE_STEPS_DEG = ((0., 0.), (2., 5.), (12., -5.), (22., 3.), (32., -3.), (42., 5.), (52., 0.))
 # fdir1 check (design 3.6 [추정] "fdir1 0 0 1 turns with the steered wheel"): with mu = mu2 and unsaturated contacts the
 # friction basis cannot change a result, so the registered start-direction check (isotropic) does not test it. Strongly
 # anisotropic wheel friction (lateral 0.005, longitudinal 1.0; model option, outside the profile range on purpose) makes
@@ -95,8 +106,9 @@ REPORT_GROUPS = ('a25_firmware',)
 # profile-friction reference (the anisotropy acted). Review F3.
 FDIR_MU_LAT, FDIR_MU_LONG = .005, 1.
 FDIR_HEADINGS_DEG = (0., 45., 90., 135., 200.)
-FDIR_TRACK_TOL_M = 1e-6               # start-frame track difference between start directions
+FDIR_TRACK_TOL_M = 1e-6               # start-frame track difference between start directions (absolute; phase 3)
 FDIR_EFFECT_MIN_M = .05               # the anisotropic track must differ this much from the reference
+FDIR_TRACK_REL_TOL = 1e-6             # relative form (WF-4 g_gaps, decision R19-14): spread / effect <= this
 
 
 # =================================================================================================================
@@ -810,7 +822,8 @@ def group_definition(group, profile, backend='l0'):
             out['field_spec'] = a12_twin.w2_field_spec().to_dict()
         return out
     if group in A25_GROUPS:
-        kind = {'a25_l0': 'L0', 'a25_native': 'native_L1', 'a25_firmware': 'firmware'}[group]
+        kind = {'a25_l0': 'L0', 'a25_native': 'native_L1', 'a25_firmware': 'firmware',
+                'thermal_firmware_report': 'firmware'}[group]
 
         def make_backend(ctx, seed):
             if kind == 'L0':
@@ -819,7 +832,7 @@ def group_definition(group, profile, backend='l0'):
                 return b
             from .actuator_link import NativeSteeringBackend
             return NativeSteeringBackend(ctx.view, seed, mode='test_servo')
-        steps = [(0., 0.), (2., 20.), (12., -20.), (22., 5.), (32., -5.), (42., 23.), (52., 0.)]
+        steps = list(A25_FIRMWARE_STEPS_DEG if group == 'a25_firmware' else A25_STEPS_DEG)
         moving_steps = [(0., 0.), (4., 10.), (12., -10.), (20., 15.), (28., -5.), (36., 0.), (44., 12.), (52., 0.)]
         specs = [
             ('steps_standstill', lambda t: math.radians(piecewise(t, steps)), None),
@@ -828,6 +841,8 @@ def group_definition(group, profile, backend='l0'):
             ('hold_standstill_0', lambda t: 0., None),
             ('hold_standstill_turned', lambda t: math.radians(ramp(t, 1., 3., 0., 20.)), None),
         ]
+        if group == 'thermal_firmware_report':       # only the big standstill steps (THERMAL expected)
+            specs = specs[:1]
         vehicles = []
         for i, (case, target_fn, speed) in enumerate(specs):
             def factory(ctx, target_fn=target_fn, speed=speed, seed=i):
@@ -840,8 +855,9 @@ def group_definition(group, profile, backend='l0'):
                     drive = lambda t, obs: ctx.drive_targets(ramp(t, 1., 2., 0., duty))
                 return ModelSteerController(ctx, make_backend(ctx, seed), target_fn, drive)
             vehicles.append(vehicle('m%d' % i, _grid(i), 0., factory, dict(kind='a25', case=case, backend=kind)))
-        return dict(scene='w0_force', duration_s=64., vehicles=vehicles, window=(0., 64.),
-                    drift_windows={'hold_standstill_0': (3., 63.), 'hold_standstill_turned': (4., 64.)})
+        return dict(scene='w0_force', duration_s=64., vehicles=vehicles, window=(0., 64.), steps_standstill_deg=steps,
+                    drift_windows={'hold_standstill_0': (3., 63.), 'hold_standstill_turned': (4., 64.)}
+                    if group != 'thermal_firmware_report' else {})
     raise ValueError('unknown_group:%r (choices %s)' % (group, ', '.join(GROUPS)))
 
 
@@ -1345,10 +1361,17 @@ def analyze_group(group, group_def, ctx, logs, manifests):
             combined_error_deg=combined, p99_each_vehicle_ok=bool(ok_p99), drift=drift_rows,
             spike_free=bool(spike_ok),
             passed=bool(ok_p99 and spike_ok and all(d['passed'] for d in drift_rows)))
-        if group in REPORT_GROUPS:
+        if group == 'thermal_firmware_report':
+            check.update(judgement='report', note='THERMAL report group (old phase 3 standstill steps, %s deg): the '
+                         'firmware is expected to latch THERMAL (placeholder budget tha 5000 hot ticks in 30 s); not '
+                         'a normal script of A19(G); the MCU lines are in run.controller_summaries'
+                         % '/'.join('%g' % v for _, v in group_def['steps_standstill_deg']))
+            out['checks']['THERMAL_expected_report'] = check
+        elif group in REPORT_GROUPS:
             check.update(judgement='report', note='firmware-mode backend (minimal host: ARM, C lines every %d ms); '
                          'the registered A25 judgement uses a25_l0 and a25_native; the MCU lines are in '
-                         'run.controller_summaries' % FW_C_PERIOD_TICKS)
+                         'run.controller_summaries; standstill steps %s deg (within the thermal budget, WF-4)'
+                         % (FW_C_PERIOD_TICKS, '/'.join('%g' % v for _, v in group_def['steps_standstill_deg'])))
             out['checks']['A25_firmware_report'] = check
         else:
             out['checks']['A25'] = check
@@ -1393,14 +1416,21 @@ def analyze_group(group, group_def, ctx, logs, manifests):
         yaw_spread = max(float(np.degrees(np.max(np.abs(tracks[name][2][:n] - first[2][:n])))) for name in aniso[1:])
         ref = tracks[reference[0]]
         effect = float(np.max(np.hypot(ref[0][:n] - first[0][:n], ref[1][:n] - first[1][:n])))
+        absolute = bool(spread <= FDIR_TRACK_TOL_M and effect >= FDIR_EFFECT_MIN_M)
+        relative = spread / effect if effect > 0. else None
         out['checks']['fdir1_turns_with_the_wheel'] = dict(
             criterion='diagnostic (design 3.6 fdir1 assumption, review F3): with anisotropic wheel friction (mu lateral '
-                      '%g, mu2 longitudinal %g) the start-frame tracks of start directions %s agree within %g m, and '
-                      'differ from the profile-friction track by at least %g m (the anisotropy acted)'
-                      % (FDIR_MU_LAT, FDIR_MU_LONG, '/'.join('%g' % h for h in FDIR_HEADINGS_DEG), FDIR_TRACK_TOL_M,
+                      '%g, mu2 longitudinal %g) the start-frame tracks of start directions %s agree within %g of the '
+                      'anisotropy effect (relative form, decision R19-14), and differ from the profile-friction track '
+                      'by at least %g m (the anisotropy acted)'
+                      % (FDIR_MU_LAT, FDIR_MU_LONG, '/'.join('%g' % h for h in FDIR_HEADINGS_DEG), FDIR_TRACK_REL_TOL,
                          FDIR_EFFECT_MIN_M),
             max_track_difference_m=spread, max_yaw_difference_deg=yaw_spread, anisotropy_effect_m=effect,
-            passed=bool(spread <= FDIR_TRACK_TOL_M and effect >= FDIR_EFFECT_MIN_M))
+            relative_track_difference=relative, relative_tolerance=FDIR_TRACK_REL_TOL,
+            absolute_form=dict(tolerance_m=FDIR_TRACK_TOL_M, passed=absolute,
+                               note='the phase 3 absolute form (1e-6 m) stays reported: it was false with 1.37e-6 m '
+                                    'against an effect of 11.9 m'),
+            passed=bool(relative is not None and relative <= FDIR_TRACK_REL_TOL and effect >= FDIR_EFFECT_MIN_M))
         out['checks']['finite'] = dict(passed=all(row['finite'] for row in out['vehicles'].values()))
         return out
     raise ValueError('unknown_group:' + group)
@@ -1511,6 +1541,9 @@ def run_group(group, out_root, profile, *, quick=False, model_options=None):
                   mass_check=next(iter(manifests.values())).get('mass_check') if manifests else None,
                   profile=ctx.view.result_label(), engine='fixture', duration_s=group_def['duration_s'],
                   quick=quick, total_wall_s=time.perf_counter() - started,
+                  normal_script=group not in NOT_NORMAL_GROUPS,
+                  normal_script_note=None if group not in NOT_NORMAL_GROUPS else
+                  'faults are expected in this group (A19(G) does not count it as a normal script)',
                   provenance=provenance(world, info.get('actuator_backends')),
                   vehicle_specs={s['name']: dict(pose=[s['x'], s['y'], math.degrees(s['yaw'])], tags=s['tags'],
                                                  model_options=s['model_options']) for s in group_def['vehicles']})

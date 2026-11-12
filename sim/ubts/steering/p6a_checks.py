@@ -21,9 +21,22 @@ A17, A19). Run inside the check service of compose.ubts-steer.yaml (joins the si
               mandatory fault tests that need no executor
   faults      A19 (G): each MCU fault code through the emulator hooks (judgement tick vs the spec rule +-1 tick,
               resulting state) and the host faults reachable without the executor. POT_NOISE, SOFTLIMIT, POLARITY,
-              DRV_STUCK, STALL and THERMAL are judged against the rule tick that p6a_fw_rules computes from a record
-              of the case (every tick's analogRead value and pins); TRACK's tick is an estimate (timing reported,
-              not judged)
+              DRV_STUCK, STALL, THERMAL and TRACK are judged against the rule tick that p6a_fw_rules computes from a
+              record of the case (every tick's analogRead value and pins; TRACK from the evaluation-only report_servo
+              channels: the firmware's P, cmd and steering mode). The host latches are judged against the host
+              bridge rules (HOST_BRIDGE_V3: status gap 150 ms, not following 3 deg for 1.5 s, the N line of a C, the
+              banner of a new boot) within one bridge loop tick; BOOT and NOCAL by the boot delay and the first
+              status line bits (G09)
+  bridge_kill A17 (G) mandatory fault test 'bridge forced kill' (design 7.2.1, decision R19-12): SIGKILL of the bridge
+              wrapper while driving (emulator hook kill_bridge) -> C TTL drive 0 -> link watchdog W -> supervisor
+              restart -> port open reset of the MCU -> no automatic restart; run it in both clock modes
+  a3noise     A3 (G) noise (amendment 15): DISARMED, standstill, report_adc for >= 10,000 ticks in a new session:
+              the raw sd against the profile (+-10 %), the replay of the same FW_STEP inputs in a fresh firmware
+              backend, and the raw distribution of a T1-style run (10 ms FW_STEPs, same session values)
+  clip        P7 / G13 (field1010): N scans of /sim/scan_clipped and the truth pose of their stamp, compared with
+              the raster DDA of the scene's raster copy under the A7 rules (hit mismatch, range mismatch > cell
+              diagonal; the clip node adds noise after the clip, so the range check uses the noise-free decision
+              only: a return must exist where the raster has one), and the stamp-to-receipt latency (SIM and wall)
   a25         A25 (G, emulator path, amendment 2): the steering joint angles of /sim/truth/joint_states against the
               shared model's delta_L, delta_R of /sim/truth/steering at the same SIM time (p99, max, delay in steps,
               joint speed spikes) during a steering pattern at standstill and while driving, with the /clock gaps
@@ -35,8 +48,15 @@ A17, A19). Run inside the check service of compose.ubts-steer.yaml (joins the si
   rtf         A10: the /clock rate against the wall clock (amendment 2: --seconds 240 with the first --warmup-s 20 s
               left out, 5 s windows; RTF source = this node's /clock receipt; the rendering path from the environment)
   summary9    A9: variance over the drive results of several runs (host-side: one stack start per run)
-  a19g_normal A19 (G) normal-script false detections over result files (startup, verify, drive, safety, a25) and
-              G-SIM lockstep results (gz_probe a25_firmware), with the STALL false-detection rate (host-side)
+  a19g_normal A19 (G) normal-script false detections over result files (startup, verify, drive, safety, a25, rtf,
+              a3, a3noise) and G-SIM lockstep results (gz_probe a25_firmware; a result marked normal_script false,
+              such as the THERMAL report group, is not counted), with the STALL false-detection rate (host-side)
+
+Status files are taken only from the current run (G06): a file must have been updated after the READY stamp of the
+run token in the scene folder (/runtime/steer/scene/READY), else it is reported as stale and not used.
+SIM-made host latches are attributed on the monotonic clock (the emulator's /clock stalls carry their monotonic end;
+the bridge log t is the monotonic clock in the wall clock mode): the VM's CLOCK_REALTIME is stepped by about +1.7 s
+every 30 s on this host (WF-4 g_gaps), so wall times are not used for the attribution when monotonic ones exist.
 
 Every check result has emulator_clock (the emulator's /clock gap counters over the check: SIM gaps > 20 / 50 / 100 ms
 = skipped /clock samples, wall gaps between callbacks) and rtf (the 5 s windows of /clock against this node's wall
@@ -86,6 +106,13 @@ EMULATOR_CLOCK_COUNTERS = ('clock_gaps_over_20ms', 'clock_gaps_over_50ms', 'cloc
 FAULT_NAMES = ('NOCAL', 'POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'SOFTLIMIT',
                'STALL', 'TRACK', 'THERMAL', 'TTL', 'WATCHDOG', 'CRC', 'BOOT')
 CONDITION_BITS = ('SOFTLIMIT', 'TTL')    # status-line bits that follow a condition (no latch)
+READY_STAMP = '/runtime/steer/scene/READY'
+HOST_PROFILE = '/runtime/steer/host_profile.json'
+SUPERVISOR_STEER = '/runtime/steer/supervisor_steer.json'
+LOOP_PERIOD_S = .02                      # bridge loop / SIM grid period (HOST_BRIDGE_V3)
+BOOT_DELAY_TICKS = 70                    # emulator / T1 rig placeholder: reset -> setup()
+NORMAL_CHECKS = ('A19_G_startup', 'verify', 'drive', 'A17_G', 'A25_G_emulator_path', 'A10_rtf', 'A3_G',
+                 'A3_G_noise')
 
 
 # --- small helpers --------------------------------------------------------------------------------------------------------
@@ -112,6 +139,34 @@ def provenance(root=IMAGE_ROOT, manifest_path=IMAGE_MANIFEST, dirs=PROVENANCE_DI
     return dict(manifest={k: manifest.get(k) for k in fields}, dirs=list(dirs), files_checked=len(now),
                 differ_count=len(differ), differ=differ[:20], extra_count=len(extra), extra=extra[:20],
                 sources_match_image=not differ and not extra and bool(now))
+
+
+def run_scope(stamp_path=READY_STAMP):
+    """The current run (G06): the READY stamp of the sim role (token, written_at) or None."""
+    try:
+        stamp = load_json(stamp_path)
+    except (OSError, ValueError):
+        return None
+    return dict(token=stamp.get('token'), written_at=stamp.get('written_at'), scene=stamp.get('scene'))
+
+
+def scoped_json(path, scope=None, key='updated_at'):
+    """(data, note) of a status file of the current run: None with a note when it is missing, has no time, or was
+    last written before the run's READY stamp (a file left on the runtime volume by an earlier run)."""
+    try:
+        data = load_json(path)
+    except (OSError, ValueError):
+        return None, 'missing'
+    scope = run_scope() if scope is None else scope
+    if not scope or scope.get('written_at') is None:
+        return data, 'no run scope (READY stamp missing): taken as is'
+    when = data.get(key) if isinstance(data, dict) else None
+    if when is None:
+        return None, 'no %s' % key
+    if float(when) < float(scope['written_at']):
+        return None, 'stale: %s %.3f before the READY stamp %.3f of this run' % (key, float(when),
+                                                                               float(scope['written_at']))
+    return data, 'current run'
 
 
 def write_json(path, payload):
@@ -275,12 +330,13 @@ STALL_ATTRIBUTION_S = 1.                 # a host steering_status_stale within t
 
 
 def emulator_stalls():
-    """The emulator's /clock wall stalls (wall end, gap) from the status file, or []."""
+    """The emulator's /clock wall stalls (wall end, gap s, monotonic end or None) from the status file, or []."""
     try:
         stalls = load_json(STEERING_STATUS)['emulator'].get('clock_stalls') or []
     except (OSError, ValueError, KeyError):
         return []
-    return [(float(s['wall_end']), float(s['wall_gap_ms']) / 1000.) for s in stalls]
+    return [(float(s['wall_end']), float(s['wall_gap_ms']) / 1000.,
+             None if s.get('mono_end') is None else float(s['mono_end'])) for s in stalls]
 
 
 def emulator_slow():
@@ -337,9 +393,14 @@ def false_detections(emu, bridge, expected=(), after_tick=None, after_wall=None,
     def in_stall(wall, mono):
         if clock != 'wall':
             return None
-        for end, gap in stalls or () if wall is not None else ():
-            if end - gap - .05 <= wall <= end + STALL_ATTRIBUTION_S:
-                return dict(stall_end=end, stall_ms=round(gap * 1000., 1))
+        for stall in stalls or ():
+            end, gap = stall[0], stall[1]
+            mono_end = stall[2] if len(stall) > 2 else None
+            if mono_end is not None and mono is not None:       # the monotonic clock (wall time is stepped)
+                if mono_end - gap - .05 <= mono <= mono_end + STALL_ATTRIBUTION_S:
+                    return dict(stall_end=end, stall_ms=round(gap * 1000., 1), time_base='monotonic')
+            elif wall is not None and end - gap - .05 <= wall <= end + STALL_ATTRIBUTION_S:
+                return dict(stall_end=end, stall_ms=round(gap * 1000., 1), time_base='wall')
         for start, end, rate in slow or () if mono is not None else ():
             if start - .05 <= mono and (end is None or mono <= end + STALL_ATTRIBUTION_S):
                 return dict(slow_start_mono=start, slow_end_mono=end, slow_min_rate=round(rate, 3))
@@ -1229,7 +1290,9 @@ def fault_case(ctx, name, code=None, *, restart=None, arm=True, drive=None, trig
     if selected and name not in selected:
         return dict(name=name, skipped=True)
     record_path = None
+    restart_wall = None
     if restart is not None:
+        restart_wall = time.time()
         if rule is not None:
             record_path = '/runtime/steer/a19_record_%s.json' % name
             try:
@@ -1338,7 +1401,7 @@ def fault_case(ctx, name, code=None, *, restart=None, arm=True, drive=None, trig
                 expected=None if exp is None else dict(tick=exp[0], tolerance=exp[1], rule=exp[2]),
                 arm=None if arm_reply is None else {k: arm_reply.get(k) for k in ('ok', 'error')},
                 host_state=status.get('state'), host_faults=status['steering']['faults'],
-                last_status=None if not lines else lines[-1]['status'])
+                last_status=None if not lines else lines[-1]['status'], mark=mark, restart_wall=restart_wall)
 
 
 def pushes_after(emu, tick, level=1):
@@ -1457,9 +1520,15 @@ def check_faults(ctx, args):
                             trigger=frozen_step(350), observe_s=2.5, rule=('STALL', 'trip'), host_latch='STALL'))
     ctx.hooks.event(kind='motor_power', arg=1)
     ctx.hooks.event(kind='adc_model')
+    # TRACK: judged against the rule tick of the record (report_servo channels: the firmware's cmd and mode);
+    # the earlier estimate (cmd ramp from the last status line) is kept in the result as a report
     cases.append(fault_case(ctx, 'track', 'TRACK', restart=fresh_session('a19_track', record_overrides=dict(maxp=150)),
-                            drive=(0, 0), trigger=frozen_step(350), observe_s=2.5,
-                            expected=lambda t, emu: track_expected(emu, t, p), host_latch='TRACK', timing='estimate'))
+                            drive=(0, 0), trigger=frozen_step(350), observe_s=2.5, rule=('TRACK', 'trip'),
+                            host_latch='TRACK'))
+    if cases[-1].get('name') == 'track':
+        emu_track = [e for e in read_jsonl(EMULATOR_LOG) if e.get('tick', 0) >= (cases[-1].get('trigger_tick') or 0)]
+        cases[-1]['estimate_report'] = dict(zip(('tick', 'tolerance', 'rule'),
+                                                track_expected(emu_track, cases[-1].get('trigger_tick'), p)))
     ctx.hooks.event(kind='motor_power', arg=1)
     ctx.hooks.event(kind='adc_model')
     # the same two with the model's ADC noise: reported (STALL may come late, TRACK may not come before the host's
@@ -1493,21 +1562,30 @@ def check_faults(ctx, args):
                             observe_s=1.5, expected=lambda t, emu: crc_expected(emu, t, p.get('crcn', 5))))
     cases.append(fault_case(ctx, 'boot', None, line_prefix='UBTS_STEER_V3 hello', drive=(30, 0),
                             trigger=event('mcu_reset', 3), observe_s=2., condition_bit=0x4000,
-                            host_latch='mcu_reset_detected'))
+                            host_latch='mcu_reset_detected',
+                            expected=lambda t, emu: (None if t is None else t + BOOT_DELAY_TICKS, 1,
+                                                     'reset tick + boot delay (%d ticks): the banner' %
+                                                     BOOT_DELAY_TICKS)))
+    host_timing(ctx, cases[-1], 'mcu_reset_detected', 'banner')
     cases.append(fault_case(ctx, 'nocal', None, restart=dict(reason='a19_nocal', eeprom='blank'), trigger=None,
                             observe_s=1., condition_bit=0x0001, arm_error='steering_uncalibrated'))
+    boot_bits_timing(cases[-1], 'NOCAL', 0x0001)
     # host faults
     cases.append(fault_case(ctx, 'host_status_stale', None, restart=fresh_session('a19_host'), drive=(30, 0),
                             trigger=lambda c: c.hooks.status_loss(duration_ms=400)['start_tick'], observe_s=1.,
                             host_latch='steering_status_stale'))
+    host_timing(ctx, cases[-1], 'steering_status_stale', 'status_gap')
     cases.append(fault_case(ctx, 'host_calibration_mismatch', None, restart=dict(fresh_session('a19_cal2'), cal_id=2),
                             trigger=None, observe_s=.5, arm_error='calibration_mismatch'))
+    host_timing(ctx, cases[-1], 'calibration_mismatch', 'banner')
     cases.append(fault_case(ctx, 'host_c_rejected', None, restart=fresh_session('a19_host2'), drive=(30, 0),
                             trigger=lambda c: c.hooks.corrupt(kind='range', count=1)['tick'], observe_s=1.,
                             host_latch='c_rejected'))
+    host_timing(ctx, cases[-1], 'c_rejected', 'n_line')
     cases.append(fault_case(ctx, 'host_not_following', None, restart=fresh_session('a19_slow', injections=[
         dict(kind='slow', at_s=0., params=dict(rate_scale=.3))]), drive=(0, 0), trigger=steer_to(300),
         observe_s=2.5, host_latch='steering_not_following'))
+    host_timing(ctx, cases[-1], 'steering_not_following', 'not_following')
     ctx.hooks.restart(**fresh_session('a19_end'))
     ctx.obs.spin_for(2.)
     cases = [c for c in cases if not c.get('skipped')]
@@ -1517,8 +1595,10 @@ def check_faults(ctx, args):
                   invalid_cases=sorted(c['name'] for c in cases if not (c.get('validity') or {}).get('valid', True)),
                   tolerance_ticks=RULE_TOLERANCE_TICKS,
                   rules='p6a_fw_rules over a record of the case: POT_NOISE, SOFTLIMIT (condition bit), POLARITY, '
-                        'DRV_STUCK, STALL, THERMAL; fixed rules: POT_OPEN / POT_SHORT / POT_JUMP (t + (med-1)/2), '
-                        'TTL (last C + ttl), WATCHDOG (last input + wd + 1), CRC (crcn-th bad line); TRACK estimate')
+                        'DRV_STUCK, STALL, THERMAL, TRACK (report_servo channels); fixed rules: POT_OPEN / POT_SHORT / '
+                        'POT_JUMP (t + (med-1)/2), TTL (last C + ttl), WATCHDOG (last input + wd + 1), CRC (crcn-th '
+                        'bad line), BOOT (reset + boot delay); host latches (HOST_BRIDGE_V3 rules, one loop tick)',
+                  host_latch_timing={c['name']: c.get('host_timing') for c in cases if c.get('host_timing')})
     return dict(check='A19_G', criteria=criteria, passed=verdict(criteria), cases=cases, cfg=params,
                 timing=timing, selection=sorted(ctx.selected) or 'all',
                 false_detection_note='normal-script false detections are counted by the startup, verify, drive, '
@@ -1651,6 +1731,7 @@ def check_a3(ctx, args):
     ctx.hooks.record(seconds=args.seconds, path=path, injections=[dict(kind='pot_jump', at_s=args.seconds * .7,
                                                                         params=dict(counts=40, duration_s=.3))])
     ctx.obs.spin_for(2.)
+    mark = ctx.mark('a3')
     try:
         ctx.ensure_armed()
         ctx.obs.spin_sim_for(args.seconds * .35)       # standstill
@@ -1669,6 +1750,17 @@ def check_a3(ctx, args):
         ctx.client.stop('brake')
     if not Path(path).exists():
         return dict(check='A3_G', passed=False, error='record file not written')
+    emu_window, _ = ctx.logs(mark)
+    # the injected pot_jump (40 counts, 0.3 s at 70 % of the record) is expected: POT_JUMP / POT_NOISE latches and
+    # their host latches after it are not false detections; everything before it is a normal script
+    jump_tick = mark['tick'] + int(args.seconds * 700)
+    false = false_detections(emu_window, read_jsonl(BRIDGE_LOG), after_tick=mark['tick'],
+                             after_wall=mark['wall'] - .01, stalls=emulator_stalls(), slow=emulator_slow(),
+                             clock=args.clock,
+                             expected=[('mcu', code, jump_tick - 200, None) for code in
+                                       ('POT_JUMP', 'POT_NOISE', 'POT_OPEN', 'POT_SHORT')] +
+                             [('host', name, None, None) for name in ('POT_JUMP', 'POT_NOISE', 'mcu_disarmed',
+                                                                      'hardware_fault', 'steering_fault_latched')])
     record = load_json(path)
     from .gz_esp_emulator import replay_record
     executable = record['session'].get('executable') or native_executable_path()
@@ -1688,7 +1780,7 @@ def check_a3(ctx, args):
                           'adc_read needs report_adc (UBTS_STEER_REPORT_ADC=1)'),
                 criterion('standstill_raw_sd_counts', sd, 'report (profile pot_noise_sd_counts)', None)]
     return dict(check='A3_G', criteria=criteria, passed=verdict(criteria), replay=replay, frames=record['frame_count'],
-                ticks=record['ticks'], standstill_samples=len(standstill), standstill_sd=sd,
+                ticks=record['ticks'], standstill_samples=len(standstill), standstill_sd=sd, false_detection=false,
                 session=dict((k, record['session'].get(k)) for k in ('seed', 'boot_seed', 'build_id', 'firmware_build',
                                                                      'injections', 'profile_id')))
 
@@ -1801,13 +1893,27 @@ def check_rtf(ctx, args):
         return time.monotonic(), status.get('sim_time'), dict(status.get('counts') or {})
     ctx.obs.spin_for(2.)
     ctx.obs.clock_rows.clear()
-    clip0 = read_optional('/runtime/scan_clip_status.json')
-    lidar0 = read_optional('/runtime/cpu_lidar_status.json')
+    scope = run_scope()
+    field = (scope or {}).get('scene', os.environ.get('UBTS_STEER_SCENE')) == 'field1010'
+    notes = {}
+
+    def status_file(path, name):
+        if name == 'clip' and not field:
+            notes[name] = 'not a field world scene: no clip node'
+            return None
+        data, notes[name] = scoped_json(path, scope)
+        return data
+    mark = ctx.mark('rtf')
+    clip0 = status_file('/runtime/scan_clip_status.json', 'clip')
+    lidar0 = status_file('/runtime/cpu_lidar_status.json', 'lidar')
     w0, s0, c0 = counts()
     ctx.obs.spin_for(args.seconds)
     w1, s1, c1 = counts()
-    clip1 = read_optional('/runtime/scan_clip_status.json')
-    lidar1 = read_optional('/runtime/cpu_lidar_status.json')
+    clip1 = status_file('/runtime/scan_clip_status.json', 'clip')
+    lidar1 = status_file('/runtime/cpu_lidar_status.json', 'lidar')
+    emu, _ = ctx.logs(mark)
+    false = false_detections(emu, read_jsonl(BRIDGE_LOG), after_tick=mark['tick'], after_wall=mark['wall'] - .01,
+                             stalls=emulator_stalls(), slow=emulator_slow(), clock=args.clock)
     windows = rtf_windows(list(ctx.obs.clock_rows), warmup_s=args.warmup_s, window_s=5.)
     sim_dt = (s1 - s0) if s0 is not None and s1 is not None else None
     rates = {k: (c1.get(k, 0) - c0.get(k, 0)) / sim_dt for k in sorted(c1)} if sim_dt else {}
@@ -1833,6 +1939,7 @@ def check_rtf(ctx, args):
                 rtf_min=ordered[0] if ordered else None, rtf_p10=ordered[len(ordered) // 10] if ordered else None,
                 rtf_overall=(sim_dt / (w1 - w0)) if sim_dt else None, rtf_windows=windows, rates_per_sim_s=rates,
                 camera=camera, gui=False, render=render_path(), clip_node=clip, lidar=lidar,
+                status_files=dict(scope=scope, notes=notes), false_detection=false,
                 rtf_source='this check node: /clock receipts against its monotonic clock (P5 used the gz '
                            'WorldStatistics of the server)',
                 definition='amendment 2: %g s, the first %g s left out, 5 s windows, median' % (args.seconds,
@@ -1876,6 +1983,8 @@ def gsim_lockstep_false_detections(result):
     """F / W lines of a gz_probe a25_firmware result (G-SIM lockstep, firmware mode; every maneuver is a normal
     script: steps and sines of the steering target, no fault injection)."""
     rows = []
+    if result.get('normal_script') is False:        # e.g. the THERMAL report group: faults are expected there
+        return rows
     summaries = ((result.get('run') or {}).get('controller_summaries') or {})
     for name, summary in sorted(summaries.items()):
         kinds = summary.get('line_kinds') or {}
@@ -1920,9 +2029,12 @@ def summarize_normal(paths, gsim_paths=()):
                          sim_stall_latches=stalled))
         for code, n in (block.get('by_code') or {}).items():
             by_code[code] = by_code.get(code, 0) + n
-    gsim = []
+    gsim, not_normal = [], []
     for path in gsim_paths:
         result = load_json(path)
+        if result.get('normal_script') is False:
+            not_normal.append(dict(file=str(path), group=result.get('group'), note=result.get('normal_script_note')))
+            continue
         for row in gsim_lockstep_false_detections(result):
             row['file'] = str(path)
             row['group'] = result.get('group')
@@ -1935,8 +2047,12 @@ def summarize_normal(paths, gsim_paths=()):
     stall = by_code.get('STALL', 0)
     criteria = [criterion('normal_script_false_detections', by_code, 0, total == 0 if (rows or gsim) else None,
                           'registered A19: 0 false detections in normal scripts (R15-3 definition)')]
+    checks = sorted({r.get('check') for r in rows if r.get('check')})
     return dict(check='A19_G_normal', criteria=criteria, passed=verdict(criteria), total=total, by_code=by_code,
-                p6a=rows, gsim_lockstep=gsim, normal_sim_s=sim_s,
+                p6a=rows, gsim_lockstep=gsim, gsim_not_normal_scripts=not_normal, normal_sim_s=sim_s,
+                checks_counted=checks, checks_expected=list(NORMAL_CHECKS),
+                checks_missing=[c for c in NORMAL_CHECKS if c not in checks],
+                provenance=summary_provenance(list(paths) + list(gsim_paths)),
                 sim_stall_latches_not_counted=invalid,
                 sim_stall_rule='wall clock mode: a steering_status_stale latch inside an emulator /clock wall stall '
                                'or a slow /clock interval is the SIM\'s own (A10 invalid); listed per file, not '
@@ -2001,8 +2117,11 @@ def a25_summary(joints, truth, keys, lags=range(0, 4)):
 
 # steps from 0 of at most 150 mrad and a slow sine: the host latches steering_not_following when the error stays
 # above 3 deg for 1.5 s (host_track_mismatch); the first wall clock run's +250 -> -250 mrad swing at standstill was
-# still at +27 mrad after 1.5 s (a correct host detection, not a test of A25)
-A25_STANDSTILL_STEPS_MRAD = (150, 0, -150, 0, 80, 0, -80, 0)
+# still at +27 mrad after 1.5 s (a correct host detection, not a test of A25). WF-4 g_gaps: at standstill the steps
+# are at most 87 mrad (5 deg, decision R18-3: the placeholder standstill rate of about 4 deg/s keeps the error above
+# 3 deg for about 0.5 s, far inside the 1.5 s window; the 150 mrad steps of phase 3 left about 0.1 s, and a loaded host
+# latched steering_not_following once, fix_wf3b H); while driving the steps stay 150 mrad
+A25_STANDSTILL_STEPS_MRAD = (87, 0, -87, 0, 50, 0, -50, 0)
 A25_DRIVING_STEPS_MRAD = (150, 0, -150, 0)
 A25_SINE_MRAD = 100
 A25_SINE_PERIOD_S = 8.
@@ -2108,12 +2227,472 @@ def summarize_drives(paths):
                         range=(max(values) - min(values)) if values else None)
     rtf = [r['rtf_median'] for r in runs if r.get('rtf_median') is not None]
     return dict(check='A9_summary', runs=len(runs), scene=[r.get('scene') for r in runs], stats=out,
-                rtf_medians=rtf, passed=None, note='report (A9: final position and lateral error variance)')
+                rtf_medians=rtf, passed=None, note='report (A9: final position and lateral error variance)',
+                provenance=summary_provenance(paths))
+
+
+# --- G11: provenance of the host-side summaries ----------------------------------------------------------------------------
+def summary_provenance(paths):
+    """Commit, status SHA, profile id and SHA, code SHA of a summary, and the provenance of its input files (G11)."""
+    from field_world.provenance import provenance as base_provenance
+    inputs = []
+    for path in paths:
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            inputs.append(dict(file=str(path), missing=True))
+            continue
+        inputs.append(dict(file=str(path), source_commit=data.get('source_commit'),
+                           source_status_sha256=data.get('source_status_sha256'),
+                           profile_sha256=((data.get('steering_status') or {}).get('session_info') or {}).get(
+                               'profile_sha256') or data.get('profile_sha256')))
+    out = base_provenance(code_files=(Path(__file__), Path(p6a_fw_rules.__file__), Path(p6a_graph.__file__)))
+    out['inputs'] = inputs
+    out['input_commits'] = sorted({i.get('source_commit') for i in inputs if i.get('source_commit')})
+    return out
+
+
+# --- A19 (G) host latch timing (G09) ----------------------------------------------------------------------------------------
+def host_profile_faults():
+    try:
+        data = load_json(HOST_PROFILE)
+    except (OSError, ValueError):
+        return None
+    faults = data.get('host_faults') or {}
+    return dict(status_gap_s=float(faults.get('status_gap_ms', 150.)) / 1000.,
+                track_error_mrad=math.radians(float(faults.get('track_error_deg', 3.))) * 1000.,
+                track_duration_s=float(faults.get('track_duration_s', 1.5)))
+
+
+def bridge_latch_event(latch, after_wall, bridge=None):
+    """The first bridge 'state' event at or after after_wall whose latches newly hold latch, or None."""
+    known = ()
+    for e in bridge if bridge is not None else read_jsonl(BRIDGE_LOG):
+        if e.get('kind') != 'state':
+            continue
+        latches = tuple(e.get('latches') or ())
+        if e.get('wall', 0) < after_wall:
+            known = latches
+            continue
+        if latch in latches and latch not in known:
+            return e
+        known = latches
+    return None
+
+
+def line_time(e, clock):
+    """Bridge-clock time of an MCU line of the emulator log: its monotonic write time in the wall clock mode, the SIM
+    time of its LF tick in the SIM clock mode."""
+    if clock == 'wall':
+        return e.get('mono')
+    if e.get('t') is None:
+        return None
+    return e['t'] + (e.get('done', e['tick']) - e['tick']) / 1000.
+
+
+def host_timing(ctx, case, latch, rule):
+    """Judge the time of a host latch of an A19 case against the host bridge rule (G09), one bridge loop tick:
+      status_gap     latch - (last status line received + status_gap) in (0, 2 loop periods] (the first loop tick
+                     after the gap; the receipt times are the bridge's own, from /rover/steering/state)
+      not_following  latch - (first line received with |target - angle| > track_error for track_duration) in
+                     [0, 1 loop period]
+      n_line         latch - (the N line of the corrupted C) in [-1 physics step, 2 loop periods]
+      banner         latch - (the banner line) in [-1 physics step, 2 loop periods]
+    Appends a criterion to the case (invalid steps are not judged). Times are the bridge clock (monotonic in the
+    wall clock mode, SIM time in the SIM clock mode)."""
+    if case.get('skipped'):
+        return
+    clock = getattr(ctx, 'clock', 'wall')
+    mark = case.get('mark') or {}
+    faults = host_profile_faults() or dict(status_gap_s=.15, track_error_mrad=math.radians(3.) * 1000.,
+                                           track_duration_s=1.5)
+    since_wall = case.get('restart_wall') if rule == 'banner' and case.get('restart_wall') and         latch == 'calibration_mismatch' else mark.get('wall')
+    event = bridge_latch_event(latch, (since_wall or 0.) - .05)
+    out = dict(latch=latch, rule=rule, clock=clock, latch_t=None if event is None else event.get('t'))
+    loop, step = LOOP_PERIOD_S, CLOCK_STEP_S
+    reference = None
+    lo = hi = None
+    if event is not None:
+        t_latch = event['t']
+        states = [msg for _, msg in list(ctx.obs.steering_states) if msg.get('received_monotonic') is not None]
+        if rule == 'status_gap':
+            before = [m['received_monotonic'] for m in states if m['received_monotonic'] < t_latch]
+            if before:
+                reference = max(before) + faults['status_gap_s']
+                lo, hi = 0., 2. * loop
+                out.update(last_status_received=max(before), status_gap_s=faults['status_gap_s'])
+        elif rule == 'not_following':
+            rows = sorted({m['received_monotonic']: m for m in states if m['received_monotonic'] <= t_latch + loop
+                           and m.get('target_mrad') is not None and m.get('angle_mrad') is not None}.items())
+            since = None
+            expected_line = None
+            for received, m in rows:
+                if abs(m['target_mrad'] - m['angle_mrad']) > faults['track_error_mrad'] and m.get('state') in (
+                        'ARMED', 'armed', 2):
+                    if since is None:
+                        since = received
+                    elif received - since >= faults['track_duration_s']:
+                        expected_line = received
+                        break
+                else:
+                    since = None
+            if expected_line is not None:
+                reference = expected_line
+                lo, hi = 0., loop
+                out.update(error_since=since, track_duration_s=faults['track_duration_s'],
+                           track_error_mrad=round(faults['track_error_mrad'], 3))
+        elif rule in ('n_line', 'banner'):
+            first_tick = 0 if since_wall != mark.get('wall') else (mark.get('tick') or 0)
+            emu = [e for e in read_jsonl(EMULATOR_LOG) if e.get('kind') == 'm2h' and
+                   e.get('tick', 0) >= first_tick and e.get('session') == mark.get('session', e.get('session'))]
+            if rule == 'n_line':
+                line = first(emu, lambda e: e['text'].startswith('N '))
+            else:
+                line = first(emu, lambda e: e['text'].startswith('UBTS_STEER_V3 hello'))
+            if line is not None and line_time(line, clock) is not None:
+                reference = line_time(line, clock)
+                lo, hi = -step, 2. * loop
+                out.update(line=line['text'][:40], line_tick=line['tick'])
+    if reference is not None:
+        d = event['t'] - reference
+        ok = lo < d <= hi if rule == 'status_gap' else lo <= d <= hi
+        out.update(reference_t=reference, latch_minus_reference_s=round(d, 6), window_s=[lo, hi])
+        crit = criterion('host_latch_time_%s' % latch, round(d * 1000., 3), '%s..%s ms after the rule time (%s)' % (
+            round(lo * 1000., 1), round(hi * 1000., 1), rule), ok)
+    else:
+        crit = criterion('host_latch_time_%s' % latch, None, 'rule time of %s' % rule, False,
+                         'latch or rule reference not found (latch event %s)' % (event is not None))
+    crit = invalidate([crit], case.get('validity'))[0]
+    case['criteria'].append(crit)
+    case['passed'] = verdict(case['criteria'])
+    case['host_timing'] = out
+
+
+def boot_bits_timing(case, name, bit):
+    """BOOT / NOCAL (G09): the session's banner comes at the boot delay after its start (tick 0 + BOOT_DELAY_TICKS,
+    +-1) and the first status line after the banner carries the bit (the setup sets it)."""
+    if case.get('skipped'):
+        return
+    session = (case.get('mark') or {}).get('session')
+    emu = [e for e in read_jsonl(EMULATOR_LOG) if e.get('kind') == 'm2h' and e.get('session') == session]
+    banner = first(emu, lambda e: e['text'].startswith('UBTS_STEER_V3 hello'))
+    status = first(emu, lambda e: e['text'].startswith('S ') and banner is not None and e['tick'] >= banner['tick'])
+    parsed = None if status is None else parse_status_line(status['text'])
+    case['criteria'].append(criterion('%s_banner_tick_minus_boot_delay' % name.lower(),
+                                      None if banner is None else banner['tick'] - BOOT_DELAY_TICKS,
+                                      '0 +-1 (session tick 0 + boot delay %d)' % BOOT_DELAY_TICKS,
+                                      banner is not None and abs(banner['tick'] - BOOT_DELAY_TICKS) <= 1))
+    case['criteria'].append(criterion('%s_bit_in_the_first_status_line' % name.lower(),
+                                      None if parsed is None else '%04X' % parsed['fl'], '%04X set' % bit,
+                                      parsed is not None and bool(parsed['fl'] & bit)))
+    case['passed'] = verdict(case['criteria'])
+
+
+# --- A17 (G) mandatory fault test: bridge forced kill (G03, decision R19-12) -----------------------------------------------
+def check_bridge_kill(ctx, args):
+    """A17 (G) mandatory fault test 'bridge forced kill' (design 7.2.1): while driving straight (throttle 30) the
+    emulator hook kill_bridge sends SIGKILL to the bridge wrapper (same container). Judged:
+      * the port closes at the kill (emulator port event)
+      * the MCU's C TTL stops the drive: drive 0 at the last C arrival + ttl (0..1 tick)
+      * the link watchdog: W at the last input (C or PING) + wd (0..1 tick), DISARMED at that tick
+      * the steer supervisor restarts the bridge (a new start of the bridge child), the port opens again and the
+        MCU resets on it (banner rst=ext_sys)
+      * no automatic restart of the drive after it stopped, the host is not armed after the restart
+    Time-sensitive items follow the A10 validity rule in the wall clock mode (SIM clock mode: SIM times)."""
+    info, params = ctx.session_params()
+    wd = int((params or {}).get('wd', 500))
+    before, step0 = step_start(ctx, 'bridge_kill_start')
+    ctx.ensure_armed()
+    loop = DriveLoop(ctx.client, 30, 0).start()
+    try:
+        ctx.obs.spin_sim_for(2.)
+        mark = ctx.mark('bridge_kill')
+        reply = ctx.hooks.kill_bridge()
+        ctx.obs.spin_sim_for(1.5)
+    finally:
+        loop.stop()
+    host = None
+    deadline = time.monotonic() + 30.
+    while time.monotonic() < deadline:
+        try:
+            host = ctx.client.status()
+            if host.get('firmware'):
+                break
+        except (ClientError, OSError) as exc:
+            host = dict(error=str(exc))
+        ctx.obs.spin_for(.5)
+    ctx.obs.spin_sim_for(3.)
+    try:
+        host = ctx.client.status()
+    except (ClientError, OSError) as exc:
+        host = dict(error=str(exc))
+    after = emulator_counters(ctx.hooks)
+    validity = step_validity(ctx, args.clock, step0['mono'], time.monotonic(), before, after)
+    emu = [e for e in read_jsonl(EMULATOR_LOG) if e.get('tick', 0) >= mark['tick'] - 2000 and
+           e.get('session', mark['session']) >= mark['session']]
+    kill_tick = reply.get('killed_at_tick', reply.get('tick'))
+    ports = [e for e in entries(emu, 'port') if e['tick'] >= kill_tick]
+    closed = first(ports, lambda e: e.get('host_open') is False)
+    reopen = first(ports, lambda e: closed is not None and e['tick'] >= closed['tick'] and e.get('host_open') is True)
+    inputs = [e for e in entries(emu, 'h2m') if e.get('note') == 'host' and e.get('last') is not None and
+              e['tick'] <= kill_tick + 50 and e['text'].startswith(('C ', 'PING'))]
+    cs = [e for e in inputs if e['text'].startswith('C ')]
+    last_c = cs[-1] if cs else None
+    last_input = inputs[-1] if inputs else None
+    ttl = (parse_c_line(last_c['text']) or {}).get('ttl') if last_c else None
+    zero = drive_zero_tick(emu, last_c['last']) if last_c else None
+    w_line = first(entries(emu, 'm2h'), lambda e: e['tick'] >= kill_tick and e['text'].startswith('W '))
+    disarm = pin_first(emu, 'mcu_state', lambda v: v == 1, kill_tick)
+    banner = first(entries(emu, 'm2h'), lambda e: reopen is not None and e['tick'] >= reopen['tick'] and
+                   e['text'].startswith('UBTS_STEER_V3 hello'))
+    restart = [e['tick'] for e in entries(emu, 'pin') if e['channel'] in ('drive_l', 'drive_r') and e['value'] != 0
+               and zero is not None and e['tick'] > zero]
+    supervisor = read_optional(SUPERVISOR_STEER) or {}
+    bridge_child = next((c for c in supervisor.get('children') or () if c.get('name') == 'bridge'), None)
+    starts = None if bridge_child is None else bridge_child.get('starts')
+    exits = None if bridge_child is None else bridge_child.get('exits')
+    killed_exit = any(x.get('code') == -9 for x in (exits or ()))
+    criteria = invalidate([
+        criterion('ttl_drive_zero_tick_minus_expected', None if (zero is None or ttl is None) else
+                  zero - (last_c['last'] + ttl), '0..1 (<= ttl + 1 tick)',
+                  zero is not None and ttl is not None and 0 <= zero - (last_c['last'] + ttl) <= 1),
+        criterion('watchdog_tick_minus_last_input', None if (w_line is None or last_input is None) else
+                  w_line['tick'] - last_input['last'], '%d..%d (wd .. wd + 1)' % (wd, wd + 1),
+                  w_line is not None and last_input is not None and wd <= w_line['tick'] - last_input['last'] <= wd + 1),
+        criterion('watchdog_disarmed', None if disarm is None else disarm['tick'], 'DISARMED at the W tick',
+                  disarm is not None and w_line is not None and disarm['tick'] == w_line['tick']),
+    ], validity) + [
+        criterion('bridge_killed_port_closed', None if closed is None else closed['tick'], 'host close after the kill',
+                  closed is not None),
+        criterion('bridge_exit_sigkill', exits[-3:] if exits else None, 'an exit with code -9', killed_exit),
+        criterion('supervisor_restarted_bridge', starts, '>= 2 starts', starts is not None and starts >= 2),
+        criterion('port_reopened', None if reopen is None else reopen['tick'], 'host open after the restart',
+                  reopen is not None),
+        criterion('mcu_reset_on_reopen', None if banner is None else banner['text'][:60], 'banner rst=ext_sys',
+                  banner is not None and ' rst=ext_sys ' in banner['text']),
+        criterion('no_automatic_restart', len(restart), 0, not restart),
+        criterion('host_not_armed_after_restart', host.get('state'), 'not armed',
+                  host.get('state') not in ('armed_manual', 'armed') and not host.get('armed')),
+    ]
+    return dict(check='A17_G_bridge_kill', clock=args.clock, criteria=criteria, passed=verdict(criteria),
+                kill=reply, validity=validity, kill_tick=kill_tick, port_closed=closed, port_reopened=reopen,
+                last_c=None if last_c is None else dict(text=last_c['text'], arrival=last_c['last']),
+                last_input=None if last_input is None else dict(text=last_input['text'], arrival=last_input['last']),
+                ttl_ms=ttl, wd_ms=wd, drive_zero_tick=zero,
+                watchdog_line=None if w_line is None else dict(tick=w_line['tick'], text=w_line['text']),
+                banner=None if banner is None else dict(tick=banner['tick'], text=banner['text']),
+                drive_restart_ticks=restart[:10], supervisor_bridge=bridge_child,
+                host_after=dict(state=host.get('state'), reason=host.get('reason'), armed=host.get('armed'),
+                                faults=(host.get('steering') or {}).get('faults'), error=host.get('error')),
+                loop_errors=dict(loop.errors),
+                rule='design 7.2.1 mandatory fault test; A17: TTL <= ttl + 1 tick, watchdog <= wd + 1 tick, '
+                     'DISARMED, no automatic restart (the latches clear only by an operator re-arm)')
+
+
+# --- A3 (G) noise (amendment 15) -----------------------------------------------------------------------------------------
+A3_NOISE_TOLERANCE = .10
+A3_MIN_TICKS = 10000
+A3_SKIP_TICKS = 300                      # after the setup tick: the boot and the median refill
+
+
+def raw_series(record):
+    """Every tick's analogRead value (adc_read changes carried forward) of a record, from its setup tick."""
+    first_tick, last_tick, values = p6a_fw_rules.channel_series(record, 'adc_read', 0)
+    _, _, state = p6a_fw_rules.channel_series(record, 'mcu_state', p6a_fw_rules.NOT_RUNNING)
+    setup = next((first_tick + i for i, s in enumerate(state) if s != p6a_fw_rules.NOT_RUNNING), first_tick)
+    return setup, values[setup - first_tick:]
+
+
+def ks_distance(a, b):
+    """Two-sample Kolmogorov-Smirnov statistic of integer samples (no scipy)."""
+    if not a or not b:
+        return None
+    values = sorted(set(a) | set(b))
+    ca, cb = collections_counter(a), collections_counter(b)
+    fa = fb = 0
+    worst = 0.
+    for v in values:
+        fa += ca.get(v, 0)
+        fb += cb.get(v, 0)
+        worst = max(worst, abs(fa / len(a) - fb / len(b)))
+    return worst
+
+
+def collections_counter(values):
+    out = {}
+    for v in values:
+        out[v] = out.get(v, 0) + 1
+    return out
+
+
+def t1_style_raw(record, ticks, executable=None):
+    """The same session values (profile, seed, firmware block) in a fresh firmware backend run in FW_STEPs of 10 ms
+    (the T1 rig step) at standstill: every tick's analogRead value from the setup tick."""
+    from .actuator_link import FirmwareSteeringBackend
+    from .vehicle_profile import load_profile
+    session = record['session']
+    profile = load_profile(session['profile_path']) if session.get('profile_path') else load_profile()
+    backend = FirmwareSteeringBackend(profile, session['seed'], firmware=session['firmware'],
+                                      injections=session['injections'], executable=executable)
+    try:
+        values, setup = [], None
+        adc, state = 0, p6a_fw_rules.NOT_RUNNING
+        for out in backend.run(ticks, step_ticks=10, vehicle_speed_m_s=0., vehicle_stopped=True):
+            changes = sorted((c.tick, c.channel, c.value) for c in out.changes)
+            index = 0
+            for tick in range(out.first_tick, out.first_tick + out.ticks):
+                while index < len(changes) and changes[index][0] <= tick:
+                    if changes[index][1] == 'adc_read':
+                        adc = changes[index][2]
+                    elif changes[index][1] == 'mcu_state':
+                        state = changes[index][2]
+                    index += 1
+                if setup is None and state != p6a_fw_rules.NOT_RUNNING:
+                    setup = tick
+                if setup is not None:
+                    values.append(adc)
+        return values, dict(build_id=backend.build_id, executable_sha256=backend.executable_sha256)
+    finally:
+        backend.close()
+
+
+def check_a3noise(ctx, args):
+    """A3 (G) noise (amendment 15): DISARMED, the vehicle at standstill, a new calibrated session recorded with
+    report_adc for args.seconds of SIM time (default 12 s: >= 10,000 ticks after the boot); the standstill raw sd
+    (ticks from the setup + 300) against the profile pot_noise_sd_counts +-10 % (judged); the replay of the recorded
+    FW_STEP inputs in a fresh firmware backend (the F-SIM / T1 path: the same raw values, judged) and a T1-style run
+    of the same session values in 10 ms FW_STEPs (the raw distribution: mean, sd, KS distance, report)."""
+    from .vehicle_profile import load_profile
+    from .gz_esp_emulator import replay_record
+    path = '/runtime/steer/a3noise_record.json'
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+    seconds = max(float(args.seconds), (A3_MIN_TICKS + A3_SKIP_TICKS + 200) / 1000.)
+    ctx.client.stop('brake')
+    ctx.hooks.record(seconds=seconds, path=path, report_adc=True, report_servo=False, reason='a3noise')
+    mark = ctx.mark('a3noise')
+    end = time.monotonic() + seconds * 4. + 30.
+    while time.monotonic() < end and not Path(path).exists():
+        ctx.obs.spin_for(.5)
+    if not Path(path).exists():
+        return dict(check='A3_G_noise', passed=False, error='record file not written')
+    emu, _ = ctx.logs(mark)
+    false = false_detections(emu, read_jsonl(BRIDGE_LOG), after_tick=mark['tick'], after_wall=mark['wall'] - .01,
+                             stalls=emulator_stalls(), slow=emulator_slow(), clock=args.clock)
+    record = load_json(path)
+    setup, raw = raw_series(record)
+    sample = raw[A3_SKIP_TICKS:]
+    profile = load_profile(record['session'].get('profile_path') or None)
+    target = float(profile.value('pot_noise_sd_counts'))
+    sd = statistics.pstdev(sample) if len(sample) > 10 else None
+    mean = statistics.fmean(sample) if sample else None
+    executable = record['session'].get('executable') or native_executable_path()
+    replay = replay_record(record, executable=executable)
+    t1_values, t1_build = t1_style_raw(record, record['ticks'], executable=executable)
+    t1_sample = t1_values[A3_SKIP_TICKS:A3_SKIP_TICKS + len(sample)]
+    t1_sd = statistics.pstdev(t1_sample) if len(t1_sample) > 10 else None
+    same_sequence = t1_sample == sample[:len(t1_sample)]
+    criteria = [
+        criterion('standstill_ticks', len(sample), '>= %d' % A3_MIN_TICKS, len(sample) >= A3_MIN_TICKS),
+        criterion('raw_sd_counts_vs_profile', None if sd is None else round(sd, 4),
+                  '%.3f +-%d %% (profile pot_noise_sd_counts)' % (target, int(A3_NOISE_TOLERANCE * 100)),
+                  sd is not None and abs(sd - target) <= A3_NOISE_TOLERANCE * target),
+        criterion('replay_same_responses', replay['mismatched_frames'], 0, replay['passed']),
+        criterion('replay_adc_values_compared', replay['adc_read_changes_compared'], '> 0',
+                  replay['adc_read_changes_compared'] > 0),
+        criterion('t1_style_raw_sd_counts', None if t1_sd is None else round(t1_sd, 4), 'report', None),
+        criterion('t1_style_ks_distance', ks_distance(sample, t1_sample), 'report', None,
+                  'two-sample KS statistic of the G record and the T1-style run (same session values)'),
+        criterion('t1_style_same_raw_sequence', same_sequence, 'report', None),
+    ]
+    return dict(check='A3_G_noise', criteria=criteria, passed=verdict(criteria), false_detection=false,
+                setup_tick=setup, samples=len(sample), raw_mean=mean, raw_sd=sd, profile_sd=target,
+                histogram={str(k): v for k, v in sorted(collections_counter(sample).items())},
+                t1_style=dict(samples=len(t1_sample), sd=t1_sd, mean=statistics.fmean(t1_sample) if t1_sample else None,
+                              build=t1_build), replay=replay,
+                session=dict((k, record['session'].get(k)) for k in ('seed', 'boot_seed', 'build_id', 'firmware_build',
+                                                                     'injections', 'profile_id', 'profile_sha256')),
+                rule='amendment 15: DISARMED, report_adc, >= 10,000 standstill ticks; sd within 10 % of the profile')
+
+
+# --- clip node output vs the raster DDA (G13) ------------------------------------------------------------------------------
+def check_clip(ctx, args):
+    """G13 (field1010): records args.scans scans of /sim/scan_clipped with the /ground_truth/odom pose of their stamp
+    and compares each ray with the raster DDA of the scene's raster copy (the A7 reference rule: reflectors return,
+    UNOBSERVED / outside end the ray) from the same pose: hit mismatch (return vs no return) and, for rays where both
+    return, |range - raster| > the cell diagonal. The clip node adds the range noise after the clip, so ranges differ
+    by the noise; the range check counts only differences above the diagonal (A7 rule). Latency: the stamp (SIM) to
+    the receipt in the check node's SIM clock and wall time per scan. Report (judged numbers are A7's)."""
+    from field_world import a7_equivalence as a7
+    from field_world.build_field_world import RasterCopy
+    from closed_loop import raster_corridor as RC
+    import numpy as np
+    raster_path = Path('/runtime/steer/scene/field_world/raster.npz')
+    if not raster_path.exists():
+        return dict(check='clip_vs_raster', passed=None, error='no field world raster in the scene (not field1010)')
+    rows = ctx.obs.record_scans('/sim/scan_clipped', args.scans, timeout_s=max(60., args.scans * 2.))
+    raster = RasterCopy(raster_path)
+    REF = a7.reference_module()
+    cls = raster.classes
+    cells = np.where(np.isin(cls, RC.REFLECTORS), REF.OCCUPIED,
+                     np.where(cls == RC.UNOBSERVED, REF.UNKNOWN, REF.FREE)).astype(np.uint8)
+    grid = REF.RasterGrid(cells, raster.resolution)
+    from steering.scan_unobserved_clip import lidar_mount
+    mount = np.asarray(lidar_mount(), dtype=float)
+    poses = {stamp: pose for stamp, pose in ctx.obs.pose_by_stamp.items()}
+    totals = dict(scans=0, matched=0, rays=0, hit_mismatch=0, both=0, range_mismatch=0)
+    latency_sim, latency_wall, per_scan = [], [], []
+    for row in rows:
+        stamp, receipt_mono, receipt_sim, angle_min, inc, ranges = row
+        totals['scans'] += 1
+        pose = poses.get(stamp)
+        if pose is None:
+            continue
+        totals['matched'] += 1
+        (x, y, z), q = pose
+        yaw = math.atan2(2. * (q[3] * q[2] + q[0] * q[1]), 1. - 2. * (q[1] * q[1] + q[2] * q[2]))
+        ox = x + math.cos(yaw) * mount[0] - math.sin(yaw) * mount[1]
+        oy = y + math.sin(yaw) * mount[0] + math.cos(yaw) * mount[1]
+        angles = angle_min + np.arange(len(ranges)) * inc + yaw
+        ref = a7.reference_ranges(grid, REF, raster, ox, oy, angles)
+        g = np.asarray(ranges, dtype=float)
+        g[~np.isfinite(g)] = np.inf
+        hit = np.isfinite(g) != np.isfinite(ref)
+        both = np.isfinite(g) & np.isfinite(ref)
+        diff = np.abs(g[both] - ref[both])
+        totals['rays'] += len(g)
+        totals['hit_mismatch'] += int(hit.sum())
+        totals['both'] += int(both.sum())
+        totals['range_mismatch'] += int((diff > a7.CELL_DIAGONAL_M).sum())
+        latency_sim.append(receipt_sim - stamp / 1e9 if receipt_sim is not None else None)
+        per_scan.append(dict(stamp=stamp, hit_mismatch=int(hit.sum()), range_mismatch=int((diff > a7.CELL_DIAGONAL_M).sum())))
+    clip_status, note = scoped_json('/runtime/scan_clip_status.json')
+    lat = [v for v in latency_sim if v is not None]
+    hit_fraction = totals['hit_mismatch'] / max(totals['rays'], 1)
+    range_fraction = totals['range_mismatch'] / max(totals['both'], 1)
+    criteria = [criterion('scans_matched_to_a_pose', totals['matched'], '> 0', totals['matched'] > 0),
+                criterion('hit_mismatch_fraction', round(hit_fraction, 7), '<= %g (A7 rule, report)' % a7.HIT_LIMIT,
+                          None),
+                criterion('range_mismatch_fraction_of_both', round(range_fraction, 7),
+                          '<= %g (A7 rule, report)' % a7.RANGE_LIMIT, None),
+                criterion('stamp_to_receipt_sim_s_median', None if not lat else round(statistics.median(lat), 4),
+                          'report', None),
+                criterion('stamp_to_receipt_sim_s_max', None if not lat else round(max(lat), 4), 'report', None)]
+    return dict(check='clip_vs_raster', criteria=criteria, passed=verdict(criteria), totals=totals,
+                hit_mismatch_fraction=hit_fraction, range_mismatch_fraction_of_both=range_fraction,
+                latency_sim_s=dict(n=len(lat), median=statistics.median(lat) if lat else None,
+                                   p90=percentile(lat, .9), max=max(lat) if lat else None),
+                clip_status=clip_status, clip_status_note=note, per_scan=per_scan[:40],
+                note='the ranges carry the clip node noise (sd of rover.yaml); a return near a terminator may '
+                     'differ from the raster by the noise; mismatches are a report (A7 is the registered judgement)')
 
 
 # --- main ---------------------------------------------------------------------------------------------------------------------------
 CHECKS = dict(startup=check_startup, graph=check_graph, identity=check_identity, safety=check_safety,
-              faults=check_faults, a3=check_a3, drive=check_drive, rtf=check_rtf, a25=check_a25)
+              faults=check_faults, a3=check_a3, drive=check_drive, rtf=check_rtf, a25=check_a25,
+              bridge_kill=check_bridge_kill, a3noise=check_a3noise, clip=check_clip)
 
 
 def build_parser():
@@ -2138,6 +2717,7 @@ def build_parser():
     p.add_argument('--hold-s', type=float, default=1.)
     p.add_argument('--inputs', nargs='*', default=[])
     p.add_argument('--cases', nargs='*', default=[], help='faults: run only these cases (development)')
+    p.add_argument('--scans', type=int, default=60, help='clip: scans of /sim/scan_clipped to compare')
     return p
 
 
@@ -2152,7 +2732,7 @@ def main(argv=None):
                 image=os.environ.get('UBTS_STEER_IMAGE'), scene=os.environ.get('UBTS_STEER_SCENE'), clock=args.clock,
                 result_kind=RESULT_KIND, field_validated=False)
     if args.seconds is None:
-        args.seconds = 240. if args.check == 'rtf' else 20.
+        args.seconds = 240. if args.check == 'rtf' else (12. if args.check == 'a3noise' else 20.)
     if args.check == 'summary9':
         result = summarize_drives(args.inputs)
         write_json(out / ('%s.json' % label), dict(meta, **result))
@@ -2164,6 +2744,7 @@ def main(argv=None):
         print(json.dumps(dict(check='a19g_normal', total=result['total'], passed=result['passed'])))
         return 0
     meta['provenance'] = provenance()
+    meta['run_scope'] = run_scope()
     ctx = Ctx(out)
     ctx.clock = args.clock
     try:

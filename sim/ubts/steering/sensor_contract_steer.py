@@ -13,7 +13,8 @@ publish_imu, and gps_cb (the virtual GPS through sim_telemetry.SensorTelemetry).
        vibration terms), /rover/steering/state (liveness of the steering status lines through the bridge),
        /scan only when an S2 format node is configured (liveness)
   out  /imu/data_raw (p6a_imu_model error model, frame imu_link), /gps/data, /gps/fix, /gps/driver_status (virtual
-       GPS with the obviously virtual origin 0 N 0 E, display only, never a control input), /tf_static
+       GPS with the obviously virtual origin 0 N 0 E, display only, never a control input; the antenna is the
+       profile's gnss_antenna_pose_in_base (0.9 m above base_footprint in v0.1), WF-4 g_gaps / audit G20), /tf_static
        (base_footprint -> base_link -> laser, imu_link, camera_link, gps_link; camera_link -> camera_link_optical)
        The laser frame is the frame of the S2 format /scan (s2_format: frame 'laser', raw beam j at the body angle
        RAW_AMIN + j x RAW_INC + lidar_yaw_offset_deg), so its rotation about z is the profile's lidar_yaw_offset_deg
@@ -29,8 +30,15 @@ sensors_alive in this phase: sim_scan (Embree LiDAR /sim/scan from cpu_lidar's s
 camera_info, gps, steering. /scan is absent until the S2 format node of the next phase: it is not in sensors_alive
 (health stays green), the status says so under scan_contract; with an S2 node (--s2-present) 'scan' is added.
 
-Pure helpers at module level (static transforms, liveness rules, status payload) import without ROS; the node class
-is made by make_node_class() after the ROS imports. Placeholder-based SIM results, not field validation.
+Virtual GPS lever arm (audit G20): the pinned sim_telemetry projects an antenna at (0, 0, GPS_HEIGHT_M = 0.70 m) of
+the body. The sensor contract gives it an odometry view moved by the difference to the profile antenna
+(antenna_shifted_odometry: position p + R (a - (0, 0, h)), body velocity v + w x (a - (0, 0, h))), so the published
+virtual GPS is the profile antenna; the pinned file is not changed. gps_link of /tf_static is the profile antenna too.
+Display only: the GPS is never a control input.
+
+Pure helpers at module level (static transforms, liveness rules, status payload, the antenna view) import without ROS;
+the node class is made by make_node_class() after the ROS imports. Placeholder-based SIM results, not field
+validation.
 """
 from __future__ import annotations
 
@@ -62,13 +70,42 @@ def quaternion_rpy(roll, pitch, yaw):
             cr * cp * cy + sr * sp * sy)
 
 
-def static_transforms(profile, rover_config, gps_height_m):
+def gnss_antenna(profile):
+    """(x, y, z) of the profile's gnss_antenna_pose_in_base (base_footprint frame, z above the ground)."""
+    pose = profile.value('gnss_antenna_pose_in_base')
+    return float(pose['x']), float(pose['y']), float(pose['z'])
+
+
+def antenna_shifted_odometry(msg, antenna, telemetry_height):
+    """An odometry view for the pinned sim_telemetry.update_gps, which projects an antenna at (0, 0, telemetry_height)
+    of the body: the pose and the twist are moved by d = antenna - (0, 0, telemetry_height) so that its projection gives
+    the profile antenna. Position p + R d (world), body linear velocity v + w x d (the twist is in the child frame).
+    Header, orientation and angular velocity are the message's own."""
+    from types import SimpleNamespace as NS
+    p, q = msg.pose.pose.position, msg.pose.pose.orientation
+    d = (antenna[0], antenna[1], antenna[2] - float(telemetry_height))
+    norm = math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w) or 1.
+    x, y, z, w = q.x / norm, q.y / norm, q.z / norm, q.w / norm
+    rot = ((1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)),
+           (2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)),
+           (2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)))
+    world = [sum(rot[i][j] * d[j] for j in range(3)) for i in range(3)]
+    lin, ang = msg.twist.twist.linear, msg.twist.twist.angular
+    cross = (ang.y * d[2] - ang.z * d[1], ang.z * d[0] - ang.x * d[2], ang.x * d[1] - ang.y * d[0])
+    return NS(header=msg.header,
+              pose=NS(pose=NS(position=NS(x=p.x + world[0], y=p.y + world[1], z=p.z + world[2]), orientation=q)),
+              twist=NS(twist=NS(linear=NS(x=lin.x + cross[0], y=lin.y + cross[1], z=lin.z + cross[2]),
+                                angular=ang)))
+
+
+def static_transforms(profile, rover_config, gps_height_m=None):
     """(parent, child, (x, y, z), (qx, qy, qz, qw)) rows of /tf_static.
 
     base_link sits at the generated link height (rover.yaml body_center_height_m; gz_model keeps the link poses).
     laser and camera_link: the profile values (gz_model refuses a profile that differs from the generated links).
     imu_link: the profile IMU position and mount rotation (yaw_sign -1 = mounted upside down: roll + pi), the pose
-    gz_model gives the IMU sensor. gps_link: the virtual GPS lever arm of the pinned sim_telemetry (display only)."""
+    gz_model gives the IMU sensor. gps_link: the profile's gnss_antenna_pose_in_base (display only; audit G20). The
+    old gps_height_m argument (the pinned sim_telemetry 0.70 m) is ignored and kept for callers only."""
     v = profile.value
     z = float(rover_config['vehicle']['body_center_height_m'])
     imu = v('imu_pose_in_base')
@@ -85,7 +122,8 @@ def static_transforms(profile, rover_config, gps_height_m):
         ('base_link', 'imu_link', (imu['x'], imu['y'], imu['z'] - z),
          quaternion_rpy(roll, math.radians(rpy['pitch']), math.radians(rpy['yaw']))),
         ('base_link', 'camera_link', (cam['x'], cam['y'], cam['z'] - z), (0., 0., 0., 1.)),
-        ('base_link', 'gps_link', (0., 0., float(gps_height_m) - z), (0., 0., 0., 1.)),
+        ('base_link', 'gps_link', (gnss_antenna(profile)[0], gnss_antenna(profile)[1], gnss_antenna(profile)[2] - z),
+         (0., 0., 0., 1.)),
         ('camera_link', 'camera_link_optical', (0., 0., 0.), (-.5, .5, -.5, .5)),
     ]
 
@@ -183,7 +221,8 @@ def make_node_class():
             self.gps_fix_pub = self.create_publisher(NavSatFix, '/gps/fix', qos_profile_sensor_data)
             self.gps_driver_pub = self.create_publisher(String, '/gps/driver_status', 10)
             self.static = StaticTransformBroadcaster(self)
-            self.static_rows = static_transforms(profile, rover_config, GPS_HEIGHT_M)
+            self.antenna = gnss_antenna(profile)
+            self.static_rows = static_transforms(profile, rover_config)
             self._send_static(TransformStamped)
             best = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
             inputs = [(Clock, '/clock', self.clock_cb, self.sensor_qos('/clock')),
@@ -233,7 +272,7 @@ def make_node_class():
             value = float(msg.twist.twist.linear.x)
             if math.isfinite(value):
                 self.truth['speed'] = value
-            self.gps_cb(msg)
+            self.gps_cb(antenna_shifted_odometry(msg, self.antenna, GPS_HEIGHT_M))
 
         def truth_steering_cb(self, msg):
             try:
@@ -298,7 +337,8 @@ def make_node_class():
                                   note='encoderless sensor contract: no /odom, no dynamic /tf; static TF only'),
                     imu_model=self.imu_model.describe(),
                     gps=dict(virtual=True, origin_deg=list(GPS_ORIGIN), display_only=True,
-                             lever_arm_m=GPS_HEIGHT_M),
+                             lever_arm_m=list(self.antenna), lever_arm_source='profile gnss_antenna_pose_in_base',
+                             telemetry_height_m=GPS_HEIGHT_M),
                     lidar=None if lidar is None else {k: lidar.get(k) for k in (
                         'state', 'updated_at', 'last_stamp_ns', 'last_raycast_ms', 'finite_returns', 'errors',
                         'last_error')},
