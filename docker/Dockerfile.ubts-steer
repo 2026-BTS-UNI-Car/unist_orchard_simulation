@@ -18,12 +18,14 @@
 #     --build-arg BASE_IMAGE_ID=$(docker image inspect --format '{{.Id}}' <base tag>) \
 #     --build-arg SOURCE_COMMIT=$(git rev-parse HEAD) \
 #     --build-arg SOURCE_STATUS_SHA256=<sha256 of `git status --porcelain`> \
-#     --build-arg IMAGE_TAG_HINT=ubts-steer-sim:p6a -t ubts-steer-sim:p6a .
+#     --build-arg IMAGE_TAG_HINT=ubts-steer-sim:wf4b -t ubts-steer-sim:wf4b .
 # Images of this branch: ubts-steer-sim:p5 (phase 2, before the firmware was tracked), ubts-steer-sim:wf3 (phase 3,
 # G-SIM update), ubts-steer-sim:p6a (phase 3, the headless stack of compose.ubts-steer.yaml: ESP emulator, sensor
 # contract, supervisor, checks; docs/steering/P6A_HEADLESS_KO.md). WF-4: the row executor package tools/row_executor is
 # copied to /opt/ubts/tools/row_executor (the executor container, steering.exec_container_main; it is on the PYTHONPATH of the
 # executor service, docs/steering/S2_NODE_EXEC_KO.md) and is part of the manifest file list.
+# ubts-steer-sim:wf4a / wf4b (2026-11-12): the first images with the executor package and the S2 format node; wf4b is
+# the default of compose.ubts-steer.yaml.
 ARG UBTS_STEER_BASE=ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29@sha256:6209168a3507cf7a657464af99711e0cdf45329617e67bdafca87007367688b0
 FROM ${UBTS_STEER_BASE}
 ARG UBTS_STEER_BASE
@@ -31,7 +33,7 @@ ARG BASE_IMAGE_ID=unknown
 ARG SOURCE_COMMIT=unknown
 ARG SOURCE_STATUS_SHA256=unknown
 ARG UBTS_STEER_REQUIRE_FIRMWARE=1
-ARG IMAGE_TAG_HINT=ubts-steer-sim:p6a
+ARG IMAGE_TAG_HINT=ubts-steer-sim:wf4b
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt/ubts
 RUN rm -rf /opt/ubts/dashboard /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \
