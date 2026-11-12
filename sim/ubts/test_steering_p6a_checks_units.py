@@ -182,12 +182,13 @@ class HostTimingTest(unittest.TestCase):
     def test_not_following_uses_the_lines_of_its_own_case(self):
         # gsim_final 2026-11-13 w0_a17: an error stretch of an earlier case (68 s before, also latched) was taken as
         # the reference (latch - reference 65.9 s); the lines before the case's mark are left out now
-        early = [dict(received_monotonic=5. + .05 * k, target_mrad=300, angle_mrad=10., state='ARMED')
-                 for k in range(40)]                         # 2 s of error long before the case
+        early = [dict(received_monotonic=5. + .05 * k, target_mrad=300, angle_mrad=10., state='ARMED',
+                      target_permille=300, cmd_permille=300) for k in range(40)]   # 2 s of error long before the case
         rows = []
         for k in range(60):
             target = 300 if k >= 10 else 0
-            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED'))
+            rows.append(dict(received_monotonic=20. + .05 * k, target_mrad=target, angle_mrad=10. + k, state='ARMED',
+                             target_permille=target, cmd_permille=target))       # ramp settled (amendment 43)
         since = 20. + .05 * 10
         expected = min(r['received_monotonic'] for r in rows if r['received_monotonic'] - since >= 1.5 - 1e-9)
         self.write('bridge.jsonl', [state(100.2, 20.1, []), state(102., expected + .004, ['steering_not_following'])])
