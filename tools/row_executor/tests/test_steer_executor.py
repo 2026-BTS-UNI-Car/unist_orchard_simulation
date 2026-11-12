@@ -355,9 +355,11 @@ class SteerMonitorTest(unittest.TestCase):
 # --- runner ------------------------------------------------------------------------------------------------------------
 @unittest.skipIf(SCIPY_PROBLEM, SCIPY_PROBLEM or '')
 class SteerRunnerTest(unittest.TestCase):
-    def test_needs_a_steering_controller(self):
-        with self.assertRaises(ValueError):
-            Runner(steer_config())
+    def test_default_steering_controller_is_the_vendored_row_follow(self):
+        # until 2026-11-13 a front_steer Runner without a controller factory was refused (no vendored steering
+        # controller); now it builds the vendored row-following controller (core.steer_control_module)
+        runner = Runner(steer_config())
+        self.assertEqual(type(runner._new_controller()).__name__, 'RowFollowController')
 
     def test_decisions_are_throttle_and_steer_with_equal_duty(self):
         controller = StubSteer(throttle=40, step=2)

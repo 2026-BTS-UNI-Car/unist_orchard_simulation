@@ -72,6 +72,25 @@ class RowFollowSlotTest(unittest.TestCase):
         self.assertEqual(out[-1][1].state, PAUSED)         # no restart without a new press
 
 
+@unittest.skipIf(SCIPY_PROBLEM, SCIPY_PROBLEM)
+class VendoredControllerTest(unittest.TestCase):
+    """The vehicle executor (no controller factory given) builds the vendored row-following controller with the field
+    tuning values of its config (core.steer_control_module, vendor/closed_loop_copy/steer_control.py)."""
+
+    def test_default_factory_is_the_vendored_row_follow_controller(self):
+        from row_executor import config as C, field_tuning as T
+        cfg = C.with_tuning(ExecutorConfig(**MOTOR).validate(), T.resolve({'target_speed_m_s': .3}))
+        runner = Runner(cfg)
+        self.assertEqual(runner.steer_control.__name__, 'row_executor.vendor.closed_loop_copy.steer_control')
+        controller = runner._new_controller()
+        self.assertEqual(type(controller).__name__, 'RowFollowController')
+        self.assertEqual(controller.config.cruise_speed_m_s, .3)
+        self.assertEqual(controller.config.rate_deg_s, cfg.steer_rate_limit_deg_s)
+        with open(runner.steer_control.__file__, 'rb') as a, open(os.path.join(SIM_DIR, 'closed_loop',
+                                                                               'steer_control.py'), 'rb') as b:
+            self.assertEqual(a.read(), b.read())            # the vendored copy is the SIM-tree file
+
+
 class HoldOnce:
     """A steering controller stand-in: FOLLOW at standstill, then one HOLD with the given reason / recoverable flag."""
 

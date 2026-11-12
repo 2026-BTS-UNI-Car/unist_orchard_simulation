@@ -195,8 +195,11 @@ CALIB_KINDS = CR.KINDS          # calibration run kinds 'arc' (C5) / 'rolldown' 
 VENDOR_SOURCES = dict(estimator='sim/ubts/closed_loop/estimator.py', controllers='sim/ubts/closed_loop/controllers.py',
                       single_row='sim/ubts/closed_loop/single_row.py',
                       scan_corridor='sim/ubts/orchard_perception/scan_corridor.py',
-                      actuator_prior='sim/ubts/closed_loop/actuator_prior.py')
+                      actuator_prior='sim/ubts/closed_loop/actuator_prior.py',
+                      steer_control='sim/ubts/closed_loop/steer_control.py')
 SINGLE_ROW_VENDOR_PATH = VENDOR_SOURCES['single_row']
+STEER_CONTROL_VENDOR_PATH = VENDOR_SOURCES['steer_control']
+DEFAULT_STEER_CONTROLLER = {'kind': 'row_follow'}    # front_steer without a controller factory: the vendored P8 controller
 # single-row stop categories (single_row_stop_category): the vendored table first; these executor-only pause / end reasons
 # are not in it. Display / log only - the SIM evaluation uses the vendored table (PREREG); nothing re-maps a table reason.
 SINGLE_ROW_EXECUTOR_CATEGORIES = {
@@ -390,6 +393,25 @@ def single_row_module(controllers):
             raise VendorError('module %s is not byte-identical to the vendored %s' % (path, SINGLE_ROW_VENDOR_PATH))
     if not issubclass(module.SingleRowController, controllers.RowController):
         raise VendorError('single_row module does not belong to the given controllers module')
+    return module
+
+
+def steer_control_module(controllers):
+    """closed_loop.steer_control (the row-following controller, P8) from the SAME package as the given (verified)
+    controllers module: the vendor package (vehicle runs: row_executor.vendor.closed_loop_copy) or the SIM tree. Its file
+    must be byte-identical to the vendor manifest entry (as single_row_module)."""
+    import importlib
+    package = controllers.__name__.rsplit('.', 1)[0]
+    module = importlib.import_module(package + '.steer_control')
+    want = _vendor_hashes()
+    if STEER_CONTROL_VENDOR_PATH not in want:
+        raise VendorError('vendor manifest lists no %s' % STEER_CONTROL_VENDOR_PATH)
+    path = getattr(module, '__file__', None)
+    if path is None:
+        raise VendorError('steer_control module without a file')
+    with open(path, 'rb') as fh:
+        if hashlib.sha256(fh.read()).hexdigest() != want[STEER_CONTROL_VENDOR_PATH]:
+            raise VendorError('module %s is not byte-identical to the vendored %s' % (path, STEER_CONTROL_VENDOR_PATH))
     return module
 
 
@@ -868,8 +890,10 @@ class Runner:
         self._tick_now = None
         if self.steering:
             if controller_factory is None:
-                raise ValueError('front_steer needs a steering controller (controller_factory: the P8 steering '
-                                 'controller or a SIM scripted controller); the vendored controllers command left / right')
+                # the vendored row-following controller (closed_loop/steer_control.py, kind row_follow) with the field
+                # tuning values of the config (tuning_values); the SIMs pass their own factory (scripted / row_follow)
+                self.steer_control = steer_control_module(controllers)
+                self._new_controller = self.steer_control.make_factory(dict(DEFAULT_STEER_CONTROLLER), config)
             self.guard = SteerOutputGuard.from_config(config)
             self.steer_monitor = SteerMonitor(config)
         self.stats = dict(imu_in=0, imu_rejected=0, imu_stamp_drop=0, scans_in=0, scans_rejected={},

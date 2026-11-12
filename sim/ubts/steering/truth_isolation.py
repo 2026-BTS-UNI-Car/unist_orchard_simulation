@@ -256,6 +256,10 @@ DYNAMIC_IMPORT_EXEMPTIONS = {
     ('tools/row_executor/core.py', 'single_row_module'):
         "importlib.import_module(<controllers package> + '.single_row'): closed_loop.single_row (a decision module) "
         'next to the verified controllers module; its file is SHA-256 checked against the vendor manifest',
+    ('tools/row_executor/core.py', 'steer_control_module'):
+        "importlib.import_module(<controllers package> + '.steer_control'): closed_loop.steer_control (the row-following "
+        'controller, a decision module) next to the verified controllers module; its file is SHA-256 checked against '
+        'the vendor manifest (S1, 2026-11-13)',
 }
 # A13: the executor node subscribes to these topics only (design 2.6).
 EXECUTOR_TOPIC_ALLOWLIST = ('/scan', '/imu/data_raw', '/rover/control/requested')
