@@ -143,6 +143,9 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')))
     values.update(overrides or {})
+    if isinstance(values.get('prior_speed_table'), list):
+        # a JSON episode spec gives the table as lists ([[duty, speed], ...]); the config field is a tuple of tuples
+        values['prior_speed_table'] = tuple(tuple(point) for point in values['prior_speed_table'])
     if values.get('prior_enabled'):
         # actuator priors (design v2 V2-1): the SIM 'measured' duty -> speed table and wheelbase are the profile's
         # nominal values (SIM_ASSUMED placeholders, never the per-run speed draw), unless the overrides give them
