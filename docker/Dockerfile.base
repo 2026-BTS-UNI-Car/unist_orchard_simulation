@@ -1,0 +1,43 @@
+# Self-standing base image of the steering SIM (plan task SR-12, docs/provenance/BASE_IMAGE_KO.md).
+#
+# docker/Dockerfile.ubts-steer builds on a base that already has every package (no apt, no pip there). Until now that
+# base was a local image of this PC only (ubts-sim-clean-tenth:...@sha256:6209168a..., built on 2026-10-07 from the old
+# repository with docker/Dockerfile.ubts). This file defines the same package set without any source of the old
+# repository, so the base can be made again from public packages:
+#   - the ROS 2 Jazzy base image pinned by digest (the digest of the local copy the verified base was built on)
+#   - the apt packages of docker/Dockerfile.ubts (same names, same order)
+#   - the two pip packages at their pinned versions, into /opt/ubts/raydeps (Embree ray casting of cpu_lidar)
+#   - no COPY of sources: the steering Dockerfile copies them
+#
+# NOT built and NOT verified yet (2026-11-12): building needs the package mirrors (apt, PyPI), which the job that wrote
+# this file was not allowed to contact. All recorded steering results were measured on the LOCAL base named above.
+# apt gives the versions the mirrors have on the build day, so a base built from this file can differ from the local
+# one (Gazebo, DART, numpy, ...): compare its package list with docker/base-packages/ (the lists of the local base)
+# and re-verify (image tests, verify_steer, the bit-identity checks) before any result of the new base is used as a
+# reference. Until then the steering image keeps the local base as its default.
+#
+# Build (from the repository root; the context is not read):
+#   docker build -f docker/Dockerfile.base -t ubts-steer-base:<date> docker/base-packages
+#   docker run --rm ubts-steer-base:<date> bash -c "dpkg-query -W -f='\${Package} \${Version}\n'" > <list to compare>
+# Use it for the steering image:
+#   docker build -f docker/Dockerfile.ubts-steer --build-arg UBTS_STEER_BASE=ubts-steer-base:<date> \
+#     --build-arg BASE_IMAGE_ID=$(docker image inspect --format '{{.Id}}' ubts-steer-base:<date>) ...
+ARG UBTS_ROS_BASE=ros:jazzy-ros-base@sha256:066420e07f60aa18262f2479981def87ebcfcec42eefb0c0c57c4a46098348ca
+FROM ${UBTS_ROS_BASE}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-jazzy-ros-gz ros-jazzy-tf2-ros ros-jazzy-rviz2 ros-jazzy-rosbag2-storage-mcap \
+    python3-opencv python3-websockets python3-yaml python3-pytest python3-scipy \
+    libgl1-mesa-dri libegl1 mesa-utils ffmpeg g++ \
+    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip python3-av \
+    && python3 -m pip install --no-deps --target=/opt/ubts/raydeps trimesh==5.1.0 embreex==4.4.0 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/ubts
+ENV PYTHONPATH=/opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts
+RUN mkdir -p /runtime /run/ubts-sim \
+ && python3 -c "import numpy, scipy, cv2, yaml, websockets, pytest; import trimesh, embreex" \
+ && source /opt/ros/jazzy/setup.bash \
+ && python3 -c "import rclpy; import gz.sim8, gz.transport13, gz.msgs10"
+CMD ["bash"]

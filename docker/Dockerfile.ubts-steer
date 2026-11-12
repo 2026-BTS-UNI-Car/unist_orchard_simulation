@@ -5,7 +5,9 @@
 # raydeps). Pinned by tag and digest; on this PC the local RepoDigest equals the image ID.
 # No apt and no pip: the base already has every package. The sources baked into the base that
 # this branch replaces are deleted first, then the branch sources are copied, so files removed
-# on the branch do not linger. The image records the base, the source commit and the file
+# on the branch do not linger. A base without the old sources can be built from docker/Dockerfile.base and chosen
+# with --build-arg UBTS_STEER_BASE=... (not built or verified yet: docs/provenance/BASE_IMAGE_KO.md; the default
+# stays the local base, on which every result was verified). The image records the base, the source commit and the file
 # hashes in /opt/ubts/STEER_IMAGE_MANIFEST.json. The steering firmware sources (firmware/ubts_steer_v3, P3) are
 # copied too: the native lockstep program is built with them (firmware mode, R1); the build fails when they are
 # missing from the image or not compiled in (UBTS_STEER_REQUIRE_FIRMWARE=1, the default; 0 allows an image without
