@@ -146,7 +146,8 @@ IDENTITY_FILES = (
     'steering/steered_plant.py', 'steering/scene_spec.py', 'steering/maneuvers.py', 'steering/flat_world.py',
     'steering/fast_sim.py', 'steering/native/__init__.py', 'steering/native/build.py', 'steering/native/lockstep_v2.py',
     'closed_loop/__init__.py', 'closed_loop/harness.py', 'closed_loop/world.py', 'closed_loop/estimator.py',
-    'closed_loop/controllers.py', 'closed_loop/raster_corridor.py', 'closed_loop/external_paths.py',
+    'closed_loop/actuator_prior.py', 'closed_loop/controllers.py', 'closed_loop/raster_corridor.py',
+    'closed_loop/external_paths.py',
     'orchard_perception/__init__.py', 'orchard_perception/scan_corridor.py', 'orchard_perception/scenarios.py',
     'steering/procedural_orchard.py', 'field_world/__init__.py', 'field_world/raster_ops.py',
     'field_world/build_field_world.py', 'field_world/scene_spec.py')

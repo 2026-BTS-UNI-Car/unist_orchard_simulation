@@ -6,6 +6,7 @@ Config files are written to a temporary folder outside the work tree. Runs under
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -137,6 +138,25 @@ class SimPathsTest(unittest.TestCase):
         with mock.patch.object(P.os, 'name', 'nt'), mock.patch.dict(os.environ, {'SystemRoot': system_root}), \
                 mock.patch.object(P.shutil, 'which', side_effect=lambda name: found[name]):
             self.assertEqual(P.posix_shell_on_path(), found['sh'])
+
+    def test_measurement_hold_file(self):
+        """The replay tools' HOLD_MEASUREMENT file: the SIM tree resolver's 'hold_dir' when the SIM tree is there."""
+        self.assertIsNone(P.measurement_hold_file(os.path.join(self.tmp, 'no_sim_tree')))     # a copy without sim/ubts
+        hold = os.path.join(self.tmp, 'hold')
+        os.makedirs(hold)
+        before = set(sys.modules)
+        with clean_env(UBTS_HOLD_DIR=hold):
+            found = P.measurement_hold_file()
+        self.assertEqual(found, Path(hold) / 'HOLD_MEASUREMENT')
+        self.assertFalse(found.exists())
+        self.assertFalse({'closed_loop', 'closed_loop.external_paths'} & (set(sys.modules) - before))   # by file path
+        bare = {k: v for k, v in os.environ.items() if k not in ENV_NAMES + ('UBTS_HOLD_DIR',)}
+        with mock.patch.dict(os.environ, bare, clear=True):  # SIM tree present, hold folder not configured: an error
+            with self.assertRaises(FileNotFoundError):
+                P.measurement_hold_file()
+        with clean_env(UBTS_HOLD_DIR=os.path.join(self.tmp, 'missing')):
+            with self.assertRaises(FileNotFoundError):
+                P.measurement_hold_file()
 
     def test_no_machine_specific_path_in_the_module(self):
         with open(P.__file__, 'rb') as fh:

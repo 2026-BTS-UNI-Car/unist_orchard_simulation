@@ -1,6 +1,10 @@
 {
   "schema": "ubts.steer_sim.pin_allowlist.v1",
   "note": "Pinned base files (tools/steer_sim/PIN_MANIFEST.json) that a branch may change. Every entry needs a reason. Empty at the import: the pins are the bodies as imported. The seven closed_loop / orchard_perception files that the earlier repository listed here (single-row versions imported for the fast SIM) are pinned with exactly those bodies now.",
-  "allowed_changed_pinned_files": [],
-  "reasons": {}
+  "allowed_changed_pinned_files": [
+    "sim/ubts/closed_loop/estimator.py"
+  ],
+  "reasons": {
+    "sim/ubts/closed_loop/estimator.py": "PC-05 / PC-06 (design v2 V2-1, V2-3; decisions R31, R33): opt-in actuator prior input (on_actuator, layer L1), corridor quality block and external corridor observation slot. Every option is OFF by default and the default behaviour is bit-identical: test_closed_loop_estimator_exact.py compares the full estimator state with the frozen 999a863 body, and the ten reference episodes (E1-E6, R1-R4) keep their row, trace and executor log hashes (docs/steering/ESTIMATOR_INPUTS_KO.md). Update the PIN_MANIFEST.json entry after the review of this change."
+  }
 }
