@@ -1051,10 +1051,14 @@ def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason
         expiry = None
         last_mono = None if not ctx.hold.events else ctx.hold.events[-1].get('last_beat_mono')
         if pause_ticks and last_mono is not None:
-            first_pause_t = pause_ticks[0].get('t')
             # the executor clock: the kernel CLOCK_MONOTONIC (wall clock mode; the same clock in every container) or
             # the SIM time (SIM clock mode: the last beat mapped to SIM time through this node's /clock receipts)
             reference = last_mono if ctx.clock != 'sim' else interpolate_sim(list(ctx.obs.clock_rows), last_mono)
+            # the first pause tick of this loss: the log can still hold paused ticks of an earlier script (ticks have no
+            # wall field for the after_wall filter; gsim-final3 s3_smoke: -43.9 s from an earlier script's pause)
+            later = [r for r in pause_ticks if reference is not None and isinstance(r.get('t'), (int, float))
+                     and r['t'] >= reference - .5]
+            first_pause_t = later[0]['t'] if later else None
             if first_pause_t is not None and reference is not None:
                 expiry = round(first_pause_t - reference, 3)
         criteria.append(criterion(expiry_name, expiry, 'report (<= %.2f: the %s + 1 executor tick; executor clock %s)'
@@ -2484,6 +2488,9 @@ def build_parser():
     p.add_argument('--keep', type=int, default=200, help='scan: SIM scans kept for the byte comparison')
     p.add_argument('--repeat', type=int, default=5, help='safety: operator STOP repeats')
     p.add_argument('--only', nargs='*', default=None, help='safety: script names')
+    p.add_argument('--still-speed', type=float, default=None,
+                   help='the truth speed below which the vehicle counts as still (default p6a_checks.STILL_SPEED_M_S '
+                        '0.005 m/s; W1 A17(G): 0.05, acceptance amendment 62: the start area slopes and the plant creeps)')
     p.add_argument('--reset-pose', action='store_true',
                    help='safety: put the vehicle back at the scene start before each script (w1_force)')
     p.add_argument('--no-executor', action='store_true', help='graph: the executor is not running')
@@ -2501,12 +2508,18 @@ def build_parser():
 def main(argv=None):
     args = build_parser().parse_args(argv)
     out = Path(args.out)
+    if args.still_speed is not None:
+        # acceptance amendment 62: one threshold for every 'still' rule of this run (this module and p6a_checks)
+        from . import p6a_checks as _p6a
+        global STILL_SPEED_M_S
+        STILL_SPEED_M_S = _p6a.STILL_SPEED_M_S = float(args.still_speed)
     ctx = ExecCtx(out, clock=args.clock, start_mode=args.start_mode)
     started = time.monotonic()
     counters0 = emulator_counters(ctx.hooks)
     report = dict(schema=SCHEMA, result_kind=RESULT_KIND, field_validated=False, check=args.check,
                   started_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                  scene=os.environ.get('UBTS_STEER_SCENE'), clock=args.clock,
+                  scene=os.environ.get('UBTS_STEER_SCENE'), clock=args.clock, still_speed_m_s=STILL_SPEED_M_S,
+                  reset_pose=bool(getattr(args, 'reset_pose', False)),
                   source_commit=os.environ.get('UBTS_STEER_SOURCE_COMMIT'),
                   source_status_sha256=os.environ.get('UBTS_STEER_SOURCE_STATUS_SHA256'), provenance=provenance(),
                   provenance_dirs_note='sim/ubts, dashboard/scripts, firmware of /opt/ubts (tools/row_executor is '
