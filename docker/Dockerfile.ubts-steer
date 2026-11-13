@@ -32,7 +32,9 @@
 # start check 0.08 m/s, the IMU game rotation vector, the dashboard copy a92cfec. ubts-steer-sim:wf7 (2026-11-13,
 # stage 4): the executor timing work (steering status refresh before a delayed tick, gc.freeze). ubts-steer-sim:wf8
 # (2026-11-14, stage 5): the executor container's input diagnostics, the follow check's quiet-DDS wait, operator
-# contract revision 5 (session release, a go takes over a heartbeat-only session); the default now.
+# contract revision 5 (session release, a go takes over a heartbeat-only session). ubts-steer-sim:wf9 (2026-11-14,
+# stage 6): the executor container lighter on a busy host (input diagnostics opt-in, the SIM clock loop woken by
+# the /clock sample, no parameter services or /rosout on its node); the default now.
 # Dashboard (2026-11-13, D-13, docs/steering/SIM_DASHBOARD_KO.md): dashboard/config, dashboard_server and static are the
 # dashboard repository's files at the commit of dashboard/DASHBOARD_SOURCE.json (tools/steer_sim/sync_dashboard.py);
 # the build checks every file against that manifest. dashboard_sim/ (the simulation's provider, extension routes and
@@ -46,7 +48,7 @@ ARG BASE_IMAGE_ID=unknown
 ARG SOURCE_COMMIT=unknown
 ARG SOURCE_STATUS_SHA256=unknown
 ARG UBTS_STEER_REQUIRE_FIRMWARE=1
-ARG IMAGE_TAG_HINT=ubts-steer-sim:wf8
+ARG IMAGE_TAG_HINT=ubts-steer-sim:wf9
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt/ubts
 RUN rm -rf /opt/ubts/dashboard /opt/ubts/dashboard_sim /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \
