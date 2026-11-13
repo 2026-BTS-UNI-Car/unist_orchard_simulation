@@ -362,3 +362,14 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
    - 차동 실행기 기준 에피소드 10개(E1~E6, R1~R4): row·trace가 main 3289d16 기준과 같다. 실행 기록은 `config` 사건의 `start_mode`
      칸과 `start` 사건의 `config_digest` 칸만 늘었다.
    - 모든 수치는 자리값 기반 SIM 결과다. 결과 원본은 기록 폴더 `runs/autonomy_exec_20261113/measure/`(레포 밖).
+8. **SIM 대시보드 스택에서 나온 실행기 결함 셋(2026-11-13, 세션 s2~s4, `SIM_DASHBOARD_KO.md` 8절).** 기준은
+   `SIM_ACCEPTANCE_KO.md` 개정 34, 규약은 `OPERATOR_API_KO.md` 3.1·3.4·8절.
+   - 일시정지 중 운영자 STOP이 `bridge_error` / `SYSTEM_FAULT`로 남던 것: 실행기 기록으로 원인을 확인했다(STOP 사건 7 ms 뒤
+     같은 틱의 구동 0 요청이 `stop_barrier`로 거절되어 `_end_from_bridge`가 run을 끝냄). 이제 `_end_from_bridge`는 STOP 표시가
+     서 있으면 `operator_stop`으로 끝낸다. 다른 클라이언트의 STOP이 먼저 닿은 경우(lease-gone 거절과 브리지 제어 이유
+     `operator_stop`)도 `operator_stop`이다.
+   - armed로 오래 기다리면 lease를 잃던 것: 기다리는 동안 0 요청은 이미 10 Hz로 나가고 있었다. 잃은 원인은 브리지의 상태 줄 틈
+     래치(`steering_status_stale`, 호스트 부하)였다. 고른 쪽은 run을 열어 둔 채 다시 Arm하게 하는 것이다(`ready`,
+     `lease_lost` + `arm_first`, 다음 Arm이 래치 확인). 까닭과 조건은 `OPERATOR_API_KO.md` 3.4절.
+   - `steering.exec_checks`의 운영자: 실행기 `start_mode`를 따라 one_press면 `GoBeater`(heartbeat + go), hold_to_run이면
+     `HoldBeater`. `steering.exec_run`의 `GoBeater`는 이 클래스를 쓴다(세션 이름만 `exec-run-`).

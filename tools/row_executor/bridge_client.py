@@ -628,6 +628,18 @@ class SteerBridgeClient(BridgeClient):
         with self._lock:
             return self.steering_seen
 
+    def fresh_status(self):
+        """A fresh status request (kept like a reply's status); None when the bridge does not answer. The client state
+        does not change."""
+        try:
+            status = self._send({'op': 'status'})
+        except BridgeError:
+            return None
+        if not isinstance(status, dict):
+            return None
+        self._keep(status)
+        return status
+
     def fault_reason(self, status=None):
         """The design 6.6 stop reason of a status' steering faults and host latches (None: none of them is a steering
         stop, or no status). status None: a fresh status() request (errors give None, the client stays as it is)."""

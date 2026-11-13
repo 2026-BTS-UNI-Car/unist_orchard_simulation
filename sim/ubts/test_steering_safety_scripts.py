@@ -41,7 +41,9 @@ EXPECT_KEYS = {'end_reason', 'pause_reason', 'pause_at', 'mcu_fault', 'mcu_watch
                'client2', 'late_drive_error', 'lateral', 'loss_at', 'rate_counts', 'no_fault', 'operator_rearm_at',
                'bridge_restart', 'boot_after_s', 'first_rule', 'stop_phase',
                # one_press (design v2 V2-2, A17 amendment 31)
-               'link_lost_at', 'link_timeout_s', 'other_screen', 'go_refused'}
+               'link_lost_at', 'link_timeout_s', 'other_screen', 'go_refused',
+               # the lease of a waiting run (amendment 34)
+               'lease_lost'}
 
 
 def art_of(channels, cfg=None, **extra):

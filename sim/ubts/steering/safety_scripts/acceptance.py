@@ -364,6 +364,18 @@ def evaluate_script(entry, art, result):
         errors = [g[1] for g in s.get('go_refused') or ()]
         _item(items, 'go after the stop refused', bool(errors) and errors[0] in _as_tuple(exp['go_refused']), errors,
               list(_as_tuple(exp['go_refused'])))
+    if exp.get('lease_lost'):
+        # amendment 34: the lease taken while the armed run waits keeps the run open; ACTIVE only after the re-arm
+        events = [e.get('event') for e in s.get('executor_events') or ()]
+        rearm = exp.get('operator_rearm_at')
+        active = s.get('first_active_at_s')
+        lost = [e for e in s.get('executor_events') or () if e.get('event') == 'lease_lost']
+        _item(items, 'lease lost while waiting: the run stays open (event lease_lost before any run_end)',
+              bool(lost) and ('run_end' not in events or events.index('lease_lost') < events.index('run_end')),
+              lost[:1])
+        _item(items, 'the run moves only after the operator re-arm (lease_lost_rearm, first ACTIVE after it)',
+              'lease_lost_rearm' in events and active is not None and rearm is not None and active > float(rearm),
+              dict(first_active_at_s=active, rearm_at_s=rearm))
     if 'late_drive_error' in exp:
         errors = [r['reply'].get('error') for r in s['late_drive']]
         _item(items, 'late drive refused', errors[:1] == [exp['late_drive_error']], errors, exp['late_drive_error'])
