@@ -845,9 +845,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             served = STATIC_ASSETS.serve(rel, requested_version, accept_gzip)
         except OSError:
             served = None
-        took_ms = (time.monotonic() - started) * 1000
-        if took_ms > 500:
-            dashboard_log("static.slow", path=rel, ms=round(took_ms))
+        serve_ms = (time.monotonic() - started) * 1000
         if served is None:
             self.send_error(404, "Not found")
             return
@@ -883,6 +881,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(served.body)
             except (BrokenPipeError, ConnectionResetError, OSError):
                 self.close_connection = True
+        took_ms = (time.monotonic() - started) * 1000
+        if took_ms > 500:
+            dashboard_log("static.slow", path=rel, ms=round(took_ms), serve_ms=round(serve_ms))
 
     def _send_file(self, path: Path, allowed_root: Path = STATIC_ROOT):
         session_token = self._ensure_session(create=True)
@@ -1708,12 +1709,16 @@ def main():
     # Prepare the page's versioned files now rather than on the first visitor's request (static_assets.warm).
     def warm_static():
         started = time.monotonic()
+        # The first mimetypes lookup builds its table; on Windows it reads the registry (0.6-0.8 s on the bench PC,
+        # seconds when the PC is busy). Do it here, not in the first visitor's page answer.
+        mimetypes.guess_type("index.html")
+        mime_ms = round((time.monotonic() - started) * 1000)
         try:
             version = STATIC_ASSETS.warm(DashboardHandler.page_filter)
         except Exception as exc:  # the first request does the same work
             dashboard_log("static.warm_failed", error=type(exc).__name__)
             return
-        dashboard_log("static.warm", ms=round((time.monotonic() - started) * 1000), page_version=version)
+        dashboard_log("static.warm", ms=round((time.monotonic() - started) * 1000), mime_ms=mime_ms, page_version=version)
     threading.Thread(target=warm_static, name="static-assets-warm", daemon=True).start()
     dashboard_log("server.listen", url=f"http://{args.host}:{args.port}")
     try:
