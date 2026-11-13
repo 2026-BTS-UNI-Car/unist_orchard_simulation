@@ -83,11 +83,32 @@ PART_E = dict(check='steering.exec_checks pw08 --out /runs/pw08 (scene w0_force)
               validity='A10 rule for both drives', passed='every executor criterion passes')
 
 
+AMENDMENTS = [dict(
+    n=1, date='2026-11-13', written='after the first sessions (06:50-08:10 UTC), before any session was run again',
+    C=('not run again; reported as not judged. On w0_force every one of the 25 scripts was refused at its go '
+       '(corridor_not_acquired): the one-press executor refuses the go of a row run until the corridor is acquired '
+       '(executor_main._go_blockers, design v2 V2-2 item 2) and the Gazebo W0 world has no tree rows. A registration '
+       'error. A W1 run needs a check-code change (each script back to the start pose) and the scripts steer 3-5 deg for '
+       'tens of seconds towards the rows; left to a later registration'),
+    E=('scene w1_force instead of w0_force, one fresh stack, same criteria: the W0 attempt (08:09 UTC) was refused at '
+       'the first go (lease_lost, arm_first, corridor_not_acquired). From the W1 start pose two 8 m drives at 50 % stay '
+       'inside the 30 m row (the second starts where the first stopped)'),
+    B=('attempt 1 (s2b_ui) is invalid by the registered rule: smallest 5 s window RTF of the check node 0.863 inside the '
+       'page steps; run once more on a fresh stack as registered. The attempt 1 script stopped at the live map step: '
+       'the dashboard 90094fd has the live map on the /map page, the script looked for it on the drive page. The '
+       'script goes to /map before that step now, and adds an information step that is not judged (the LiDAR view of '
+       'the drive page and the IMU panel of /sensors; 90094fd opens these sockets only there). Items, limits and the '
+       'order view, auto, stop, map are unchanged'),
+    observation=('not used for any verdict: in attempt 1 the new run of the STOP step was refused at its go '
+                 '(vehicle_moving); the executor ticks show the car moving backwards at 0.02-0.07 m/s while armed with '
+                 'drive 0 (still while disarmed or latched)'))]
+
+
 def prereg():
     """The machine-readable registration (PREREG_STEER_FOLLOW_GSIM_FINAL.json)."""
     return dict(schema=SCHEMA + '.prereg', prereg_id=PREREG_ID, result_kind=RESULT_KIND, image=IMAGE,
                 based_on=GF.PREREG_ID, clock='wall', settle_after_healthy_s=SETTLE_AFTER_HEALTHY_S, rtf_min=RTF_MIN,
-                reruns_per_slot=RERUNS_PER_SLOT, link_lost_limit_s=LINK_LOST_LIMIT_S,
+                reruns_per_slot=RERUNS_PER_SLOT, link_lost_limit_s=LINK_LOST_LIMIT_S, amendments=AMENDMENTS,
                 parts=dict(A=PART_A, B=PART_B, C=PART_C, D=PART_D, E=PART_E),
                 host='before each session the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded; the '
                      'stall probe is not run in these sessions')
