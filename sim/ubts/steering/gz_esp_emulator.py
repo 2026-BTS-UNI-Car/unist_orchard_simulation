@@ -1364,7 +1364,12 @@ class RosEmulator:
         from std_msgs.msg import Float64, String
         self.rclpy, self.Float64, self.String = rclpy, Float64, String
         self.core, self.hooks = core, hooks
-        self.node = Node(node_name, parameter_overrides=[Parameter('use_sim_time', value=False)])
+        # No parameter services, type description service or /rosout publisher (G-SIM stage 7): nothing uses them and
+        # rclpy adds every service of the node to the wait set of each /clock callback (120 Hz). Topics, QoS and
+        # callbacks are unchanged.
+        self.node = Node(node_name, parameter_overrides=[Parameter('use_sim_time', value=False),
+                                                         Parameter('start_type_description_service', value=False)],
+                         start_parameter_services=False, enable_rosout=False)
         act_qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=1, reliability=ReliabilityPolicy.RELIABLE)
         self.steer_pubs = {key: self.node.create_publisher(Float64, topic, act_qos) for key, topic in steer_topics.items()}
         self.drive_pubs = {wheel: self.node.create_publisher(Float64, topic, act_qos)

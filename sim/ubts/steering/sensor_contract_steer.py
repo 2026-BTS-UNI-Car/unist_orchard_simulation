@@ -196,7 +196,12 @@ def make_node_class():
 
         def __init__(self, profile, rover_config, world_metadata, *, scene, imu_model, runtime_dir='/runtime',
                      s2_present=False, clip_present=False, camera_present=True, run_token=None):
-            Node.__init__(self, NODE_NAME, parameter_overrides=[Parameter('use_sim_time', value=False)])
+            # No parameter services, type description service or /rosout publisher (G-SIM stage 7): nothing uses
+            # them and rclpy adds every service of the node to the wait set of each callback. Topics, QoS and
+            # callbacks are unchanged.
+            Node.__init__(self, NODE_NAME, parameter_overrides=[Parameter('use_sim_time', value=False),
+                                                                Parameter('start_type_description_service', value=False)],
+                          start_parameter_services=False, enable_rosout=False)
             self.profile, self.config = profile, rover_config
             self.scene = scene
             self.runtime_dir = Path(runtime_dir)

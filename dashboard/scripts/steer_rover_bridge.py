@@ -19,9 +19,12 @@ No automatic re-arm after any refusal or fault. An unexpected exception in a loo
 stops and the loop goes on.
 
 Loop timing: --clock wall steps the core every 20 ms of the monotonic clock. --clock sim (G-SIM SIM clock mode,
-2026-11-09 P6a) steps it on a 20 ms grid of the SIM clock: the loop polls ROS every 2 ms wall and runs one core step
+2026-11-09 P6a) steps it on a 20 ms grid of the SIM clock: the loop takes the ROS callbacks and runs one core step
 each time a /clock sample reaches the next multiple of 20 ms (a jump over several grid points runs one step and
-counts the skipped ones). /clock comes in 1/120 s samples, so a grid step runs up to one sample after its grid point
+counts the skipped ones). The loop sleeps in the ROS wait until a /clock sample or a control request (a guard
+condition triggered after every submitted request) is ready, at most SIM_WAIT_MAX_S (G-SIM stage 7; until then it
+polled every 2 ms wall, about a quarter of a core idle); while a STOP is still pending after a step it polls every
+2 ms as before. The decisions are those of the poll: a step depends only on the SIM time and the pending STOP. /clock comes in 1/120 s samples, so a grid step runs up to one sample after its grid point
 and a request on the grid waits up to 20 + 8.3 ms of SIM time. A STOP (the core's emergency flag: op stop, or a full
 queue) does not wait for the grid: the next poll runs one extra core step at the current SIM time, and the ROS spin
 stops taking /clock samples once a STOP is pending, so a STOP waits at most one /clock sample (8.3 ms SIM; review
@@ -51,6 +54,7 @@ REAL_SOCKET = REAL_ROOT + '/control.sock'
 REAL_DEVICE = '/dev/ubts-motor'
 LOOP_PERIOD_S = 0.02
 SIM_POLL_PERIOD_S = 0.002
+SIM_WAIT_MAX_S = 0.05
 SIM_SPIN_MAX = 50
 STATUS_PERIOD_S = 0.5
 STALE_STATE_REPUBLISH_S = 0.5
@@ -257,10 +261,17 @@ class RosPublisher:
         from std_msgs.msg import String
         self.rclpy, self.String = rclpy, String
         rclpy.init()
+        self.wake_guard = None
         if use_sim_time:
+            # SIM clock (G-SIM only): no parameter services, type description service or /rosout publisher (nothing
+            # uses them; rclpy adds every service to the wait set of each spin, G-SIM stage 7), and a guard condition
+            # that wakes the loop's ROS wait when a control request is submitted.
             from rclpy.parameter import Parameter
             self.node = rclpy.create_node(node_name, parameter_overrides=[
-                Parameter('use_sim_time', Parameter.Type.BOOL, True)])
+                Parameter('use_sim_time', Parameter.Type.BOOL, True),
+                Parameter('start_type_description_service', Parameter.Type.BOOL, False)],
+                start_parameter_services=False, enable_rosout=False)
+            self.wake_guard = self.node.create_guard_condition(lambda: None)
         else:
             self.node = rclpy.create_node(node_name)
         self.pubs = {topic: self.node.create_publisher(String, topic, 1) for topic in (
@@ -280,8 +291,11 @@ class RosPublisher:
             self.executor.spin_once(timeout_sec=0.0)
             return
         # SIM clock: take every queued /clock message now (one callback per spin_once), at most SIM_SPIN_MAX; stop
-        # early when stop_when() turns true (a pending STOP is stepped at the SIM time it arrived in).
-        last = None
+        # early when stop_when() turns true (a pending STOP is stepped at the SIM time it arrived in). The drain ends
+        # at the first spin that does not move the clock (G-SIM stage 7: compared with the clock before the first
+        # spin, so an empty queue costs one wait set instead of two; a /clock sample left behind a guard callback is
+        # taken by the next wait_for_input at once).
+        last = self.node.get_clock().now().nanoseconds
         for _ in range(SIM_SPIN_MAX):
             if stop_when is not None and stop_when():
                 break
@@ -290,6 +304,16 @@ class RosPublisher:
             if now == last:
                 break
             last = now
+
+    def wait_for_input(self, timeout_s):
+        """SIM clock: sleep until a /clock sample or the wake guard condition is ready (at most timeout_s) and take
+        that one callback; spin_once takes the rest."""
+        self.executor.spin_once(timeout_sec=timeout_s)
+
+    def wake(self):
+        """Thread-safe: end a wait_for_input at once (a control request was submitted)."""
+        if self.wake_guard is not None:
+            self.wake_guard.trigger()
 
     def sim_time(self):
         """ROS /clock seconds, never decreasing; 0.0 before the first /clock message."""
@@ -334,6 +358,17 @@ class BridgeRunner:
         self.link = v3.EspSteerV3(self.transport, clock, simulated=config['simulated'], expect_hw=self.hp.hw_profile,
                                   banner_timeout_s=self.hp.banner_timeout_s)
         self.core = SteerBridgeCore(self.link, self.hp, clock=clock, wall_clock=wall_clock)
+        wake = getattr(self.ros, 'wake', None) if config['clock'] == 'sim' else None
+        if wake is not None:
+            # SIM clock: every submitted control request wakes the loop's ROS wait (a STOP is then stepped at once,
+            # other requests on the next grid step as before). The core itself is unchanged.
+            submit = self.core.submit
+
+            def submit_and_wake(request):
+                future = submit(request)
+                wake()
+                return future
+            self.core.submit = submit_and_wake
         self.server = None
         self.lock = None
         self._published = None
@@ -455,10 +490,16 @@ class BridgeRunner:
         # Wall clock: a fixed 20 ms grid of the monotonic clock (a request waits at most one period); a tick that
         # is more than one period late resynchronises the grid and is counted (overruns).
         next_t = time.monotonic()
+        wait_for_input = getattr(self.ros, 'wait_for_input', None) if sim else None
         while True:
             if sim:
-                if stop_event.wait(SIM_POLL_PERIOD_S):
-                    break
+                if wait_for_input is None or self.stop_pending():
+                    if stop_event.wait(SIM_POLL_PERIOD_S):
+                        break
+                else:
+                    wait_for_input(SIM_WAIT_MAX_S)
+                    if stop_event.is_set():
+                        break
             else:
                 next_t += LOOP_PERIOD_S
                 delay = next_t - time.monotonic()
