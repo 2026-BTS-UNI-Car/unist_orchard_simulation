@@ -24,7 +24,9 @@ Threads
   main      ExecutorLoop.step() at 20 Hz (absolute schedule, missed ticks are skipped, never caught up):
             operator requests -> STOP -> stall pause -> all queued IMU (in order) -> every queued scan is
             stamped (ScanStamper) but only the NEWEST one is processed (older ones are dropped and counted)
-            -> Runner.tick(now, hold) -> bridge output (MOTOR) -> status + one JSONL line.
+            -> front_steer: a fresh steering status when this step's input processing made the last one older than half
+            of steer_status_max_age_s (one bridge status request, never a drive) -> Runner.tick(now, hold) -> bridge
+            output (MOTOR) -> status + one JSONL line.
   watchdog  if the main loop has not completed an iteration for stall_guard_s (0.35 s): one drive(0,0)
             through the same BridgeClient (its lock serialises seq/ticket; MOTOR only) and a pause request
             ('stall_guard', the Runner also detects the gap itself). Motion restarts only on a new hold press.
@@ -86,6 +88,7 @@ stop_unconfirmed; an unconfirmed STOP latches the client).
 import argparse
 import collections
 import concurrent.futures
+import gc
 import hashlib
 import json
 import math
@@ -128,6 +131,8 @@ STEER_EMERGENCY_REASONS = tuple(r for r in C.STEER_STOP_REASONS if r != 'steerin
     C.STEER_LINK_STOP_REASONS
 STOP_WATCH_S = 1.             # front_steer: how long the STOP confirmation of an op stop is watched (bridge 400 ms grid)
 MOTION_LIMIT = 10.            # op motion sanity range of the bridge (|yaw_rate_rad_s|, |speed_m_s|)
+STEER_REFRESH_FRACTION = .5   # front_steer: a fresh bridge status before the tick when the steering status is older than
+                              # this fraction of steer_status_max_age_s (_refresh_steering)
 BRIDGE_OPERATOR_STOP = 'operator_stop'   # the bridge's control reason after any op stop (steer_bridge_core._step)
 
 
@@ -996,6 +1001,7 @@ class ExecutorLoop:
         step was busy is applied before the tick: a stale non-zero command can never follow a stall."""
         live = now is None
         now = self.clock() if live else float(now)
+        step_start = now
         c0 = time.perf_counter()
         self.tick_count += 1
         self._process_requests(now)
@@ -1040,6 +1046,7 @@ class ExecutorLoop:
                 self.hold.release()
                 self.runner.pause(now, 'native_navigation_' + self._native_navigation['reason'].lower())
         if self.steering:
+            self._refresh_steering(step_start, now)
             self._feed_steering()
         hold = self._hold_signal(now)
         decision = self.runner.tick(now, hold)
@@ -1520,6 +1527,39 @@ class ExecutorLoop:
         if self.steering:
             return 0, self._last_sent[1] if isinstance(self._last_sent, tuple) and len(self._last_sent) == 2 else None
         return 0, 0
+
+    def _refresh_steering(self, step_start, now):
+        """front_steer MOTOR, run ACTIVE and armed: when THIS step's input processing made the steering status old, read one
+        fresh bridge status before the tick. The status normally comes with every drive reply (send_hz, 0.1 s); a long
+        scan processing (dense orchard scans: a corridor update or a re-acquisition) delays the tick, so the Runner would
+        see a status older than its 0.3 s limit although the bridge and the MCU report on time (G-SIM stage 3 F: three
+        runs ended steering_feedback_stale at 0.308-0.367 s). Condition: the status (the last reply, fed first) was at
+        most half of steer_status_max_age_s old when the step began and is older than that after the inputs.
+          * The fresh status carries the MCU line age (age_ms): a late or lost MCU status line, a stalled or dead bridge
+            (no answer: nothing is fed) still end the run steering_feedback_stale as before.
+          * A step that begins late (the loop did not run: an executor stall, a freeze, a late scheduler) gets no
+            refresh: the 0.3 s rule still covers the executor's own lateness, together with the stall guard (0.35 s).
+          * A status request takes no lease, sends no motion and never latches. In the fast SIM the input processing takes
+            no SIM time, so the request never happens there and its runs are unchanged.
+        Returns True when a fresh status was fed."""
+        client = self.bridge
+        if (not self.motor_allowed or client is None or client.state != ARMED or self.runner.state != ACTIVE
+                or not hasattr(client, 'fresh_status')):
+            return False
+        monitor = getattr(self.runner, 'steer_monitor', None)
+        if monitor is None:
+            return False
+        self._feed_steering()                      # the last reply first: its age is what the step began with
+        limit = self.config.steer_status_max_age_s * STEER_REFRESH_FRACTION
+        if monitor.age(now) <= limit or monitor.age(step_start) > limit:
+            return False
+        with self._send_lock:
+            status = client.fresh_status()
+        self.counts['steer_refreshes'] = self.counts.get('steer_refreshes', 0) + 1
+        if status is None or status.get('ok') is not True or not isinstance(status.get('steering'), dict):
+            self.counts['steer_refresh_failures'] = self.counts.get('steer_refresh_failures', 0) + 1
+            return False
+        return True
 
     def _feed_steering(self):
         """front_steer: the steering status of the last bridge reply to the Runner (once per reply), and whether it is
@@ -2020,6 +2060,20 @@ class ExecutorLoop:
 
 
 # --- threads ---------------------------------------------------------------------------------------------
+def freeze_startup_objects(loop=None):
+    """Move every object that exists after the start (modules, numpy / scipy / rclpy, the configuration, the loop) out
+    of the cyclic garbage collector's reach (gc.freeze, after one full collection), so a later full collection only
+    walks the objects made while running. A full collection of an executor-like process took 23-39 ms on a P-core of
+    the development PC before and ~0 ms after (docs/steering/EXECUTOR_PERF_KO.md); on the Jetson several times that,
+    in the middle of a tick. Nothing the loop computes changes. Returns the number of frozen objects."""
+    gc.collect()
+    gc.freeze()
+    count = gc.get_freeze_count()
+    if loop is not None:
+        loop._event('gc_freeze', frozen=count, thresholds=list(gc.get_threshold()))
+    return count
+
+
 def run_loop(loop, stop_event, hz=20., max_exceptions=5, exception_window_s=60., shadow_trace_limit=10,
              shadow_summary_s=10., shadow_reset_after=40, shadow_max_resets=5):
     """Absolute-schedule 20 Hz loop on time.monotonic(); a late iteration skips the missed ticks.
@@ -2227,6 +2281,7 @@ def main(argv=None):
         if not loop.motor_allowed:
             print('SHADOW: the executor does not control the vehicle; the page STOP only ends the shadow run. '
                   'Vehicle stop = dashboard STOP / physical E-stop.', flush=True)
+        freeze_startup_objects(loop)
         run_loop(loop, stop, cfg.control_hz)
     finally:
         loop.shutdown('shutdown')

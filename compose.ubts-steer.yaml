@@ -21,7 +21,10 @@
 #     stop / down commands get -t 20)
 #   python -I <tools>/docker_budget.py release --label p6a-stack
 # Memory (6 GiB budget, design 8.3 P6a): sim 3.5 + dashboard 1 + steer (emulator, bridge) 0.5 + recorder 0.5 +
-# executor 0.5 = 6.0. The executor service (WF-4, profile executor) is not started by a plain "up":
+# executor 0.5 = 6.0. CPU (2026-11-13, docs/steering/STACK_OPERATIONS_KO.md 8): sim 4 + steer 3 + recorder 1 +
+# dashboard 1 + executor 3 = 12 of the 22 logical CPUs of the development PC; steer and executor were 1.5 and were
+# throttled in the SIM clock mode (CFS: 858 of 5091 periods). The executor service (WF-4, profile executor) is not
+# started by a plain "up":
 #   docker compose -p ubts-steer -f compose.ubts-steer.yaml --profile executor up -d          (the whole stack, 6.0)
 # The check service (profile check, 0.5) takes a slot of its own: with the executor running, start the stack without
 # the dashboard (sim + steer + recorder + executor 5.0, + check 0.5):
@@ -150,7 +153,7 @@ services:
       - control:/run/ubts-steer
       - hooks:/run/ubts-steer-emu
     mem_limit: 512m
-    cpus: 1.5
+    cpus: 3                 # was 1.5 (throttled in the SIM clock mode; STACK_OPERATIONS_KO.md 8)
     stop_grace_period: 20s
     restart: "no"
   recorder:
@@ -253,7 +256,7 @@ services:
     volumes:
       - control:/run/ubts-steer
     mem_limit: 512m
-    cpus: 1.5
+    cpus: 3                 # was 1.5 (throttled; dense-scan processing; STACK_OPERATIONS_KO.md 8)
     stop_grace_period: 20s
     restart: "no"
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
