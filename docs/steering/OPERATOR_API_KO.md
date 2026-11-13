@@ -5,6 +5,7 @@
 - 설계: `DESIGN_v2_KO.md` V2-2(한 번 눌러 시작), V2-4(속도 조절기), V2-5(현장 조정 값). 결정 R32, R34, R35.
   합격 기준: `SIM_ACCEPTANCE_KO.md` 개정 31(A17 자율 시작·정지), 개정 32(A11 보고).
 - 코드: `tools/row_executor/operator_http.py`(경로), `executor_main.py`(`OperatorLink`, `ExecutorLoop`), `field_tuning.py`.
+- 개정 5(2026-11-14, G-SIM 5단계): 세션 묶임·풀림 규칙(3.1절). 같은 글을 `runs/_locks/AUTONOMY_API_CONTRACT_20261113.txt` 끝에 적었다.
 - 수치는 자리값이다. SIM에서 잰 값은 자리값 기반 SIM 결과이며 현장 성능이 아니다.
 
 ## 1. 접근 규칙(바뀌지 않음)
@@ -58,8 +59,21 @@
   대시보드 중계 지연(p95 124 ms, 최대 356 ms)에서 0.5 s 는 heartbeat 틈 하나로 자주 섰다. 화면 heartbeat 100 ms 는 그대로다.
   처음(개정 31, R32)에는 0.5 s 였다.
 - 자동 재출발은 없다. heartbeat가 다시 와도 run은 일시정지 그대로다. 다시 가려면 새 `/api/go`가 필요하다(입력이 1 s 신선해진 뒤).
-- 한 화면만 운영자다. 다른 세션이 묶인 세션이 살아 있는 동안 heartbeat나 go를 보내면 409 `session_conflict`이고 묶인 화면에는
-  아무 일도 없다. 묶인 화면의 연결이 끊긴 뒤에는 다른 세션이 묶일 수 있지만 그 화면의 go를 물려받지 않는다(새 go 필요).
+- 한 화면만 운영자다(세션 규칙, 개정 5, 2026-11-14):
+  - 묶임: 묶인 세션이 없을 때 heartbeat나 go를 보낸 세션이 묶인다. 묶인 세션이 살아 있는(마지막 heartbeat 뒤
+    `operator_timeout_s` 안) 동안 다른 세션의 heartbeat는 409 `session_conflict`이고 묶인 화면에는 아무 일도 없다.
+  - go가 묶음을 확정한다: 그 run에서 go를 한 세션이 살아 있는 동안 다른 세션의 go는 409 `session_conflict`다(주행 중, 일시정지
+    중 모두). heartbeat만 보낸 세션(그 run에서 go 없음)은 다른 세션의 go를 막지 않는다. go가 묶음을 넘겨받고(`takeover`), 앞
+    세션의 다음 heartbeat는 409다.
+  - 풀림: (1) run이 끝나면(열 끝, STOP, 결함, `/api/end`; `run_state` `ended`·`latched`) 실행기가 그 틱에 세션을 푼다.
+    (2) heartbeat가 `operator_timeout_s` 넘게 오지 않으면 세션을 푼다(달리던 run은 전처럼 `OPERATOR_LINK_LOST`로 일시정지).
+    풀린 뒤 처음 heartbeat나 go를 보낸 세션이 묶인다.
+  - 새로 묶인 세션은 앞 화면의 go를 물려받지 않는다(새 go 필요). 자동 재출발은 없다. STOP은 누구나 된다.
+  - 기록: 실행기 JSONL에 `operator_link` 사건(`action` bind / takeover / release / conflict, 세션은 SHA-256 앞 8자만, conflict는
+    묶인 세션과 거절된 세션 쌍마다 처음 한 번). 상태 `operator_link`에 `committed`, `last_release`, `releases`, `takeovers`.
+  - 까닭: G-SIM 4단계 화면 확인(2026-11-13, `STEER_FOLLOW_GSIM_FINAL_KO.md` 13.3)에서 다른 세션이 armed 동안 heartbeat만
+    보내며 묶고 있어 운영자 화면의 heartbeat 270개와 go가 약 32 s 동안 409였다. 예전 규칙에서는 run이 끝나도 세션을 풀지
+    않았고, heartbeat만 보낸 세션도 go를 막았다.
 - STOP은 세션과 상관없이 누구나 된다. STOP은 go를 끝낸다(다시 가려면 확인 → Start → Arm → go).
 - STOP으로 끝난 run의 끝 이유는 언제나 `operator_stop`(`OPERATOR_OR_BACKSTOP`)이다. 실행기가 STOP을 받으면 브리지에 op stop을
   보내기 전에 표시를 세운다. 그 STOP이 같은 틱의 구동 요청을 막아(`stop_barrier`) 거절이 와도 run은 `operator_stop`으로 끝난다
@@ -128,7 +142,7 @@
 |---|---|
 | `start_mode` | `one_press` / `hold_to_run` |
 | `run_state` | `idle`(run 없음) / `ready`(Start 뒤 Arm 전, MOTOR만) / `armed`(go를 기다림; SHADOW는 Arm이 없어 곧바로 armed) / `running` / `paused` / `ended` / `latched` |
-| `operator_link` | `{fresh, age_s, timeout_s, session(묶인 세션 id의 SHA-256 앞 8자), go_active, go_serial, last_cancel, 횟수들}` |
+| `operator_link` | `{fresh, age_s, timeout_s, session(묶인 세션 id의 SHA-256 앞 8자), committed(그 세션이 이 run에서 go를 했다), go_active, go_serial, last_cancel, last_release, 횟수들(beats, gos, conflicts, invalid, link_lost, cancels, bindings, releases, takeovers)}` |
 | `go_ready`, `go_blockers` | 3.2절 |
 | `stop_reason` | 일시정지·끝의 분류: `ROW_END`, `OBSTACLE`, `END_STRUCTURE`, `PERCEPTION_OR_LOCALISATION`, `CONTROL_AUTHORITY`, `OPERATOR_OR_BACKSTOP`, `SYSTEM_FAULT`, `OPERATOR_LINK_LOST`, `UNCLASSIFIED`; 주행 중·대기 중은 null |
 | `stop_detail` | 원래 이유 문자열(예: `operator_link_lost`, `row_end`, `stale_lidar`, `speed_cap_below_min`) |
@@ -185,11 +199,13 @@
 2. Start → Arm(MOTOR). `go_ready`가 참이면 '자율 주행 시작'을 켠다. 누르면 `/api/go` 한 번.
 3. 주행 중에는 STOP을 크게 보인다. 일시정지면 `stop_reason`·`stop_detail`과 '다시 가려면 다시 누르기'를 보인다.
 3a. `run_state`가 `ready`이고 `go_blockers`에 `lease_lost`가 있으면 '브리지가 권한을 거뒀다: Arm을 다시 누른다'를 보인다.
-4. 409 `session_conflict`를 받으면 '다른 화면이 운영자'를 보이고 STOP만 둔다.
+4. 409 `session_conflict`를 받으면 '다른 화면이 운영자'를 보이고 STOP만 둔다. heartbeat만 409인 동안(다른 화면이 go 전)에는
+   '자율 주행 시작'을 눌러 go를 보내도 된다(개정 5: go가 묶음을 넘겨받는다).
 
 ## 8. 시험과 SIM 확인
 
-- 단위·HTTP: `tools/row_executor/tests/test_one_press.py`(링크, 세션, 끊김, 재출발 없음, STOP 우선, MOTOR Arm 순서, HTTP 경로),
+- 단위·HTTP: `tools/row_executor/tests/test_one_press.py`(링크, 세션, 끊김, 재출발 없음, STOP 우선, MOTOR Arm 순서, HTTP 경로,
+  개정 5의 run 끝·기한 풀림, heartbeat만 보낸 세션의 넘겨줌, conflict 기록),
   `test_steer_executor.py`(FirstArmTest), `test_field_tuning.py`, `test_steer_follow_runner.py`(속도 조절기 일시정지),
   `test_stop_lease.py`(일시정지 중 STOP의 분류, 브리지에 먼저 닿은 STOP, 기다리는 동안의 lease와 다시 Arm; 고치기 전에는 10개 중
   6개가 실패했다).

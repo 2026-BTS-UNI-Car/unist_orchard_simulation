@@ -35,14 +35,18 @@ class OperatorLinkTest(unittest.TestCase):
         self.assertEqual(link.heartbeat('aaaa1', 0.), (True, None))
         self.assertEqual(link.heartbeat('bbbb2', .2), (False, 'session_conflict'))     # the first one is fresh
         self.assertEqual(link.heartbeat('aaaa1', .4), (True, None))
-        ok, why, serial = link.go('bbbb2', .5)
-        self.assertEqual((ok, why), (False, 'session_conflict'))
         ok, why, serial = link.go('aaaa1', .5)
         self.assertTrue(ok)
+        # the go made the binding firm (revision 5): another screen's heartbeat and go are refused while it is fresh
+        self.assertEqual(link.heartbeat('bbbb2', .6), (False, 'session_conflict'))
+        self.assertEqual(link.go('bbbb2', .6)[:2], (False, 'session_conflict'))
+        self.assertTrue(link.conflict('bbbb2', .6))
         self.assertEqual(link.current(.9), (True, serial, False))
         # no heartbeat for more than 0.5 s: the go drops for good and 'lost' is reported once
         self.assertEqual(link.current(1.01), (False, serial, True))
         self.assertEqual(link.current(1.02), (False, serial, False))
+        self.assertIsNone(link.snapshot(1.02)['session'])                          # revision 5: the session is let go
+        self.assertEqual(link.snapshot(1.02)['last_release'], 'link_expired')
         self.assertEqual(link.heartbeat('aaaa1', 1.1), (True, None))               # the link is back ...
         self.assertEqual(link.current(1.15), (False, serial, False))              # ... the go is not
         ok, _, serial2 = link.go('aaaa1', 1.2)
@@ -67,6 +71,51 @@ class OperatorLinkTest(unittest.TestCase):
         link.cancel('operator_stop')
         self.assertEqual(link.current(1.)[:1], (False,))
         self.assertEqual(link.snapshot(1.)['last_cancel'], 'operator_stop')
+
+    def test_a_heartbeat_only_binding_does_not_refuse_the_go_of_another_screen(self):
+        # revision 5 (G-SIM stage 4 B: a screen that only beat held the link and refused the operator's go)
+        notes = []
+        link = M.OperatorLink(1., notify=lambda action, **f: notes.append((action, f)))
+        self.assertEqual(link.heartbeat('aaaa1', 0.), (True, None))
+        self.assertEqual(link.heartbeat('bbbb2', .1), (False, 'session_conflict'))  # heartbeats: one screen at a time
+        self.assertFalse(link.conflict('bbbb2', .1))                                 # but its go is not refused
+        ok, why, serial = link.go('bbbb2', .2)
+        self.assertEqual((ok, why, serial), (True, None, 1))
+        snap = link.snapshot(.2)
+        self.assertEqual((snap['session'], snap['committed'], snap['takeovers']),
+                         (M.OperatorLink.digest('bbbb2'), True, 1))
+        self.assertEqual(link.heartbeat('aaaa1', .3), (False, 'session_conflict'))  # now the go's screen holds it
+        self.assertEqual(link.go('aaaa1', .3)[:2], (False, 'session_conflict'))
+        self.assertEqual(link.current(.4), (True, 1, False))                         # the go goes on
+        actions = [a for a, _ in notes]
+        self.assertEqual(actions, ['bind', 'conflict', 'takeover', 'bind', 'conflict'])
+        self.assertNotIn('aaaa1', json.dumps(notes))                                  # digests only
+        self.assertNotIn('bbbb2', json.dumps(notes))
+
+    def test_release_lets_the_next_screen_bind_and_never_restarts(self):
+        link = M.OperatorLink(1.)
+        ok, _, serial = link.go('aaaa1', 0.)
+        self.assertTrue(ok)
+        link.release('run_ended:row_end')
+        snap = link.snapshot(.1)
+        self.assertEqual((snap['session'], snap['committed'], snap['go_active'], snap['releases']),
+                         (None, False, False, 1))
+        self.assertEqual(snap['last_release'], 'run_ended:row_end')
+        self.assertEqual(link.current(.1), (False, serial, False))                  # no 'lost', no go
+        self.assertEqual(link.heartbeat('bbbb2', .2), (True, None))                  # the next screen binds at once
+        self.assertEqual(link.current(.3), (False, serial, False))                   # binding is not a go
+        link.release('run_ended:row_end')
+        link.release('run_ended:row_end')                                            # nothing bound: nothing happens
+        self.assertEqual(link.snapshot(.3)['releases'], 2)
+
+    def test_conflicts_are_logged_once_per_pair(self):
+        notes = []
+        link = M.OperatorLink(1., notify=lambda action, **f: notes.append(action))
+        link.go('aaaa1', 0.)
+        for k in range(20):
+            link.heartbeat('bbbb2', .01 * k)
+        self.assertEqual(notes.count('conflict'), 1)
+        self.assertEqual(link.snapshot(.2)['conflicts'], 20)
 
     def test_invalid_session_ids(self):
         link = M.OperatorLink(.5)
@@ -193,6 +242,40 @@ class LoopTest(unittest.TestCase):
         self.assertFalse(d.loop.link.go_active)
         self.assertEqual(d.go()['error'], 'no_run')
 
+    def test_the_end_of_a_run_releases_the_session(self):
+        d = self.started()
+        self.assertTrue(d.go()['ok'])
+        d.run(.5)
+        d.loop.emergency_stop('page')
+        d.visible = False                                              # the screen stops beating at the end
+        d.run(.1)
+        self.assertEqual(d.loop.runner.end_reason, 'operator_stop')
+        link = d.loop.status()['operator_link']
+        self.assertIsNone(link['session'])
+        self.assertEqual(link['last_release'], 'run_ended:operator_stop')
+        # the next screen starts the next run at once (no session_conflict, no waiting for the old link to expire)
+        self.assertEqual(d.loop.operator_heartbeat('screen-two-0002'), (True, None))
+        self.assertTrue(d.request('start', row_len_m=30.)['ok'])
+        d.session = 'screen-two-0002'
+        d.visible = True
+        d.run(1.6)
+        self.assertTrue(d.go()['ok'])
+        d.run(.5)
+        self.assertEqual(d.loop.runner.state, ACTIVE)
+        self.assertEqual(d.loop.operator_heartbeat('screen-one-0001'), (False, 'session_conflict'))
+
+    def test_a_screen_that_only_beats_does_not_hold_the_start(self):
+        # G-SIM stage 4 B: another screen beat while armed and the operator's go was refused (session_conflict)
+        d = self.started()                                             # screen one beats every tick, never goes
+        reply = d.go('screen-two-0002')
+        self.assertTrue(reply['ok'], reply)
+        d.session = 'screen-two-0002'                                  # screen two beats from now on
+        d.run(1.)
+        self.assertEqual(d.loop.runner.state, ACTIVE)
+        self.assertEqual(d.loop.operator_heartbeat('screen-one-0001'), (False, 'session_conflict'))
+        self.assertEqual(d.go('screen-one-0001')['error'], 'session_conflict')   # running: the other go is refused
+        self.assertEqual(d.loop.status()['operator_link']['takeovers'], 1)
+
     def test_go_refused_before_start_and_while_inputs_warm_up(self):
         d = Driver(one_press())
         self.assertEqual(d.go()['error'], 'no_run')
@@ -278,7 +361,8 @@ class HttpTest(unittest.TestCase):
         code, reply = self.call('POST', '/api/go', {'session': 'http-one-0001'})
         self.assertEqual((code, reply['error']), (409, 'no_run'))
         code, reply = self.call('POST', '/api/go', {'session': 'http-two-0002'})
-        self.assertEqual((code, reply['error']), (409, 'session_conflict'))
+        # revision 5: a session bound by heartbeats only does not refuse another screen's go (the start checks do)
+        self.assertEqual((code, reply['error']), (409, 'no_run'))
         self.assertEqual(self.call('POST', '/api/hold', {'press': 'press-0001'}), (409, {'ok': False,
                                                                                          'error': 'start_mode_one_press'}))
         self.assertEqual(self.call('POST', '/api/release', {'press': 'press-0001'})[0], 409)

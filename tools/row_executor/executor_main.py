@@ -376,92 +376,163 @@ class HoldState:
 
 class OperatorLink:
     """One-press start (design v2 V2-2, decision R32, docs/steering/OPERATOR_API_KO.md): the operator screen's session,
-    its heartbeats and the go latch. Thread-safe (HTTP threads beat, the main loop goes / reads / cancels).
+    its heartbeats and the go latch. Thread-safe (HTTP threads beat, the main loop goes / reads / cancels / releases).
 
-      heartbeat(session, now)  the screen is visible: binds the session when no session is bound or the bound one's
-                               link has expired, and refreshes it. Another session while the bound one is fresh is
-                               refused ('session_conflict', HTTP 409); nothing changes for the bound one.
+      heartbeat(session, now)  the screen is visible: binds the session when no session is bound, and refreshes it.
+                               Another session while the bound one is fresh is refused ('session_conflict', HTTP 409);
+                               nothing changes for the bound one.
       go(session, now)         (main loop, after the start checks) a heartbeat of that session plus a NEW go: the level
-                               rises with a new serial (its own rising edge for the Runner).
+                               rises with a new serial (its own rising edge for the Runner). The go makes the binding
+                               firm (committed) for the open run. A go of another session is refused while a committed
+                               session is fresh ('session_conflict'); a session bound by heartbeats only (no go in this
+                               run) does not refuse it: the go takes the binding over (revision 5).
       current(now)             (active, serial, lost): active while a go is latched and the link is fresh. When the link
                                expires (no heartbeat for timeout_s) the go is dropped for good and lost is True once (the
                                loop pauses the run: operator_link_lost). A later heartbeat never revives it: only a new go
                                does (no automatic restart).
       cancel(why)              drops the go (a pause, an end, STOP); the session stays bound while its heartbeats go on.
-    Session ids are the screen's random ids (4..64 characters); the status shows only a short digest of the bound one.
+      release(why)             (main loop) the run ended (row end, STOP, any end): the session is let go, the next screen
+                               binds afresh (revision 5).
+    A bound session whose heartbeats stopped for longer than timeout_s is let go as well (expiry, revision 5): the next
+    heartbeat of any screen binds. Session ids are the screen's random ids (4..64 characters); the status and the log
+    show only a short digest. notify(action, **fields) (optional, the loop's event log) is called outside the lock for
+    bind / takeover / release / the first conflict of each pair.
     """
 
     RETIRED_MAX = 4096
+    CONFLICT_PAIRS_LOGGED = 16
 
-    def __init__(self, timeout_s=.5):
+    def __init__(self, timeout_s=.5, notify=None):
         self.timeout_s = float(timeout_s)
+        self.notify = notify
         self.lock = threading.Lock()
         self.session = None
+        self.committed = False
         self.last_beat = None
         self.go_active = False
         self.serial = 0
         self.last_cancel = None
+        self.last_release = None
         self._lost_pending = False
-        self.counts = dict(beats=0, gos=0, conflicts=0, invalid=0, link_lost=0, cancels=0, bindings=0)
+        self._conflicts_logged = set()
+        self.counts = dict(beats=0, gos=0, conflicts=0, invalid=0, link_lost=0, cancels=0, bindings=0, releases=0,
+                           takeovers=0)
 
     @staticmethod
     def valid(session):
         return isinstance(session, str) and 4 <= len(session) <= 64
 
+    @staticmethod
+    def digest(session):
+        return None if session is None else hashlib.sha256(session.encode('utf-8')).hexdigest()[:8]
+
     def _fresh_locked(self, now):
         return self.last_beat is not None and now - self.last_beat <= self.timeout_s
 
-    def _bind_locked(self, session, now):
+    def _emit(self, notes):
+        if self.notify is None:
+            return
+        for action, fields in notes:
+            try:
+                self.notify(action, **fields)
+            except Exception:          # the log never changes the link
+                pass
+
+    def _release_locked(self, why, notes):
+        if self.session is None:
+            return
+        notes.append(('release', dict(session=self.digest(self.session), why=str(why)[:60],
+                                      committed=self.committed)))
+        if self.go_active:
+            self.go_active = False
+            self.last_cancel = str(why)[:60]
+        self.session = None
+        self.committed = False
+        self.last_beat = None
+        self.last_release = str(why)[:60]
+        self.counts['releases'] += 1
+        self._conflicts_logged.clear()
+
+    def _bind_locked(self, session, now, notes, go=False):
         if not self.valid(session):
             self.counts['invalid'] += 1
             return False, 'invalid_session_id'
         if self.session is not None and session != self.session and self._fresh_locked(now):
-            self.counts['conflicts'] += 1
-            return False, 'session_conflict'
+            if go and not self.committed:
+                # revision 5: the bound screen only beat (no go in this run); a go of another screen takes it over
+                notes.append(('takeover', dict(old=self.digest(self.session), session=self.digest(session))))
+                self.counts['takeovers'] += 1
+                self.session = None
+                self._conflicts_logged.clear()
+            else:
+                self.counts['conflicts'] += 1
+                pair = (self.session, session)
+                if pair not in self._conflicts_logged and len(self._conflicts_logged) < self.CONFLICT_PAIRS_LOGGED:
+                    self._conflicts_logged.add(pair)
+                    notes.append(('conflict', dict(bound=self.digest(self.session), session=self.digest(session),
+                                                   committed=self.committed, go=bool(go))))
+                return False, 'session_conflict'
         if session != self.session:
             if self.go_active:                     # a new screen never inherits a go of an expired one
                 self.go_active = False
                 self.last_cancel = 'session_changed'
             self.session = session
+            self.committed = False
             self.counts['bindings'] += 1
+            notes.append(('bind', dict(session=self.digest(session), go=bool(go))))
         self.last_beat = float(now)
         self.counts['beats'] += 1
         return True, None
 
     def heartbeat(self, session, now):
+        notes = []
         with self.lock:
-            self._expire_locked(now)
-            return self._bind_locked(session, now)
+            self._expire_locked(now, notes)
+            result = self._bind_locked(session, now, notes)
+        self._emit(notes)
+        return result
 
     def conflict(self, session, now):
-        """True when another session is bound and fresh (a go of this session would be refused)."""
+        """True when a go of this session would be refused: another session is bound, fresh and committed (it made the
+        go of the open run). A session bound by heartbeats only does not refuse a go (revision 5)."""
         with self.lock:
-            return self.session is not None and session != self.session and self._fresh_locked(now)
+            return (self.session is not None and session != self.session and self.committed
+                    and self._fresh_locked(now))
 
     def go(self, session, now):
+        notes = []
         with self.lock:
-            self._expire_locked(now)
-            ok, why = self._bind_locked(session, now)
-            if not ok:
-                return False, why, None
-            self.go_active = True
-            self._lost_pending = False
-            self.serial += 1
-            self.counts['gos'] += 1
-            return True, None, self.serial
+            self._expire_locked(now, notes)
+            ok, why = self._bind_locked(session, now, notes, go=True)
+            serial = None
+            if ok:
+                self.committed = True
+                self.go_active = True
+                self._lost_pending = False
+                self.serial += 1
+                self.counts['gos'] += 1
+                serial = self.serial
+        self._emit(notes)
+        return ok, why, serial
 
-    def _expire_locked(self, now):
-        if self.go_active and not self._fresh_locked(now):
+    def _expire_locked(self, now, notes):
+        if self.session is None or self._fresh_locked(now):
+            return
+        if self.go_active:
             self.go_active = False
             self.last_cancel = 'operator_link_lost'
             self.counts['link_lost'] += 1
             self._lost_pending = True          # kept until the main loop reads it (current())
+        self._release_locked('link_expired', notes)
 
     def current(self, now):
+        notes = []
         with self.lock:
-            self._expire_locked(now)
+            self._expire_locked(now, notes)
             lost, self._lost_pending = self._lost_pending, False
-            return self.go_active, self.serial, lost
+            result = self.go_active, self.serial, lost
+        self._emit(notes)
+        return result
 
     def cancel(self, why):
         with self.lock:
@@ -471,13 +542,26 @@ class OperatorLink:
                 self.last_cancel = str(why)[:60]
                 self.counts['cancels'] += 1
 
-    def snapshot(self, now):
+    def release(self, why):
+        """The open run ended (revision 5): drop the go and let the session go (no automatic restart: the next run needs
+        Start, Arm and a new go anyway)."""
+        notes = []
         with self.lock:
+            self._lost_pending = False
+            self._release_locked(why, notes)
+        self._emit(notes)
+
+    def snapshot(self, now):
+        notes = []
+        with self.lock:
+            self._expire_locked(now, notes)
             age = None if self.last_beat is None else round(max(0., now - self.last_beat), 3)
-            digest = None if self.session is None else hashlib.sha256(self.session.encode('utf-8')).hexdigest()[:8]
-            return dict(fresh=self._fresh_locked(now), age_s=age, timeout_s=self.timeout_s, session=digest,
-                        go_active=self.go_active, go_serial=self.serial, last_cancel=self.last_cancel,
-                        **self.counts)
+            result = dict(fresh=self._fresh_locked(now), age_s=age, timeout_s=self.timeout_s,
+                          session=self.digest(self.session), committed=self.committed, go_active=self.go_active,
+                          go_serial=self.serial, last_cancel=self.last_cancel, last_release=self.last_release,
+                          **self.counts)
+        self._emit(notes)
+        return result
 
 
 class JsonlLog:
@@ -786,8 +870,9 @@ class ExecutorLoop:
         # design v2 V2-2 (R32): one_press = Start -> Arm -> one go, the screen's heartbeats keep the run going;
         # hold_to_run = the press heartbeats above (the differential default, and an explicit option)
         self.start_mode = C.effective_start_mode(cfg)
-        self.link = OperatorLink(cfg.operator_timeout_s)
+        self.link = OperatorLink(cfg.operator_timeout_s, notify=self._link_event)
         self._go_reached_active = False         # one_press: the current go has resumed the run at least once
+        self._link_released_run = None          # one_press: run id whose end released the operator session (rev. 5)
         self.log = log if log is not None else _NullLog()
         self.source_digest = source_digest
         self.steering = C.is_front_steer(cfg)
@@ -845,6 +930,10 @@ class ExecutorLoop:
         record = dict(k='event', event=name, t=round(self.clock(), 4), wall=round(self.wall(), 3))
         record.update(_clean(fields))
         self.log.put(record)
+
+    def _link_event(self, action, **fields):
+        """OperatorLink notify (any thread): bind / takeover / release / conflict with session digests only."""
+        self._event('operator_link', action=action, **fields)
 
     # --- inputs (any thread) ---------------------------------------------------------------------------
     def on_scan_msg(self, receipt, msg):
@@ -1060,6 +1149,7 @@ class ExecutorLoop:
         decision = self.runner.tick(now, hold)
         self._last_decision = decision
         self._go_after_tick()
+        self._release_link_after_end()
         self._calib_events()
         if self.shadow_auto:
             self._shadow_auto_restart(now)
@@ -1197,6 +1287,17 @@ class ExecutorLoop:
                 self.link.cancel('paused:' + str(runner.reason))
         else:
             self.link.cancel('run_' + str(runner.state).lower())
+
+    def _release_link_after_end(self):
+        """one_press (revision 5, docs/steering/OPERATOR_API_KO.md 3.1): once per ended run the operator session is let
+        go (row end, STOP, a fault, the operator's end), so the next screen binds afresh. The next run needs Start, Arm
+        and a new go as before (no automatic restart)."""
+        if self.start_mode != C.ONE_PRESS or self.shadow_auto:
+            return
+        runner = self.runner
+        if runner.state == ENDED and runner.run_id and self._link_released_run != runner.run_id:
+            self._link_released_run = runner.run_id
+            self.link.release('run_ended:' + str(runner.end_reason))
 
     def _go_blockers(self, now, session=None):
         """The reasons a go would be refused now (empty: the start button may be on). Design v2 V2-2 item 2: a run open
