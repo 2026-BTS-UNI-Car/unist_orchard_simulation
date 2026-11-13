@@ -83,3 +83,20 @@ python -I tools/steer_sim/capture_media.py page --out <파일>.png --wait-s 12
 - 메모리 한도(6 GiB 예산)는 그대로다. CPU 는 예산 도구가 묶지 않으므로 다른 측정 스택과 함께 올리지 않는 1절이 그대로 중요하다.
 - 이 PC 는 P·E·저전력 E 코어가 섞여 있어, 같은 일이 놓인 코어에 따라 2~3 배 느리다(`EXECUTOR_PERF_KO.md` 표). 시간을 재는 실행 전에는
   2절 부하 확인을 한다.
+
+## 9. 새 ROS 참가자가 들어오면 스택 출력이 약 0.35 s 멈춘다 (2026-11-14, 최종 확인 5단계)
+
+- 잰 것(개발 확인 d1·d2, 자리값 기반 SIM 결과, 기록 폴더 `runs/gsim_stage5_20261114/`): 스택에 ROS 참가자가 새로 들어오면(검사
+  컨테이너 시작, 짧게 떠는 ROS 프로세스) 그 뒤 몇 초 안에 ros_gz_bridge 의 /clock·IMU 와 /clock 에 맞춰 나오는 스캔이 벽시계로 약
+  0.31~0.37 s 멈춘다. 그동안 SIM 시간은 간다(Gazebo 는 돈다). 실행기와 ESP 에뮬레이터가 같은 단조 시각에 같은 틈을 봤고, 실행기의
+  입력 스레드·GIL·주 루프는 제때였다. 짧은 참가자 4 번 중 3 번, 검사 컨테이너 시작 4~7 s 뒤, 스택 시작 때 나왔다. 정확한 FastDDS
+  안쪽 까닭은 가르지 못했다.
+- 따로: Gazebo set_pose, 카메라 구독을 새로 만들 때는 SIM 시간까지 같이 0.1~0.2 s 멈췄다(SIM 시계 소비자에게 해 없음).
+  hook 호출(에뮬레이터 status·mark, 브리지 status, 실행기 hook status)은 틈을 만들지 않았다.
+- SIM 시계 모드에서 이 틈은 실행기 시계가 멈췄다가 뛰는 것으로 보인다. 그래서 출발 직후에 걸리면 조향 상태 나이(0.3 s)나 MCU 명령
+  TTL 로 run 이 끝난다(4단계 A 두 run).
+- 할 일: 운전하는 검사는 Start 전에 DDS 가 조용해질 때까지 기다린다(`exec_checks.settle_discovery`: 자기 /clock 이 10 s 동안 0.1 s 넘는
+  틈 없이, 최대 60 s; 지금은 `follow`). 측정 중인 스택에 `stack run`으로 ROS 프로세스를 새로 띄우지 않는다. 사용자 명령(대시보드,
+  `sim_auto.py`)은 DDS 참가자를 만들지 않는다.
+- 진단: SIM 시계 모드의 실행기 틱마다 `diag`(구독 콜백 수와 가장 긴 틈, 입력 스레드 타이머, GIL 탐침, 주 루프 폴링 틈), 150 ms 넘는
+  구독 틈은 `input_gap` 사건(`exec_container_main.SpinMonitor`).

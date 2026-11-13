@@ -1,0 +1,112 @@
+{
+ "schema": "ubts.steer_sim.gsim_final5.v1.prereg",
+ "prereg_id": "steer_follow_gsim_final5_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "based_on": "steer_follow_gsim_final4_v1",
+ "common": {
+  "image": "ubts-steer-sim:wf8",
+  "clock": "sim",
+  "settle_after_healthy_s": 120.0,
+  "validity": "SIM clock mode: the times of the executor, the bridge wrapper and the checks are SIM times, so an RTF below 1 does not make a run invalid (acceptance amendment 61). The RTF of every judged step is reported. A judged step with a 5 s window RTF below 0.5 is a host failure: recorded, not judged, and run once more on a fresh stack; twice is reported as not judged",
+  "host": "the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded before each session (waiting at most 60 s); the stall probe is not run",
+  "host_quiet": "the user's stack is stopped and the heavy-measurement lock is held during every session"
+ },
+ "rtf_host_failure": 0.5,
+ "operator_timeout_s": 1.0,
+ "heartbeat_gap_max_s": 0.5,
+ "link_check_s": 2.0,
+ "sim_stall_gap_s": 0.25,
+ "sim_stall_match_s": 0.1,
+ "sim_stall_before_end_s": 1.0,
+ "parts": {
+  "A": {
+   "check": "steering.exec_checks follow --run <name> --out /runs/follow (one_press: Start, Arm, heartbeats, one go); the check first waits until its own /clock has run 10 s without a wall gap above 0.1 s (at most 60 s) and records it (discovery_settle)",
+   "scene": "w1_force",
+   "controller": {
+    "kind": "row_follow"
+   },
+   "runs": [
+    {
+     "name": "nominal_1",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_2",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_3",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "lateral_p040",
+     "expect": "row_end",
+     "start": "set_pose",
+     "lateral_offset_m": 0.4,
+     "settle_m": 6.0
+    }
+   ],
+   "criteria": {
+    "lateral_rmse_m": 0.2,
+    "lateral_p95_m": 0.35,
+    "lateral_max_m": 0.5,
+    "heading_rmse_deg": 5.0,
+    "heading_max_deg": 15.0,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "min_clearance_m": 0.0,
+    "after_terminal_window_s": 3.0,
+    "rest_speed_m_s": 0.02
+   },
+   "settle_m": 6.0,
+   "fresh_stack_per_run": true,
+   "clock": "sim",
+   "passed": "every judged run passes every criterion of steer_follow_gsim_v1 and at least three of four slots are judged",
+   "recorded": "per run: discovery_settle (wait, gaps); the executor input_gap events and the tick diag /clock gaps above 0.25 s of the run; the ESP emulator clock_stalls; the executor loop p50/p99/max and skipped ticks",
+   "cause_rule": "decided before the runs, reported with the verdict (the verdict stays as recorded): a failing run whose end comes within 1.0 s after an executor /clock gap above 0.25 s that the ESP emulator recorded at the same monotonic time (within 0.1 s) is put on the SIM side (DDS delivery of the stack); any other failing run is put on the executor or the controller"
+  },
+  "B": {
+   "check": "the SIM dashboard in Chrome, phases auto, stop, restart of the stage 4 script, plus the page's own session digests (page_sessions, from the request bodies; not judged)",
+   "items": [
+    {
+     "name": "prepare",
+     "rule": "the auto panel offers 준비; pressing it (and Arm if offered) reaches 자율 주행 시작 within 16 s"
+    },
+    {
+     "name": "one_press_running",
+     "rule": "one press -> 주행 중 within 10 s and the vehicle moves (emulator speed > 0.05 m/s)"
+    },
+    {
+     "name": "heartbeat",
+     "rule": "largest gap of the last 20 heartbeats while visible < 0.50 s"
+    },
+    {
+     "name": "tab_hidden_link_lost",
+     "rule": "tab hidden -> run_state paused, stop_reason OPERATOR_LINK_LOST 2.0 s after hiding, no heartbeat after hiding, the vehicle below 0.05 m/s 4 s after hiding, visible again -> 다시 출발 and still paused"
+    },
+    {
+     "name": "screen_stop_while_running",
+     "rule": "a new run, one press, about 6 s of driving (> 0.05 m/s), the status-bar STOP -> stop_detail operator_stop (OPERATOR_OR_BACKSTOP), below 0.05 m/s 3 s later and 6 s later"
+    },
+    {
+     "name": "restart_after_stop",
+     "rule": "after that STOP: latch acknowledged, a new run prepared, one press -> the vehicle drives again (> 0.05 m/s within 6 s), the STOP stops it again (operator_stop, below 0.05 m/s 3 s later)"
+    }
+   ],
+   "passed": "every item passes",
+   "recorded": "the executor's operator_link events (bind, takeover, release, conflict; session digests) and the page session digests: a session of another client that bound during the session is reported"
+  },
+  "F": {
+   "check": "the user's local commands as they are (the local tool folder tools/local_env outside the repository): python -B sim_stack.py start --no-browser (image wf8, SIM clock by default), 150 s, then 3 times: python -B sim_auto.py start; python -B sim_auto.py reset; 20 s",
+   "criteria": "each run ends at the row end: the executor's run_end of that run has end_reason row_end (the screen line of sim_auto shows the end); distance and duration are reported",
+   "passed": "3 of 3 runs end at the row end",
+   "camera": "not taken (the README animation of stage 4 stays)",
+   "note": "sim_auto.py of the local tool sends its go also when a heartbeat was refused (revision 5: the go takes over a heartbeat-only session; a session that made the go still refuses it)"
+  }
+ },
+ "repeat": "a failing part may be run once more after a fix on the SIM side, written first as an amendment (section 8); both attempts are reported",
+ "amendments": []
+}

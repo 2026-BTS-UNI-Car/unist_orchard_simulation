@@ -107,9 +107,55 @@ EXEC_RELEASE_WAIT_S = 8.        # an ended run keeps the lease up to terminal_st
 CAMERA_WS = 'ws://127.0.0.1:8770/ws/camera'
 GPS_WS = 'ws://127.0.0.1:8778/ws/gps'
 CAMERA_BINARY_MAGIC = b'UBCF'                          # scripts.camera_ws_bridge (binary-v1 transport)
+# Driving checks wait for the DDS graph to settle after the check's own participant joined (settle_discovery; G-SIM stage
+# 5, 2026-11-14): its /clock must run DISCOVERY_QUIET_S without a wall gap above DISCOVERY_GAP_S, at most
+# DISCOVERY_MAX_S.
+DISCOVERY_QUIET_S = 10.
+DISCOVERY_GAP_S = .1
+DISCOVERY_MAX_S = 60.
 
 
 # --- pure helpers (tested without ROS) ----------------------------------------------------------------------------------
+def quiet_since(receipts, start, now, gap_s=DISCOVERY_GAP_S):
+    """(quiet_from, gaps): the monotonic time from which the /clock receipts (sorted wall monotonic times) have no gap
+    above gap_s up to now (the time since the last receipt counts as an open gap), never earlier than start; gaps: the
+    [start of the gap - start, length] of the closed gaps above gap_s after start (s)."""
+    quiet_from, gaps, last = start, [], None
+    for t in receipts:
+        if t < start:
+            last = t
+            continue
+        if last is not None and t - last > gap_s:
+            gaps.append([round(max(last, start) - start, 3), round(t - last, 3)])
+            quiet_from = t
+        last = t
+    if last is None or now - last > gap_s:
+        quiet_from = now
+    return quiet_from, gaps
+
+
+def settle_discovery(ctx, quiet_s=DISCOVERY_QUIET_S, gap_s=DISCOVERY_GAP_S, max_s=DISCOVERY_MAX_S):
+    """Wait until the DDS graph is quiet after the check's own participant joined (G-SIM stage 5, 2026-11-14), before a
+    driving check presses Start. On the G-SIM stack a participant that joins (a new check container, a short-lived ROS
+    process) was seen to stop the bridge's /clock and IMU and the scans that follow them for about 0.35 s of wall time
+    while the SIM time went on, within about 1-7 s after it joined (development probes d1 and d2: every such stall at the
+    same monotonic time in the executor and in the ESP emulator, the executor's input thread, GIL and main loop on time).
+    Stage 4 part A started its runs 5-6 s after the check container started, and two of four runs ended 0.4-0.6 s after
+    the go on such a stall (steering status 0.35 s old, MCU command TTL). The user's operator (the dashboard, sim_auto.py)
+    joins no DDS graph. Waits until the check's own /clock has run quiet_s without a wall gap above gap_s (at most max_s)
+    and returns the record for the run: waited_s, settled, gaps [[start s, length s], ...]."""
+    start = time.monotonic()
+    ctx.obs.spin_until(lambda: ctx.obs.sim_time is not None, 10.)
+    while True:
+        ctx.obs.spin_for(.25)
+        now = time.monotonic()
+        quiet_from, gaps = quiet_since([r[0] for r in list(ctx.obs.clock_rows)], start, now, gap_s)
+        settled = now - quiet_from >= quiet_s
+        if settled or now - start >= max_s:
+            return dict(waited_s=round(now - start, 3), settled=settled, quiet_s=quiet_s, gap_s=gap_s, max_s=max_s,
+                        gaps=gaps)
+
+
 def _base(name):
     return str(name).rsplit('/', 1)[-1]
 
@@ -2373,6 +2419,7 @@ def check_follow(ctx, args):
     metadata = load_json(SCENE_DIR / 'world_metadata.json')
     manifest = load_json(SCENE_DIR / 'scene_manifest.json')
     geometry = GF.row_geometry(metadata)
+    settle = settle_discovery(ctx)          # the check's own DDS participant joined just now (stage 5)
     ctx.obs.spin_until(lambda: bool(ctx.obs.odom) and ctx.obs.sim_time is not None, 10.)
     ensure_idle(ctx)
     placed = None
@@ -2465,6 +2512,7 @@ def check_follow(ctx, args):
                 verdict=verdict_text, passed=None if verdict_text == 'invalid' else verdict_text == 'pass',
                 criteria=criteria, checks=checks, validity=validity, metrics=metrics, tick_stats=stats,
                 start=start, start_error=error, placed=placed, gave_up_paused=gave_up, timeline=timeline,
+                discovery_settle=settle,
                 run_end=run_end, pose_start=None if pose0 is None else [round(float(v), 4) for v in pose0],
                 geometry=dict(lane=geometry['lane'], rows=geometry['rows'], axis_deg=math.degrees(geometry['axis_rad']),
                               centre_a_m=geometry['centre_a'], half_width_m=geometry['half_width_m'],

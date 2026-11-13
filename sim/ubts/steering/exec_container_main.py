@@ -40,6 +40,11 @@ What differs from executor_main.main (the vehicle entry, unchanged):
   files           <exec dir> (default /run/ubts-steer/exec, inside the control volume): config.json, status.json
                   (1 s), log/ (the executor JSONL log, operator_token.txt), hooks.sock; an earlier status.json is
                   moved to retired/<run token>/ at the start (audit G06)
+  diagnostics     SIM clock mode (G-SIM stage 5): SpinMonitor watches the input thread (subscription callbacks, its own
+                  20 Hz timer), a GIL probe thread (10 ms sleeps) and the main loop's poll gaps; every executor tick
+                  carries 'diag' (callbacks per topic, the longest gaps, timer callbacks, probe lateness, poll gap, the
+                  monotonic time) and a subscription gap above 150 ms is an 'input_gap' event. executor_main adds the
+                  phase times of a slow step ('ph') and the time of each request ('ms'). Nothing the loop decides changes
   sources         executor_main.verify_sources() (SHA256SUMS of tools/row_executor) and verify_vendor() as on the
                   vehicle; --skip-source-check (development snapshots only) is recorded in config.json and the status
 
@@ -212,6 +217,120 @@ class ControllerSlot:
         return build
 
 
+# --- input thread diagnostics -------------------------------------------------------------------------------------------
+class SpinMonitor:
+    """Diagnostics of the executor's ROS input thread (G-SIM stage 5, 2026-11-14): in stage 4 two runs ended 0.4-0.6 s
+    after the go because no /clock, scan or IMU callback ran for about 0.35 s while the operator HTTP thread answered on
+    time. Thread-safe, constant memory; the main loop reads it once per tick (take(): the tick's 'diag').
+
+      data(i)   a subscription callback of topic TOPICS[i] began (the input thread, wall = time.monotonic())
+      timer()   the input thread's own 20 Hz timer ran (no DDS data involved: the thread itself is alive)
+      probe(s)  the GIL probe thread woke s seconds late from a 10 ms sleep (the whole process: GIL, scheduler)
+      poll(s)   the main loop's SIM clock poll came s seconds after the previous one (2 ms nominal)
+    A gap of the subscription callbacks longer than gap_event_s is kept as one 'input_gap' event with what the other
+    three saw meanwhile: timer callbacks (the thread ran: the data did not come), the probe's worst lateness and the
+    main loop's longest poll gap (the process or the main thread did not run)."""
+
+    TOPICS = ('clock', 'scan', 'imu', 'human')
+    GAP_EVENT_S = .15
+    MAX_EVENTS = 50
+
+    def __init__(self, mono=time.monotonic, gap_event_s=GAP_EVENT_S):
+        self.mono = mono
+        self.gap_event_s = float(gap_event_s)
+        self.lock = threading.Lock()
+        self.events = collections.deque(maxlen=self.MAX_EVENTS)
+        self.totals = dict(events=0, data=0, timer=0)
+        self.last_data = self.last_clock = self.last_timer = None
+        self._reset_tick()
+        self._reset_gap()
+
+    def _reset_tick(self):
+        self.counts = [0] * len(self.TOPICS)
+        self.timers = 0
+        self.max_data_gap = self.max_clock_gap = self.max_timer_gap = self.max_probe = self.max_poll = 0.
+
+    def _reset_gap(self):
+        self.gap_timers = 0
+        self.gap_probe = self.gap_poll = 0.
+
+    def data(self, index):
+        now = self.mono()
+        with self.lock:
+            self.counts[index] += 1
+            self.totals['data'] += 1
+            if self.last_data is not None:
+                gap = now - self.last_data
+                self.max_data_gap = max(self.max_data_gap, gap)
+                if gap > self.gap_event_s:
+                    self.totals['events'] += 1
+                    self.events.append(dict(gap_ms=round(gap * 1e3, 1), first=self.TOPICS[index],
+                                            timer_callbacks=self.gap_timers, probe_max_ms=round(self.gap_probe * 1e3, 1),
+                                            poll_max_ms=round(self.gap_poll * 1e3, 1), wm=round(now, 3)))
+            if index == 0:
+                if self.last_clock is not None:
+                    self.max_clock_gap = max(self.max_clock_gap, now - self.last_clock)
+                self.last_clock = now
+            self.last_data = now
+            self._reset_gap()
+
+    def timer(self):
+        now = self.mono()
+        with self.lock:
+            self.timers += 1
+            self.gap_timers += 1
+            self.totals['timer'] += 1
+            if self.last_timer is not None:
+                self.max_timer_gap = max(self.max_timer_gap, now - self.last_timer)
+            self.last_timer = now
+
+    def probe(self, late_s):
+        with self.lock:
+            self.max_probe = max(self.max_probe, late_s)
+            self.gap_probe = max(self.gap_probe, late_s)
+
+    def poll(self, gap_s):
+        with self.lock:
+            self.max_poll = max(self.max_poll, gap_s)
+            self.gap_poll = max(self.gap_poll, gap_s)
+
+    def take(self):
+        """(diag dict for the tick, list of input_gap events since the last take); resets the per-tick values.
+        diag (ms, per tick): wm time.monotonic() [s], cb callbacks per topic (TOPICS), gap / cgap the longest
+        subscription / clock callback gap, tm timer callbacks and tgap their longest gap, gil the probe's worst
+        lateness, poll the main loop's longest poll gap."""
+        with self.lock:
+            diag = dict(wm=round(self.mono(), 3), cb=list(self.counts), gap=round(self.max_data_gap * 1e3, 1),
+                        cgap=round(self.max_clock_gap * 1e3, 1), tm=self.timers, tgap=round(self.max_timer_gap * 1e3, 1),
+                        gil=round(self.max_probe * 1e3, 1), poll=round(self.max_poll * 1e3, 1))
+            events = list(self.events)
+            self.events.clear()
+            self._reset_tick()
+        return diag, events
+
+    def summary(self):
+        with self.lock:
+            return dict(self.totals, gap_event_ms=round(self.gap_event_s * 1e3, 1))
+
+
+def gil_probe(monitor, stop_event, period_s=.01):
+    """The GIL probe thread: sleeps period_s and reports how late it woke (the GIL or the scheduler held it back)."""
+    while not stop_event.is_set():
+        t0 = time.monotonic()
+        time.sleep(period_s)
+        monitor.probe(max(0., time.monotonic() - t0 - period_s))
+
+
+def tick_diag(loop, monitor):
+    """The ExecutorLoop's tick_extra: the monitor's per-tick values; its input_gap events go to the log as events."""
+    def extra():
+        diag, events = monitor.take()
+        for event in events:
+            loop._event('input_gap', **event)
+        return diag
+    return extra
+
+
 # --- ROS input (SIM clock mode) -----------------------------------------------------------------------------------------
 class SimRosInput:
     """The executor node ubts_row_executor in the SIM clock mode: the subscriptions of executor_main.RosInput (same
@@ -219,7 +338,7 @@ class SimRosInput:
     last /clock sample at callback entry. Callbacks only append to the loop's input buffers."""
 
     def __init__(self, loop, sim_clock, scan_topic=SCAN_TOPIC, imu_topic=IMU_TOPIC, human_topic=HUMAN_TOPIC,
-                 clock_topic=CLOCK_TOPIC):
+                 clock_topic=CLOCK_TOPIC, monitor=None):
         import rclpy
         from rclpy.executors import SingleThreadedExecutor
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -234,12 +353,32 @@ class SimRosInput:
             return QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=depth,
                               reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.VOLATILE)
         clock = sim_clock
-        self.node.create_subscription(Clock, clock_topic, lambda m: clock.update(m.clock.sec, m.clock.nanosec),
-                                      sensor_qos(10))
-        self.node.create_subscription(LaserScan, scan_topic, lambda m: loop.on_scan_msg(clock(), m), sensor_qos(2))
-        self.node.create_subscription(Imu, imu_topic, lambda m: loop.on_imu_msg(clock(), m), sensor_qos(50))
+        mark = (lambda index: None) if monitor is None else monitor.data
+
+        def on_clock(m):
+            mark(0)
+            clock.update(m.clock.sec, m.clock.nanosec)
+
+        def on_scan(m):
+            mark(1)
+            loop.on_scan_msg(clock(), m)
+
+        def on_imu(m):
+            mark(2)
+            loop.on_imu_msg(clock(), m)
+
+        def on_human(m):
+            mark(3)
+            loop.on_human_msg(clock(), m.data)
+        self.node.create_subscription(Clock, clock_topic, on_clock, sensor_qos(10))
+        self.node.create_subscription(LaserScan, scan_topic, on_scan, sensor_qos(2))
+        self.node.create_subscription(Imu, imu_topic, on_imu, sensor_qos(50))
         if human_topic:
-            self.node.create_subscription(String, human_topic, lambda m: loop.on_human_msg(clock(), m.data), 5)
+            self.node.create_subscription(String, human_topic, on_human, 5)
+        self.timer = None
+        if monitor is not None:
+            # the input thread's own 20 Hz timer (system clock, no DDS): it runs while the thread runs (SpinMonitor)
+            self.timer = self.node.create_timer(.05, monitor.timer)
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(self.node)
         self.thread = threading.Thread(target=self._spin, name='row-executor-ros', daemon=True)
@@ -288,18 +427,24 @@ class SteppedLoop:
 
 
 def run_loop_sim(loop, stop_event, sim_clock, hz=20., poll_s=SIM_POLL_S, max_exceptions=5, exception_window_s=60.,
-                 grid=None, deadline=None):
+                 grid=None, deadline=None, monitor=None):
     """SIM clock mode loop (module docstring): one loop.step() each time the SIM clock reaches the next 1/hz grid point;
     a jump over several points runs one step and counts the missed ones (loop.counts['missed_ticks'], grid['skipped']).
     An exception in a step: as executor_main.run_loop in MOTOR mode (logged, emergency STOP, the process ends after more
-    than max_exceptions within exception_window_s of the monotonic clock)."""
+    than max_exceptions within exception_window_s of the monotonic clock). monitor (SpinMonitor, diagnostics): the wall
+    gap between two polls (a step in between counts too)."""
     import traceback
     period = 1. / float(hz)
     grid = {} if grid is None else grid
     grid.update(steps=0, skipped=0, polls=0, next_t=None, started=False)
     recent = collections.deque()
+    last_poll = time.monotonic()
     while not stop_event.wait(poll_s):
-        if deadline is not None and time.monotonic() >= deadline:
+        mono = time.monotonic()
+        if monitor is not None:
+            monitor.poll(mono - last_poll)
+        last_poll = mono
+        if deadline is not None and mono >= deadline:
             break
         grid['polls'] += 1
         if not sim_clock.started():
@@ -582,6 +727,10 @@ class Container:
             stop_transport=UnixSocketTransport(cfg.socket_path, cfg.bridge_timeout_s),
             runner_factory=lambda c: Runner(c, controller_factory=self.slot.factory_for(c)))
         self.cfg = self.loop.config               # with the field tuning the loop loaded (config.json, status digest)
+        # diagnostics of the input thread (SIM clock mode; G-SIM stage 5): the tick's 'diag' and 'input_gap' events
+        self.monitor = SpinMonitor() if self.sim_clock is not None else None
+        if self.monitor is not None:
+            self.loop.tick_extra = tick_diag(self.loop, self.monitor)
         self.stepped = SteppedLoop(self.loop, self.hooks_state)
         self.hooks = ExecHooks(self.exec_dir / 'hooks.sock', self.hooks_state, loop=self.loop, slot=self.slot,
                                wall=self.wall, status_fn=self.status)
@@ -621,6 +770,7 @@ class Container:
                                stalls_done=self.hooks_state.stalls_done, freezes=self.hooks_state.freezes,
                                events=list(self.hooks_state.events)[-20:]),
                     controller=self.slot.spec, controller_digest=self.slot.digest, controllers_built=self.slot.built,
+                    input_monitor=None if self.monitor is None else self.monitor.summary(),
                     log=self.log.health(), config_digest=self.loop._config_digest,   # after a field tuning change too
                     tuning=None if self.loop.tuning is None else self.loop.tuning.brief(),
                     source_check=self.source_check)
@@ -659,7 +809,7 @@ def main(argv=None):
     try:
         try:
             if args.clock == 'sim':
-                ros = SimRosInput(loop, container.sim_clock)
+                ros = SimRosInput(loop, container.sim_clock, monitor=container.monitor)
             else:
                 ros = XM.RosInput(loop, SCAN_TOPIC, IMU_TOPIC, HUMAN_TOPIC)
         except ImportError as exc:
@@ -671,6 +821,9 @@ def main(argv=None):
         watchdog = threading.Thread(target=XM.run_watchdog, args=(loop, stop), name='row-executor-watchdog',
                                     daemon=True)
         watchdog.start()
+        if container.monitor is not None:
+            threading.Thread(target=gil_probe, args=(container.monitor, status_stop), name='exec-gil-probe',
+                             daemon=True).start()
 
         def status_writer():
             while not status_stop.wait(STATUS_PERIOD_S):
@@ -685,7 +838,8 @@ def main(argv=None):
             threading.Timer(float(args.max_runtime_s), stop.set).start()
         XM.freeze_startup_objects(loop)
         if args.clock == 'sim':
-            run_loop_sim(container.stepped, stop, container.sim_clock, cfg.control_hz, grid=container.grid)
+            run_loop_sim(container.stepped, stop, container.sim_clock, cfg.control_hz, grid=container.grid,
+                         monitor=container.monitor)
         else:
             XM.run_loop(container.stepped, stop, cfg.control_hz)
     finally:

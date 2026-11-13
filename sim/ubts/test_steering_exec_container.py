@@ -232,6 +232,74 @@ class ClockAndLoopTest(unittest.TestCase):
         self.assertEqual(stepped.counts, {'x': 1})                       # other attributes are the loop's
 
 
+class InputMonitorTest(unittest.TestCase):
+    """SpinMonitor (G-SIM stage 5 diagnostics of the executor's input thread) and the run loop's poll gaps."""
+
+    def test_gap_event_with_what_the_other_threads_saw(self):
+        now = [100.]
+        mon = EM.SpinMonitor(mono=lambda: now[0], gap_event_s=.15)
+        mon.data(0)
+        now[0] = 100.01
+        mon.data(2)
+        for k in range(6):                       # the input thread's timer runs while no data comes
+            now[0] = 100.05 + .05 * k
+            mon.timer()
+        mon.probe(.002)
+        mon.poll(.004)
+        now[0] = 100.36
+        mon.data(0)                              # data again after 0.35 s
+        diag, events = mon.take()
+        self.assertEqual(diag['cb'], [2, 0, 1, 0])
+        self.assertEqual((diag['gap'], diag['cgap'], diag['tm'], diag['tgap']), (350., 360., 6, 50.))
+        self.assertEqual((diag['gil'], diag['poll']), (2., 4.))
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0], dict(gap_ms=350., first='clock', timer_callbacks=6, probe_max_ms=2., poll_max_ms=4.,
+                                         wm=100.36))
+        diag, events = mon.take()                # per tick: reset
+        self.assertEqual((diag['cb'], diag['gap'], diag['tm'], events), ([0, 0, 0, 0], 0., 0, []))
+        self.assertEqual(mon.summary(), dict(events=1, data=3, timer=6, gap_event_ms=150.))
+
+    def test_short_gaps_make_no_event_and_events_are_bounded(self):
+        now = [0.]
+        mon = EM.SpinMonitor(mono=lambda: now[0])
+        for k in range(200):
+            now[0] = k * .2                       # every gap 0.2 s > 0.15 s
+            mon.data(1)
+        self.assertEqual(len(mon.take()[1]), EM.SpinMonitor.MAX_EVENTS)
+        now[0] = 39.9
+        mon.data(1)
+        now[0] = 40.
+        mon.data(1)
+        self.assertEqual(mon.take()[1], [])
+
+    def test_tick_diag_logs_the_events(self):
+        now = [0.]
+        mon = EM.SpinMonitor(mono=lambda: now[0])
+        mon.data(0)
+        now[0] = .5
+        mon.data(1)
+        logged = []
+        loop = types.SimpleNamespace(_event=lambda name, **f: logged.append((name, f)))
+        diag = EM.tick_diag(loop, mon)()
+        self.assertEqual(diag['gap'], 500.)
+        self.assertEqual([n for n, _ in logged], ['input_gap'])
+        self.assertEqual(logged[0][1]['first'], 'scan')
+
+    def test_run_loop_reports_poll_gaps(self):
+        clock = EM.SimClock()
+        clock.update(1, 0)
+        mon = EM.SpinMonitor()
+        stop = threading.Event()
+
+        class Loop:
+            counts = {}
+
+            def step(self_inner):
+                stop.set()
+        EM.run_loop_sim(Loop(), stop, clock, poll_s=.002, deadline=time.monotonic() + 2., monitor=mon)
+        self.assertGreater(mon.max_poll, 0.)
+
+
 class HooksTest(unittest.TestCase):
     def make(self, state_name='PAUSED'):
         self.kills = []
@@ -672,6 +740,71 @@ class CheckHelpersTest(unittest.TestCase):
         for item in EC.SCRIPTS:
             self.assertTrue(item['purpose'] and item['registered'])
         self.assertTrue(set(EC.ONE_PRESS_NOT_APPLICABLE) <= set(EC.DEFAULT_ORDER))
+
+
+class DiscoverySettleTest(unittest.TestCase):
+    """exec_checks.quiet_since / settle_discovery (G-SIM stage 5: a driving check starts after the DDS graph is quiet)."""
+
+    def test_quiet_since(self):
+        receipts = [9.9] + [10. + .008 * k for k in range(100)] + [11.2 + .008 * k for k in range(100)]
+        quiet_from, gaps = EC.quiet_since(receipts, 10., 12.)
+        self.assertAlmostEqual(quiet_from, 11.2)
+        self.assertEqual(len(gaps), 1)
+        self.assertAlmostEqual(gaps[0][0], .792, places=3)
+        self.assertAlmostEqual(gaps[0][1], .408, places=3)
+        self.assertEqual(EC.quiet_since(receipts, 10., 12.5)[0], 12.5)          # no /clock for 0.5 s: an open gap
+        self.assertEqual(EC.quiet_since([], 10., 11.)[0], 11.)
+        self.assertEqual(EC.quiet_since([10.05, 10.1], 10., 10.15), (10., []))  # the start counts, not earlier
+
+    def test_settle_waits_for_a_quiet_clock_and_reports_the_gaps(self):
+        t = [0.]
+
+        class Obs:
+            sim_time = 1.
+            clock_rows = []
+
+            def spin_until(self_inner, predicate, timeout_s):
+                return predicate()
+
+            def spin_for(self_inner, seconds):
+                end = t[0] + seconds
+                while t[0] < end:
+                    t[0] = round(t[0] + .01, 4)
+                    if not 1. < t[0] < 1.35:                # a 0.35 s stall 1 s after the start
+                        self_inner.clock_rows.append((t[0], t[0]))
+        ctx = types.SimpleNamespace(obs=Obs())
+        original = EC.time.monotonic
+        EC.time.monotonic = lambda: t[0]
+        try:
+            record = EC.settle_discovery(ctx, quiet_s=2., gap_s=.1, max_s=30.)
+        finally:
+            EC.time.monotonic = original
+        self.assertTrue(record['settled'])
+        self.assertGreaterEqual(record['waited_s'], 3.35)              # quiet 2 s after the stall
+        self.assertLess(record['waited_s'], 3.7)
+        self.assertEqual(len(record['gaps']), 1)
+        self.assertAlmostEqual(record['gaps'][0][1], .35, delta=.015)
+
+    def test_settle_gives_up_after_max_s(self):
+        t = [0.]
+
+        class Obs:
+            sim_time = 1.
+            clock_rows = []
+
+            def spin_until(self_inner, predicate, timeout_s):
+                return predicate()
+
+            def spin_for(self_inner, seconds):
+                t[0] = round(t[0] + seconds, 4)              # no /clock at all
+        original = EC.time.monotonic
+        EC.time.monotonic = lambda: t[0]
+        try:
+            record = EC.settle_discovery(types.SimpleNamespace(obs=Obs()), quiet_s=2., max_s=5.)
+        finally:
+            EC.time.monotonic = original
+        self.assertFalse(record['settled'])
+        self.assertGreaterEqual(record['waited_s'], 5.)
 
 
 class OnePressPage:

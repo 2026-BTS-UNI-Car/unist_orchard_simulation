@@ -2748,5 +2748,1102 @@
    "C": "cause rule of the registration: no failing run, every run without a start offset passed; the stage 3 failure is put on the start yaw rate offset, which did not appear in these four runs"
   },
   "reruns": "none: section 6 allows one more run only after a SIM side fix written first as an amendment; no SIM side fix was identified (and no RTF below 0.5)"
+ },
+ "stage5": {
+  "prereg_id": "steer_follow_gsim_final5_v1",
+  "registration": {
+   "prereg": "c2b4a94"
+  },
+  "clock": "sim",
+  "image": {
+   "tag": "ubts-steer-sim:wf8",
+   "id": "sha256:c3d80848c8968b502471e7fd9d6869eddfee0ad721bb2b09e4be39141a3d1f9a",
+   "source_commit": "c2b4a94",
+   "manifest_files": 672,
+   "manifest_equal_to_commit": true,
+   "dashboard_copy": "a92cfec24b64",
+   "firmware_build": "04353B49"
+  },
+  "changes": {
+   "diagnostics": "ebc9128",
+   "follow_waits_for_quiet_dds": "d58649d",
+   "operator_contract_revision_5": "c29fc35",
+   "readme": "d5ed282",
+   "default_image": "7fad51a"
+  },
+  "development_checks": {
+   "note": "not judged; image wf7 with a work-tree snapshot of the executor (record folder sessions/d1_follow, d2_probe)",
+   "executor_side": "during the 0.33-0.35 s input gaps the executor input thread timer ran 6-8 times, the GIL probe was late 0.3-5 ms and the main loop polled every 3-27 ms; the ESP emulator recorded /clock stalls at the same monotonic times (d1: 9 of 13 executor /clock gaps above 100 ms within 30 ms)",
+   "actions": {
+    "emulator_hook_status": [
+     8,
+     0
+    ],
+    "emulator_hook_mark": [
+     8,
+     0
+    ],
+    "bridge_status": [
+     8,
+     0
+    ],
+    "executor_hook_status": [
+     8,
+     0
+    ],
+    "gazebo_set_pose": [
+     4,
+     1
+    ],
+    "camera_subscription": [
+     4,
+     1
+    ],
+    "short_lived_participant": [
+     4,
+     3
+    ],
+    "new_check_container": [
+     1,
+     1
+    ],
+    "columns": "actions, actions followed within 1 s by a /clock gap above 100 ms"
+   },
+   "harmful": "0.33-0.35 s wall gaps with the SIM time going on came only within seconds after a DDS participant joined (stack start, a check container 4-7 s after it started, short-lived participants 1.0-2.5 s after their node); stage 4 part A pressed go 5-6 s after the check container started",
+   "fix": "exec_checks follow waits until its /clock has run 10 s without a wall gap above 0.1 s (at most 60 s)"
+  },
+  "output_identity": {
+   "base": "abf6d0b",
+   "head": "d5ed282",
+   "episodes": {
+    "files": 9,
+    "equal": 8,
+    "differ": [
+     "tree"
+    ]
+   },
+   "follow": {
+    "runs": 15,
+    "serial_and_trace_equal": 15,
+    "differ": [],
+    "executor_log_differ": 15,
+    "ok_base": 15,
+    "ok_head": 15
+   },
+   "t1": {
+    "scripts": 71,
+    "serial_and_trace_equal": 71,
+    "differ": [],
+    "executor_log_differ": 71,
+    "passed_base": 71,
+    "passed_head": 71,
+    "end_reason_changes": {}
+   }
+  },
+  "diagnostics_overhead": {
+   "note": "development measurement in the wf8 image (3 CPUs, idle host): observe_scan_corridor on 707 captured scans, diagnostic threads off / on alternating, 600 calls each",
+   "off": {
+    "wall": {
+     "n": 600,
+     "p50": 1.96,
+     "p90": 3.99,
+     "p99": 6.84,
+     "max": 8.29,
+     "mean": 2.46
+    },
+    "cpu": {
+     "n": 600,
+     "p50": 1.95,
+     "p90": 3.97,
+     "p99": 6.53,
+     "max": 8.26,
+     "mean": 2.44
+    }
+   },
+   "on": {
+    "wall": {
+     "n": 600,
+     "p50": 2.25,
+     "p90": 3.49,
+     "p99": 4.59,
+     "max": 6.03,
+     "mean": 2.46
+    },
+    "cpu": {
+     "n": 600,
+     "p50": 2.21,
+     "p90": 3.4,
+     "p99": 4.53,
+     "max": 5.96,
+     "mean": 2.42
+    }
+   }
+  },
+  "parts": {
+   "A": [
+    {
+     "slot": "nominal_1",
+     "session": "s5a_nominal_1",
+     "executor_log": "row_executor_20261113T163356Z_7_001.jsonl",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.945,
+     "rtf_windows": 22,
+     "end_reason": "row_end",
+     "end_note": null,
+     "discovery_settle": {
+      "waited_s": 10.07,
+      "settled": true,
+      "quiet_s": 10.0,
+      "gap_s": 0.1,
+      "max_s": 60.0,
+      "gaps": []
+     },
+     "metrics": {
+      "lateral_rmse_m": 0.0285,
+      "lateral_p95_m": 0.0608,
+      "lateral_max_m": 0.064,
+      "heading_rmse_deg": 0.768,
+      "heading_max_deg": 1.866,
+      "speed_mean_m_s": 0.346,
+      "speed_max_m_s": 0.439,
+      "row_end_error_m": 0.475,
+      "min_clearance_m": 1.4016,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.49,
+      "duration_s": 96.9
+     },
+     "executor_loop_ms": {
+      "p50": 17.43,
+      "p99": 46.32,
+      "max": 186.5
+     },
+     "missed_ticks": 20,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 252.8667,
+       "gap_s": 0.1666,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 253.3833,
+       "gap_s": 0.1667,
+       "next_state": "ACTIVE"
+      }
+     ],
+     "clock_gaps_over_0_25_s": [],
+     "input_gaps": [],
+     "emulator_stalls_in_run": [],
+     "cause": null
+    },
+    {
+     "slot": "nominal_2",
+     "session": "s5a_nominal_2",
+     "executor_log": "row_executor_20261113T164040Z_7_001.jsonl",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.9209,
+     "rtf_windows": 22,
+     "end_reason": "row_end",
+     "end_note": null,
+     "discovery_settle": {
+      "waited_s": 10.245,
+      "settled": true,
+      "quiet_s": 10.0,
+      "gap_s": 0.1,
+      "max_s": 60.0,
+      "gaps": []
+     },
+     "metrics": {
+      "lateral_rmse_m": 0.018,
+      "lateral_p95_m": 0.041,
+      "lateral_max_m": 0.0446,
+      "heading_rmse_deg": 0.571,
+      "heading_max_deg": 1.601,
+      "speed_mean_m_s": 0.349,
+      "speed_max_m_s": 0.44,
+      "row_end_error_m": 0.457,
+      "min_clearance_m": 1.4141,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.48,
+      "duration_s": 96.01
+     },
+     "executor_loop_ms": {
+      "p50": 17.25,
+      "p99": 28.49,
+      "max": 111.68
+     },
+     "missed_ticks": 1,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 194.1083,
+       "gap_s": 0.1417,
+       "next_state": "ACTIVE"
+      }
+     ],
+     "clock_gaps_over_0_25_s": [],
+     "input_gaps": [],
+     "emulator_stalls_in_run": [],
+     "cause": null
+    },
+    {
+     "slot": "nominal_3",
+     "session": "s5a_nominal_3",
+     "executor_log": "row_executor_20261113T164709Z_7_001.jsonl",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "no pause after the drive started",
+      "row end stop position e"
+     ],
+     "rtf_min": 0.8879,
+     "rtf_windows": 19,
+     "end_reason": "operator_end",
+     "end_note": null,
+     "discovery_settle": {
+      "waited_s": 11.817,
+      "settled": true,
+      "quiet_s": 10.0,
+      "gap_s": 0.1,
+      "max_s": 60.0,
+      "gaps": [
+       [
+        1.336,
+        0.327
+       ]
+      ]
+     },
+     "metrics": {
+      "lateral_rmse_m": 0.0235,
+      "lateral_p95_m": 0.0535,
+      "lateral_max_m": 0.0584,
+      "heading_rmse_deg": 0.669,
+      "heading_max_deg": 1.664,
+      "speed_mean_m_s": 0.345,
+      "speed_max_m_s": 0.425,
+      "row_end_error_m": -11.513,
+      "min_clearance_m": 1.4164,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 21.51,
+      "duration_s": 62.33
+     },
+     "executor_loop_ms": {
+      "p50": 18.11,
+      "p99": 79.84,
+      "max": 349.28
+     },
+     "missed_ticks": 172,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 223.325,
+       "gap_s": 0.2,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 223.65,
+       "gap_s": 0.325,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 223.975,
+       "gap_s": 0.125,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 224.5667,
+       "gap_s": 0.2333,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 225.3583,
+       "gap_s": 0.15,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 225.6417,
+       "gap_s": 0.1916,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 225.9583,
+       "gap_s": 0.225,
+       "next_state": "PAUSED"
+      }
+     ],
+     "clock_gaps_over_0_25_s": [],
+     "input_gaps": [
+      {
+       "wm": 113413.841,
+       "gap_ms": 195.9,
+       "timer": 4,
+       "gil_ms": 9.6,
+       "poll_ms": 159.0
+      },
+      {
+       "wm": 113414.078,
+       "gap_ms": 177.8,
+       "timer": 4,
+       "gil_ms": 8.1,
+       "poll_ms": 18.6
+      }
+     ],
+     "emulator_stalls_in_run": [
+      [
+       113413.843988,
+       0.1129
+      ],
+      [
+       113414.078526,
+       0.1427
+      ]
+     ],
+     "cause": "executor_or_controller"
+    },
+    {
+     "slot": "lateral_p040",
+     "session": "s5a_lateral_p040",
+     "executor_log": "row_executor_20261113T165337Z_7_001.jsonl",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "no pause after the drive started",
+      "lateral RMSE",
+      "lateral p95",
+      "heading RMSE",
+      "row end stop position e"
+     ],
+     "rtf_min": 0.8782,
+     "rtf_windows": 9,
+     "end_reason": "operator_end",
+     "end_note": null,
+     "discovery_settle": {
+      "waited_s": 12.327,
+      "settled": true,
+      "quiet_s": 10.0,
+      "gap_s": 0.1,
+      "max_s": 60.0,
+      "gaps": [
+       [
+        1.911,
+        0.333
+       ]
+      ]
+     },
+     "metrics": {
+      "lateral_rmse_m": null,
+      "lateral_p95_m": null,
+      "lateral_max_m": 0.4017,
+      "heading_rmse_deg": null,
+      "heading_max_deg": 10.92,
+      "speed_mean_m_s": 0.199,
+      "speed_max_m_s": 0.358,
+      "row_end_error_m": -30.382,
+      "min_clearance_m": 1.4502,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 2.12,
+      "duration_s": 10.65
+     },
+     "executor_loop_ms": {
+      "p50": 18.01,
+      "p99": 135.51,
+      "max": 407.85
+     },
+     "missed_ticks": 154,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 176.4083,
+       "gap_s": 0.1334,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 176.7083,
+       "gap_s": 0.3084,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 177.225,
+       "gap_s": 0.1333,
+       "next_state": "ACTIVE"
+      },
+      {
+       "after_t": 177.3583,
+       "gap_s": 0.125,
+       "next_state": "ACTIVE"
+      }
+     ],
+     "clock_gaps_over_0_25_s": [],
+     "input_gaps": [],
+     "emulator_stalls_in_run": [
+      [
+       113738.764964,
+       0.1052
+      ]
+     ],
+     "cause": "executor_or_controller"
+    }
+   ],
+   "B": {
+    "items": {
+     "prepare": true,
+     "one_press_running": true,
+     "heartbeat": true,
+     "tab_hidden_link_lost": true,
+     "screen_stop_while_running": true,
+     "restart_after_stop": true
+    },
+    "passed": true,
+    "rtf_min": 0.8101,
+    "executor_log": "row_executor_20261113T165918Z_7_001.jsonl",
+    "checks": [
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": true,
+      "detail": "주행 중"
+     },
+     {
+      "name": "one press: the car drives while the screen is visible (emulator speed)",
+      "ok": true,
+      "detail": [
+       0.11,
+       0.176,
+       0.252,
+       0.298,
+       0.313
+      ]
+     },
+     {
+      "name": "heartbeat about every 100 ms while visible",
+      "ok": true,
+      "detail": {
+       "count": 75,
+       "max_gap_s": 0.106,
+       "source": "browser request start times",
+       "handler_max_gap_s": 0.341
+      }
+     },
+     {
+      "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+      "ok": true,
+      "detail": {
+       "run_state": "paused",
+       "stop_reason": "OPERATOR_LINK_LOST",
+       "v_before": 0.3133734964943076,
+       "v_after": 0.0036711339537047957
+      }
+     },
+     {
+      "name": "no heartbeat after hiding",
+      "ok": true,
+      "detail": 0
+     },
+     {
+      "name": "link lost: the car stops (emulator speed 4 s after hiding)",
+      "ok": true,
+      "detail": {
+       "v_before": 0.3133734964943076,
+       "v_1_5s": 0.0036711339537047957,
+       "v_4s": 0.0
+      }
+     },
+     {
+      "name": "visible again: '다시 출발', still paused (no automatic restart)",
+      "ok": true,
+      "detail": "paused"
+     },
+     {
+      "name": "Esc STOP: run latched",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_reason": "OPERATOR_OR_BACKSTOP",
+       "stop_detail": "operator_stop"
+      }
+     },
+     {
+      "name": "ack (then end when a run is still open): no open run",
+      "ok": true,
+      "detail": {
+       "run_state": "ended",
+       "end_reason": "operator_stop"
+      }
+     },
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": true,
+      "detail": "주행 중"
+     },
+     {
+      "name": "stop: the car drives before the STOP",
+      "ok": true,
+      "detail": [
+       0.131,
+       0.205,
+       0.268,
+       0.338,
+       0.33
+      ]
+     },
+     {
+      "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_reason": "OPERATOR_OR_BACKSTOP",
+       "stop_detail": "operator_stop"
+      }
+     },
+     {
+      "name": "screen STOP: the car stopped within 3 s",
+      "ok": true,
+      "detail": -0.01054197082450275
+     },
+     {
+      "name": "screen STOP: no restart (3 s later)",
+      "ok": true,
+      "detail": 0.0
+     },
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": true,
+      "detail": "주행 중"
+     },
+     {
+      "name": "restart after the STOP: one press drives again (emulator speed > 0.05 m/s)",
+      "ok": true,
+      "detail": [
+       0.118,
+       0.2,
+       0.238,
+       0.304,
+       0.348
+      ]
+     },
+     {
+      "name": "restart: the STOP stops it again (operator_stop, vehicle < 0.05 m/s 3 s later)",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_detail": "operator_stop",
+       "v": -4.262468919721702e-06
+      }
+     },
+     {
+      "name": "no page or console error",
+      "ok": false,
+      "detail": [
+       "Failed to load resource: the server responded with a status of 409 (Conflict)",
+       "Failed to load resource: the server responded with a status of 409 (Conflict)"
+      ]
+     }
+    ],
+    "page_sessions": {
+     "ad5da173": 256
+    },
+    "operator_link_events": [
+     {
+      "t": 211.975,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 212.3167,
+      "action": "conflict",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": "ad5da173",
+      "go": false
+     },
+     {
+      "t": 221.4083,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "link_expired",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 221.425,
+      "action": "bind",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 225.5083,
+      "action": "conflict",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": "46d7fb12",
+      "go": false
+     },
+     {
+      "t": 225.7583,
+      "action": "release",
+      "session": "46d7fb12",
+      "old": null,
+      "why": "run_ended:operator_stop",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 225.8083,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 225.8167,
+      "action": "conflict",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": "ad5da173",
+      "go": false
+     },
+     {
+      "t": 226.8583,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "link_expired",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 229.7,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 229.8083,
+      "action": "conflict",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": "ad5da173",
+      "go": false
+     },
+     {
+      "t": 237.7667,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "run_ended:operator_stop",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 237.7667,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 237.7833,
+      "action": "conflict",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": "ad5da173",
+      "go": false
+     },
+     {
+      "t": 238.9083,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "link_expired",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 246.7833,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 246.8,
+      "action": "conflict",
+      "session": "46d7fb12",
+      "old": null,
+      "why": null,
+      "bound": "ad5da173",
+      "go": false
+     },
+     {
+      "t": 255.2083,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "run_ended:operator_stop",
+      "bound": null,
+      "go": null
+     },
+     {
+      "t": 255.275,
+      "action": "bind",
+      "session": "ad5da173",
+      "old": null,
+      "why": null,
+      "bound": null,
+      "go": false
+     },
+     {
+      "t": 256.4083,
+      "action": "release",
+      "session": "ad5da173",
+      "old": null,
+      "why": "link_expired",
+      "bound": null,
+      "go": null
+     }
+    ],
+    "foreign_sessions": [
+     "46d7fb12"
+    ],
+    "executor_go_requests": [
+     {
+      "t": 213.1083,
+      "result": {
+       "ok": true,
+       "run_id": 1,
+       "go_serial": 1
+      }
+     },
+     {
+      "t": 230.7583,
+      "result": {
+       "ok": true,
+       "run_id": 2,
+       "go_serial": 2
+      }
+     },
+     {
+      "t": 248.2583,
+      "result": {
+       "ok": true,
+       "run_id": 3,
+       "go_serial": 3
+      }
+     }
+    ],
+    "http_409": {
+     "heartbeat": 2,
+     "go": 0
+    }
+   },
+   "F": {
+    "judge": {
+     "runs": 3,
+     "end_reasons": [
+      "steering_feedback_stale",
+      "operator_stop",
+      "operator_stop"
+     ],
+     "row_end": 0,
+     "passed": false
+    },
+    "executor_log": "row_executor_20261113T170753Z_7_001.jsonl",
+    "runs": [
+     {
+      "run_id": 1,
+      "end_reason": "steering_feedback_stale",
+      "end_note": null,
+      "distance_m": 4.541,
+      "executor_loop_ms": {
+       "p50": 18.78,
+       "p99": 210.56,
+       "max": 354.84
+      },
+      "active_tick_gaps_over_0_12_s": 19,
+      "steer_status_age_max_s": 0.292
+     },
+     {
+      "run_id": 2,
+      "end_reason": "operator_stop",
+      "end_note": "bridge_error:drive_refused:control_not_owned",
+      "distance_m": 23.859,
+      "executor_loop_ms": {
+       "p50": 18.04,
+       "p99": 78.5,
+       "max": 311.94
+      },
+      "active_tick_gaps_over_0_12_s": 10,
+      "steer_status_age_max_s": 0.142
+     },
+     {
+      "run_id": 3,
+      "end_reason": "operator_stop",
+      "end_note": "bridge_error:drive_refused:control_not_owned",
+      "distance_m": 25.367,
+      "executor_loop_ms": {
+       "p50": 18.1,
+       "p99": 48.0,
+       "max": 258.31
+      },
+      "active_tick_gaps_over_0_12_s": 6,
+      "steer_status_age_max_s": 0.142
+     }
+    ],
+    "sim_auto_last_lines": [
+     [
+      " 18.9s running  횡 +1 cm 방향 -0.2° 거리 4.4 m 속도 0.22 m/s (상한 0.23, blind) LiDAR 0.18 s",
+      " 20.0s latched  횡 +2 cm 방향 +0.0° 거리 4.6 m 속도 0.16 m/s (상한 -, not_running) LiDAR 0.25 s"
+     ],
+     [
+      " 69.5s running  횡 +7 cm 방향 -0.7° 거리 23.9 m 속도 0.15 m/s (상한 0.20, fresh) LiDAR 0.17 s",
+      " 70.5s paused   횡 +6 cm 방향 -0.7° 거리 23.9 m 속도 -0.00 m/s (상한 -, not_running) LiDAR 0.18 s"
+     ],
+     [
+      " 72.3s running  횡 -1 cm 방향 -0.4° 거리 25.2 m 속도 0.34 m/s (상한 0.25, blind) LiDAR 0.21 s",
+      " 73.4s paused   횡 -1 cm 방향 -0.4° 거리 25.4 m 속도 0.02 m/s (상한 -, not_running) LiDAR 0.20 s"
+     ]
+    ],
+    "operator_link_events": [
+     {
+      "action": "bind",
+      "session": "cf3f3464",
+      "why": null
+     },
+     {
+      "action": "conflict",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "cf3f3464",
+      "why": "run_ended:steering_feedback_stale"
+     },
+     {
+      "action": "bind",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "conflict",
+      "session": "cf3f3464",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "46d7fb12",
+      "why": "link_expired"
+     },
+     {
+      "action": "bind",
+      "session": "c20b7b59",
+      "why": null
+     },
+     {
+      "action": "conflict",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "c20b7b59",
+      "why": "run_ended:operator_stop"
+     },
+     {
+      "action": "bind",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "46d7fb12",
+      "why": "link_expired"
+     },
+     {
+      "action": "bind",
+      "session": "b34f2c9f",
+      "why": null
+     },
+     {
+      "action": "conflict",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "b34f2c9f",
+      "why": "run_ended:operator_stop"
+     },
+     {
+      "action": "bind",
+      "session": "46d7fb12",
+      "why": null
+     },
+     {
+      "action": "release",
+      "session": "46d7fb12",
+      "why": "link_expired"
+     }
+    ]
+   }
+  },
+  "records": [
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "eac260ba7b5282f58c88a503e46476a0f42378c8d39a30b5ab551440bbbe9d98",
+    "bytes": 26253
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_1/exec_log/row_executor_20261113T163356Z_7_001.jsonl",
+    "sha256": "9852bcff7fa2a025656599da072d02b77aeea8096c7784fd4d2280382347626f",
+    "bytes": 6445552
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_1/state/runtime/steering_status.json",
+    "sha256": "ec082a1a4b4efe03ff48210d251d0bfcce671d1545b1067b7f22098d634aaf81",
+    "bytes": 11708
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_2/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "094e86f1df5ea980e3bcc88156a41a27c652b90a66581c3cbdc6a0623b9a9909",
+    "bytes": 25581
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_2/exec_log/row_executor_20261113T164040Z_7_001.jsonl",
+    "sha256": "5735af42205476da367d985e3dc9e0d1360727e7bd77f35c112d6b933a1bdc55",
+    "bytes": 6321456
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_2/state/runtime/steering_status.json",
+    "sha256": "0b41342bde0617f79bbe2998297d2b5146c0466e7c6e870ad158ca88476bc020",
+    "bytes": 9480
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_3/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "0a410eb970a472c78b3157bd1b3925455c0bda500d0f6c7cd0244a028c1a95f0",
+    "bytes": 26509
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_3/exec_log/row_executor_20261113T164709Z_7_001.jsonl",
+    "sha256": "e434a40d3e1ad15ee97b225a4c090ccc6695cc7228695d9a6222d71aed0ff0b7",
+    "bytes": 5627277
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_nominal_3/state/runtime/steering_status.json",
+    "sha256": "2c1d110bc3fd75b56df3ed3ae74ce9da082f5ac189ce9e433f580cf573e0ec8d",
+    "bytes": 13070
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_lateral_p040/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "39538e5d179611b738499c7a28e3465f47a0070547542c90ea190083828f2723",
+    "bytes": 26072
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_lateral_p040/exec_log/row_executor_20261113T165337Z_7_001.jsonl",
+    "sha256": "5f06ecba7bb56ab439fbf517dcf304db8de2d7eb83cd20037f067b59fda21c1e",
+    "bytes": 4045020
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5a_lateral_p040/state/runtime/steering_status.json",
+    "sha256": "73539ab3084f1102ac72caf6dd195462522b356a29029bb46d8e6ffcbff59e70",
+    "bytes": 12753
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5b_ui/browser/result.json",
+    "sha256": "3419970624ad2eb7e6a9fe8f58bfbc2643f6c4778785d010e4eef963377450f8",
+    "bytes": 5380
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5b_ui/rtf/rtf.json",
+    "sha256": "58a6ad9e0f581dbea588dd776ab513d1ac00e1c6eb47da83d2b94b7d72a93f66",
+    "bytes": 7216
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5b_ui/exec_log/row_executor_20261113T165918Z_7_001.jsonl",
+    "sha256": "6bff9ee04e51b91dcaba47c15fcb3d9a77ac2d1d5006322cee32cfbe146332be",
+    "bytes": 5818416
+   },
+   {
+    "path": "<runs>/gsim_stage5_20261114/sessions/s5f_simauto/exec_log/row_executor_20261113T170753Z_7_001.jsonl",
+    "sha256": "97310d7f9d404a28718614c67e25e447c00cf2227c18b3b1e8f85c5a296e65ba",
+    "bytes": 11438100
+   }
+  ],
+  "verdicts": {
+   "A": "fail (2/4: nominal_3 paused speed_cap_below_min at 21.5 m, lateral_p040 paused stale_lidar at 2.1 m; both ended by the check after 15 s)",
+   "B": "pass (6/6; another session 46d7fb12 sent heartbeats in every run and did not block the start)",
+   "F": "fail (0/3: steering_feedback_stale 4.5 m, speed_cap_below_min 23.9 m, stale_lidar 25.2 m)",
+   "overall": "not passed"
+  },
+  "causes": {
+   "A": "registered rule: executor or controller side (no /clock stall above 0.25 s within 1 s before the end). Seen: the executor scan processing took 150-316 ms while the host was busy (host CPU up to 87.8 %; a 2.2 s gap of the host monitor at the lateral_p040 stop) and the LiDAR age passed the fresh cap or the stale limit. The stage 4 input stall did not occur in a run: the wait caught it in nominal_3 (0.327 s at 1.3 s) and lateral_p040 (0.333 s at 1.9 s)",
+   "B": "revision 5: the other session (not the page) never held the start; heartbeat 409 twice when it had bound during a link-lost pause",
+   "F": "the executor scan processing took 175-307 ms in each failing step (loop p99 211/79/48 ms against 22-24 ms in stage 4); host CPU mean 49.3 % against 36.7 %; executor CPU mean 50.5 % against 30.8 %; no /clock stall at the stops"
+  },
+  "reruns": "none: section 5 allows one more run only after a SIM side fix written first as an amendment; the failures are on the executor processing time under host load"
  }
 }
