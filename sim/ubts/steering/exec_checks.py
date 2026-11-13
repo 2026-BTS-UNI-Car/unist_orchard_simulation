@@ -1718,6 +1718,20 @@ DEFAULT_ORDER = ('operator_stop', 'deadman_release', 'hold_lost', 'c_ttl_link_re
                  'executor_forced_kill')
 
 
+def place_at_start(ctx):
+    """Put the vehicle back at the scene start (w1_force: before the row, the corridor ahead) and wait until it stands
+    (safety --reset-pose, registration steer_follow_gsim_final3_v1 part C: each A17(G) script starts in the corridor;
+    the one-press executor refuses a row run's go until the corridor is acquired)."""
+    from . import exec_run
+    x, y, z, yaw = exec_run.start_pose(SCENE_DIR, 0., 0.)
+    placed = dict(exec_run.set_model_pose(x, y, z, yaw), x=round(x, 4), y=round(y, 4), z=round(z, 4), yaw=yaw)
+    ctx.obs.spin_for(2.)
+    ctx.wait_still(10.)
+    if not placed.get('accepted'):
+        raise SessionError('set_pose to the start not accepted: %s' % placed)
+    return placed
+
+
 def check_safety(ctx, args):
     by_name = {s['name']: s for s in SCRIPTS}
     mode = ensure_start_mode(ctx)
@@ -1731,7 +1745,11 @@ def check_safety(ctx, args):
             if not ctx.executor_alive:
                 break
             started = time.monotonic()
+            placed = None
             try:
+                if getattr(args, 'reset_pose', False):
+                    ensure_idle(ctx)
+                    placed = place_at_start(ctx)
                 result = entry['fn'](ctx, index) if name == 'operator_stop' else entry['fn'](ctx)
             except Exception as exc:
                 import traceback
@@ -1744,7 +1762,7 @@ def check_safety(ctx, args):
                 except Exception:
                     pass
             result.update(script=name, purpose=entry['purpose'], registered=entry['registered'],
-                          wall_s=round(time.monotonic() - started, 2))
+                          wall_s=round(time.monotonic() - started, 2), placed_at_start=placed)
             results.append(result)
             write_json(ctx.out / 'scripts' / ('%s.json' % result['name']), result)
     stops = [r for r in results if r['script'] == 'operator_stop']
@@ -1999,8 +2017,9 @@ def check_imu(ctx, args):
     criteria.append(criterion('imu_rate_within_1_percent', None if rate is None else round(rate, 3),
                               'report (A5(F) used +-1 %% on the T1 clock)', None))
     frames = sorted({r[8] for r in rows})
-    criteria.append(criterion('imu_frame_and_orientation_not_provided', [frames, sorted({r[9] for r in rows})],
-                              [['imu_link'], [-1.0]], frames == ['imu_link'] and {r[9] for r in rows} == {-1.}))
+    criteria.append(criterion('imu_frame_and_orientation_provided', [frames, sorted({r[9] for r in rows})],
+                              [['imu_link'], '> 0 (game rotation vector, gsim-final3)'],
+                              frames == ['imu_link'] and bool(rows) and all(r[9] > 0. for r in rows)))
     out = dict(check='A5_G_imu', samples=len(rows), moving_samples=len(moving), model=model,
                scene=os.environ.get('UBTS_STEER_SCENE'))
     if model and len(data) > 30:
@@ -2465,6 +2484,8 @@ def build_parser():
     p.add_argument('--keep', type=int, default=200, help='scan: SIM scans kept for the byte comparison')
     p.add_argument('--repeat', type=int, default=5, help='safety: operator STOP repeats')
     p.add_argument('--only', nargs='*', default=None, help='safety: script names')
+    p.add_argument('--reset-pose', action='store_true',
+                   help='safety: put the vehicle back at the scene start before each script (w1_force)')
     p.add_argument('--no-executor', action='store_true', help='graph: the executor is not running')
     p.add_argument('--discovery-s', type=float, default=45.)
     p.add_argument('--controller', default=None, help='drive: scripted controller spec JSON')
