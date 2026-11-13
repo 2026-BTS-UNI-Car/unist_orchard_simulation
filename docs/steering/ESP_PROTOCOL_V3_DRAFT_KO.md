@@ -543,7 +543,7 @@ UBTS_STEER_V3 hello proto=3 build=<B> dev=<D> boot=<H> rst=<reset> hw=<hw> out=d
 | `POT_OPEN`, `POT_SHORT` | 판정 틱의 f |
 | `POT_JUMP` | f[n] − f[n − `jmpw`] |
 | `POT_NOISE` | floor(100 × 분산), 분산 = (W·Σx² − (Σx)²) / W², 창 W = `nsw` 표본의 raw |
-| `POLARITY` | P[n] − P[n − `polt`](‰) |
+| `POLARITY` | P[n] − P[n − `polt`] (‰) |
 | `DRV_STUCK` | P[n] − P[n − `dst`] |
 | `STALL` | P[n] − P[n − `stt`] |
 | `TRACK` | cmd − P[n] |
@@ -755,7 +755,7 @@ ARM, `CAL JOG`, `CAL POL`을 막는 활성 조건(`fault`, 12.1-68): 그 틱에 
 | 단계 | 하는 일 |
 |---|---|
 | 1 | `now = millis()` |
-| 2 | ADC: `analogRead(A0)`를 정확히 한 번 부른다 → raw[n]. 중앙값 → f[n]. 위치 → P[n](7.3절). 기록 고리에 넣는다. 조향 모드가 OFF·JOG·POL이면 `tgt = cmd = P[n]` |
+| 2 | ADC: `analogRead(A0)`를 정확히 한 번 부른다 → raw[n]. 중앙값 → f[n]. 위치 → P[n] (7.3절). 기록 고리에 넣는다. 조향 모드가 OFF·JOG·POL이면 `tgt = cmd = P[n]` |
 | 3 | 링크 watchdog 판정(6.2절) |
 | 4 | 수신: 최대 64 B를 읽어 줄 파서에 넣는다. LF마다 그 줄을 바로 실행한다(4절). 나쁜 줄 계수·CRC 결함(6.6절) |
 | 5 | `C` TTL 판정(6.3절) |
