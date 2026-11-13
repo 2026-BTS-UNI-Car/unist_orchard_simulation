@@ -99,3 +99,11 @@
    stop, map)는 그대로다.
 4. 관찰(판정에 쓰지 않음): B 시도 1 의 STOP 단계에서 새 run 의 go 가 `vehicle_moving`으로 거절됐다. 실행기 틱에서 Arm 된 동안
    (구동 0) 차가 뒤로 0.02~0.07 m/s 로 움직였다(Disarm·래치 중에는 정지).
+
+### 개정 2 (2026-11-13, E 의 W1 세션 `s2e_w1` 뒤, 그 기록을 다시 판정하기 전에 커밋)
+
+- E 의 `default_restored`는 평가 코드 결함이다. 검사가 `POST /api/params {"preset": "default"}` 바로 뒤에 운영자 상태를 읽어 바뀌기
+  전 값(`default*`, 1.10 의 digest)을 받았다. 실행기는 이미 바꿨다(같은 기록의 실행기 사건 `tuning_change` load_preset, 끝 상태
+  preset `default`, 첫 digest). 같은 기록을 `default_restored`만 `executor_status_end.tuning`(preset default, digest = 처음 digest)로
+  다시 판정한다(`steering.gsim_final.judge_pw08`). 나머지 기준은 기록대로. 두 판정을 모두 적는다.
+- `exec_checks`는 이제 받아들여진 변경이 상태에 보일 때까지 최대 3 s 기다린다(다음 run 부터. 이 등록의 이미지 wf5 안 검사는 옛 코드).

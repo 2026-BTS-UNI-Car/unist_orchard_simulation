@@ -18,6 +18,12 @@
    "E": "scene w1_force instead of w0_force, one fresh stack, same criteria: the W0 attempt (08:09 UTC) was refused at the first go (lease_lost, arm_first, corridor_not_acquired). From the W1 start pose two 8 m drives at 50 % stay inside the 30 m row (the second starts where the first stopped)",
    "B": "attempt 1 (s2b_ui) is invalid by the registered rule: smallest 5 s window RTF of the check node 0.863 inside the page steps; run once more on a fresh stack as registered. The attempt 1 script stopped at the live map step: the dashboard 90094fd has the live map on the /map page, the script looked for it on the drive page. The script goes to /map before that step now, and adds an information step that is not judged (the LiDAR view of the drive page and the IMU panel of /sensors; 90094fd opens these sockets only there). Items, limits and the order view, auto, stop, map are unchanged",
    "observation": "not used for any verdict: in attempt 1 the new run of the STOP step was refused at its go (vehicle_moving); the executor ticks show the car moving backwards at 0.02-0.07 m/s while armed with drive 0 (still while disarmed or latched)"
+  },
+  {
+   "n": 2,
+   "date": "2026-11-13",
+   "written": "after the E session on w1_force (s2e_w1), before its record is judged again",
+   "E": "evaluation defect of default_restored: the check read the operator status right after POST /api/params {\"preset\": \"default\"} and got the tuning from before the change (default*, the 1.10 digest), while the executor had applied it (its tuning_change event load_preset and its end status: preset default, the first digest). The same record is judged again with default_restored taken from executor_status_end.tuning (preset default and digest equal to executor.tuning_before) - judge_pw08(); every other criterion as recorded. Both verdicts are reported. exec_checks now waits up to 3 s for the status to show an accepted change (for later runs; the image of this registration keeps the old check)"
   }
  ],
  "parts": {

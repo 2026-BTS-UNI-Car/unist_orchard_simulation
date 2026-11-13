@@ -54,6 +54,19 @@ class FinalRegistrationTest(unittest.TestCase):
         self.assertAlmostEqual(EC.table_speed(values, 100), .899 * 1.1, places=9)
         self.assertIn('pw08', EC.CHECKS)
 
+    def test_judge_pw08_amendment_2(self):
+        crit = [dict(name='params_accepted', passed=True), dict(name='plant_steady_speed_ratio', passed=None),
+                dict(name='default_restored', value=[200, 'default*', False], passed=False)]
+        report = dict(criteria=crit, executor=dict(tuning_before='d0'), drives=[dict(validity=dict(valid=True))] * 2,
+                      executor_status_end=dict(tuning=dict(preset='default', digest='d0')))
+        out = GX.judge_pw08(report)
+        self.assertEqual((out['recorded'], out['amendment_2']), ('fail', 'pass'))
+        report['executor_status_end']['tuning']['digest'] = 'd1'
+        self.assertEqual(GX.judge_pw08(report)['amendment_2'], 'fail')
+        report['drives'] = [dict(validity=dict(valid=False))]
+        self.assertEqual(GX.judge_pw08(report)['recorded'], 'invalid')
+        self.assertEqual([a['n'] for a in GX.prereg()['amendments']], [1, 2])
+
 
 if __name__ == '__main__':
     unittest.main()

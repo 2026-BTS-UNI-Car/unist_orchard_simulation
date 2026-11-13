@@ -101,7 +101,15 @@ AMENDMENTS = [dict(
        'order view, auto, stop, map are unchanged'),
     observation=('not used for any verdict: in attempt 1 the new run of the STOP step was refused at its go '
                  '(vehicle_moving); the executor ticks show the car moving backwards at 0.02-0.07 m/s while armed with '
-                 'drive 0 (still while disarmed or latched)'))]
+                 'drive 0 (still while disarmed or latched)')),
+    dict(n=2, date='2026-11-13', written='after the E session on w1_force (s2e_w1), before its record is judged again',
+         E=('evaluation defect of default_restored: the check read the operator status right after POST /api/params '
+            '{"preset": "default"} and got the tuning from before the change (default*, the 1.10 digest), while the '
+            'executor had applied it (its tuning_change event load_preset and its end status: preset default, the first '
+            'digest). The same record is judged again with default_restored taken from executor_status_end.tuning '
+            '(preset default and digest equal to executor.tuning_before) - judge_pw08(); every other criterion as '
+            'recorded. Both verdicts are reported. exec_checks now waits up to 3 s for the status to show an accepted '
+            'change (for later runs; the image of this registration keeps the old check)'))]
 
 
 def prereg():
@@ -112,6 +120,28 @@ def prereg():
                 parts=dict(A=PART_A, B=PART_B, C=PART_C, D=PART_D, E=PART_E),
                 host='before each session the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded; the '
                      'stall probe is not run in these sessions')
+
+
+def judge_pw08(report):
+    """Part E verdicts of one PW08_GAZEBO.json: as recorded, and with amendment 2 (default_restored from the executor's
+    end status of the same record). Plant criteria (passed None) are reports."""
+    criteria = report.get('criteria') or []
+    end = ((report.get('executor_status_end') or {}).get('tuning')) or {}
+    before = (report.get('executor') or {}).get('tuning_before')
+    restored = end.get('preset') == 'default' and before is not None and end.get('digest') == before
+    judged = []
+    for c in criteria:
+        c = dict(c)
+        if c.get('name') == 'default_restored':
+            c = dict(c, passed=restored, value=[end.get('preset'), end.get('digest') == before],
+                     source='executor_status_end.tuning (amendment 2)')
+        judged.append(c)
+    verdict = lambda cs: 'pass' if all(c.get('passed') is not False for c in cs) else 'fail'
+    valid = all(((d.get('validity') or {}).get('valid', True)) for d in report.get('drives') or [])
+    return dict(schema=SCHEMA + '.pw08', prereg_id=PREREG_ID, valid=valid,
+                recorded=verdict(criteria) if valid else 'invalid',
+                amendment_2=verdict(judged) if valid else 'invalid', criteria_amendment_2=judged,
+                plant=report.get('plant'), executor=report.get('executor'), result_kind=RESULT_KIND)
 
 
 def judge_follow(report):

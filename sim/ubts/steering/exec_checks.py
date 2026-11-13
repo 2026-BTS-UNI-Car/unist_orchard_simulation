@@ -2200,6 +2200,7 @@ PW08_DUTY_PCT = 50                   # a duty inside the speed table (25 .. 100 
 PW08_SCALE = 1.10                    # the speed table scale of the field tuning (basic key speed_scale)
 PW08_DRIVE_M = 8.
 PW08_STEADY_S = (3., 7.)             # the steady window of each drive: seconds after the first moving truth sample
+PW08_STATUS_WAIT_S = 3.              # how long a tuning status read waits for an accepted POST /api/params to show
 
 
 def table_speed(values, duty_pct):
@@ -2238,6 +2239,19 @@ def _pw08_drive(ctx, label):
                 round(speed, 5), validity=validity)
 
 
+def _pw08_tuning(ctx, done, timeout_s=PW08_STATUS_WAIT_S):
+    """The tuning block of the operator status once done(tuning) holds, or the last one read after timeout_s: the
+    status can still show the values from before a POST /api/params that was just accepted (gsim_final 2026-11-13
+    s2e_w1: the restore was read right after the request and still showed 'default*'; the executor's own tuning_change
+    event and end status had the default digest)."""
+    end = time.monotonic() + timeout_s
+    while True:
+        tuning = (ctx.op.status() or {}).get('tuning') or {}
+        if done(tuning) or time.monotonic() >= end:
+            return tuning
+        ctx.obs.spin_for(.2)
+
+
 def check_pw08(ctx, args):
     """PW-08 on the Gazebo stack: the field tuning's table scale (speed_scale) 1.00 -> 1.10 through POST /api/params at
     rest. Executor side (judged): the status values and the start event's tuning digest show the new value, the
@@ -2249,14 +2263,14 @@ def check_pw08(ctx, args):
     first = _pw08_drive(ctx, 'scale_1_00')
     ensure_idle(ctx)
     code, reply, _, _ = ctx.op.post('/api/params', {'speed_scale': PW08_SCALE})
-    status1 = (ctx.op.status() or {}).get('tuning') or {}
+    status1 = _pw08_tuning(ctx, lambda t: t.get('digest') != status0.get('digest'))
     second = _pw08_drive(ctx, 'scale_1_10')
     records = executor_log(ctx.exec_dir, after_wall=time.time() - 600.)
     starts = [r for r in executor_events(records, ('start',)) if r.get('tuning')]
     changes = executor_events(records, ('tuning_change',))
     ensure_idle(ctx)
     restore = ctx.op.post('/api/params', {'preset': 'default'})
-    status2 = (ctx.op.status() or {}).get('tuning') or {}
+    status2 = _pw08_tuning(ctx, lambda t: t.get('digest') == status0.get('digest'))
     v0, v1 = status0.get('values'), status1.get('values')
     exec0 = None if not v0 else table_speed(v0, PW08_DUTY_PCT)
     exec1 = None if not v1 else table_speed(v1, PW08_DUTY_PCT)
