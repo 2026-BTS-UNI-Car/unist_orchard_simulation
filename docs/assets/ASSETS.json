@@ -1,0 +1,357 @@
+{
+ "schema": "ubts.sim_repo.assets.v1",
+ "note": "docs/assets/ 의 모든 파일과 그 출처. 만드는 도구 tools/steer_sim/make_assets.py, 검사 tools/steer_sim/check_assets.py, 규칙 docs/DOCS_POLICY_KO.md. <runs>는 저장소 밖 기록 폴더. 모든 그림은 자리값 기반 SIM 결과이며 현장 성능이 아니다.",
+ "assets": [
+  {
+   "path": "docs/assets/rover/rover_oblique.png",
+   "kind": "image",
+   "bytes": 66034,
+   "sha256": "02937e365815a3b53c05ac1d94a4aee0f6d63616ef42e9730a16ad896f6a44c3",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "Gazebo 조향 차량 모델을 비스듬히 본 모습. 차체 상자, 앞바퀴 조향 링크, LiDAR(기둥 위 원통), 카메라(앞 검은 상자). 치수·질량은 프로필 v0.1의 자리값",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w0/run/stills/straight_model_oblique.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only rover_oblique",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "57dcd8e4db690f4685d94c8451bedbc4a68c730bf8ec56e3a61586100e81f2df"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "02937e365815a3b53c05ac1d94a4aee0f6d63616ef42e9730a16ad896f6a44c3",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/rover/rover_side.png",
+   "kind": "image",
+   "bytes": 48690,
+   "sha256": "a792b2a1d8c41079115131cd342824307bb63ec4953867df16fe1e88dcb32e97",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "옆에서 본 모델. 휠베이스 0.76 m, 바퀴 반경 0.14 m(자리값)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w0/run/stills/straight_model_side.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only rover_side",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "bd93835047985521e454ff05242550a1f2cbc68df77345154142df0ae4a1c230"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "a792b2a1d8c41079115131cd342824307bb63ec4953867df16fe1e88dcb32e97",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/rover/rover_top.png",
+   "kind": "image",
+   "bytes": 30654,
+   "sha256": "1fc8bb468fd70cede9a9ebfda480153a224c15034aa3385c28dd59872aa2a8e2",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "위에서 본 모델(오른쪽이 앞). LiDAR와 카메라가 차체 앞쪽 중앙에 있다",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w0/run/stills/straight_model_top.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only rover_top",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "99edc7e4c9994cfc823567ee3b9f45b2a751993a1dc340cc1e5a774d466ffc32"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "1fc8bb468fd70cede9a9ebfda480153a224c15034aa3385c28dd59872aa2a8e2",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/rover/rover_front_straight.png",
+   "kind": "image",
+   "bytes": 50196,
+   "sha256": "452ed908b2edef7f98c3bb36694709b385e8d2240517df4d1e90cbbe2e30249c",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "앞에서 본 모델, 조향 0°",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w0/run/stills/straight_model_front.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only rover_front_straight",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "a80dab302dff4b11196132b5f6f7e1243abe0fc70a31deaad54e6fa53cd4bd8f"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "452ed908b2edef7f98c3bb36694709b385e8d2240517df4d1e90cbbe2e30249c",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/rover/rover_front_left15.png",
+   "kind": "image",
+   "bytes": 52616,
+   "sha256": "b13a60559740477e127deac5e84c29b31111706f904790c4df12216b153b94dd",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "앞에서 본 모델, 조향 목표(등가각) +15°(왼쪽). 바퀴각 좌 +15.6° / 우 +14.5°(Ackermann 비율 0.5, 자리값)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w0/run/stills/left15_model_front.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only rover_front_left15",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "4b70d461e8daad60f7fc4be04563946e1492818a823182bbd6a6289d103a9077"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "b13a60559740477e127deac5e84c29b31111706f904790c4df12216b153b94dd",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/world/orchard_oblique.jpg",
+   "kind": "image",
+   "bytes": 262848,
+   "sha256": "759259d23b7f93f4765fbddf244da1ad6ef3f9263a482db0574be4c4e2132c4f",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "W1 원본 과수원 월드(원본 프로젝트의 생성기)를 비스듬히 본 전경. 오른쪽 아래 파란 차가 출발점에 있다",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w1/run/stills/straight_orchard_oblique.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only orchard_oblique",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "7708f1b32b5da77ff8bf6cdc90f7aee3068d9df6f3a81f6ebb9553b96e2183b7"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "759259d23b7f93f4765fbddf244da1ad6ef3f9263a482db0574be4c4e2132c4f",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/world/orchard_top.jpg",
+   "kind": "image",
+   "bytes": 234628,
+   "sha256": "703bbaf650d982f77775e5650c506ab150c4c6cbebd15cefd799ead3047ea35c",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "W1 원본 과수원을 위에서 본 전경. 나무 열 6개 가운데 아래쪽 4개가 보인다(열 간격 3.8 m, 나무 간격 1.2 m, 열 길이 30 m, 생성기 설정값). 왼쪽 길의 파란 점이 차",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w1/run/stills/straight_orchard_high.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only orchard_top",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "a15dbb3bc6bc1e4d1df645d35d6af0f2b5302250b0fbcdc15b079c87082253eb"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "703bbaf650d982f77775e5650c506ab150c4c6cbebd15cefd799ead3047ea35c",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/world/orchard_lane_start.jpg",
+   "kind": "image",
+   "bytes": 234397,
+   "sha256": "628151ff965cf6b907fb801518f7a4376172b84d93ed368615e780ad2a0343fe",
+   "width": 1280,
+   "height": 720,
+   "tag": "[SIM · 자리값]",
+   "caption": "열 사이 통로 출발점을 차 뒤에서 본 모습. 두 나무 열, 콘크리트 기둥과 철선",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/gz_views/views_w1/run/stills/straight_orchard_lane.png",
+    "made_by": "steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, 2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only orchard_lane_start",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "0e6c15a8191b88f8caebb0ed30c997bf36ec1e4ac547ccbb5b81e19dc9690bd2"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "628151ff965cf6b907fb801518f7a4376172b84d93ed368615e780ad2a0343fe",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/sensors/camera_row_follow.jpg",
+   "kind": "image",
+   "bytes": 57737,
+   "sha256": "6ed71b65eb18783de0d449efbcb4424b17faefe37557f0648c6da41befc5bb1b",
+   "width": 640,
+   "height": 360,
+   "tag": "[SIM · 자리값]",
+   "caption": "통로 안에서 받은 차량 카메라 한 장(640×360, Gazebo 렌더). 카메라는 표시·기록용이고 위치 추정에 쓰지 않는다",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/rover_camera_row_follow.png",
+    "made_by": "tools/steer_sim/capture_media.py camera → still (G-SIM 스택, 장면 w1_force, 이미지 wf4c, 세션 media_w1b, 2026-11-13)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only camera_row_follow",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "950a3d8eb42f0672a6799cab9661ca01de8d1f347e556dac3304316e183ad96c"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "6ed71b65eb18783de0d449efbcb4424b17faefe37557f0648c6da41befc5bb1b",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/sensors/lidar_scan_in_row.png",
+   "kind": "image",
+   "bytes": 34265,
+   "sha256": "9cd685fe9ae8de62308ea3f3212b71c09378e0bab755122555f30105cd7e9792",
+   "width": 864,
+   "height": 864,
+   "tag": "[SIM · 자리값]",
+   "caption": "통로 안에서 받은 LiDAR /scan 한 장(S2 형식 3240빔, 차 기준 좌표). 빨간 사각형이 차 외곽 1.22 × 0.70 m",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/lidar_scan_w1_in_row.png",
+    "made_by": "G-SIM 스택(w1_force, 이미지 wf4c, 세션 media_w1b)의 /scan 한 장을 차 기준 좌표로 그린 것(matplotlib)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only lidar_scan_in_row",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "0787239f9794d483f12619a7764e28f6ac0e01ae83793ff1841a5230c08aa42d"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "9cd685fe9ae8de62308ea3f3212b71c09378e0bab755122555f30105cd7e9792",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/sensors/lidar_scan_start.png",
+   "kind": "image",
+   "bytes": 32015,
+   "sha256": "3409a91e6bf6b2f967e92be020d1701e586d70d8613a8aba85c729671c201504",
+   "width": 864,
+   "height": 864,
+   "tag": "[SIM · 자리값]",
+   "caption": "출발점(통로 앞)에서 받은 LiDAR /scan 한 장. 앞쪽 3 m부터 두 줄의 줄기가 보인다",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/media/lidar_scan_w1_start.png",
+    "made_by": "G-SIM 스택(w1_force, 이미지 wf4c, 세션 media_w1)의 /scan 한 장을 차 기준 좌표로 그린 것(matplotlib)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only lidar_scan_start",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "5fc3a55d639e60cb3cca0517434d82f31be1b23b703572976844b177bceb43b7"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "3409a91e6bf6b2f967e92be020d1701e586d70d8613a8aba85c729671c201504",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/video/row_follow_camera_10x.gif",
+   "kind": "animation",
+   "bytes": 4391718,
+   "sha256": "c8efb7ba7b784ff7bc785ff244284642bceb017ff6ce935ddee519498691444e",
+   "width": 480,
+   "height": 270,
+   "tag": "[SIM · 자리값]",
+   "caption": "열 추종 제어기가 G-SIM 과수원(W1) 통로 하나를 처음부터 열 끝까지 달리는 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기 컨테이너가 /scan과 raw IMU만 보고 조향과 구동을 정한다",
+   "origin": {
+    "source": "<runs>/steer_gsim_follow_20261112/sessions/it1_nominal_3/media/cam_follow/frames",
+    "made_by": "G-SIM 열 추종 확인 반복 1의 run nominal_3(row_end로 끝남, STEER_FOLLOW_GSIM_RESULT_KO.md)을 tools/steer_sim/capture_media.py camera로 받은 프레임(29.9 fps). 출발부터 열 끝 정지까지 1 s마다 한 장",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_camera_10x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "99장 (290..3251, 30장마다)",
+    "frames_sha256": "5f00b35719092a3acfa2194d5140f9bc2c8308f4a5a6c3c47a26052a3e57368e",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "c8efb7ba7b784ff7bc785ff244284642bceb017ff6ce935ddee519498691444e",
+     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   },
+   "role": "readme_hero"
+  }
+ ]
+}
