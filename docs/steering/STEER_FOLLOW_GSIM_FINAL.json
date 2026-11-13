@@ -5222,5 +5222,1177 @@
     "bytes": 1040
    }
   ]
+ },
+ "stage7": {
+  "prereg_id": "steer_follow_gsim_final7_v1",
+  "registration": {
+   "prereg": "86d285e"
+  },
+  "clock": "sim",
+  "image": {
+   "tag": "ubts-steer-sim:wf10",
+   "id": "sha256:70322303199f6081604a6b975b77f3064cec91fb71ba00609dd4955e53edc7e8",
+   "source_commit": "86d285e",
+   "manifest_files": 676,
+   "manifest_equal_to_commit": true,
+   "dashboard_copy": "a92cfec24b64",
+   "firmware_build": "04353B49"
+  },
+  "changes": {
+   "bridge_wake_and_node_options": "f235395",
+   "default_image": "835bd82",
+   "prereg": "86d285e"
+  },
+  "b_stage6_cause": {
+   "latch": "steering_status_stale (bridge host fault: no MCU status line for more than host_faults.status_gap_ms 150 ms of the bridge clock); the bridge stopped control and dropped the lease, the next drive got control_not_owned, the executor ended the run steering_feedback_stale",
+   "not_lease_ttl_expiry": true,
+   "bridge_latch_sim_s": 185.15,
+   "drive_refused_sim_s": 185.217,
+   "emulator": "status lines every 50 ms of SIM time without a gap; one /clock step (SIM 184.8947 -> 184.9447) took 0.340 s of wall time (neighbours 0.03-0.10 s)",
+   "bridge_clock": "the bridge (same container, its own /clock subscription) went from SIM 184.958 to 185.150 in 92 ms of wall time (queued /clock samples)",
+   "lag": "matched through the monotonic and wall clocks of the two processes (bridge STOP tx vs emulator h2m): the emulator SIM time was 0.1-0.25 s behind the bridge SIM time when its next status lines came",
+   "reading": "both run on the SIM clock, but each process takes /clock itself, so a stall of one process parts the two SIM clocks; a real MCU runs by itself; the latch worked as specified; no defect of the bridge, the emulator or the latch found",
+   "host": "Windows efficiency class 0 (E cores) mean of the 5 s before the stop 79.7 %, class 1 (P cores) 25.9 %, total CPU max 54-58.8 %",
+   "records": "record folder b_analysis/gsim6_volume (read-only copy of the stage 6 stack volume: bridge_events.jsonl, emulator_log.jsonl)"
+  },
+  "development_checks": {
+   "note": "not judged; wf9 with the stage 7 files mounted read-only, one follow run per session, per-process CPU of every container from /proc (% of one core); CPU time inside the VM grows when its vCPUs run on the E cores, so sessions are compared through the share of the processes that did not change (ref = Gazebo server, ros_gz_bridge, camera WebSocket bridge, cpu_lidar, data recorder)",
+   "rows": {
+    "s7d_base_idle": {
+     "exec": 17.0,
+     "total": 186.8,
+     "rec": 10.7,
+     "gz": 42.6,
+     "contract": 21.9,
+     "ros_gz": 15.5,
+     "cam": 13.2,
+     "cpu_lidar": 6.3,
+     "bridge": 22.6,
+     "emu": 21.4,
+     "ref": 88.3,
+     "bridge_per_ref": 0.256,
+     "emu_per_ref": 0.242,
+     "contract_per_ref": 0.248,
+     "exec_per_ref": 0.193
+    },
+    "s7d_base_run": {
+     "check": 27.6,
+     "total": 275.2,
+     "exec": 33.0,
+     "rec": 12.1,
+     "gz": 49.9,
+     "contract": 26.3,
+     "ros_gz": 25.7,
+     "cam": 14.9,
+     "cpu_lidar": 8.1,
+     "emu": 31.5,
+     "bridge": 27.3,
+     "ref": 110.7,
+     "bridge_per_ref": 0.247,
+     "emu_per_ref": 0.285,
+     "contract_per_ref": 0.238,
+     "exec_per_ref": 0.298
+    },
+    "s7d_base_post": {
+     "exec": 23.2,
+     "total": 189.1,
+     "rec": 10.9,
+     "gz": 39.0,
+     "contract": 21.7,
+     "ros_gz": 15.1,
+     "cam": 13.4,
+     "cpu_lidar": 6.2,
+     "bridge": 22.4,
+     "emu": 21.2,
+     "ref": 84.6,
+     "bridge_per_ref": 0.265,
+     "emu_per_ref": 0.251,
+     "contract_per_ref": 0.257,
+     "exec_per_ref": 0.274
+    },
+    "s7d_d7a_idle": {
+     "exec": 17.5,
+     "total": 184.4,
+     "rec": 13.8,
+     "gz": 43.5,
+     "contract": 21.2,
+     "ros_gz": 15.8,
+     "cam": 11.9,
+     "cpu_lidar": 6.2,
+     "emu": 21.5,
+     "bridge": 16.6,
+     "ref": 91.2,
+     "bridge_per_ref": 0.182,
+     "emu_per_ref": 0.236,
+     "contract_per_ref": 0.232,
+     "exec_per_ref": 0.192
+    },
+    "s7d_d7a_run": {
+     "exec": 52.4,
+     "total": 355.8,
+     "rec": 29.0,
+     "gz": 74.2,
+     "contract": 36.6,
+     "ros_gz": 25.7,
+     "cam": 23.2,
+     "cpu_lidar": 14.8,
+     "emu": 39.8,
+     "bridge": 28.7,
+     "ref": 166.9,
+     "bridge_per_ref": 0.172,
+     "emu_per_ref": 0.238,
+     "contract_per_ref": 0.219,
+     "exec_per_ref": 0.314
+    },
+    "s7d_d7a_post": {
+     "exec": 46.3,
+     "total": 316.1,
+     "rec": 25.1,
+     "gz": 65.0,
+     "contract": 32.0,
+     "ros_gz": 24.0,
+     "cam": 21.8,
+     "cpu_lidar": 12.3,
+     "emu": 36.4,
+     "bridge": 26.1,
+     "ref": 148.2,
+     "bridge_per_ref": 0.176,
+     "emu_per_ref": 0.246,
+     "contract_per_ref": 0.216,
+     "exec_per_ref": 0.312
+    },
+    "s7d_d7b_idle": {
+     "exec": 24.1,
+     "total": 273.5,
+     "rec": 23.7,
+     "gz": 64.6,
+     "contract": 31.8,
+     "ros_gz": 22.3,
+     "cam": 15.6,
+     "cpu_lidar": 11.0,
+     "emu": 35.1,
+     "bridge": 19.8,
+     "ref": 137.2,
+     "bridge_per_ref": 0.144,
+     "emu_per_ref": 0.256,
+     "contract_per_ref": 0.232,
+     "exec_per_ref": 0.176
+    },
+    "s7d_d7b_run": {
+     "check": 26.8,
+     "total": 253.6,
+     "exec": 29.9,
+     "rec": 15.2,
+     "gz": 48.6,
+     "ros_gz": 24.4,
+     "contract": 23.9,
+     "cam": 13.0,
+     "cpu_lidar": 7.5,
+     "emu": 28.7,
+     "bridge": 18.1,
+     "ref": 108.7,
+     "bridge_per_ref": 0.167,
+     "emu_per_ref": 0.264,
+     "contract_per_ref": 0.22,
+     "exec_per_ref": 0.275
+    },
+    "s7d_d7b_post": {
+     "exec": 28.4,
+     "total": 212.6,
+     "rec": 16.1,
+     "gz": 45.4,
+     "contract": 24.0,
+     "ros_gz": 17.5,
+     "cam": 13.5,
+     "cpu_lidar": 7.4,
+     "emu": 24.8,
+     "bridge": 16.2,
+     "ref": 99.9,
+     "bridge_per_ref": 0.162,
+     "emu_per_ref": 0.248,
+     "contract_per_ref": 0.24,
+     "exec_per_ref": 0.284
+    }
+   },
+   "bridge_loop_polls_per_step": {
+    "wf9": 6.58,
+    "stage7": 2.51,
+    "note": "bridge loop polls per 20 ms SIM grid step over a whole development session (status file bridge_loop)"
+   },
+   "follow": {
+    "base_wf9": "pass",
+    "d7a": "fail: stall_guard at 10.0 m (executor loop held 0.4 s) while a py-spy profile was attached to the steer container (my measurement; not used as evidence)",
+    "d7b": "pass"
+   }
+  },
+  "output_identity": {
+   "base": "51efae3",
+   "head": "835bd82",
+   "episodes": {
+    "files": 9,
+    "equal": 8,
+    "differ": [
+     "tree"
+    ]
+   },
+   "follow": {
+    "runs": 15,
+    "serial_and_trace_equal": 15,
+    "differ": [],
+    "executor_log_differ": 15,
+    "ok_base": 15,
+    "ok_head": 15
+   },
+   "wide": {
+    "runs": 0,
+    "serial_and_trace_equal": 0,
+    "differ": [],
+    "executor_log_differ": 0,
+    "ok_base": 0,
+    "ok_head": 0
+   },
+   "t1": {
+    "scripts": 71,
+    "serial_and_trace_equal": 71,
+    "differ": [],
+    "executor_log_differ": 71,
+    "passed_base": 71,
+    "passed_head": 71,
+    "end_reason_changes": {}
+   },
+   "executor_log_note": "the executor records of the 15 fast-SIM follow runs are equal without the timing fields (loop_ms, ph, ms, proc_ms, wall, ww, wm) and the tree names (measure/EXEC_LOG_COMPARE_follow.json)"
+  },
+  "host_rule_evidence": {
+   "stop_wall_windows": 1794595598.706,
+   "fail5_E": {
+    "n": 5,
+    "mean": 79.7,
+    "p50": 80.0,
+    "p90": 80.1,
+    "max": 80.2
+   },
+   "fail5_P": {
+    "n": 5,
+    "mean": 25.9,
+    "p50": 27.2,
+    "p90": 27.3,
+    "max": 34.2
+   },
+   "pre30_E": {
+    "n": 30,
+    "mean": 39.4,
+    "p50": 37.2,
+    "p90": 56.8,
+    "max": 80.0
+   },
+   "failures_5s_e_mean": {
+    "B": 79.7,
+    "F_slot1_void": 67.1,
+    "F_slot1_fail": 79.0,
+    "F_slot2_fail": 79.5
+   },
+   "pass_run_samples": 546,
+   "pass_run_at_or_above_75_pct": 10.6,
+   "pass_run_at_or_above_70_pct": 16.1,
+   "precheck_30s_e_mean_range": [
+    28.7,
+    44.9
+   ],
+   "e_class_ceiling_pct": 80.0
+  },
+  "e_burst_after_the_fact": {
+   "note": "analysis after the runs (not a registered rule): two consecutive 1 s samples with the E class at or above 78 % in the 3 s before the failure event",
+   "failures": [
+    {
+     "run": "s7a_nominal_1_1",
+     "verdict": "fail",
+     "burst_in_3_s_before": true
+    },
+    {
+     "run": "F1_1",
+     "verdict": "void",
+     "burst_in_3_s_before": true
+    },
+    {
+     "run": "F1_2",
+     "verdict": "fail",
+     "burst_in_3_s_before": false
+    },
+    {
+     "run": "F2_1",
+     "verdict": "fail",
+     "burst_in_3_s_before": true
+    },
+    {
+     "run": "F3_1",
+     "verdict": "fail",
+     "burst_in_3_s_before": false
+    },
+    {
+     "run": "s7b_ui_1",
+     "verdict": "void",
+     "burst_in_3_s_before": true
+    }
+   ],
+   "passing_total": {
+    "samples": 321,
+    "with_burst": 6,
+    "pct": 1.9
+   },
+   "per_second_before_failures": "every failure event of stage 7 came 0-2 s after the E class jumped to 79-80 % while the P class fell to 15-29 % (record folder sessions/s7_sampler.jsonl); the 5 s mean diluted that in A nominal_1 (62.2), F 1 attempt 2 (60.1), F 2 (72.4) and F 3 (55.6)"
+  },
+  "parts": {
+   "A": {
+    "judge": {
+     "slots": {
+      "nominal_1": "fail",
+      "nominal_2": "pass",
+      "nominal_3": "pass",
+      "lateral_p040": "pass"
+     },
+     "judged": 4,
+     "passed": false
+    },
+    "slots": [
+     {
+      "slot": "nominal_1",
+      "verdict": "fail",
+      "attempts": [
+       {
+        "session": "s7a_nominal_1_1",
+        "verdict": "fail",
+        "failed": [
+         "ends at the row end",
+         "no pause after the drive started",
+         "row end stop position e"
+        ],
+        "rtf_min": 0.9426,
+        "end_reason": "operator_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.129,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": []
+        },
+        "metrics": {
+         "end_reason": "operator_end",
+         "lateral_rmse_m": 0.0264,
+         "lateral_p95_m": 0.0546,
+         "lateral_max_m": 0.0571,
+         "heading_rmse_deg": 0.656,
+         "heading_max_deg": 1.515,
+         "speed_max_m_s": 0.441,
+         "row_end_error_m": -10.833,
+         "min_clearance_m": 1.4099,
+         "rest_speed_m_s": 0.0022,
+         "distance_m": 22.32,
+         "duration_s": 62.62
+        },
+        "scan_proc_ms": {
+         "n": 629,
+         "p50": 4.5,
+         "p99": 77.1,
+         "max": 195.27
+        },
+        "loop_ms": {
+         "n": 1248,
+         "p50": 18.11,
+         "p99": 76.73,
+         "max": 256.35
+        },
+        "active_tick_gaps_over_0_12_s": 7,
+        "quiet": {
+         "mean": 37.1,
+         "e_mean": 41.8,
+         "waited_s": 40.4,
+         "quiet": true
+        },
+        "host": {
+         "samples": 64,
+         "mean": 34.3,
+         "p90": 41.8,
+         "max": 60.4,
+         "late_max": 0.074,
+         "e_mean": 31.8,
+         "e_p90": 37.8,
+         "p_mean": 36.5
+        },
+        "clock_offset_s": 0.2852,
+        "failure_event": {
+         "t": 270.675,
+         "wall": 1794600759.998,
+         "mono": 125488.088,
+         "state": "PAUSED",
+         "reason": "speed_cap_below_min",
+         "windows_wall": 1794600759.713
+        },
+        "host_fault": {
+         "void": false,
+         "reasons": [],
+         "samples": 5,
+         "cpu_max": 60.4,
+         "late_max": 0.074,
+         "e_mean": 62.2
+        },
+        "cause": "executor_or_controller",
+        "executor_log": "row_executor_20261113T200758Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "nominal_2",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s7a_nominal_2_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9245,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 13.201,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": [
+          [
+           0.381,
+           0.327
+          ],
+          [
+           1.592,
+           0.338
+          ],
+          [
+           2.842,
+           0.232
+          ]
+         ]
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0261,
+         "lateral_p95_m": 0.0518,
+         "lateral_max_m": 0.0544,
+         "heading_rmse_deg": 0.834,
+         "heading_max_deg": 1.843,
+         "speed_max_m_s": 0.437,
+         "row_end_error_m": 0.445,
+         "min_clearance_m": 1.4115,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 33.47,
+         "duration_s": 106.98
+        },
+        "scan_proc_ms": {
+         "n": 1072,
+         "p50": 8.92,
+         "p99": 116.11,
+         "max": 180.17
+        },
+        "loop_ms": {
+         "n": 2099,
+         "p50": 18.52,
+         "p99": 131.0,
+         "max": 229.1
+        },
+        "active_tick_gaps_over_0_12_s": 32,
+        "quiet": {
+         "mean": 33.7,
+         "e_mean": 30.8,
+         "waited_s": 0.0,
+         "quiet": true
+        },
+        "host": {
+         "samples": 109,
+         "mean": 40.1,
+         "p90": 53.3,
+         "max": 63.4,
+         "late_max": 0.003,
+         "e_mean": 42.9,
+         "e_p90": 72.5,
+         "p_mean": 37.8
+        },
+        "clock_offset_s": 0.1353,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T201515Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "nominal_3",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s7a_nominal_3_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9681,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.019,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": []
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0259,
+         "lateral_p95_m": 0.0502,
+         "lateral_max_m": 0.0615,
+         "heading_rmse_deg": 0.643,
+         "heading_max_deg": 1.903,
+         "speed_max_m_s": 0.428,
+         "row_end_error_m": 0.454,
+         "min_clearance_m": 1.3999,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 33.48,
+         "duration_s": 105.41
+        },
+        "scan_proc_ms": {
+         "n": 1053,
+         "p50": 9.97,
+         "p99": 113.71,
+         "max": 232.91
+        },
+        "loop_ms": {
+         "n": 2048,
+         "p50": 18.42,
+         "p99": 124.67,
+         "max": 315.77
+        },
+        "active_tick_gaps_over_0_12_s": 43,
+        "quiet": {
+         "mean": 39.8,
+         "e_mean": 47.5,
+         "waited_s": 30.6,
+         "quiet": true
+        },
+        "host": {
+         "samples": 108,
+         "mean": 39.5,
+         "p90": 53.2,
+         "max": 63.1,
+         "late_max": 0.019,
+         "e_mean": 42.3,
+         "e_p90": 73.2,
+         "p_mean": 37.1
+        },
+        "clock_offset_s": 0.2582,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T202156Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "lateral_p040",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s7a_lateral_p040_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9497,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 18.711,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": [
+          [
+           8.478,
+           0.13
+          ]
+         ]
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.035,
+         "lateral_p95_m": 0.0625,
+         "lateral_max_m": 0.4018,
+         "heading_rmse_deg": 1.053,
+         "heading_max_deg": 11.016,
+         "speed_max_m_s": 0.452,
+         "row_end_error_m": 0.449,
+         "min_clearance_m": 1.4074,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 32.9,
+         "duration_s": 98.89
+        },
+        "scan_proc_ms": {
+         "n": 1022,
+         "p50": 5.86,
+         "p99": 88.82,
+         "max": 217.1
+        },
+        "loop_ms": {
+         "n": 2017,
+         "p50": 18.22,
+         "p99": 90.92,
+         "max": 256.8
+        },
+        "active_tick_gaps_over_0_12_s": 13,
+        "quiet": {
+         "mean": 30.3,
+         "e_mean": 26.0,
+         "waited_s": 0.1,
+         "quiet": true
+        },
+        "host": {
+         "samples": 104,
+         "mean": 37.4,
+         "p90": 51.7,
+         "max": 58.3,
+         "late_max": 0.012,
+         "e_mean": 38.0,
+         "e_p90": 66.9,
+         "p_mean": 37.0
+        },
+        "clock_offset_s": -0.0118,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T202922Z_7_001.jsonl"
+       }
+      ]
+     }
+    ]
+   },
+   "B": {
+    "verdict": "pass",
+    "attempts": [
+     {
+      "session": "s7b_ui_1",
+      "verdict": "void",
+      "items": {
+       "prepare": true,
+       "one_press_running": true,
+       "heartbeat": false,
+       "tab_hidden_link_lost": true,
+       "screen_stop_while_running": true,
+       "restart_after_stop": true
+      },
+      "rtf_min": 0.808,
+      "failure_event": {
+       "wall": 1794602379.534,
+       "source": "browser_check",
+       "windows_wall": 1794602379.534
+      },
+      "failure_event_wall": 1794602379.534,
+      "host_fault": {
+       "void": true,
+       "reasons": [
+        "E class mean 79.8 % >= 75 %"
+       ],
+       "samples": 5,
+       "cpu_max": 56.6,
+       "late_max": 0.006,
+       "e_mean": 79.8
+      },
+      "quiet": {
+       "mean": 28.8,
+       "e_mean": 24.6,
+       "waited_s": 0.1,
+       "quiet": true
+      },
+      "host": {
+       "samples": 91,
+       "mean": 45.5,
+       "p90": 58.8,
+       "max": 68.3,
+       "late_max": 0.11,
+       "e_mean": 54.5,
+       "e_p90": 80.0,
+       "p_mean": 38.2
+      },
+      "page_sessions": {
+       "37c9d0b2": 269
+      },
+      "foreign_sessions": [],
+      "http_409": {
+       "heartbeat": 0,
+       "go": 0
+      },
+      "failed_checks": [
+       {
+        "name": "heartbeat about every 100 ms while visible",
+        "detail": {
+         "count": 43,
+         "max_gap_s": 0.644,
+         "source": "browser request start times",
+         "handler_max_gap_s": 3.007
+        },
+        "wall": 1794602379.534
+       }
+      ]
+     },
+     {
+      "session": "s7b_ui_2",
+      "verdict": "pass",
+      "items": {
+       "prepare": true,
+       "one_press_running": true,
+       "heartbeat": true,
+       "tab_hidden_link_lost": true,
+       "screen_stop_while_running": true,
+       "restart_after_stop": true
+      },
+      "rtf_min": 0.9107,
+      "failure_event": null,
+      "failure_event_wall": null,
+      "host_fault": null,
+      "quiet": {
+       "mean": 30.2,
+       "e_mean": 26.9,
+       "waited_s": 0.1,
+       "quiet": true
+      },
+      "host": {
+       "samples": 80,
+       "mean": 50.1,
+       "p90": 63.8,
+       "max": 71.5,
+       "late_max": 0.016,
+       "e_mean": 57.9,
+       "e_p90": 79.2,
+       "p_mean": 43.6
+      },
+      "page_sessions": {
+       "3d45fa76": 268
+      },
+      "foreign_sessions": [],
+      "http_409": {
+       "heartbeat": 0,
+       "go": 0
+      },
+      "failed_checks": []
+     }
+    ]
+   },
+   "F": {
+    "judge": {
+     "slots": [
+      "fail",
+      "fail",
+      "fail"
+     ],
+     "verdict": "fail",
+     "passed": false
+    },
+    "slots": [
+     [
+      {
+       "slot": 1,
+       "attempt": 1,
+       "verdict": "void",
+       "run_id": 1,
+       "end_reason": "operator_stop",
+       "end_note": "bridge_error:drive_refused:control_not_owned",
+       "distance_m": 17.908,
+       "failure_event": {
+        "t": 270.3417,
+        "wall": 1794603495.834,
+        "mono": 128213.79,
+        "state": "PAUSED",
+        "reason": "stall_guard",
+        "windows_wall": 1794603495.693
+       },
+       "host_fault": {
+        "void": true,
+        "reasons": [
+         "E class mean 79.5 % >= 75 %"
+        ],
+        "samples": 5,
+        "cpu_max": 64.4,
+        "late_max": 0.005,
+        "e_mean": 79.5
+       },
+       "quiet": {
+        "mean": 41.0,
+        "e_mean": 44.9,
+        "waited_s": 49.8,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 596,
+        "p50": 16.53,
+        "p99": 201.03,
+        "max": 353.96
+       },
+       "loop_ms": {
+        "n": 1056,
+        "p50": 18.96,
+        "p99": 239.34,
+        "max": 393.15
+       },
+       "active_tick_gaps_over_0_12_s": 81,
+       "steer_status_age_max_s": 0.209,
+       "host": {
+        "samples": 68,
+        "mean": 51.2,
+        "p90": 63.1,
+        "max": 68.4,
+        "late_max": 0.195,
+        "e_mean": 61.7,
+        "e_p90": 80.0,
+        "p_mean": 42.5
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 PERCEPTION_OR_LOCALISATION (센서·위치 추정 부족). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      },
+      {
+       "slot": 1,
+       "attempt": 2,
+       "verdict": "fail",
+       "run_id": 2,
+       "end_reason": "operator_stop",
+       "end_note": "bridge_error:drive_refused:stop_barrier",
+       "distance_m": 5.11,
+       "failure_event": {
+        "t": 346.6667,
+        "wall": 1794603572.922,
+        "mono": 128290.648,
+        "state": "PAUSED",
+        "reason": "operator_link_lost",
+        "windows_wall": 1794603572.781
+       },
+       "host_fault": {
+        "void": false,
+        "reasons": [],
+        "samples": 5,
+        "cpu_max": 65.1,
+        "late_max": 0.002,
+        "e_mean": 60.1
+       },
+       "quiet": {
+        "mean": 42.4,
+        "e_mean": 40.7,
+        "waited_s": 10.4,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 172,
+        "p50": 6.01,
+        "p99": 133.27,
+        "max": 161.23
+       },
+       "loop_ms": {
+        "n": 337,
+        "p50": 18.45,
+        "p99": 104.73,
+        "max": 240.49
+       },
+       "active_tick_gaps_over_0_12_s": 4,
+       "steer_status_age_max_s": 0.15,
+       "host": {
+        "samples": 17,
+        "mean": 46.3,
+        "p90": 55.4,
+        "max": 65.1,
+        "late_max": 0.002,
+        "e_mean": 45.4,
+        "e_p90": 53.5,
+        "p_mean": 47.0
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 OPERATOR_LINK_LOST (운영자 연결 끊김). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      }
+     ],
+     [
+      {
+       "slot": 2,
+       "attempt": 1,
+       "verdict": "fail",
+       "run_id": 3,
+       "end_reason": "operator_stop",
+       "end_note": null,
+       "distance_m": 13.33,
+       "failure_event": {
+        "t": 473.0833,
+        "wall": 1794603705.114,
+        "mono": 128422.27,
+        "state": "PAUSED",
+        "reason": "speed_cap_below_min",
+        "windows_wall": 1794603704.973
+       },
+       "host_fault": {
+        "void": false,
+        "reasons": [],
+        "samples": 5,
+        "cpu_max": 68.9,
+        "late_max": 0.005,
+        "e_mean": 72.4
+       },
+       "quiet": {
+        "mean": 44.9,
+        "e_mean": 42.3,
+        "waited_s": 5.2,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 406,
+        "p50": 5.34,
+        "p99": 145.32,
+        "max": 274.85
+       },
+       "loop_ms": {
+        "n": 801,
+        "p50": 18.59,
+        "p99": 167.85,
+        "max": 349.8
+       },
+       "active_tick_gaps_over_0_12_s": 10,
+       "steer_status_age_max_s": 0.15,
+       "host": {
+        "samples": 42,
+        "mean": 47.2,
+        "p90": 52.3,
+        "max": 68.9,
+        "late_max": 0.005,
+        "e_mean": 47.2,
+        "e_p90": 58.8,
+        "p_mean": 47.2
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 PERCEPTION_OR_LOCALISATION (센서·위치 추정 부족). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      }
+     ],
+     [
+      {
+       "slot": 3,
+       "attempt": 1,
+       "verdict": "fail",
+       "run_id": 4,
+       "end_reason": "operator_stop",
+       "end_note": "bridge_error:drive_refused:control_not_owned",
+       "distance_m": 2.732,
+       "failure_event": {
+        "t": 575.1583,
+        "wall": 1794603812.532,
+        "mono": 128529.319,
+        "state": "PAUSED",
+        "reason": "operator_link_lost",
+        "windows_wall": 1794603812.391
+       },
+       "host_fault": {
+        "void": false,
+        "reasons": [],
+        "samples": 5,
+        "cpu_max": 56.3,
+        "late_max": 0.001,
+        "e_mean": 55.6
+       },
+       "quiet": {
+        "mean": 43.4,
+        "e_mean": 41.1,
+        "waited_s": 10.5,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 107,
+        "p50": 4.13,
+        "p99": 126.52,
+        "max": 267.81
+       },
+       "loop_ms": {
+        "n": 205,
+        "p50": 18.38,
+        "p99": 193.73,
+        "max": 323.11
+       },
+       "active_tick_gaps_over_0_12_s": 4,
+       "steer_status_age_max_s": 0.125,
+       "host": {
+        "samples": 11,
+        "mean": 50.2,
+        "p90": 54.0,
+        "max": 56.3,
+        "late_max": 0.004,
+        "e_mean": 50.2,
+        "e_p90": 55.0,
+        "p_mean": 50.1
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 OPERATOR_LINK_LOST (운영자 연결 끊김). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      }
+     ]
+    ],
+    "compose": "main 51efae3 (sim_stack.py --ref main)",
+    "image": "ubts-steer-sim:wf10 (DEFAULT_IMAGE)"
+   }
+  },
+  "host_whole_job": {
+   "samples": 3559,
+   "mean": 36.2,
+   "p90": 56.4,
+   "max": 90.4,
+   "late_max": 0.207,
+   "e_mean": 35.5,
+   "e_p90": 78.0,
+   "p_mean": 36.8
+  },
+  "verdicts": {
+   "A": "fail (3/4: nominal_1 failed at its first attempt, 22.3 m speed_cap_below_min, 5 s E-class mean 62.2 % below 75 %; nominal_2, nominal_3, lateral_p040 passed at their first attempt)",
+   "B": "pass (attempt 1 void: heartbeat gap 0.644 s, 5 s E-class mean 79.8 %; attempt 2 passed 6/6)",
+   "F": "fail (0/3: slot 1 void at 17.9 m stall_guard, E 79.5 %, then fail at 5.1 m operator_link_lost; slot 2 fail at 13.3 m speed_cap_below_min, E 72.4 %; slot 3 fail at 2.7 m operator_link_lost, E 55.6 %)",
+   "overall": "not passed"
+  },
+  "records": [
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7_sampler.jsonl",
+    "sha256": "e33cc2cf8affce73234bfc933f061ea73d7eb38ada84aae502e2a037646bdd86",
+    "bytes": 3490930
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_1_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "448282a5b3e8eef8ab43b2cf994ef8bbcd59d3f85645f32cbe6448198b2cccc3",
+    "bytes": 26763
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_1_1/exec_log/row_executor_20261113T200758Z_7_001.jsonl",
+    "sha256": "7414b985d06b2ed2e5cbea2cf4e1049e9e501e117b374357049b6ec2de6271f2",
+    "bytes": 6409102
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_1_1/quiet.json",
+    "sha256": "38d731610ab8a5f3172bda79c278e51e3225df718cce37e67a5498d8803a85d0",
+    "bytes": 776
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_1_1/clock_offset.json",
+    "sha256": "d0fee5796a9844a2a5e98df6621220f8eb800621871279044a631109c2378c25",
+    "bytes": 1045
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_2_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "738240d2fb9a9959edfe5851b35cf58a8b2a64f8fb42229ff0e9fa2f6f97d1c7",
+    "bytes": 26701
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_2_1/exec_log/row_executor_20261113T201515Z_7_001.jsonl",
+    "sha256": "61e6975b4abd5e0106d2d2b7ab67d09966fcc6fbeda127fae9d637f56eebafd4",
+    "bytes": 6308661
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_2_1/quiet.json",
+    "sha256": "c0a3a20670593c3500846671cdbb0f16b530c03621bc791d7aa8522c519b1627",
+    "bytes": 415
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_2_1/clock_offset.json",
+    "sha256": "21b5b61fa531359499276945d5891d68dbb32d87f5adad98127d8b3a70413a45",
+    "bytes": 1045
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_3_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "2048d02a407750acb0bb038d878d10e3e37fb44455d4886d68278f45862847d7",
+    "bytes": 27368
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_3_1/exec_log/row_executor_20261113T202156Z_7_001.jsonl",
+    "sha256": "bd984f0f9c11567679be37d64c340324cc01f27abd5ee3137c3e4d47d75bb2c6",
+    "bytes": 6971195
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_3_1/quiet.json",
+    "sha256": "3b8e1a9854dc073c930e2fb777133ec44b589916bab55755954a4401f581f0cb",
+    "bytes": 685
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_nominal_3_1/clock_offset.json",
+    "sha256": "bc72feeb01026f1a2ed1593585a234e77572063529e952ef0c4ae123c9dba179",
+    "bytes": 1046
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_lateral_p040_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "3dd0693c1668b2e486ff189cac44fcce6e7881a5b84aa1ca666bfa3aba5e02fb",
+    "bytes": 26704
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_lateral_p040_1/exec_log/row_executor_20261113T202922Z_7_001.jsonl",
+    "sha256": "aea4940c347fd6a22ab094a5a4a8e3ad7feb4056d659befbf3d88ce8c20b5531",
+    "bytes": 6471605
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_lateral_p040_1/quiet.json",
+    "sha256": "7864d43b14ca4c2d074a1765866fce7c99e2e2039b0c357e7fb0ee9b1c3ac66b",
+    "bytes": 418
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7a_lateral_p040_1/clock_offset.json",
+    "sha256": "e28087f5817ef6608e25de207152fbc5e04091526e6b3aff88d93ee5eac21e12",
+    "bytes": 1054
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_1/browser/result.json",
+    "sha256": "a7d91f27ca9b467526510654800e677fcbd075d6dbe0692e1f9590ea274c35b5",
+    "bytes": 5565
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_1/rtf/rtf.json",
+    "sha256": "9b0e0654035e9899e32fa6a3df271ac062090815b6c75daad2392861fd8d88a2",
+    "bytes": 7044
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_1/exec_log/row_executor_20261113T203619Z_7_001.jsonl",
+    "sha256": "aac0debe5fe17da5a6adf4633c9dd3f363446173ba6a074b3380886f075162cd",
+    "bytes": 4808070
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_2/browser/result.json",
+    "sha256": "aef590fcc0413ba4aa05981e945bb709c54bc8f3b62e1f421e2f7cb054abc9f4",
+    "bytes": 5617
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_2/rtf/rtf.json",
+    "sha256": "fdf285e81a375cd4662c1ec2cc3db772546f71843a8109f044db85709f767bdd",
+    "bytes": 7039
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7b_ui_2/exec_log/row_executor_20261113T204451Z_7_001.jsonl",
+    "sha256": "2c2056ba87520b41c327783aada19c753ab411b6eae6ba64c4e3e38631f141dc",
+    "bytes": 4832893
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/quiet_1_1.json",
+    "sha256": "47d7e64fae3c1cd7f98ae36ded74001afc750cb5520b5ca24de6a4caf892510a",
+    "bytes": 826
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/quiet_1_2.json",
+    "sha256": "8e92f75b55d1bd1ab5cec5b753882a6067d8c310dedc25726fd9bbe1892ecdf8",
+    "bytes": 513
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/quiet_2_1.json",
+    "sha256": "982c2b5cb92fce84a9c70b1739fe0a3776da48ee5bb47c2bcffb3187197113c8",
+    "bytes": 467
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/quiet_3_1.json",
+    "sha256": "eff451723a72bff739d6ae36020c07d386fec069c5dc9e6734edc7a03ab1024c",
+    "bytes": 513
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/exec_log/row_executor_20261113T205332Z_7_001.jsonl",
+    "sha256": "6e37094b3e57cf4caf387ff55fa3e05a096b61e0dc41432ed041b9c96b5bb1f9",
+    "bytes": 16745504
+   },
+   {
+    "path": "<runs>/gsim_stage7_20261114/sessions/s7f_simauto/clock_offset.json",
+    "sha256": "95595d611f83a150d73927584fd917b81a174aa5ddb412a46efa7162ec21e91d",
+    "bytes": 1042
+   }
+  ]
  }
 }
