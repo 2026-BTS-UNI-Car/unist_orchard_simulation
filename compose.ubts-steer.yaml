@@ -1,7 +1,10 @@
 # Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
 # GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0;
 # the dashboard runs in the sim network namespace and the sim service publishes its port).
-# Default image ubts-steer-sim:wf8 (2026-11-14, stage 5: the executor container's input diagnostics, the follow check
+# Default image ubts-steer-sim:wf9 (2026-11-14, stage 6: the executor container lighter on a busy host - input
+# diagnostics opt-in, the SIM clock loop woken by the /clock sample, no parameter services or /rosout on its node, a
+# CPU weight above the other services; dashboard copy a92cfec as in wf6).
+# wf8 (2026-11-14, stage 5: the executor container's input diagnostics, the follow check
 # waits for a quiet DDS graph before Start, operator contract revision 5 - the session is released at a run's end and
 # a heartbeat-only session does not refuse another's go; dashboard copy a92cfec as in wf6).
 # wf7 (2026-11-13, stage 4: the executor timing work of main b00b666 - a fresh steering
@@ -87,7 +90,7 @@ x-environment: &environment
   UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
 services:
   sim:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     init: true
     ipc: shareable
     shm_size: 512mb
@@ -142,7 +145,7 @@ services:
       start_period: 240s
       retries: 6
   steer:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -162,7 +165,7 @@ services:
     stop_grace_period: 20s
     restart: "no"
   recorder:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -188,7 +191,7 @@ services:
   # control volume and never reaches the page). The page port 8080 is published by the sim service (127.0.0.1:18090).
   # An image built before the sync (wf4c and earlier) still runs its own older dashboard: it ignores these settings.
   dashboard:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     init: true
     network_mode: "service:sim"
     working_dir: /opt/ubts/dashboard
@@ -231,7 +234,7 @@ services:
   # memory) and mounts the control volume only: no runtime volume (SIM status files) and no emulator hooks. Clock
   # mode = UBTS_STEER_CLOCK (wall | sim, the same value as the bridge wrapper). Profile executor (not started by "up").
   executor:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     profiles: ["executor"]
     init: true
     network_mode: "service:sim"
@@ -256,18 +259,24 @@ services:
       UBTS_STEER_EXEC_CONTROLLER: '${UBTS_STEER_EXEC_CONTROLLER:-{"kind": "row_follow"}}'
       UBTS_STEER_EXEC_OVERRIDES: ${UBTS_STEER_EXEC_OVERRIDES:-}
       UBTS_STEER_EXEC_SKIP_SOURCE_CHECK: ${UBTS_STEER_EXEC_SKIP_SOURCE_CHECK:-0}
+      # the stage 5 input diagnostics of the SIM clock mode (SpinMonitor, tick diag, input_gap): 1 turns them on
+      UBTS_STEER_EXEC_INPUT_DIAG: ${UBTS_STEER_EXEC_INPUT_DIAG:-0}
       UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
       UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
     volumes:
       - control:/run/ubts-steer
     mem_limit: 512m
     cpus: 3                 # was 1.5 (throttled; dense-scan processing; STACK_OPERATIONS_KO.md 8)
+    # CPU weight above the other services (no cpu_shares: cgroup v2 cpu.weight 100) when the VM's CPUs are contended;
+    # the quota (cpus) is unchanged. 8192 shares = cpu.weight 532 in the container (read on Docker 29.9, the runc
+    # mapping where 1024 shares = 100). STACK_OPERATIONS_KO.md 10
+    cpu_shares: 8192
     stop_grace_period: 20s
     restart: "no"
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
   # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
   check:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf9}
     profiles: ["check"]
     init: true
     network_mode: "service:sim"

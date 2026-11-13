@@ -285,10 +285,11 @@ class InputMonitorTest(unittest.TestCase):
         self.assertEqual([n for n, _ in logged], ['input_gap'])
         self.assertEqual(logged[0][1]['first'], 'scan')
 
-    def test_run_loop_reports_poll_gaps(self):
+    def test_run_loop_reports_the_wake_latency(self):
         clock = EM.SimClock()
         clock.update(1, 0)
-        mon = EM.SpinMonitor()
+        polls = []
+        mon = types.SimpleNamespace(poll=polls.append)
         stop = threading.Event()
 
         class Loop:
@@ -297,7 +298,76 @@ class InputMonitorTest(unittest.TestCase):
             def step(self_inner):
                 stop.set()
         EM.run_loop_sim(Loop(), stop, clock, poll_s=.002, deadline=time.monotonic() + 2., monitor=mon)
-        self.assertGreater(mon.max_poll, 0.)
+        self.assertTrue(polls)                   # the sample set the wake-up: its latency was reported
+        self.assertTrue(all(0. <= p < 2. for p in polls))
+
+
+class SimClockWakeTest(unittest.TestCase):
+    """G-SIM stage 6: the SIM clock loop waits for the /clock sample that reaches its next grid point (no 2 ms poll)."""
+
+    def test_only_the_sample_that_reaches_the_grid_point_wakes_the_loop(self):
+        clock = EM.SimClock()
+        self.assertIsNone(clock.wake_at)
+        clock.update(1, 0)                       # no grid point yet: every sample wakes
+        self.assertTrue(clock.reached.is_set())
+        clock.reached.clear()
+        clock.wake_at = 1.05
+        clock.update(1, 10_000_000)              # 1.01
+        clock.update(1, 40_000_000)              # 1.04
+        self.assertFalse(clock.reached.is_set())
+        clock.update(1, 50_000_000)              # 1.05 reaches it
+        self.assertTrue(clock.reached.is_set())
+        self.assertIsNotNone(clock.reached_mono)
+
+    def test_the_loop_steps_on_the_sample_not_on_a_timer(self):
+        clock = EM.SimClock()
+        stop = threading.Event()
+        steps, grid = [], {}
+
+        class Loop:
+            counts = {}
+
+            def step(self_inner):
+                steps.append((clock(), time.monotonic()))
+        thread = threading.Thread(target=EM.run_loop_sim, args=(Loop(), stop, clock),
+                                  kwargs=dict(hz=20., poll_s=5., grid=grid), daemon=True)
+        thread.start()
+        clock.update(1, 0)
+        end = time.monotonic() + 2.
+        while len(steps) < 1 and time.monotonic() < end:
+            time.sleep(.005)
+        for k in range(1, 5):                    # 1.01 .. 1.04: below the next grid point 1.05, no step
+            clock.update(1, k * 10_000_000)
+        time.sleep(.1)
+        self.assertEqual(len(steps), 1)
+        sent = time.monotonic()
+        clock.update(1, 50_000_000)              # 1.05: the loop wakes at once although it waits up to 5 s
+        while len(steps) < 2 and time.monotonic() < end + 2.:
+            time.sleep(.002)
+        self.assertEqual(len(steps), 2)
+        self.assertLess(steps[1][1] - sent, 1.)
+        self.assertEqual(grid['timeouts'], 0)
+        self.assertLessEqual(grid['polls'], 3)   # one wake per step (plus at most one for the start)
+        stop.set()
+        clock.reached.set()
+        thread.join(2.)
+        self.assertFalse(thread.is_alive())
+
+    def test_input_diag_is_opt_in(self):
+        self.assertEqual(EM.input_diag_default({}), 'off')
+        self.assertEqual(EM.input_diag_default({EM.INPUT_DIAG_ENV: '0'}), 'off')
+        for value in ('1', 'on', 'TRUE', 'yes'):
+            self.assertEqual(EM.input_diag_default({EM.INPUT_DIAG_ENV: value}), 'on')
+        saved = os.environ.pop(EM.INPUT_DIAG_ENV, None)
+        try:
+            self.assertEqual(EM.build_parser().parse_args([]).input_diag, 'off')
+            self.assertEqual(EM.build_parser().parse_args(['--input-diag', 'on']).input_diag, 'on')
+        finally:
+            if saved is not None:
+                os.environ[EM.INPUT_DIAG_ENV] = saved
+
+    def test_node_options_drop_the_unused_services(self):
+        self.assertEqual(EM.SimRosInput.NODE_OPTIONS, dict(start_parameter_services=False, enable_rosout=False))
 
 
 class HooksTest(unittest.TestCase):
@@ -378,6 +448,24 @@ class FilesTest(unittest.TestCase):
 
 @unittest.skipUnless(executor_importable() and runner_importable(), 'the executor package, scipy')
 class ContainerTest(unittest.TestCase):
+    def test_input_diagnostics_only_when_asked(self):
+        """G-SIM stage 6: the stage 5 input diagnostics are opt-in (--input-diag on / UBTS_STEER_EXEC_INPUT_DIAG=1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            for flag, expect in (('off', False), ('on', True)):
+                args = EM.build_parser().parse_args(['--clock', 'sim', '--exec-dir', str(Path(tmp) / flag),
+                                                     '--skip-source-check', '--input-diag', flag])
+                container = EM.Container(args)
+                try:
+                    self.assertEqual(container.monitor is not None, expect)
+                    diag = container.loop.tick_extra()            # off: only the tick's monotonic and wall time
+                    self.assertEqual(set(diag) >= {'wm', 'ww', 'cb', 'gil'}, expect)
+                    if not expect:
+                        self.assertEqual(sorted(diag), ['wm', 'ww'])
+                    described = json.loads((Path(tmp) / flag / 'config.json').read_bytes().decode('utf-8'))
+                    self.assertIs(described['input_diag'], expect)
+                finally:
+                    container.log.close()
+
     def test_container_without_ros(self):
         with tempfile.TemporaryDirectory() as tmp:
             for clock in ('wall', 'sim'):
@@ -443,6 +531,16 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(self.gib(ex['mem_limit']), .5)
         self.assertEqual(float(ex['cpus']), 3.)       # STACK_OPERATIONS_KO.md 8 (was 1.5, throttled)
         self.assertEqual(float(self.services['steer']['cpus']), 3.)
+        # G-SIM stage 6: a CPU weight above the other services (cgroup v2 cpu.weight 532 read in the container on
+        # Docker 29.9: the runc mapping ceil(10^((l^2 + 125 l) / 612 - 7 / 34)), l = log2(shares), 1024 -> 100; the
+        # default without cpu_shares is 100)
+        self.assertEqual(ex['cpu_shares'], 8192)
+        log2 = math.log2(ex['cpu_shares'])
+        self.assertEqual(math.ceil(10 ** ((log2 * log2 + 125 * log2) / 612. - 7. / 34.)), 532)
+        for name, service in self.services.items():
+            if name != 'executor':
+                self.assertNotIn('cpu_shares', service)
+        self.assertEqual(ex['environment']['UBTS_STEER_EXEC_INPUT_DIAG'], '${UBTS_STEER_EXEC_INPUT_DIAG:-0}')
         self.assertEqual((ex['restart'], ex['stop_grace_period']), ('no', '20s'))
         self.assertTrue(ex['init'])
         env = ex['environment']

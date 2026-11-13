@@ -494,10 +494,12 @@ class RoutesBase:
         self.assertEqual((self.stack.mcu.L, self.stack.mcu.R), (0, 0))
 
     def test_old_screen_sources_send_no_vehicle_profile_and_use_left_right(self):
-        """The differential pad's request shapes in the copied page (unchanged in the dashboard repository): arm without
-        a body, drive with left/right. With the two tests above this is A14 (old screen)."""
+        """The differential pad's request shapes in the copied page: arm without a body, drive with left/right. With the
+        two tests above this is A14 (old screen). The dashboard copy a92cfec sends the control requests through
+        controlRequest (01-format-http.js: a POST with a per-operation timeout) instead of postJson; the request shapes
+        are the same (G-SIM stage 6: this test expected postJson and failed since that copy)."""
         js = (STATIC / OLD_SCREEN_JS).read_text(encoding='utf-8')
-        self.assertIn('postJson("/api/rover/arm")', js)
+        self.assertIn('controlRequest("/api/rover/arm")', js)
         self.assertNotIn('vehicle_profile', js)
         self.assertRegex(js, r'left: motion\.left, right: motion\.right')
 
