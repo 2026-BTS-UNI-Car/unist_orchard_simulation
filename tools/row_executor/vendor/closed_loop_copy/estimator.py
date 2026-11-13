@@ -317,8 +317,22 @@ class EstimatorConfig:
     # was grown into the structures beyond the row end of 042301 c03 and the end came 0.7-1.7 m late).
     row_end_curve_edge_m: float = 1.5
     row_end_curve_max_gap_m: float = 3.
+    # Opt-in end agreement (None = OFF = original streak rule, bit-identical). With a distance [m]: a two-sided ended
+    # full update continues the streak of the previous two-sided ended one only if the LATER side end (the reported row
+    # end) moved by at most this along the band between them; otherwise the streak restarts at 1, so a row end needs
+    # two consecutive full updates that agree on where it is (row_end_confirm_updates). The original streak counted
+    # updates whose sides were 'ended' wherever they ended: on 30 m curves one full update with a corridor axis 8 deg
+    # off put both ends at or behind the LiDAR (2.6-3.1 m before the real end) after updates that had them 2-3 m ahead,
+    # and the stop latched on that one update (S1c round 1: curve_r30 dev seed 100, judgement seeds curve_l30 3004 and
+    # curve_r30 3001, e -1.7 to -2.1 m). 1.0 m = the e band of the row-end stop: two updates that differ by more than
+    # it cannot both be within the band.
+    row_end_agree_m: float | None = None
 
     def __post_init__(self):
+        if self.row_end_agree_m is not None and not (
+                isinstance(self.row_end_agree_m, (int, float)) and not isinstance(self.row_end_agree_m, bool)
+                and math.isfinite(self.row_end_agree_m) and self.row_end_agree_m > 0.):
+            raise ValueError('row_end_agree_invalid: None or a finite distance > 0')
         if self.row_end_curve_fit and not (
                 isinstance(self.row_end_curve_reach_m, tuple) and self.row_end_curve_reach_m
                 and all(isinstance(r, (int, float)) and math.isfinite(r) and r > 0. for r in self.row_end_curve_reach_m)
@@ -718,6 +732,8 @@ class SensorEstimator:
         self.external = ExternalCorridor() if config.external_corridor_gain > 0. else None
         if config.row_end_curve_fit:
             self.row_end_curve = 0.      # opt-in row_end_curve_fit only: c of the last full update (evaluation)
+        if config.row_end_agree_m is not None:
+            self.end_disagreements = 0   # opt-in row_end_agree_m only: streaks restarted by a moved end (evaluation)
 
     # --- opt-in actuator status (never stored while OFF) -------------------------------------------------
     def on_actuator(self, stamp, duty_left_pct, duty_right_pct, steer_rad=None):
@@ -1494,9 +1510,16 @@ class SensorEstimator:
             # end_streak > 0: the previous full update was two-sided ended (any other full update resets
             # it), but older than row_end_valid_s. Bridge only on position consistency (guards inside).
             recent = self._end_position_bridge(band, ends, stamp, lines)
+        new_left = None if ends[0] is None else along0 + ends[0]
+        new_right = None if ends[1] is None else along0 + ends[1]
+        if (cfg.row_end_agree_m is not None and both and recent and self.end_streak
+                and None not in (band.end_left, band.end_right)
+                and abs(max(new_left, new_right) - max(band.end_left, band.end_right)) > cfg.row_end_agree_m):
+            # opt-in: the reported end moved by more than row_end_agree_m since the previous two-sided ended update
+            recent = False
+            self.end_disagreements += 1
         self.end_streak = (self.end_streak + 1 if recent else 1) if both else 0
-        band.end_left = None if ends[0] is None else along0 + ends[0]
-        band.end_right = None if ends[1] is None else along0 + ends[1]
+        band.end_left, band.end_right = new_left, new_right
         band.end_stamp = stamp
         self.end_free = list(free)
         if cfg.row_end_position_confirm_m is not None:
