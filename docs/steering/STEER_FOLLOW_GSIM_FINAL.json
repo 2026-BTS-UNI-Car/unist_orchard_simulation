@@ -3845,5 +3845,1382 @@
    "F": "the executor scan processing took 175-307 ms in each failing step (loop p99 211/79/48 ms against 22-24 ms in stage 4); host CPU mean 49.3 % against 36.7 %; executor CPU mean 50.5 % against 30.8 %; no /clock stall at the stops"
   },
   "reruns": "none: section 5 allows one more run only after a SIM side fix written first as an amendment; the failures are on the executor processing time under host load"
+ },
+ "stage6": {
+  "prereg_id": "steer_follow_gsim_final6_v1",
+  "registration": {
+   "prereg": "56a8224"
+  },
+  "clock": "sim",
+  "image": {
+   "tag": "ubts-steer-sim:wf9",
+   "id": "sha256:3d3da7ccde2a5b247f1de6f2ad16c9c1cad5979b97bdc3578cf6dfeadb652d15",
+   "source_commit": "56a8224",
+   "manifest_files": 674,
+   "manifest_equal_to_commit": true,
+   "dashboard_copy": "a92cfec24b64",
+   "firmware_build": "04353B49"
+  },
+  "changes": {
+   "executor_lighter": "a4f60c1",
+   "test_and_header_fix": "62fc095",
+   "default_image": "c63835a"
+  },
+  "development_checks": {
+   "note": "not judged; Windows per-process sampler (record folder scripts/host_proc_sampler.py) over one A-style run (wf8, passed) and one run of the user command (wf8, stale_lidar at 2.6 m then STOP); the idle executor profiled with py-spy 0.4.3 and /proc thread CPU",
+   "host_windows": [
+    {
+     "label": "nostack",
+     "samples": 90,
+     "total_mean": 16.0,
+     "total_p90": 20.0,
+     "total_max": 24.6,
+     "gap_max": 1.001,
+     "mean_share_by_name": [
+      [
+       "dwm.exe",
+       4.09
+      ],
+      [
+       "JumpConnect.exe",
+       2.42
+      ],
+      [
+       "svchost.exe",
+       1.94
+      ],
+      [
+       "System",
+       1.61
+      ],
+      [
+       "Code.exe",
+       0.81
+      ],
+      [
+       "WmiPrvSE.exe",
+       0.69
+      ],
+      [
+       "JumpClient.exe",
+       0.49
+      ],
+      [
+       "ASDSvc.exe",
+       0.44
+      ],
+      [
+       "chrome.exe",
+       0.34
+      ],
+      [
+       "powershell.exe",
+       0.29
+      ],
+      [
+       "(other user tool)",
+       0.15
+      ],
+      [
+       "TUCTLSystem.exe",
+       0.14
+      ]
+     ]
+    },
+    {
+     "label": "A_idle",
+     "samples": 55,
+     "total_mean": 37.2,
+     "total_p90": 51.1,
+     "total_max": 61.1,
+     "gap_max": 1.03,
+     "mean_share_by_name": [
+      [
+       "vmmemWSL",
+       14.04
+      ],
+      [
+       "dwm.exe",
+       4.15
+      ],
+      [
+       "JumpConnect.exe",
+       3.09
+      ],
+      [
+       "svchost.exe",
+       2.82
+      ],
+      [
+       "System",
+       2.11
+      ],
+      [
+       "Code.exe",
+       1.53
+      ],
+      [
+       "ASDSvc.exe",
+       0.81
+      ],
+      [
+       "WmiPrvSE.exe",
+       0.74
+      ],
+      [
+       "JumpClient.exe",
+       0.69
+      ],
+      [
+       "chrome.exe",
+       0.62
+      ],
+      [
+       "TUCTLSystem.exe",
+       0.26
+      ],
+      [
+       "com.docker.backend.exe",
+       0.26
+      ]
+     ]
+    },
+    {
+     "label": "A_run",
+     "samples": 106,
+     "total_mean": 40.4,
+     "total_p90": 55.6,
+     "total_max": 70.9,
+     "gap_max": 1.032,
+     "mean_share_by_name": [
+      [
+       "vmmemWSL",
+       16.59
+      ],
+      [
+       "dwm.exe",
+       4.13
+      ],
+      [
+       "svchost.exe",
+       3.13
+      ],
+      [
+       "JumpConnect.exe",
+       3.05
+      ],
+      [
+       "System",
+       2.01
+      ],
+      [
+       "Code.exe",
+       1.57
+      ],
+      [
+       "ASDSvc.exe",
+       0.99
+      ],
+      [
+       "WmiPrvSE.exe",
+       0.79
+      ],
+      [
+       "JumpClient.exe",
+       0.62
+      ],
+      [
+       "chrome.exe",
+       0.57
+      ],
+      [
+       "(other user tool)",
+       0.26
+      ],
+      [
+       "TUCTLSystem.exe",
+       0.25
+      ]
+     ]
+    },
+    {
+     "label": "F_idle",
+     "samples": 120,
+     "total_mean": 47.4,
+     "total_p90": 62.0,
+     "total_max": 73.9,
+     "gap_max": 1.007,
+     "mean_share_by_name": [
+      [
+       "vmmemWSL",
+       17.31
+      ],
+      [
+       "Code.exe",
+       5.95
+      ],
+      [
+       "dwm.exe",
+       4.18
+      ],
+      [
+       "JumpConnect.exe",
+       3.45
+      ],
+      [
+       "svchost.exe",
+       2.92
+      ],
+      [
+       "System",
+       2.09
+      ],
+      [
+       "ASDSvc.exe",
+       1.21
+      ],
+      [
+       "com.docker.backend.exe",
+       0.76
+      ],
+      [
+       "JumpClient.exe",
+       0.71
+      ],
+      [
+       "chrome.exe",
+       0.68
+      ],
+      [
+       "WmiPrvSE.exe",
+       0.67
+      ],
+      [
+       "powershell.exe",
+       0.23
+      ]
+     ]
+    },
+    {
+     "label": "F_run",
+     "samples": 12,
+     "total_mean": 51.0,
+     "total_p90": 65.4,
+     "total_max": 71.5,
+     "gap_max": 1.027,
+     "mean_share_by_name": [
+      [
+       "vmmemWSL",
+       18.38
+      ],
+      [
+       "Code.exe",
+       5.79
+      ],
+      [
+       "dwm.exe",
+       4.18
+      ],
+      [
+       "JumpConnect.exe",
+       3.83
+      ],
+      [
+       "System",
+       3.73
+      ],
+      [
+       "svchost.exe",
+       3.45
+      ],
+      [
+       "ASDSvc.exe",
+       1.53
+      ],
+      [
+       "WmiPrvSE.exe",
+       0.94
+      ],
+      [
+       "com.docker.backend.exe",
+       0.91
+      ],
+      [
+       "chrome.exe",
+       0.73
+      ],
+      [
+       "JumpClient.exe",
+       0.56
+      ],
+      [
+       "powershell.exe",
+       0.26
+      ]
+     ]
+    },
+    {
+     "label": "F_fail5s",
+     "samples": 5,
+     "total_mean": 54.4,
+     "total_p90": 71.5,
+     "total_max": 71.5,
+     "gap_max": 1.0,
+     "mean_share_by_name": [
+      [
+       "vmmemWSL",
+       19.94
+      ],
+      [
+       "Code.exe",
+       5.43
+      ],
+      [
+       "svchost.exe",
+       4.37
+      ],
+      [
+       "dwm.exe",
+       4.22
+      ],
+      [
+       "JumpConnect.exe",
+       4.06
+      ],
+      [
+       "System",
+       3.32
+      ],
+      [
+       "ASDSvc.exe",
+       2.27
+      ],
+      [
+       "WmiPrvSE.exe",
+       1.39
+      ],
+      [
+       "chrome.exe",
+       0.85
+      ],
+      [
+       "JumpClient.exe",
+       0.73
+      ],
+      [
+       "com.docker.backend.exe",
+       0.71
+      ],
+      [
+       "powershell.exe",
+       0.28
+      ]
+     ]
+    }
+   ],
+   "idle_executor_cpu_pct": {
+    "wf8_before_run": 22.0,
+    "wf8_after_run": 58.1,
+    "snapshot_before_run": 15.9,
+    "snapshot_after_run": 35.7,
+    "wf8_threads_before_run": {
+     "ros_input": 13.9,
+     "main": 5.2,
+     "dds": 1.9,
+     "gil_probe": 0.4
+    },
+    "snapshot_threads_before_run": {
+     "ros_input": 11.1,
+     "main": 2.6,
+     "dds": 1.7
+    }
+   },
+   "cpu_weight": {
+    "executor": 532,
+    "others": 100,
+    "note": "cgroup v2 cpu.weight read in the container (Docker 29.9)"
+   },
+   "snapshot_follow_run": "go 0.6 s, then stall_guard: one 565 ms step (runner tick phase 395 ms, bridge output 71 ms); host 43-55 %, no emulator /clock stall; cause not determined"
+  },
+  "output_identity": {
+   "base": "90b4bb3",
+   "head": "62fc095",
+   "episodes": {
+    "files": 9,
+    "equal": 8,
+    "differ": [
+     "tree"
+    ]
+   },
+   "follow": {
+    "runs": 15,
+    "serial_and_trace_equal": 15,
+    "differ": [],
+    "executor_log_differ": 15,
+    "ok_base": 15,
+    "ok_head": 15
+   },
+   "wide": {
+    "runs": 0,
+    "serial_and_trace_equal": 0,
+    "differ": [],
+    "executor_log_differ": 0,
+    "ok_base": 0,
+    "ok_head": 0
+   },
+   "t1": {
+    "scripts": 71,
+    "serial_and_trace_equal": 71,
+    "differ": [],
+    "executor_log_differ": 71,
+    "passed_base": 71,
+    "passed_head": 71,
+    "end_reason_changes": {}
+   },
+   "executor_log_note": "the executor log records are equal without the timing fields (loop_ms, ph, ms, proc_ms, wall) and the tree names (follow_heading_n8_s0, 1504 records)"
+  },
+  "parts": {
+   "A": {
+    "judge": {
+     "slots": {
+      "nominal_1": "pass",
+      "nominal_2": "pass",
+      "nominal_3": "pass",
+      "lateral_p040": "pass"
+     },
+     "judged": 4,
+     "passed": true
+    },
+    "slots": [
+     {
+      "slot": "nominal_1",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s6a_nominal_1_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9515,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.059,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": []
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0138,
+         "lateral_p95_m": 0.0288,
+         "lateral_max_m": 0.0343,
+         "heading_rmse_deg": 0.528,
+         "heading_max_deg": 1.325,
+         "speed_max_m_s": 0.435,
+         "row_end_error_m": 0.45,
+         "min_clearance_m": 1.4104,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 33.47,
+         "duration_s": 102.66
+        },
+        "scan_proc_ms": {
+         "n": 1030,
+         "p50": 9.61,
+         "p99": 103.61,
+         "max": 164.6
+        },
+        "loop_ms": {
+         "n": 2009,
+         "p50": 18.47,
+         "p99": 115.83,
+         "max": 217.85
+        },
+        "active_tick_gaps_over_0_12_s": 31,
+        "quiet": {
+         "mean": 43.4,
+         "waited_s": 35.2,
+         "quiet": true
+        },
+        "host": {
+         "samples": 105,
+         "mean": 45.5,
+         "p90": 57.8,
+         "max": 67.2,
+         "late_max": 0.019,
+         "top_of_highest": [
+          [
+           "vmmemWSL",
+           627.8
+          ],
+          [
+           "ASDSvc.exe",
+           104.6
+          ],
+          [
+           "JumpConnect.exe",
+           96.8
+          ],
+          [
+           "dwm.exe",
+           89.0
+          ],
+          [
+           "RaiDrive.Mount.Service.x64.exe",
+           87.5
+          ]
+         ]
+        },
+        "clock_offset_s": 0.224,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T181549Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "nominal_2",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s6a_nominal_2_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9244,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.268,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": [
+          [
+           0.001,
+           0.219
+          ]
+         ]
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0235,
+         "lateral_p95_m": 0.0418,
+         "lateral_max_m": 0.0486,
+         "heading_rmse_deg": 0.611,
+         "heading_max_deg": 1.958,
+         "speed_max_m_s": 0.429,
+         "row_end_error_m": 0.449,
+         "min_clearance_m": 1.4232,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 33.47,
+         "duration_s": 107.61
+        },
+        "scan_proc_ms": {
+         "n": 1070,
+         "p50": 9.56,
+         "p99": 135.2,
+         "max": 161.36
+        },
+        "loop_ms": {
+         "n": 2087,
+         "p50": 17.9,
+         "p99": 150.49,
+         "max": 214.06
+        },
+        "active_tick_gaps_over_0_12_s": 43,
+        "quiet": {
+         "mean": 33.0,
+         "waited_s": 0.0,
+         "quiet": true
+        },
+        "host": {
+         "samples": 110,
+         "mean": 40.9,
+         "p90": 55.5,
+         "max": 63.0,
+         "late_max": 0.004,
+         "top_of_highest": [
+          [
+           "vmmemWSL",
+           604.2
+          ],
+          [
+           "svchost.exe",
+           114.0
+          ],
+          [
+           "JumpConnect.exe",
+           93.7
+          ],
+          [
+           "dwm.exe",
+           87.4
+          ],
+          [
+           "System",
+           76.5
+          ]
+         ]
+        },
+        "clock_offset_s": 0.0931,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T182328Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "nominal_3",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s6a_nominal_3_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.9525,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.564,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": [
+          [
+           0.046,
+           0.331
+          ]
+         ]
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0246,
+         "lateral_p95_m": 0.047,
+         "lateral_max_m": 0.0547,
+         "heading_rmse_deg": 0.671,
+         "heading_max_deg": 1.722,
+         "speed_max_m_s": 0.439,
+         "row_end_error_m": 0.476,
+         "min_clearance_m": 1.4211,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 33.5,
+         "duration_s": 103.32
+        },
+        "scan_proc_ms": {
+         "n": 1040,
+         "p50": 8.71,
+         "p99": 105.6,
+         "max": 168.32
+        },
+        "loop_ms": {
+         "n": 2041,
+         "p50": 18.18,
+         "p99": 120.39,
+         "max": 239.06
+        },
+        "active_tick_gaps_over_0_12_s": 28,
+        "quiet": {
+         "mean": 33.2,
+         "waited_s": 0.0,
+         "quiet": true
+        },
+        "host": {
+         "samples": 106,
+         "mean": 40.7,
+         "p90": 54.2,
+         "max": 63.9,
+         "late_max": 0.018,
+         "top_of_highest": [
+          [
+           "vmmemWSL",
+           637.5
+          ],
+          [
+           "dwm.exe",
+           87.9
+          ],
+          [
+           "svchost.exe",
+           86.4
+          ],
+          [
+           "JumpConnect.exe",
+           70.7
+          ],
+          [
+           "WmiPrvSE.exe",
+           65.9
+          ]
+         ]
+        },
+        "clock_offset_s": 0.0315,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T183005Z_7_001.jsonl"
+       }
+      ]
+     },
+     {
+      "slot": "lateral_p040",
+      "verdict": "pass",
+      "attempts": [
+       {
+        "session": "s6a_lateral_p040_1",
+        "verdict": "pass",
+        "failed": [],
+        "rtf_min": 0.934,
+        "end_reason": "row_end",
+        "end_note": null,
+        "discovery_settle": {
+         "waited_s": 10.115,
+         "settled": true,
+         "quiet_s": 10.0,
+         "gap_s": 0.1,
+         "max_s": 60.0,
+         "gaps": []
+        },
+        "metrics": {
+         "end_reason": "row_end",
+         "lateral_rmse_m": 0.0337,
+         "lateral_p95_m": 0.0662,
+         "lateral_max_m": 0.4016,
+         "heading_rmse_deg": 0.989,
+         "heading_max_deg": 10.929,
+         "speed_max_m_s": 0.443,
+         "row_end_error_m": 0.439,
+         "min_clearance_m": 1.4048,
+         "rest_speed_m_s": 0.0,
+         "distance_m": 32.89,
+         "duration_s": 99.96
+        },
+        "scan_proc_ms": {
+         "n": 1032,
+         "p50": 6.68,
+         "p99": 95.7,
+         "max": 241.27
+        },
+        "loop_ms": {
+         "n": 2040,
+         "p50": 17.99,
+         "p99": 103.89,
+         "max": 313.17
+        },
+        "active_tick_gaps_over_0_12_s": 17,
+        "quiet": {
+         "mean": 30.4,
+         "waited_s": 0.0,
+         "quiet": true
+        },
+        "host": {
+         "samples": 105,
+         "mean": 38.9,
+         "p90": 52.8,
+         "max": 61.0,
+         "late_max": 0.005,
+         "top_of_highest": [
+          [
+           "vmmemWSL",
+           450.0
+          ],
+          [
+           "svchost.exe",
+           142.2
+          ],
+          [
+           "dwm.exe",
+           92.2
+          ],
+          [
+           "JumpConnect.exe",
+           75.0
+          ],
+          [
+           "PhoneExperienceHost.exe",
+           73.4
+          ]
+         ]
+        },
+        "clock_offset_s": 0.0962,
+        "failure_event": null,
+        "host_fault": null,
+        "cause": null,
+        "executor_log": "row_executor_20261113T183644Z_7_001.jsonl"
+       }
+      ]
+     }
+    ]
+   },
+   "B": {
+    "verdict": "fail",
+    "items": {
+     "prepare": true,
+     "one_press_running": false,
+     "heartbeat": false,
+     "tab_hidden_link_lost": false,
+     "screen_stop_while_running": true,
+     "restart_after_stop": true
+    },
+    "rtf_min": 0.8145,
+    "failure_event_wall": 1794595603.84,
+    "host_fault": {
+     "void": false,
+     "reasons": [],
+     "samples": 5,
+     "cpu_max": 58.8,
+     "late_max": 0.027
+    },
+    "quiet": {
+     "mean": 31.2,
+     "waited_s": 0.1
+    },
+    "host": {
+     "samples": 98,
+     "mean": 48.2,
+     "p90": 58.8,
+     "max": 65.1,
+     "late_max": 0.102,
+     "top_of_highest": [
+      [
+       "vmmemWSL",
+       616.8
+      ],
+      [
+       "chrome.exe",
+       140.4
+      ],
+      [
+       "dwm.exe",
+       88.3
+      ],
+      [
+       "System",
+       88.3
+      ],
+      [
+       "JumpConnect.exe",
+       88.3
+      ]
+     ]
+    },
+    "page_sessions": {
+     "f82e41b9": 176
+    },
+    "foreign_sessions": [],
+    "http_409": {
+     "heartbeat": 0,
+     "go": 0
+    },
+    "failed_checks": [
+     {
+      "name": "one press: the car drives while the screen is visible (emulator speed)",
+      "detail": [
+       -0.021,
+       -0.021
+      ],
+      "wall": 1794595603.84
+     },
+     {
+      "name": "heartbeat about every 100 ms while visible",
+      "detail": {
+       "count": 13,
+       "max_gap_s": 1.21,
+       "source": "browser request start times",
+       "handler_max_gap_s": 2.825
+      },
+      "wall": 1794595603.841
+     },
+     {
+      "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+      "detail": {
+       "run_state": "latched",
+       "stop_reason": "CONTROL_AUTHORITY",
+       "v_before": 0.0,
+       "v_after": 0.0
+      },
+      "wall": 1794595614.42
+     },
+     {
+      "name": "visible again: '다시 출발', still paused (no automatic restart)",
+      "detail": "latched",
+      "wall": 1794595626.596
+     }
+    ],
+    "run_1": "ended steering_feedback_stale (bridge drive_refused control_not_owned) 2.4 s SIM after the go: executor scan processing 114-220 ms, bridge output phase up to 202 ms, emulator /clock stalls 164 and 140 ms; Windows host E-class CPUs about 80 % busy, P-class 17-50 %"
+   },
+   "F": {
+    "judge": {
+     "slots": [
+      "fail",
+      "fail",
+      "pass"
+     ],
+     "verdict": "fail",
+     "passed": false
+    },
+    "slots": [
+     [
+      {
+       "slot": 1,
+       "attempt": 1,
+       "verdict": "void",
+       "run_id": 1,
+       "end_reason": "operator_stop",
+       "end_note": "bridge_error:drive_refused:control_not_owned",
+       "distance_m": 14.294,
+       "failure_event": {
+        "t": 251.075,
+        "wall": 1794596182.904,
+        "mono": 120924.059,
+        "state": "PAUSED",
+        "reason": "stall_guard",
+        "windows_wall": 1794596182.761
+       },
+       "host_fault": {
+        "void": true,
+        "reasons": [
+         "cpu 79.6 % >= 70 %"
+        ],
+        "samples": 5,
+        "cpu_max": 79.6,
+        "late_max": 0.034
+       },
+       "quiet": {
+        "mean": 44.3,
+        "waited_s": 58.1,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 427,
+        "p50": 5.76,
+        "p99": 136.3,
+        "max": 201.7
+       },
+       "loop_ms": {
+        "n": 846,
+        "p50": 18.77,
+        "p99": 77.35,
+        "max": 260.19
+       },
+       "active_tick_gaps_over_0_12_s": 7,
+       "steer_status_age_max_s": 0.175,
+       "host": {
+        "samples": 43,
+        "mean": 46.9,
+        "p90": 52.7,
+        "max": 79.6,
+        "late_max": 0.034,
+        "top_of_highest": [
+         [
+          "vmmemWSL",
+          656.7
+         ],
+         [
+          "ASDSvc.exe",
+          138.2
+         ],
+         [
+          "Code.exe",
+          135.1
+         ],
+         [
+          "JumpConnect.exe",
+          118.0
+         ],
+         [
+          "svchost.exe",
+          114.9
+         ]
+        ]
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 PERCEPTION_OR_LOCALISATION (센서·위치 추정 부족). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      },
+      {
+       "slot": 1,
+       "attempt": 2,
+       "verdict": "fail",
+       "run_id": 2,
+       "end_reason": "operator_stop",
+       "end_note": null,
+       "distance_m": 7.574,
+       "failure_event": {
+        "t": 360.875,
+        "wall": 1794596298.352,
+        "mono": 121039.193,
+        "state": "PAUSED",
+        "reason": "speed_cap_below_min",
+        "windows_wall": 1794596298.209
+       },
+       "host_fault": {
+        "void": false,
+        "reasons": [],
+        "samples": 5,
+        "cpu_max": 68.7,
+        "late_max": 0.024
+       },
+       "quiet": {
+        "mean": 40.1,
+        "waited_s": 10.3,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 265,
+        "p50": 9.74,
+        "p99": 193.4,
+        "max": 283.93
+       },
+       "loop_ms": {
+        "n": 492,
+        "p50": 18.62,
+        "p99": 212.65,
+        "max": 404.1
+       },
+       "active_tick_gaps_over_0_12_s": 19,
+       "steer_status_age_max_s": 0.15,
+       "host": {
+        "samples": 28,
+        "mean": 49.8,
+        "p90": 62.8,
+        "max": 68.7,
+        "late_max": 0.024,
+        "top_of_highest": [
+         [
+          "vmmemWSL",
+          590.1
+         ],
+         [
+          "Code.exe",
+          212.3
+         ],
+         [
+          "JumpConnect.exe",
+          109.3
+         ],
+         [
+          "dwm.exe",
+          101.5
+         ],
+         [
+          "ASDSvc.exe",
+          89.0
+         ]
+        ]
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 PERCEPTION_OR_LOCALISATION (센서·위치 추정 부족). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      }
+     ],
+     [
+      {
+       "slot": 2,
+       "attempt": 1,
+       "verdict": "fail",
+       "run_id": 3,
+       "end_reason": "operator_stop",
+       "end_note": "bridge_error:drive_refused:control_not_owned",
+       "distance_m": 12.967,
+       "failure_event": {
+        "t": 494.625,
+        "wall": 1794596439.489,
+        "mono": 121180.056,
+        "state": "PAUSED",
+        "reason": "speed_cap_below_min",
+        "windows_wall": 1794596439.346
+       },
+       "host_fault": {
+        "void": false,
+        "reasons": [],
+        "samples": 5,
+        "cpu_max": 69.9,
+        "late_max": 0.014
+       },
+       "quiet": {
+        "mean": 39.4,
+        "waited_s": 10.3,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 457,
+        "p50": 18.54,
+        "p99": 207.21,
+        "max": 266.72
+       },
+       "loop_ms": {
+        "n": 803,
+        "p50": 19.3,
+        "p99": 239.73,
+        "max": 303.39
+       },
+       "active_tick_gaps_over_0_12_s": 68,
+       "steer_status_age_max_s": 0.267,
+       "host": {
+        "samples": 52,
+        "mean": 53.3,
+        "p90": 64.0,
+        "max": 69.9,
+        "late_max": 0.03,
+        "top_of_highest": [
+         [
+          "vmmemWSL",
+          595.3
+         ],
+         [
+          "Code.exe",
+          159.4
+         ],
+         [
+          "JumpConnect.exe",
+          128.1
+         ],
+         [
+          "dwm.exe",
+          96.9
+         ],
+         [
+          "svchost.exe",
+          92.2
+         ]
+        ]
+       },
+       "sim_auto_last_line": "끝: 상태 paused, 이유 PERCEPTION_OR_LOCALISATION (센서·위치 추정 부족). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+      }
+     ],
+     [
+      {
+       "slot": 3,
+       "attempt": 1,
+       "verdict": "pass",
+       "run_id": 4,
+       "end_reason": "row_end",
+       "end_note": null,
+       "distance_m": 33.421,
+       "failure_event": null,
+       "host_fault": null,
+       "quiet": {
+        "mean": 39.4,
+        "waited_s": 10.3,
+        "quiet": true
+       },
+       "scan_proc_ms": {
+        "n": 1121,
+        "p50": 12.54,
+        "p99": 174.63,
+        "max": 216.46
+       },
+       "loop_ms": {
+        "n": 2061,
+        "p50": 18.87,
+        "p99": 197.7,
+        "max": 296.14
+       },
+       "active_tick_gaps_over_0_12_s": 107,
+       "steer_status_age_max_s": 0.175,
+       "host": {
+        "samples": 120,
+        "mean": 52.9,
+        "p90": 65.9,
+        "max": 71.1,
+        "late_max": 0.036,
+        "top_of_highest": [
+         [
+          "vmmemWSL",
+          665.7
+         ],
+         [
+          "Code.exe",
+          186.0
+         ],
+         [
+          "JumpConnect.exe",
+          100.0
+         ],
+         [
+          "dwm.exe",
+          92.2
+         ],
+         [
+          "svchost.exe",
+          76.6
+         ]
+        ]
+       },
+       "sim_auto_last_line": "다시 하려면 sim_auto_reset.bat 으로 출발점에 되돌린 뒤 sim_auto_start.bat"
+      }
+     ]
+    ],
+    "foreign_session": "46d7fb12 (conflict 5, bind 3, release 3)",
+    "compose": "main 90b4bb3 (sim_stack.py --ref main)"
+   }
+  },
+  "host_whole_job": {
+   "samples": 3088,
+   "mean": 39.0,
+   "p90": 59.7,
+   "max": 90.5,
+   "late_max": 0.261
+  },
+  "core_classes": {
+   "note": "Windows efficiency class per logical CPU: class 1 = CPUs 0, 1, 10-19 (P cores, 12), class 0 = 2-9, 20, 21 (E and low-power E, 10); the mean busy % per class",
+   "A_runs": {
+    "E": "39-49",
+    "P": "38-43"
+   },
+   "B_session": {
+    "E": "about 80",
+    "P": "17-50"
+   },
+   "F_last_5_s_before_failures": {
+    "E": "67-80",
+    "P": "43-48"
+   },
+   "reading": "every failure came when the E class was full (8 E cores busy, the 2 low-power E cores idle: 80 %) while the P cores were half idle: the WSL VM threads seem to run on the E cores (not confirmed)"
+  },
+  "verdicts": {
+   "A": "pass (4/4, every slot passed at its first attempt)",
+   "B": "fail (attempt 1, not a host fault: one press, heartbeat and tab-hidden items failed; prepare, screen STOP and start again passed)",
+   "F": "fail (slot 1: host fault then fail at 7.6 m speed_cap_below_min; slot 2: fail at 13.0 m speed_cap_below_min then control_not_owned; slot 3: row end 33.4 m)",
+   "overall": "not passed"
+  },
+  "causes": {
+   "B": "the executor, the bridge and the emulator were slow together (VM) while the host E cores were full; the registered failure event (the first failed check, 5.0 s after the run ended) put the 5 s window after the stall; the host total CPU stayed below 70 % (max 58.8 % in the window)",
+   "F": "the fresh cap (LiDAR age) went below the minimum speed while scan processing took up to 200-280 ms; the host total CPU in the 5 s windows was 68.7 % and 69.9 % (below the registered 70 %), E class 79-80 %; Code.exe used 1.2-1.4 cores while a dashboard was served on 127.0.0.1:18090 (0.2-0.3 cores otherwise)"
+  },
+  "reruns": "host-fault rerun: F slot 1 (once). No fix-and-retry (section 5): no SIM or executor defect was found that a fix could remove without loosening a safety limit; the failures follow the host scheduling",
+  "records": [
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6_sampler.jsonl",
+    "sha256": "8447700a2a00b637fc1aa7f50a782f7dcbf88c59874bca901237f4a762eeece9",
+    "bytes": 3079961
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_1_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "032d2e7b1865aa5681dca1bf819a8faab8be9da519f27b685a14728060ee1ccd",
+    "bytes": 25842
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_1_1/exec_log/row_executor_20261113T181549Z_7_001.jsonl",
+    "sha256": "bfc49bd5fbb95b15d69318f1646c9c80fa9e0b366fde8b53849aa4e49327b4bf",
+    "bytes": 7211459
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_1_1/quiet.json",
+    "sha256": "b9bf4d457be8dd599e0f90f2d03ce85b6d1de6b51e604b216ad48edcfa54c02e",
+    "bytes": 610
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_1_1/clock_offset.json",
+    "sha256": "0cffbad5f2dcbe32949f5a93d6319a04f1a53e2fd49e0051c1a6ec0752a4fc64",
+    "bytes": 1042
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_2_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "d54b18316e781319086a39876702cc5eb61b97695c8fe995f325c184404e4c97",
+    "bytes": 27439
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_2_1/exec_log/row_executor_20261113T182328Z_7_001.jsonl",
+    "sha256": "755b84d0fbe84a181af71c234cd86210d31b574f5c9fe018d8b96be6708348e4",
+    "bytes": 6247829
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_2_1/quiet.json",
+    "sha256": "415fce39e609ae87df35d67438fe466e9c147779bb602e44e0c84f7834c741eb",
+    "bytes": 357
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_2_1/clock_offset.json",
+    "sha256": "41644f098e9cc766cce61ccd59b617eb53c396e7776902a985062c8e181d2223",
+    "bytes": 1045
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_3_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "f0fe5b96e8df8eaff3b2e2af8b4115057a3bf5589c75c2c35152b8bcb089aa35",
+    "bytes": 25687
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_3_1/exec_log/row_executor_20261113T183005Z_7_001.jsonl",
+    "sha256": "2e10d66fb63ed842ff5f66caef5def910ac4ec787c6a6bbbd2608cc6b8afb458",
+    "bytes": 6259889
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_3_1/quiet.json",
+    "sha256": "258214cbc619bd1c311dd533c749f15eb7059a2a094cb1ec86dccfc1648f23f3",
+    "bytes": 357
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_nominal_3_1/clock_offset.json",
+    "sha256": "49af69a7470927f034955fb97e12e0255b8ce6b010d9cdb248585852dbea4b36",
+    "bytes": 1047
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_lateral_p040_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "9f0beade66f7937d4378fb7d19a91d69da93e98f59f1ccb6c5cebbe7a5ccd29e",
+    "bytes": 26296
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_lateral_p040_1/exec_log/row_executor_20261113T183644Z_7_001.jsonl",
+    "sha256": "051f7b2ee414afbce28bed499b8e293a788aa08f296a5a102ef0974c5a5d6c22",
+    "bytes": 6237584
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_lateral_p040_1/quiet.json",
+    "sha256": "a760598883a4d3715cfafb58ec9a798b9b30b44afbc1fda7b1511e01ff01b664",
+    "bytes": 360
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6a_lateral_p040_1/clock_offset.json",
+    "sha256": "e157252aa76f51fd8e93d77fc6079e73b50d1873157d9c7d5745e50512257044",
+    "bytes": 1046
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6b_ui_1/browser/result.json",
+    "sha256": "bdc5616042e69607e9ce9f69eaf52ad1928856f11e8de03a80f914edfa7613cd",
+    "bytes": 5578
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6b_ui_1/rtf/rtf.json",
+    "sha256": "b685d63313b5f049cbd08721cefe1e5b6247d840ae80980aa3862db90bd4d70b",
+    "bytes": 7337
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6b_ui_1/exec_log/row_executor_20261113T184326Z_7_001.jsonl",
+    "sha256": "5004bbbd27c3fb58b7002addd7c789e6878d12f5e66fef549388cee4cc372748",
+    "bytes": 5114343
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/quiet_1_1.json",
+    "sha256": "623fb25b32bd7daa0d0bcf7691f1865f5199856a059a0866203fc337b3881f6a",
+    "bytes": 761
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/quiet_1_2.json",
+    "sha256": "f57cf24898a8f7b499b369282b170574f82f4e5805b81408df5a4fddb3814387",
+    "bytes": 437
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/quiet_2_1.json",
+    "sha256": "8eccdba7ebac774aad4e3443c0f61cdc8dd1bdf3e465e130bb7b18029749760c",
+    "bytes": 437
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/quiet_3_1.json",
+    "sha256": "47af4f66194027ed39f7488e4855b70e151d4f259802594a257504a7e577a1da",
+    "bytes": 437
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/exec_log/row_executor_20261113T185200Z_7_001.jsonl",
+    "sha256": "07ad74cf1f92ab51905a412f8741235de39d3bb9c6c2ed7b96aab08b116c1c30",
+    "bytes": 19181381
+   },
+   {
+    "path": "<runs>/gsim_stage6_20261114/sessions/s6f_simauto/clock_offset.json",
+    "sha256": "72ff37bfef07e630612cf609c01f12dda5cbc4c4edb775206cd224f016c215fa",
+    "bytes": 1040
+   }
+  ]
  }
 }
