@@ -42,3 +42,16 @@ tools/drive_response/config.json
 tools/out/
 # the dashboard writes its runtime files under its own folder (live map, settings): never tracked
 dashboard/runtime/
+# Work files: logs, temporary files, local environments, caches and build folders stay outside the
+# repository (docs/DOCS_POLICY_KO.md 4)
+*.log
+*.tmp
+_build/
+node_modules/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
