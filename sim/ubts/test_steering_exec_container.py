@@ -232,6 +232,74 @@ class ClockAndLoopTest(unittest.TestCase):
         self.assertEqual(stepped.counts, {'x': 1})                       # other attributes are the loop's
 
 
+class InputMonitorTest(unittest.TestCase):
+    """SpinMonitor (G-SIM stage 5 diagnostics of the executor's input thread) and the run loop's poll gaps."""
+
+    def test_gap_event_with_what_the_other_threads_saw(self):
+        now = [100.]
+        mon = EM.SpinMonitor(mono=lambda: now[0], gap_event_s=.15)
+        mon.data(0)
+        now[0] = 100.01
+        mon.data(2)
+        for k in range(6):                       # the input thread's timer runs while no data comes
+            now[0] = 100.05 + .05 * k
+            mon.timer()
+        mon.probe(.002)
+        mon.poll(.004)
+        now[0] = 100.36
+        mon.data(0)                              # data again after 0.35 s
+        diag, events = mon.take()
+        self.assertEqual(diag['cb'], [2, 0, 1, 0])
+        self.assertEqual((diag['gap'], diag['cgap'], diag['tm'], diag['tgap']), (350., 360., 6, 50.))
+        self.assertEqual((diag['gil'], diag['poll']), (2., 4.))
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0], dict(gap_ms=350., first='clock', timer_callbacks=6, probe_max_ms=2., poll_max_ms=4.,
+                                         wm=100.36))
+        diag, events = mon.take()                # per tick: reset
+        self.assertEqual((diag['cb'], diag['gap'], diag['tm'], events), ([0, 0, 0, 0], 0., 0, []))
+        self.assertEqual(mon.summary(), dict(events=1, data=3, timer=6, gap_event_ms=150.))
+
+    def test_short_gaps_make_no_event_and_events_are_bounded(self):
+        now = [0.]
+        mon = EM.SpinMonitor(mono=lambda: now[0])
+        for k in range(200):
+            now[0] = k * .2                       # every gap 0.2 s > 0.15 s
+            mon.data(1)
+        self.assertEqual(len(mon.take()[1]), EM.SpinMonitor.MAX_EVENTS)
+        now[0] = 39.9
+        mon.data(1)
+        now[0] = 40.
+        mon.data(1)
+        self.assertEqual(mon.take()[1], [])
+
+    def test_tick_diag_logs_the_events(self):
+        now = [0.]
+        mon = EM.SpinMonitor(mono=lambda: now[0])
+        mon.data(0)
+        now[0] = .5
+        mon.data(1)
+        logged = []
+        loop = types.SimpleNamespace(_event=lambda name, **f: logged.append((name, f)))
+        diag = EM.tick_diag(loop, mon)()
+        self.assertEqual(diag['gap'], 500.)
+        self.assertEqual([n for n, _ in logged], ['input_gap'])
+        self.assertEqual(logged[0][1]['first'], 'scan')
+
+    def test_run_loop_reports_poll_gaps(self):
+        clock = EM.SimClock()
+        clock.update(1, 0)
+        mon = EM.SpinMonitor()
+        stop = threading.Event()
+
+        class Loop:
+            counts = {}
+
+            def step(self_inner):
+                stop.set()
+        EM.run_loop_sim(Loop(), stop, clock, poll_s=.002, deadline=time.monotonic() + 2., monitor=mon)
+        self.assertGreater(mon.max_poll, 0.)
+
+
 class HooksTest(unittest.TestCase):
     def make(self, state_name='PAUSED'):
         self.kills = []

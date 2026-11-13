@@ -134,6 +134,7 @@ MOTION_LIMIT = 10.            # op motion sanity range of the bridge (|yaw_rate_
 STEER_REFRESH_FRACTION = .5   # front_steer: a fresh bridge status before the tick when the steering status is older than
                               # this fraction of steer_status_max_age_s (_refresh_steering)
 BRIDGE_OPERATOR_STOP = 'operator_stop'   # the bridge's control reason after any op stop (steer_bridge_core._step)
+SLOW_STEP_MS = 30.            # diagnostics (2026-11-14): a step that took this long logs its phase times ('ph' of the tick)
 
 
 # --- source integrity -------------------------------------------------------------------------------
@@ -828,6 +829,8 @@ class ExecutorLoop:
                            watchdog_drives=0, bridge_errors=0, sends=0, emergency_stops=0, requests=0,
                            missed_ticks=0, loop_exceptions=0, runner_resets=0, hold_edges_split=0)
         self._last_scan_info = {}
+        self._phases = None                     # diagnostics: phase times [ms] of this step (logged when slow)
+        self.tick_extra = None                  # diagnostics: callable -> dict logged as the tick's 'diag' (SIM container)
         self._calib_logged = (None, 0, False)   # (run id, results logged, result event logged)
         self._calib_options = (None, None)      # (config digest, calib_runs.plan_options)
         self._run_end_logged = None             # run id of the last 'run_end' event (R6)
@@ -1003,6 +1006,7 @@ class ExecutorLoop:
         now = self.clock() if live else float(now)
         step_start = now
         c0 = time.perf_counter()
+        marks = [c0]                    # diagnostics: phase ends (perf_counter), logged as 'ph' when the step is slow
         self.tick_count += 1
         self._process_requests(now)
         if self._stop_event.is_set():
@@ -1010,7 +1014,9 @@ class ExecutorLoop:
         end, self._end_request = self._end_request, None
         if end and self.runner.state in (PAUSED, ACTIVE):
             self.runner.end_run(now, end)
+        marks.append(time.perf_counter())
         scan_info = self._feed_inputs()
+        marks.append(time.perf_counter())
         if live:
             now = max(now, self.clock())
         pause, self._pause_request = self._pause_request, None
@@ -1045,9 +1051,11 @@ class ExecutorLoop:
                 # rising hold edge from the old button that was already held.
                 self.hold.release()
                 self.runner.pause(now, 'native_navigation_' + self._native_navigation['reason'].lower())
+        marks.append(time.perf_counter())
         if self.steering:
             self._refresh_steering(step_start, now)
             self._feed_steering()
+        marks.append(time.perf_counter())
         hold = self._hold_signal(now)
         decision = self.runner.tick(now, hold)
         self._last_decision = decision
@@ -1055,8 +1063,12 @@ class ExecutorLoop:
         self._calib_events()
         if self.shadow_auto:
             self._shadow_auto_restart(now)
+        marks.append(time.perf_counter())
         sent = self._output(now, decision)
-        loop_ms = (time.perf_counter() - c0) * 1e3
+        marks.append(time.perf_counter())
+        loop_ms = (marks[-1] - c0) * 1e3
+        # requests+stop, inputs, navigation gate, steering refresh, runner tick, output (bridge I/O)
+        self._phases = [round((b - a) * 1e3, 2) for a, b in zip(marks, marks[1:])] if loop_ms >= SLOW_STEP_MS else None
         self._publish(now, decision, hold, sent, scan_info, loop_ms)
         self.loop_done = self.clock()
         return decision
@@ -1278,12 +1290,14 @@ class ExecutorLoop:
             if not future.set_running_or_notify_cancel():
                 continue
             self.counts['requests'] += 1
+            r0 = time.perf_counter()
             try:
                 handler = getattr(self, '_req_' + kind, None)
                 result = handler(now, **kwargs) if handler else dict(ok=False, error='unknown_request')
             except Exception as exc:          # a request must never kill the loop
                 result = dict(ok=False, error='request_failed:%s' % exc)
-            self._event('request', kind=kind, args=kwargs, result=result)
+            self._event('request', kind=kind, args=kwargs, result=result,
+                        ms=round((time.perf_counter() - r0) * 1e3, 2))
             future.set_result(result)
 
     def _start_blocked(self):
@@ -1868,6 +1882,13 @@ class ExecutorLoop:
                       loop_ms=round(loop_ms, 2), bridge=None if bridge is None else bridge['state'])
         record['native_navigation'] = dict(self._native_navigation,
             required=self.config.require_native_navigation)
+        if self._phases is not None:
+            record['ph'] = self._phases                         # diagnostics: a slow step's phase times [ms]
+        if self.tick_extra is not None:                         # diagnostics of the container (SIM: input thread)
+            try:
+                record['diag'] = self.tick_extra()
+            except Exception as exc:                            # diagnostics never stop a tick
+                record['diag'] = dict(error=repr(exc)[:120])
         if 'backstop' in s:
             record['backstop'] = s['backstop']
         if 'calib_tick' in s and self.runner.run_kind in CALIB_KINDS:
