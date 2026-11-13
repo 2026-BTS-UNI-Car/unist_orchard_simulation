@@ -24,7 +24,9 @@ Threads
   main      ExecutorLoop.step() at 20 Hz (absolute schedule, missed ticks are skipped, never caught up):
             operator requests -> STOP -> stall pause -> all queued IMU (in order) -> every queued scan is
             stamped (ScanStamper) but only the NEWEST one is processed (older ones are dropped and counted)
-            -> Runner.tick(now, hold) -> bridge output (MOTOR) -> status + one JSONL line.
+            -> front_steer: a fresh steering status when the last one is older than half of steer_status_max_age_s
+            (a long scan processing delayed this tick; one bridge status request, never a drive) -> Runner.tick(now,
+            hold) -> bridge output (MOTOR) -> status + one JSONL line.
   watchdog  if the main loop has not completed an iteration for stall_guard_s (0.35 s): one drive(0,0)
             through the same BridgeClient (its lock serialises seq/ticket; MOTOR only) and a pause request
             ('stall_guard', the Runner also detects the gap itself). Motion restarts only on a new hold press.
@@ -128,6 +130,8 @@ STEER_EMERGENCY_REASONS = tuple(r for r in C.STEER_STOP_REASONS if r != 'steerin
     C.STEER_LINK_STOP_REASONS
 STOP_WATCH_S = 1.             # front_steer: how long the STOP confirmation of an op stop is watched (bridge 400 ms grid)
 MOTION_LIMIT = 10.            # op motion sanity range of the bridge (|yaw_rate_rad_s|, |speed_m_s|)
+STEER_REFRESH_FRACTION = .5   # front_steer: a fresh bridge status before the tick when the steering status is older than
+                              # this fraction of steer_status_max_age_s (_refresh_steering)
 BRIDGE_OPERATOR_STOP = 'operator_stop'   # the bridge's control reason after any op stop (steer_bridge_core._step)
 
 
@@ -1040,6 +1044,7 @@ class ExecutorLoop:
                 self.hold.release()
                 self.runner.pause(now, 'native_navigation_' + self._native_navigation['reason'].lower())
         if self.steering:
+            self._refresh_steering(now)
             self._feed_steering()
         hold = self._hold_signal(now)
         decision = self.runner.tick(now, hold)
@@ -1520,6 +1525,31 @@ class ExecutorLoop:
         if self.steering:
             return 0, self._last_sent[1] if isinstance(self._last_sent, tuple) and len(self._last_sent) == 2 else None
         return 0, 0
+
+    def _refresh_steering(self, now):
+        """front_steer MOTOR, run ACTIVE and armed: when the last steering status (the reply of the last drive) is older
+        than half of steer_status_max_age_s at this tick, read one fresh bridge status first. The status normally comes
+        with every drive reply (send_hz, 0.1 s); a long scan processing in this step (dense orchard scans: corridor
+        update or re-acquisition) delays the tick, so the Runner would see a status older than its 0.3 s limit although
+        the bridge and the MCU report on time (G-SIM stage 3 F: three runs ended steering_feedback_stale at 0.308-0.367
+        s). The fresh status carries the MCU line age (age_ms): a late or lost MCU status line, a stalled or dead bridge
+        (no answer: nothing is fed) still give steering_feedback_stale exactly as before. The executor's own lateness is
+        the stall guard's (stall_guard_s 0.35 s), unchanged. A status request takes no lease, sends no motion and never
+        latches. Never needed at the fast SIM's tick ages (max 0.12 s): its runs are unchanged."""
+        client = self.bridge
+        if (not self.motor_allowed or client is None or client.state != ARMED or self.runner.state != ACTIVE
+                or not hasattr(client, 'fresh_status')):
+            return False
+        monitor = getattr(self.runner, 'steer_monitor', None)
+        if monitor is None or monitor.age(now) <= self.config.steer_status_max_age_s * STEER_REFRESH_FRACTION:
+            return False
+        with self._send_lock:
+            status = client.fresh_status()
+        self.counts['steer_refreshes'] = self.counts.get('steer_refreshes', 0) + 1
+        if status is None or status.get('ok') is not True or not isinstance(status.get('steering'), dict):
+            self.counts['steer_refresh_failures'] = self.counts.get('steer_refresh_failures', 0) + 1
+            return False
+        return True
 
     def _feed_steering(self):
         """front_steer: the steering status of the last bridge reply to the Runner (once per reply), and whether it is
