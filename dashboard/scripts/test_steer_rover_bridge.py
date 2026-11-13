@@ -389,6 +389,44 @@ class RunnerTest(unittest.TestCase):
             finally:
                 rig.runner.shutdown()
 
+    def test_sim_clock_loop_sleeps_until_clock_or_request(self):
+        # G-SIM stage 7: with a ROS side that can wait (wait_for_input, wake), the SIM clock loop sleeps in the ROS
+        # wait instead of polling every 2 ms; every submitted request wakes it (a STOP is stepped at once).
+        with tempfile.TemporaryDirectory() as tmp:
+            rig = RunnerRig(tmp, status_file=False)
+            ros = FakeRos()
+            waits, wakes = [], []
+            ros.wait_for_input = lambda timeout: waits.append(timeout)
+            ros.wake = lambda: wakes.append(1)
+            config = dict(rig.config, clock='sim', max_runtime_s=0.2)
+            runner = wrapper.BridgeRunner(config, transport=rig.transport, clock=rig.clock, ros=ros,
+                                          wall_clock=lambda: 2.0e9)
+            try:
+                rig.clock.t = 1.0
+                runner.run(threading.Event())
+                self.assertTrue(waits)
+                self.assertTrue(all(w == wrapper.SIM_WAIT_MAX_S for w in waits))
+                self.assertEqual(runner.grid['polls'], len(waits))
+                self.assertEqual(runner.core.request({'op': 'stop', 'owner': 't'}),
+                                 {'ok': True, 'state': 'stop_requested'})
+                self.assertEqual(len(wakes), 1)                          # the submit woke the loop
+                self.assertTrue(runner.stop_pending())
+                self.assertTrue(runner.sim_grid_once())                  # the STOP step at once, same SIM time
+                self.assertEqual(runner.grid['urgent_steps'], 1)
+                self.assertFalse(runner.stop_pending())
+            finally:
+                runner.shutdown()
+        with tempfile.TemporaryDirectory() as tmp:                       # wall clock: no wake wrapper
+            rig = RunnerRig(tmp, status_file=False)
+            ros = FakeRos()
+            ros.wake = lambda: self.fail('wall clock mode must not wake')
+            runner = wrapper.BridgeRunner(rig.config, transport=rig.transport, clock=rig.clock, ros=ros,
+                                          wall_clock=lambda: 2.0e9)
+            try:
+                runner.core.request({'op': 'stop', 'owner': 't'})
+            finally:
+                runner.shutdown()
+
     def test_wall_loop_logs_ticks_while_a_stop_is_pending(self):
         with tempfile.TemporaryDirectory() as tmp:
             log = os.path.join(tmp, 'events.jsonl')
