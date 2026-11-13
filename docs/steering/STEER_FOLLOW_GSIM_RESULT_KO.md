@@ -80,6 +80,11 @@ python -I tools/steer_sim/capture_media.py clip --frames <기록>/media/cam_foll
     --out docs/steering/figures/steer_follow_gsim/gsim_follow_camera_w1.mp4 --first 280 --last 900 --every 2 --max-mb 5
 ```
 
+![nominal_3 열 끝까지, 10배속](../assets/video/row_follow_camera_10x.gif)
+
+[SIM · 자리값] 같은 `nominal_3`을 출발부터 열 끝 정지까지(약 99 s) 10배속으로 줄인 차량 카메라(480 폭). 2026-11-14 까지 README
+첫 화면 그림이었다.
+
 ![열 추종 run 중의 SIM 대시보드](figures/steer_follow_gsim/gsim_follow_dashboard_w1.png)
 
 그림 3. 열 추종 run 중의 SIM 대시보드 rover-control 화면(자리값 기반 SIM 결과). 5절의 로컬 보기 스택(프로젝트 `ubts-steer`, 실행기 포함)에서 `exec_run start`로 시작한 run의 55 s쯤이다. 왼쪽 LiDAR 패널에 양쪽 나무 열이, 가운데에 차량 카메라가 보인다. 이 화면은 실행기 상태를 보여 주지 않는다(조향 화면 연결은 아직 없다).

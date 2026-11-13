@@ -42,6 +42,7 @@ FINAL_N3 = 'gsim_final_20261113/sessions/s2a_nominal_3/media/cam_follow/frames'
 FINAL_UI = 'gsim_final_20261113/sessions/s2b_ui2/browser/'
 FINAL3_N3 = 'gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames'
 FINAL3_UI = 'gsim_final_20261113/sessions/s3b_ui2/browser/'
+FINAL4_F3 = 'gsim_final_20261113/sessions/s4f_simauto/media/cam_run3/frames'
 
 RECIPES = [
     dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png', source=W0 + 'straight_model_oblique.png',
@@ -80,7 +81,7 @@ RECIPES = [
          source='gsim_final_20261113/media/lidar_scan_w1_start.png',
          made_by='G-SIM 스택(w1_force, 이미지 wf4c, 세션 media_w1)의 /scan 한 장을 차 기준 좌표로 그린 것(matplotlib)',
          caption='출발점(통로 앞)에서 받은 LiDAR /scan 한 장. 앞쪽 3 m부터 두 줄의 줄기가 보인다'),
-    dict(name='row_follow_camera_10x', out='docs/assets/video/row_follow_camera_10x.gif', op='gif', role='readme_hero',
+    dict(name='row_follow_camera_10x', out='docs/assets/video/row_follow_camera_10x.gif', op='gif',
          source='steer_gsim_follow_20261112/sessions/it1_nominal_3/media/cam_follow/frames',
          frames=(290, 3251, 30), frame_s=0.1, width=480, colors=64,
          label='G-SIM 열 추종 · W1 과수원 · 자리값 프로필 · 10배속',
@@ -127,6 +128,20 @@ RECIPES = [
          made_by='SIM 대시보드(대시보드 저장소 a92cfec 사본 + SIM 확장, 이미지 wf6, SIM 시계)의 지도 화면을 Chrome(playwright)으로 '
                  '연 것, 세션 s3b_ui2(3단계 B 시도 2), 그리기 시작 뒤 20 s',
          caption='SIM 대시보드 지도 화면에 실시간 격자가 쌓인 모습(대시보드 자신의 지도, SIM LiDAR 원본 스캔과 IMU 자세로 만든다)'),
+    dict(name='row_follow_wf7_user_10x', out='docs/assets/video/row_follow_wf7_user_10x.gif', op='gif', role='readme_hero',
+         source=FINAL4_F3, frames=(30, 2991, 30), frame_s=0.1, width=480, colors=64,
+         label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf7 · SIM 시계 · 10배속',
+         made_by='최종 확인 4단계 F(STEER_FOLLOW_GSIM_FINAL_KO.md 13절) run 3(사용자 명령 sim_stack.py start --no-browser 뒤 '
+                 'sim_auto.py start, ROW_END 33.3 m)을 tools/steer_sim/capture_media.py camera로 받은 프레임(29.98 fps). '
+                 '출발 직전부터 열 끝 정지 뒤까지 1 s마다 한 장(reset 앞에서 끊음)',
+         caption='사용자 로컬 명령 그대로(sim_stack.py start, sim_auto.py start), 이미지 wf7, SIM 시계로 G-SIM 과수원(W1) 통로 '
+                 '하나를 열 끝까지 달린 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기가 /scan과 raw IMU만 보고 조향과 '
+                 '구동을 정하고 열 끝에서 섰다'),
+    dict(name='row_follow_wf7_user_camera_10x', out='docs/assets/video/row_follow_wf7_user_camera_10x.mp4', op='mp4',
+         source=FINAL4_F3, frames=(30, 2991, 15), frame_s=0.05, width=480, crf=32,
+         label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf7 · SIM 시계 · 10배속',
+         made_by='같은 F run 3의 프레임, 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장',
+         caption='같은 run(사용자 로컬 명령, wf7, SIM 시계)의 차량 카메라를 480 폭 저화질 H.264로 줄인 것(약 99 s를 10배속)'),
 ]
 
 

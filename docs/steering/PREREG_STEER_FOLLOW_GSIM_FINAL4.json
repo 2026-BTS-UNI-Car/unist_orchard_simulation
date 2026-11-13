@@ -1,0 +1,111 @@
+{
+ "schema": "ubts.steer_sim.gsim_final4.v1.prereg",
+ "prereg_id": "steer_follow_gsim_final4_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "based_on": "steer_follow_gsim_final3_v1",
+ "common": {
+  "image": "ubts-steer-sim:wf7",
+  "clock": "sim",
+  "settle_after_healthy_s": 120.0,
+  "validity": "SIM clock mode: the times of the executor, the bridge wrapper and the checks are SIM times, so an RTF below 1 does not make a run invalid (acceptance amendment 61). The RTF of every judged step is reported. A judged step with a 5 s window RTF below 0.5 is a host failure: recorded, not judged, and run once more on a fresh stack; twice is reported as not judged",
+  "host": "the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded before each session (waiting at most 60 s); the stall probe is not run"
+ },
+ "rtf_host_failure": 0.5,
+ "operator_timeout_s": 1.0,
+ "heartbeat_gap_max_s": 0.5,
+ "link_check_s": 2.0,
+ "start_yaw_offset_deg_s": 2.0,
+ "parts": {
+  "A": {
+   "check": "steering.exec_checks follow --run <name> --out /runs/follow (one_press: Start, Arm, heartbeats, one go)",
+   "scene": "w1_force",
+   "controller": {
+    "kind": "row_follow"
+   },
+   "runs": [
+    {
+     "name": "nominal_1",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_2",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_3",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "lateral_p040",
+     "expect": "row_end",
+     "start": "set_pose",
+     "lateral_offset_m": 0.4,
+     "settle_m": 6.0
+    }
+   ],
+   "criteria": {
+    "lateral_rmse_m": 0.2,
+    "lateral_p95_m": 0.35,
+    "lateral_max_m": 0.5,
+    "heading_rmse_deg": 5.0,
+    "heading_max_deg": 15.0,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "min_clearance_m": 0.0,
+    "after_terminal_window_s": 3.0,
+    "rest_speed_m_s": 0.02
+   },
+   "settle_m": 6.0,
+   "fresh_stack_per_run": true,
+   "clock": "sim",
+   "passed": "every judged run passes every criterion of steer_follow_gsim_v1 and at least three of four slots are judged"
+  },
+  "F": {
+   "check": "the user's local commands as they are (the local tool folder tools/local_env outside the repository): python -B sim_stack.py start --no-browser (image wf7, SIM clock by default), 150 s, then 3 times: python -B sim_auto.py start; python -B sim_auto.py reset; 20 s",
+   "criteria": "each run ends at the row end: the executor's run_end of that run has end_reason row_end (the screen line of sim_auto shows the end); distance and duration are reported",
+   "passed": "3 of 3 runs end at the row end",
+   "camera": "camera frames of run 3 (tools/steer_sim/capture_media.py camera on the user stack)"
+  },
+  "B": {
+   "check": "the SIM dashboard in Chrome, phases auto, stop, restart of the stage 3 script (with amendment 1: browser request times for the heartbeats, None-only missing speeds)",
+   "items": [
+    {
+     "name": "prepare",
+     "rule": "the auto panel offers 준비; pressing it (and Arm if offered) reaches 자율 주행 시작 within 16 s"
+    },
+    {
+     "name": "one_press_running",
+     "rule": "one press -> 주행 중 within 10 s and the vehicle moves (emulator speed > 0.05 m/s)"
+    },
+    {
+     "name": "heartbeat",
+     "rule": "largest gap of the last 20 heartbeats while visible < 0.50 s"
+    },
+    {
+     "name": "tab_hidden_link_lost",
+     "rule": "tab hidden -> run_state paused, stop_reason OPERATOR_LINK_LOST 2.0 s after hiding, no heartbeat after hiding, the vehicle below 0.05 m/s 4 s after hiding, visible again -> 다시 출발 and still paused"
+    },
+    {
+     "name": "screen_stop_while_running",
+     "rule": "a new run, one press, about 6 s of driving (> 0.05 m/s), the status-bar STOP -> stop_detail operator_stop (OPERATOR_OR_BACKSTOP), below 0.05 m/s 3 s later and 6 s later"
+    },
+    {
+     "name": "restart_after_stop",
+     "rule": "after that STOP: latch acknowledged, a new run prepared, one press -> the vehicle drives again (> 0.05 m/s within 6 s), the STOP stops it again (operator_stop, below 0.05 m/s 3 s later)"
+    }
+   ],
+   "passed": "every item passes"
+  },
+  "C": {
+   "check": "one fresh stack, w1_force, SIM clock: C0 steering.exec_checks safety --only bridge_stall --still-speed 0.05 (no pose reset: the vehicle at the scene spawn), then C1, C2, C3 the same with --reset-pose",
+   "criteria": "bridge_stall of A17 as coded in exec_checks (with acceptance amendments 60 and 62)",
+   "passed": "C0-C3 all pass",
+   "cause_rule": "recorded with each run: the executor yaw rate (estimator gyro, tick field yaw) in the first second of ACTIVE while the vehicle starts from rest. If every failing run has a start offset above 2.0 deg/s and every run without such an offset passes, the stage 3 failure is put on the start offset (sensor side, reported with the pose reset or not); a failing run without an offset is put on the behaviour under test"
+  }
+ },
+ "repeat": "a failing part may be run once more after a fix on the SIM side, written first as an amendment (section 8); both attempts are reported",
+ "amendments": []
+}

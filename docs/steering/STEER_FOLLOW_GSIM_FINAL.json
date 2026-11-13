@@ -1987,5 +1987,766 @@
    "prereg": "bf1b9ca",
    "amendment_1": "06607ca"
   }
+ },
+ "stage4": {
+  "prereg_id": "steer_follow_gsim_final4_v1",
+  "registration": {
+   "prereg": "9b68f00"
+  },
+  "clock": "sim",
+  "image": {
+   "tag": "ubts-steer-sim:wf7",
+   "id": "sha256:5cce2ea4dfbe30299dfe6877ebb8c9abaf2eee82fe9ed6eb9ef86154c514424f",
+   "source_commit": "9b68f00",
+   "manifest_files": 670,
+   "dashboard_copy": "a92cfec24b64"
+  },
+  "parts": {
+   "A": [
+    {
+     "slot": "nominal_1",
+     "session": "s4a_nominal_1",
+     "executor_log": "row_executor_20261113T140852Z_7_001.jsonl",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.7739,
+     "rtf_windows": 20,
+     "end_reason": "row_end",
+     "end_note": null,
+     "pauses": [],
+     "own_run_end": [
+      {
+       "t": 230.475,
+       "end_reason": "row_end",
+       "end_note": null
+      }
+     ],
+     "metrics": {
+      "lateral_rmse_m": 0.0281,
+      "lateral_p95_m": 0.0503,
+      "lateral_max_m": 0.0625,
+      "heading_rmse_deg": 0.61,
+      "heading_max_deg": 1.539,
+      "speed_mean_m_s": 0.354,
+      "speed_max_m_s": 0.441,
+      "row_end_error_m": 0.443,
+      "min_clearance_m": 1.4053,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.46,
+      "duration_s": 94.56
+     },
+     "executor_loop_ms": {
+      "p50": 16.29,
+      "p99": 38.64,
+      "max": 176.12
+     },
+     "missed_ticks": 1,
+     "active_tick_gaps_over_0_12_s": [],
+     "stall_events": [],
+     "check_clock": {
+      "clock_gaps_over_100ms": 0,
+      "clock_wall_gap_max_us_since_start": 333939,
+      "clock_messages_missing": 0
+     }
+    },
+    {
+     "slot": "nominal_2",
+     "session": "s4a_nominal_2",
+     "executor_log": "row_executor_20261113T141526Z_7_001.jsonl",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "row end stop position e"
+     ],
+     "rtf_min": 1.0355,
+     "rtf_windows": 1,
+     "end_reason": "steering_feedback_stale",
+     "end_note": null,
+     "pauses": [],
+     "own_run_end": [
+      {
+       "t": 140.1583,
+       "end_reason": "steering_feedback_stale",
+       "end_note": null
+      }
+     ],
+     "metrics": {
+      "lateral_rmse_m": 0.01,
+      "lateral_p95_m": 0.01,
+      "lateral_max_m": 0.01,
+      "heading_rmse_deg": 0.116,
+      "heading_max_deg": 0.12,
+      "speed_mean_m_s": 0.028,
+      "speed_max_m_s": 0.064,
+      "row_end_error_m": -33.029,
+      "min_clearance_m": 2.7812,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 0.01,
+      "duration_s": 0.42
+     },
+     "executor_loop_ms": {
+      "p50": 18.49,
+      "p99": 19.58,
+      "max": 19.79
+     },
+     "missed_ticks": 5,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 139.8083,
+       "gap_s": 0.35,
+       "next_state": "ENDED",
+       "steer_age_before": 0.1,
+       "steer_age_after": 0.35
+      }
+     ],
+     "stall_events": [],
+     "check_clock": {
+      "clock_gaps_over_100ms": 0,
+      "clock_wall_gap_max_us_since_start": 46176,
+      "clock_messages_missing": 0
+     },
+     "heartbeats_around_end": {
+      "n": 16,
+      "min_s": 0.1001,
+      "max_s": 0.1035
+     }
+    },
+    {
+     "slot": "nominal_3",
+     "session": "s4a_nominal_3",
+     "executor_log": "row_executor_20261113T141912Z_7_001.jsonl",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "row end stop position e"
+     ],
+     "rtf_min": 1.0157,
+     "rtf_windows": 1,
+     "end_reason": "link_ttl_expired",
+     "end_note": "bridge_error:drive_refused:control_not_owned",
+     "pauses": [],
+     "own_run_end": [
+      {
+       "t": 140.75,
+       "end_reason": "link_ttl_expired",
+       "end_note": "bridge_error:drive_refused:control_not_owned"
+      }
+     ],
+     "metrics": {
+      "lateral_rmse_m": 0.01,
+      "lateral_p95_m": 0.01,
+      "lateral_max_m": 0.01,
+      "heading_rmse_deg": 0.118,
+      "heading_max_deg": 0.126,
+      "speed_mean_m_s": 0.045,
+      "speed_max_m_s": 0.088,
+      "row_end_error_m": -33.029,
+      "min_clearance_m": 2.7631,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 0.03,
+      "duration_s": 0.64
+     },
+     "executor_loop_ms": {
+      "p50": 17.96,
+      "p99": 19.99,
+      "max": 24.11
+     },
+     "missed_ticks": 9,
+     "active_tick_gaps_over_0_12_s": [
+      {
+       "after_t": 140.3583,
+       "gap_s": 0.1584,
+       "next_state": "ACTIVE",
+       "steer_age_before": 0.05,
+       "steer_age_after": 0.209
+      },
+      {
+       "after_t": 140.5167,
+       "gap_s": 0.2333,
+       "next_state": "ENDED",
+       "steer_age_before": 0.209,
+       "steer_age_after": 0.033
+      }
+     ],
+     "stall_events": [
+      {
+       "event": "bridge_error",
+       "t": 140.7417,
+       "loop_gap_s": null,
+       "where": "drive",
+       "reason": "drive_refused:control_not_owned"
+      },
+      {
+       "event": "bridge_error",
+       "t": 140.7417,
+       "loop_gap_s": null,
+       "where": "watchdog",
+       "reason": "not_armed:LATCHED"
+      },
+      {
+       "event": "watchdog_stall",
+       "t": 140.7417,
+       "loop_gap_s": 0.375,
+       "where": null,
+       "reason": null
+      }
+     ],
+     "check_clock": {
+      "clock_gaps_over_100ms": 0,
+      "clock_wall_gap_max_us_since_start": 37993,
+      "clock_messages_missing": 0
+     },
+     "heartbeats_around_end": {
+      "n": 17,
+      "min_s": 0.1014,
+      "max_s": 0.1026
+     }
+    },
+    {
+     "slot": "lateral_p040",
+     "session": "s4a_lateral_p040",
+     "executor_log": "row_executor_20261113T142709Z_7_001.jsonl",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.9822,
+     "rtf_windows": 21,
+     "end_reason": "row_end",
+     "end_note": null,
+     "pauses": [],
+     "own_run_end": [
+      {
+       "t": 233.4667,
+       "end_reason": "row_end",
+       "end_note": null
+      }
+     ],
+     "metrics": {
+      "lateral_rmse_m": 0.0374,
+      "lateral_p95_m": 0.062,
+      "lateral_max_m": 0.4017,
+      "heading_rmse_deg": 1.101,
+      "heading_max_deg": 10.961,
+      "speed_mean_m_s": 0.345,
+      "speed_max_m_s": 0.441,
+      "row_end_error_m": 0.463,
+      "min_clearance_m": 1.407,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 32.92,
+      "duration_s": 95.51
+     },
+     "executor_loop_ms": {
+      "p50": 17.85,
+      "p99": 22.29,
+      "max": 46.48
+     },
+     "missed_ticks": 2,
+     "active_tick_gaps_over_0_12_s": [],
+     "stall_events": [],
+     "check_clock": {
+      "clock_gaps_over_100ms": 0,
+      "clock_wall_gap_max_us_since_start": 338668,
+      "clock_messages_missing": 0
+     }
+    }
+   ],
+   "C": {
+    "steps": [
+     {
+      "step": "c0",
+      "reset_pose": false,
+      "passed": true,
+      "failed": [],
+      "criteria": {
+       "ttl_drive_zero_tick_minus_expected": 0,
+       "watchdog_tick_minus_last_input": 501,
+       "watchdog_disarmed": 125096,
+       "no_automatic_restart": 0,
+       "executor_end_reason": "bridge_error"
+      },
+      "end_reason": "bridge_error",
+      "end_note": "drive_failed:timeout",
+      "run_id": 1,
+      "executor_end": "bridge_error",
+      "start_yaw_deg_s": 0.053,
+      "host_latches": []
+     },
+     {
+      "step": "c1",
+      "reset_pose": true,
+      "passed": true,
+      "failed": [],
+      "criteria": {
+       "ttl_drive_zero_tick_minus_expected": 0,
+       "watchdog_tick_minus_last_input": 501,
+       "watchdog_disarmed": 142710,
+       "no_automatic_restart": 0,
+       "executor_end_reason": "bridge_error"
+      },
+      "end_reason": "bridge_error",
+      "end_note": "drive_failed:timeout",
+      "run_id": 2,
+      "executor_end": "bridge_error",
+      "start_yaw_deg_s": 0.005,
+      "host_latches": []
+     },
+     {
+      "step": "c2",
+      "reset_pose": true,
+      "passed": true,
+      "failed": [],
+      "criteria": {
+       "ttl_drive_zero_tick_minus_expected": 0,
+       "watchdog_tick_minus_last_input": 501,
+       "watchdog_disarmed": 158037,
+       "no_automatic_restart": 0,
+       "executor_end_reason": "link_watchdog"
+      },
+      "end_reason": "link_watchdog",
+      "end_note": "bridge_error:drive_failed:timeout",
+      "run_id": 3,
+      "executor_end": "link_watchdog",
+      "start_yaw_deg_s": 0.01,
+      "host_latches": []
+     },
+     {
+      "step": "c3",
+      "reset_pose": true,
+      "passed": true,
+      "failed": [],
+      "criteria": {
+       "ttl_drive_zero_tick_minus_expected": 0,
+       "watchdog_tick_minus_last_input": 501,
+       "watchdog_disarmed": 175496,
+       "no_automatic_restart": 0,
+       "executor_end_reason": "bridge_error"
+      },
+      "end_reason": "bridge_error",
+      "end_note": "drive_failed:timeout",
+      "run_id": 4,
+      "executor_end": "bridge_error",
+      "start_yaw_deg_s": 0.069,
+      "host_latches": []
+     }
+    ],
+    "cause_rule": {
+     "rule_threshold_deg_s": 2.0,
+     "failing_runs": [],
+     "runs_with_offset": [],
+     "every_failing_run_has_offset": true,
+     "every_run_without_offset_passes": true
+    }
+   },
+   "B": {
+    "items": {
+     "prepare": true,
+     "one_press_running": false,
+     "heartbeat": false,
+     "tab_hidden_link_lost": false,
+     "screen_stop_while_running": true,
+     "restart_after_stop": true
+    },
+    "passed": false,
+    "rtf_min": 0.9982,
+    "checks": [
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": "연결 신호 거절: 실행기가 거절했다"
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": false,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "one press: the car drives while the screen is visible (emulator speed)",
+      "ok": false,
+      "detail": [
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "name": "heartbeat about every 100 ms while visible",
+      "ok": false,
+      "detail": {
+       "count": 0,
+       "max_gap_s": null,
+       "source": "browser request start times",
+       "handler_max_gap_s": 0.363
+      }
+     },
+     {
+      "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+      "ok": false,
+      "detail": {
+       "run_state": "armed",
+       "stop_reason": null,
+       "v_before": 0.0,
+       "v_after": 0.0
+      }
+     },
+     {
+      "name": "no heartbeat after hiding",
+      "ok": true,
+      "detail": 0
+     },
+     {
+      "name": "link lost: the car stops (emulator speed 4 s after hiding)",
+      "ok": true,
+      "detail": {
+       "v_before": 0.0,
+       "v_1_5s": 0.0,
+       "v_4s": 0.0
+      }
+     },
+     {
+      "name": "visible again: '다시 출발', still paused (no automatic restart)",
+      "ok": false,
+      "detail": "armed"
+     },
+     {
+      "name": "Esc STOP: run latched",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_reason": "OPERATOR_OR_BACKSTOP",
+       "stop_detail": "operator_stop"
+      }
+     },
+     {
+      "name": "ack (then end when a run is still open): no open run",
+      "ok": true,
+      "detail": {
+       "run_state": "ended",
+       "end_reason": "operator_stop"
+      }
+     },
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": true,
+      "detail": "주행 중"
+     },
+     {
+      "name": "stop: the car drives before the STOP",
+      "ok": true,
+      "detail": [
+       0.095,
+       0.174,
+       0.192,
+       0.286,
+       0.281
+      ]
+     },
+     {
+      "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_reason": "OPERATOR_OR_BACKSTOP",
+       "stop_detail": "operator_stop"
+      }
+     },
+     {
+      "name": "screen STOP: the car stopped within 3 s",
+      "ok": true,
+      "detail": -0.031201468999938874
+     },
+     {
+      "name": "screen STOP: no restart (3 s later)",
+      "ok": true,
+      "detail": -0.029192512531671926
+     },
+     {
+      "name": "auto: '준비' shown",
+      "ok": true,
+      "detail": "준비 (run 만들기 · Arm)"
+     },
+     {
+      "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+      "ok": true,
+      "detail": "출발 대기"
+     },
+     {
+      "name": "go_ready (heartbeat while armed)",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "name": "one press: running ('주행 중')",
+      "ok": true,
+      "detail": "주행 중"
+     },
+     {
+      "name": "restart after the STOP: one press drives again (emulator speed > 0.05 m/s)",
+      "ok": true,
+      "detail": [
+       0.091,
+       0.136,
+       0.197,
+       0.303,
+       0.329
+      ]
+     },
+     {
+      "name": "restart: the STOP stops it again (operator_stop, vehicle < 0.05 m/s 3 s later)",
+      "ok": true,
+      "detail": {
+       "run_state": "latched",
+       "stop_detail": "operator_stop",
+       "v": -3.656635243224472e-06
+      }
+     },
+     {
+      "name": "no page or console error",
+      "ok": false,
+      "detail": [
+       "Failed to load resource: the server responded with a status of 409 (Conflict)",
+       "Failed to load resource: the server responded with a status of 409 (Conflict)",
+       "Failed to load resource: the server responded with a status of 409 (Conflict)",
+       "Failed to load resource: the server responded with a status of 409 (Conflict)",
+       "Failed to load resource: the server responded with a status of 409 (Conflict)"
+      ]
+     }
+    ],
+    "executor_go_requests": [
+     {
+      "t": 158.5583,
+      "wall": 1794580956.51,
+      "result": {
+       "ok": false,
+       "error": "session_conflict",
+       "blockers": [
+        "session_conflict"
+       ]
+      }
+     },
+     {
+      "t": 191.8083,
+      "wall": 1794580992.433,
+      "result": {
+       "ok": true,
+       "run_id": 2,
+       "go_serial": 1
+      }
+     },
+     {
+      "t": 208.4583,
+      "wall": 1794581011.703,
+      "result": {
+       "ok": true,
+       "run_id": 3,
+       "go_serial": 2
+      }
+     }
+    ],
+    "heartbeat_409": {
+     "n": 270,
+     "first_wall": 1794580954.86,
+     "last_wall": 1794580987.07
+    },
+    "go_409": 1
+   },
+   "F": {
+    "judge": {
+     "runs": 3,
+     "end_reasons": [
+      "row_end",
+      "row_end",
+      "row_end"
+     ],
+     "row_end": 3,
+     "passed": true
+    },
+    "executor_log": "row_executor_20261113T144841Z_8_001.jsonl",
+    "runs": [
+     {
+      "run_id": 1,
+      "end_reason": "row_end",
+      "end_note": null,
+      "distance_m": 33.426,
+      "pauses": 0,
+      "executor_loop_ms": {
+       "p50": 17.62,
+       "p99": 22.32,
+       "max": 35.67
+      },
+      "active_tick_gaps_over_0_12_s": 0,
+      "steer_status_age_max_s": 0.142
+     },
+     {
+      "run_id": 2,
+      "end_reason": "row_end",
+      "end_note": null,
+      "distance_m": 33.325,
+      "pauses": 0,
+      "executor_loop_ms": {
+       "p50": 17.87,
+       "p99": 24.2,
+       "max": 30.94
+      },
+      "active_tick_gaps_over_0_12_s": 0,
+      "steer_status_age_max_s": 0.142
+     },
+     {
+      "run_id": 3,
+      "end_reason": "row_end",
+      "end_note": null,
+      "distance_m": 33.319,
+      "pauses": 0,
+      "executor_loop_ms": {
+       "p50": 17.65,
+       "p99": 21.65,
+       "max": 32.36
+      },
+      "active_tick_gaps_over_0_12_s": 0,
+      "steer_status_age_max_s": 0.142
+     }
+    ],
+    "sim_auto_last_lines": [
+     [
+      "106.9s ended    횡 -3 cm 방향 +0.2° 거리 33.4 m 속도 -0.01 m/s (상한 -, not_running) LiDAR 0.18 s",
+      "끝: 상태 ended, 이유 ROW_END (정상 열 끝). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+     ],
+     [
+      "106.1s ended    횡 +3 cm 방향 -0.3° 거리 33.3 m 속도 -0.01 m/s (상한 -, not_running) LiDAR 0.13 s",
+      "끝: 상태 ended, 이유 ROW_END (정상 열 끝). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+     ],
+     [
+      "105.9s ended    횡 +1 cm 방향 +0.6° 거리 33.3 m 속도 -0.01 m/s (상한 -, not_running) LiDAR 0.15 s",
+      "끝: 상태 ended, 이유 ROW_END (정상 열 끝). 자리값 기반 SIM 결과이며 현장 성능이 아닙니다."
+     ]
+    ],
+    "camera_run3_fps": 29.98
+   }
+  },
+  "records": [
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_nominal_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "4bcebf34ddf67157a1b9c50c7c150ea8da69225f087f6ebfaca5411c0a85291f",
+    "bytes": 27058
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_lateral_p040/exec_log/row_executor_20261113T140852Z_7_001.jsonl",
+    "sha256": "6622e3e324996ee1ad6c22d0892082b919d827f7345334ef35779b67c35a5bc4",
+    "bytes": 5606417
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_nominal_2/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "6da79a157dae0938d55987ca32b0fb8853d82ce657db14b21f5235bf7cef1b51",
+    "bytes": 21136
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_lateral_p040/exec_log/row_executor_20261113T141526Z_7_001.jsonl",
+    "sha256": "9caee4116ee1386eca31ead5b89cf8e68592dd6a51a4d84d57ee78b50db77631",
+    "bytes": 2731416
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_nominal_3/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "b60a74305eae2252e1e467fa6619c01c7d295d25e9909306665ef817dab8e8bd",
+    "bytes": 21346
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_lateral_p040/exec_log/row_executor_20261113T141912Z_7_001.jsonl",
+    "sha256": "70314e5b1ed2684126991dbaef78c95e6b4df5b8ef17cea0bdacd0a1be55571a",
+    "bytes": 8418438
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4a_lateral_p040/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "2e9adb23e36ded7031094b9dd37f3f4049a7880d0598fcbfe9b8f395bdd58cb2",
+    "bytes": 25782
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4b_ui/exec_log/row_executor_20261113T142709Z_7_001.jsonl",
+    "sha256": "18f42b7b2d10a83aac0a8169b8482227edf6ab37b05acdba5b00ec19da90c71d",
+    "bytes": 5797275
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4b_ui/exec_log/row_executor_20261113T143350Z_7_001.jsonl",
+    "sha256": "1c0b4409bfb619c71a39a61e553bb56d7bd4b499a940dc320cae6bcc234c31a3",
+    "bytes": 4180817
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4c_bridge_stall/c0/scripts/bridge_stall.json",
+    "sha256": "ca403ac66f36349ae6875bb06114f3186522e1d4d40af2a782b5c92954e2b030",
+    "bytes": 3245
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4c_bridge_stall/c1/scripts/bridge_stall.json",
+    "sha256": "e4ebc090b6aab4d9de962aca710e850ddeb42bb262b81abe3d28a9134356cada",
+    "bytes": 3390
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4c_bridge_stall/c2/scripts/bridge_stall.json",
+    "sha256": "6ca324de9600514a04b04e135dd5529568d85c1223c17e549a96ad2254aeaf65",
+    "bytes": 3406
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4c_bridge_stall/c3/scripts/bridge_stall.json",
+    "sha256": "cee58b29884fb59dd755f495584ada80755314625ae0b1a148b92923da892dc9",
+    "bytes": 3390
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4b_ui/browser/result.json",
+    "sha256": "98576fb0ee72c6427fbc4983101f7c295455dd84e3029da2a23f9dd7e269c4a2",
+    "bytes": 49952
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4b_ui/rtf/rtf.json",
+    "sha256": "078cb7c07e6fd510f4b260dcd3d6d5ab0a069a1653b9e76377e059254fc0cbd7",
+    "bytes": 7043
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4b_ui/exec_log/row_executor_20261113T143939Z_7_001.jsonl",
+    "sha256": "ebc224083934e9e4a7d4ba9554fd38621265d9043ce006abcf505b2cc7fdb664",
+    "bytes": 4610710
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s4f_simauto/exec_log/row_executor_20261113T144841Z_8_001.jsonl",
+    "sha256": "0f48f8ed61b40fd3cbbe794511a1e5fe4f34ae2be702b8cd775c523aa9960d28",
+    "bytes": 14952479
+   }
+  ],
+  "verdicts": {
+   "A": "fail (2/4: nominal_2 steering_feedback_stale, nominal_3 link_ttl_expired, both after one executor input stall of about 0.35 s SIM right after the start)",
+   "B": "fail (3/6: the first run refused the screen session with session_conflict; screen STOP and the restart after the STOP pass)",
+   "C": "pass (4/4 bridge_stall; start yaw rate 0.005-0.069 deg/s in every run)",
+   "F": "pass (3/3 row_end with the user local commands)",
+   "overall": "not passed"
+  },
+  "causes": {
+   "A": "executor side: the ROS input of the executor container (/clock, scan and IMU on one spin thread) stopped for about 0.35 s and came in at once (the SIM clock of the executor jumped, 5 and 9 ticks skipped); RTF 1.035 and 1.016, the check node got /clock without gaps (wall gap max 46 and 38 ms), host CPU about 30 %, the executor HTTP answered the 100 ms heartbeats at 0.100-0.104 s; DDS delivery or rclpy spin not separated. Not SIM resource or RTF, not the bridge, not the judge",
+   "B": "session_conflict on the first run: another operator session was bound and fresh while run 1 was open (270 heartbeats and one go of the screen refused); whose session is not recorded. Not SIM resource or RTF",
+   "C": "cause rule of the registration: no failing run, every run without a start offset passed; the stage 3 failure is put on the start yaw rate offset, which did not appear in these four runs"
+  },
+  "reruns": "none: section 6 allows one more run only after a SIM side fix written first as an amendment; no SIM side fix was identified (and no RTF below 0.5)"
  }
 }

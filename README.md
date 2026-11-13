@@ -12,10 +12,11 @@ UNIST BTS 유니주행차 팀의 과수원 로버 시뮬레이션 저장소입�
 > Harmonic stack (G-SIM: ROS 2 Jazzy in Docker). Every number here is a placeholder-based SIM result: the steering
 > hardware has not been measured yet, so nothing in this repository is a field result. The documents are in Korean.
 
-![G-SIM 열 추종, 차량 카메라](docs/assets/video/row_follow_camera_10x.gif)
+![G-SIM 열 추종, 사용자 로컬 명령, 차량 카메라](docs/assets/video/row_follow_wf7_user_10x.gif)
 
-[SIM · 자리값] 열 추종 제어기가 Gazebo 과수원(W1) 통로 하나를 처음부터 열 끝까지 달리는 차량 카메라 화면(약 99 s를 10배속).
-실행기는 `/scan`과 raw IMU만 보고 조향과 구동을 정한다. Gazebo 확인 run `nominal_3`([결과](docs/steering/STEER_FOLLOW_GSIM_RESULT_KO.md)).
+[SIM · 자리값] 사용자 로컬 명령 그대로, 이미지 wf7, SIM 시계(`sim_stack.py start` 뒤 `sim_auto.py start`). Gazebo 과수원(W1)
+통로 하나를 처음부터 열 끝까지 달리고 선 차량 카메라 화면(약 99 s를 10배속). 실행기는 `/scan`과 raw IMU만 보고 조향과 구동을
+정한다. 최종 확인 4단계 F run 3([결과](docs/steering/STEER_FOLLOW_GSIM_FINAL_KO.md#135-f-사용자-명령-그대로-3-run)).
 
 > **이 저장소의 모든 수치는 자리값 기반 SIM 결과입니다. 현장 성능이 아닙니다.** 조향 장치(모터, 가변저항, 벨트, 치수)의 값은 아직
 > 자리값이고, 조향 장치를 단 실차로 잰 값은 없습니다. 검증되지 않은 것은 [현재 한계](#현재-한계와-다음-할-일)에 적었습니다.
@@ -138,7 +139,7 @@ flowchart LR
 | 외란 아래 직진 유지(ESP 루프만, 프로필 v0.2) | 조향축 토크 외란 대본 × 5 seed | 불합격 39/40(크기 밖 외란 1회의 첫 결함 이름이 등록 밖) |
 | 프로필 v0.3 자격 | 정상·고장·외란 대본 | 불합격(정지 중 전폭 쓸기의 열 예산 자리값). 기본 프로필은 v0.1 |
 | 넓은 조건 평가(사전등록 `steer_follow_wide_v2`) | 빠른 SIM 큰 조건 행렬 275 run | 불합격. 2차 판정 262/275(1차 251/275). [`STEER_FOLLOW_WIDE_RESULT_KO.md`](docs/steering/STEER_FOLLOW_WIDE_RESULT_KO.md) |
-| Gazebo 최종 확인(최종 이미지 wf5 → wf6, SIM 시계) | W1 과수원, 한 번 눌러 시작, 열 추종 4 run · 대시보드 화면 · A17(G) · PW-08 · 사용자 명령 3 run | 불합격. wf6: 열 추종 3/4, 화면 시작·정지·실시간 지도 합격, A17(G) 24/25, PW-08 합격, 사용자 명령 sim_auto 0/3(조향 상태 나이 한도에 실행기 지연이 걸림) |
+| Gazebo 최종 확인(이미지 wf5 → wf6 → wf7, SIM 시계) | W1 과수원, 한 번 눌러 시작, 열 추종 4 run · 대시보드 화면 · A17(G) · PW-08(wf6) · 사용자 명령 3 run | 불합격. wf7: 사용자 명령 sim_auto 3/3 열 끝(33.3~33.4 m), A17(G) `bridge_stall` 4/4. 등록 열 추종 2/4(두 run 이 출발 직후 실행기 입력 약 0.35 s 끊김으로 섬), 화면 3/6(첫 run 이 `session_conflict`로 거절). wf6: 열 추종 3/4, 화면 합격, A17(G) 24/25, PW-08 합격, sim_auto 0/3 |
 
 ![G-SIM 위에서 본 주행](docs/steering/figures/steer_follow_gsim/gsim_fig01_top_view.png)
 
@@ -254,14 +255,14 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 
 - **현장 검증 0.** 조향 장치를 단 실차로 달린 적이 없다. 실차 주행, Jetson 설치, 펌웨어 쓰기, 장착 보정은 사용자가 현장에서 한다.
 - **실측 프로필 없음.** 조향 모터·가변저항·벨트·치수가 자리값이다. 기본 프로필은 v0.1이고, 다음 판 v0.3은 자격 불합격(열 예산 자리값)이다.
-- **Gazebo 열 추종은 장면 하나(W1, 열 30 m), 최종 확인은 통과가 아니다.** 등록 검사 3/4, 사용자 명령(sim_auto) 0/3 이다. 이 PC 에서 실행기의 스캔 처리가 가끔 100~210 ms 걸리고 SIM 시계 모드의 조향 컨테이너가 CPU 한도에 걸려, 조향 상태 나이 한도 0.3 s 나 LiDAR 신선도 한도에 닿는다. 화면 시작·정지와 대시보드 실시간 지도는 된다.
+- **Gazebo 열 추종은 장면 하나(W1, 열 30 m), 최종 확인은 통과가 아니다.** 이미지 wf7 에서 사용자 명령(sim_auto)은 3/3 열 끝까지 갔지만, 등록 열 추종 검사는 2/4 다. 실패한 두 run 은 출발 직후 실행기 컨테이너의 ROS 입력(SIM 시계 포함)이 약 0.35 s 끊겨 조향 상태 나이 한도 0.3 s 또는 MCU 명령 TTL 에 걸렸다(Gazebo RTF 1.0, 원인 층은 못 가름). 대시보드 화면 확인은 3/6 이다(첫 run 에서 다른 운영자 세션이 묶여 `session_conflict`, 누구 세션인지 기록 없음). 화면 STOP·다시 시작과 대시보드 실시간 지도(wf6)는 된다.
 - 열 끝 정지 위치가 Gazebo에서 +0.45 m로 빠른 SIM(+0.04~+0.09 m)보다 뒤다. 열 끝 기둥까지 열로 보는 추정기 규칙 때문이며, 끝 구조물이
   1.2 m 이상 뒤에 있으면 한도(±1.0 m)를 넘는다(설계 결정 필요).
 - 호스트가 바쁠 때 실행기 틱 누락, 스택을 켠 직후 LiDAR 늦음(`stale_lidar`)이 있다(SIM 실시간성).
 - 식별 복원(A18), 정지 중 전폭 쓸기의 열 예산, Gazebo 관절 추종 4단계(A25)는 불합격으로 남아 있다.
 - 국소 격자(L2)는 10/10 재생에서 빠른 층과 41.3 %만 맞아 융합 이득 0(표시용)이다. 카메라 인식은 자리만 있다.
 
-다음 할 일: 실행기 스캔 처리 지연의 원인 찾기, SIM 스택 CPU 한도와 조향 상태 나이 한도 결정, W1 의 `bridge_stall` 호스트 래치 확인(`STEER_FOLLOW_GSIM_FINAL_KO.md` 12.7) → 조향 장치 사양·사진 반영(`apply_spec.py`, `docs/assets/photos/`) → 프로필 자격
+다음 할 일: 실행기 컨테이너 입력 끊김(약 0.35 s)이 DDS 전달인지 spin 인지 가르기, 화면 검사에 실행기 연결 상태 남기기(`STEER_FOLLOW_GSIM_FINAL_KO.md` 13.6) → 조향 장치 사양·사진 반영(`apply_spec.py`, `docs/assets/photos/`) → 프로필 자격
 다시 → 현장 식별·보정 절차(사용자).
 
 ## 라이선스
