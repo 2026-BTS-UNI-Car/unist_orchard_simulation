@@ -102,8 +102,8 @@ import numpy as np
 from . import calib_runs as CR
 from . import config as C
 from . import field_tuning as T
-from .bridge_client import (ARMED, LATCHED, BridgeClient, BridgeError, SteerBridgeClient, UnixSocketTransport,
-                            recovery_hint)
+from .bridge_client import (ARMED, LATCHED, LEASE_GONE_ERRORS, BridgeClient, BridgeError, SteerBridgeClient,
+                            UnixSocketTransport, idle_latch_only, recovery_hint)
 from .core import (ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, SINGLE_ROW_NOT_STOPS, Runner, ScanStamper,
                    single_row_stop_category, verify_vendor)
 from .navigation_observation import NativeNavigationGate
@@ -125,6 +125,7 @@ STEER_EMERGENCY_REASONS = tuple(r for r in C.STEER_STOP_REASONS if r != 'steerin
     C.STEER_LINK_STOP_REASONS
 STOP_WATCH_S = 1.             # front_steer: how long the STOP confirmation of an op stop is watched (bridge 400 ms grid)
 MOTION_LIMIT = 10.            # op motion sanity range of the bridge (|yaw_rate_rad_s|, |speed_m_s|)
+BRIDGE_OPERATOR_STOP = 'operator_stop'   # the bridge's control reason after any op stop (steer_bridge_core._step)
 
 
 # --- source integrity -------------------------------------------------------------------------------
@@ -789,6 +790,7 @@ class ExecutorLoop:
                 lambda: BridgeClient(cfg.socket_path, timeout=cfg.bridge_timeout_s))
         self._steer_fed_t = None                # receipt time of the last steering status handed to the Runner
         self._stop_watch = None                 # front_steer: STOP confirmation being watched (dict)
+        self._lease_lost = None                 # front_steer: the lease the bridge took while the run waited (dict)
         # SHADOW: no transport object at all (nothing can connect to the bridge socket).
         self._stop_transport = (stop_transport or UnixSocketTransport(cfg.socket_path, cfg.bridge_timeout_s)
                                 if self.motor_allowed else None)
@@ -1192,7 +1194,9 @@ class ExecutorLoop:
             out.append('already_running')
         if self.motor_allowed and runner.state == PAUSED:
             client = self.bridge
-            if client is not None and client.state == LATCHED:
+            if self._lease_lost_open():
+                out.extend(('lease_lost', 'arm_first'))   # the bridge took the lease while the run waited: Arm again
+            elif client is not None and client.state == LATCHED:
                 out.append('latched')
             elif client is None or client.state != ARMED:
                 out.append('arm_first')
@@ -1215,7 +1219,7 @@ class ExecutorLoop:
     def _run_state(self):
         """The contract run state (docs/steering/OPERATOR_API_KO.md)."""
         runner, client = self.runner, self.bridge
-        if self.motor_allowed and client is not None and client.state == LATCHED:
+        if self.motor_allowed and client is not None and client.state == LATCHED and not self._lease_lost_open():
             return 'latched'
         if runner.state == IDLE:
             return 'idle'
@@ -1233,6 +1237,8 @@ class ExecutorLoop:
         """(category, reason) of the open pause or the end (None, None while running / idle / waiting for the first go):
         the single-row stop table plus OPERATOR_LINK_LOST (docs/steering/OPERATOR_API_KO.md)."""
         runner = self.runner
+        if self._lease_lost_open():
+            return 'CONTROL_AUTHORITY', 'lease_lost'     # the run is open and needs a new Arm (status lease_lost)
         if runner.state == ENDED:
             reason = runner.end_reason
         elif runner.state == PAUSED and runner.reason not in SINGLE_ROW_NOT_STOPS:
@@ -1292,6 +1298,7 @@ class ExecutorLoop:
             return dict(ok=False, error=str(exc))
         self._ending_since = None
         self._ended_at = None
+        self._lease_lost = None
         self._event('start', run_id=run_id, row_len_m=row_len_m, source=source,
                     backstop=self.runner.backstop.summary() if self.runner.backstop else None,
                     config_digest=self._config_digest,
@@ -1386,8 +1393,14 @@ class ExecutorLoop:
                 return dict(ok=False, error='config_not_feasible', feasibility=feasibility)
         if self.bridge is None:
             self.bridge = self._bridge_factory()
+        rearm = self._lease_lost_open()
         if self.bridge.state == LATCHED:
-            return dict(ok=False, error='acknowledge_latch_first', latch=self.bridge.latch_reason)
+            if not rearm:
+                return dict(ok=False, error='acknowledge_latch_first', latch=self.bridge.latch_reason)
+            # the run lost its lease while it waited for the go (_end_from_bridge item 4): this Arm press is the
+            # operator's acknowledgement of that latch; the bridge clears its latches only with a passing re-arm
+            self._event('lease_lost_rearm', run_id=self.runner.run_id, client_latch=self.bridge.latch_reason)
+            self.bridge.acknowledge_latch()
         if self.bridge.state == ARMED:
             return dict(ok=False, error='already_armed')
         try:
@@ -1398,7 +1411,8 @@ class ExecutorLoop:
             return dict(ok=False, error=exc.reason, hint=recovery_hint(self.bridge.last_status, exc.reason))
         self._last_sent, self._last_send_t = ((0, None) if self.steering else (0, 0)), None
         self._ending_since = None
-        return dict(ok=True, owner=self.bridge.owner)
+        self._lease_lost = None
+        return dict(ok=True, owner=self.bridge.owner, rearm_after_lease_lost=rearm)
 
     def _req_ack(self, now):
         state = None if self.bridge is None else self.bridge.acknowledge_latch()
@@ -1515,17 +1529,67 @@ class ExecutorLoop:
             self.runner.feed_steering(seen[0], seen[1], seen[2])
 
     def _end_from_bridge(self, now, default, detail=None):
-        """End the open run after a bridge refusal / latch: the design 6.6 steering reason of the bridge status when it
-        has one (front_steer), else default (bridge_error / bridge_latched)."""
+        """After a bridge refusal / latch of the open run (front_steer; docs/steering/OPERATOR_API_KO.md 'STOP' and
+        'lease'), in this order:
+          1. an operator STOP of this executor is in flight (emergency_stop sets the event BEFORE its op stop, so a drive
+             of this tick refused by that STOP's barrier is that STOP; SIM dashboard session s2, 2026-11-13: run_end
+             bridge_error drive_refused:stop_barrier 7 ms after the page STOP): the run ends operator_stop;
+          2. the design 6.6 steering reason of a fresh bridge status;
+          3. the bridge took the lease by an op stop of somebody else (a lease-gone refusal, control_not_owned /
+             stop_barrier, and the bridge's control reason operator_stop: the dashboard's own bridge STOP, the CLI or a
+             second screen reached the bridge first): operator_stop (note bridge_operator_stop);
+          4. the run still waits for its first go (armed, never moved, zero sent) and the bridge took the lease with no
+             steering fault or only an idle-clearable status latch (steering_status_stale of a status-line gap): the run
+             stays open, run_state 'ready', go blockers lease_lost + arm_first; the next Arm press is the operator's
+             acknowledgement of that latch (_req_arm);
+          else default (bridge_error / bridge_latched)."""
         if self.runner.state not in (PAUSED, ACTIVE):
             return
-        reason = None
-        if self.steering and self.bridge is not None and hasattr(self.bridge, 'fault_reason'):
-            reason = self.bridge.fault_reason()
         note = None if detail is None else str(detail)[:120]
+        if self._stop_event.is_set():
+            self.runner.end_run(now, 'operator_stop', note='%s:%s' % (default, note) if note else default)
+            return
+        status, reason = None, None
+        if self.steering and self.bridge is not None and hasattr(self.bridge, 'fault_reason'):
+            status = self.bridge.fresh_status() if hasattr(self.bridge, 'fresh_status') else None
+            reason = self.bridge.fault_reason(status) if status is not None else self.bridge.fault_reason()
+        gone = self.steering and str(detail or '').rsplit(':', 1)[-1] in LEASE_GONE_ERRORS
+        bridge_reason = status.get('reason') if isinstance(status, dict) else None
+        if gone and reason is None and bridge_reason == BRIDGE_OPERATOR_STOP:
+            self.runner.end_run(now, 'operator_stop', note='bridge_operator_stop:%s' % note)
+            return
+        if gone and status is not None and bridge_reason != BRIDGE_OPERATOR_STOP and self._armed_wait() and \
+                (reason is None or idle_latch_only(status)):
+            self._note_lease_lost(now, default, note, status, reason)
+            return
         if reason is not None:
             note = '%s:%s' % (default, note) if note else default
         self.runner.end_run(now, reason or default, note=note)
+
+    def _armed_wait(self):
+        """front_steer MOTOR: the open run waits for its first go (Start + Arm, never resumed, zero throttle sent)."""
+        runner = self.runner
+        return bool(self.motor_allowed and self.steering and runner.state == PAUSED and runner.reason == 'await_hold'
+                    and not runner.resumes and self._last_sent[0] == 0)
+
+    def _note_lease_lost(self, now, where, detail, status, reason):
+        host = status.get('steering_host') if isinstance(status, dict) else None
+        latches = sorted((host or {}).get('latches') or ()) if isinstance(host, dict) else []
+        self._lease_lost = dict(t=round(float(now), 4), where=where, error=detail, bridge_reason=status.get('reason'),
+                                bridge_latches=latches, steering_fault=reason, run_id=self.runner.run_id,
+                                client_latch=None if self.bridge is None else self.bridge.latch_reason)
+        self.link.cancel('lease_lost')
+        self._event('lease_lost', **self._lease_lost)
+
+    def _lease_lost_open(self):
+        """The run that lost its lease while waiting is still open and its client is latched by that loss (or was
+        acknowledged since): run_state 'ready', a new Arm is needed."""
+        lost, client, runner = self._lease_lost, self.bridge, self.runner
+        if lost is None or client is None or runner.run_id != lost['run_id']:
+            return False
+        if not (runner.state == PAUSED and runner.reason == 'await_hold' and not runner.resumes):
+            return False
+        return client.state != ARMED and (client.state != LATCHED or client.latch_reason == lost['client_latch'])
 
     def _watch_stop(self, now, reason):
         """front_steer: watch the bridge's confirmation of the op stop just sent (steering_host stop counters)."""
@@ -1591,7 +1655,7 @@ class ExecutorLoop:
         if client is None:
             return None
         if client.state == LATCHED:
-            if self.runner.state in (PAUSED, ACTIVE):
+            if self.runner.state in (PAUSED, ACTIVE) and not self._lease_lost_open():
                 self._end_from_bridge(now, 'bridge_latched', client.latch_reason)
             return None
         if client.state != ARMED:
@@ -1843,7 +1907,8 @@ class ExecutorLoop:
         status.update(start_mode=self.start_mode, run_state=self._run_state(), operator_link=self.link.snapshot(now),
                       go_ready=self.start_mode == C.ONE_PRESS and not blockers, go_blockers=blockers,
                       stop_reason=category, stop_detail=detail, speed=self._speed_status(d),
-                      tuning=self._tuning_status())
+                      tuning=self._tuning_status(),
+                      lease_lost=dict(self._lease_lost) if self._lease_lost_open() else None)
         if self.config.mode == C.SINGLE_ROW_MODE:
             # operator page single-row panel: telemetry of this tick (or the last run) + the estimator-frame canvas
             status['single_row'] = sr

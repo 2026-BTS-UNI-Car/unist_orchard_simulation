@@ -39,6 +39,9 @@ expect keys (all optional):
                   link_timeout_s (the executor's operator_timeout_s, default 0.5) + one tick later (A17 amendment 31)
   other_screen    one_press: the expected replies to a second screen [(op, ok, error)] (heartbeat and go)
   go_refused      one_press: the allowed error(s) of the first refused go of the script
+  lease_lost      True: the bridge takes the lease while the armed run waits for its go; the executor keeps the run open
+                  (event lease_lost, no run_end), the run becomes ACTIVE only after the operator's re-arm
+                  (operator_rearm_at, event lease_lost_rearm) (amendment 34)
   stop_phase      True: a STOP phase script (the STOP request off the bridge grid or the status lines shifted;
                   audit AUD3A-09); its STOP items are judged as stop_at and listed in the A17 STOP phase table
 Every value of the scripts is a placeholder of the SIM (자리값 기반 SIM 결과).
@@ -149,6 +152,15 @@ script('one_press_stop', 'safety', 'one_press: operator STOP while driving ends 
        episode('one_press_stop', actions=[action('stop', 6.), action('go', 7.)], duration_s=12.),
        dict(end_reason='operator_stop', stop_at=6., hold_check=True, no_restart=True, a22=True,
             go_refused=('latched', 'no_run')))
+# amendment 34 (2026-11-13, SIM dashboard sessions s2..s4): the bridge takes the lease of an armed run that waits for its
+# go (a status-line gap: steering_status_stale while nothing moves). The run stays open (run_state ready, go blockers
+# lease_lost + arm_first); only the operator's Arm press acknowledges that latch and re-arms, then one go starts it.
+script('armed_wait_lease_lost', 'safety', 'one_press: status lines lost for 0.4 s while the armed run waits for its go: '
+       'the bridge latches steering_status_stale and takes the lease; the run stays open and does not move; the '
+       'operator arms again at 3 s and one go starts the run',
+       episode('armed_wait_lease_lost', controller=dict(HOLD_40, distance_m=3.),
+               faults=[fault('status_loss', at_s=.85, duration_s=.4)], actions=[action('arm', 3.)], duration_s=16.),
+       dict(end_reason='script_distance', host_latch='steering_status_stale', lease_lost=True, operator_rearm_at=3.))
 script('c_line_loss_ttl', 'safety', 'C lines stop reaching the MCU (link to the MCU lost for 0.4 s, under the watchdog): '
        'MCU C TTL brake, steering kept; the executor ends the run (no restart by the next C)',
        episode('c_line_loss_ttl', faults=[fault('link_loss', duration_s=.4, direction='to_mcu')], duration_s=10.),
@@ -319,7 +331,7 @@ script('two_screens_and_cli', 'mandatory', 'a second screen tries to arm and to 
        'CLI sends STOP: everything stops, the executor latches without stopping a newer lease',
        episode('two_screens_and_cli', actions=[action('client2_arm', 4.), action('client2_drive', 4.5),
                                                action('client2_stop', 6.)], duration_s=10.),
-       dict(end_reason='bridge_error', client2=[('client2_arm', False, 'control_in_use'),
+       dict(end_reason='operator_stop', client2=[('client2_arm', False, 'control_in_use'),
                                                ('client2_drive', False, 'control_not_owned'),
                                                ('client2_stop', True, None)], stop_at=6., no_restart=True, a22=True))
 script('link_loss_while_held', 'mandatory', 'serial link lost in both directions for 1.0 s while driving with the hold '
@@ -374,7 +386,7 @@ script('status_line_loss', 'mandatory', 'status lines lost for 0.4 s (same as st
        dict(end_reason='steering_feedback_stale', host_latch='steering_status_stale', no_restart=True))
 script('late_drive_after_stop', 'mandatory', 'a STOP and, right after it, a drive with the executor lease: stop_barrier',
        episode('late_drive_after_stop', actions=[action('late_drive', 6.)], duration_s=10.),
-       dict(end_reason='bridge_error', late_drive_error='stop_barrier', stop_at=6., no_restart=True))
+       dict(end_reason='operator_stop', late_drive_error='stop_barrier', stop_at=6., no_restart=True))
 script('clock_change', 'mandatory', 'the system (wall) clock jumps by +1 h while driving: deadlines stay on the monotonic '
        'clock, nothing changes',
        episode('clock_change', faults=[fault('wall_clock_jump', jump_s=3600.)], duration_s=9., post_end_s=None,

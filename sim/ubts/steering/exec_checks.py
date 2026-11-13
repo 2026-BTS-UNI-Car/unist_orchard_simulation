@@ -30,13 +30,19 @@ executor service (compose profile executor):
             wall time the SIM clock passed the stamp), SIM and wall rates, missing scans per stage, the node counters;
             development values (the judged A10(W2) is the quiet qualification's, amendment 9)
   safety    A17(G) with the executor in the loop (wall or SIM clock): the scripts of SCRIPTS (operator STOP x N,
-            deadman release, hold lost, C TTL, link watchdog, fault stop, executor loop stall, executor freeze,
+            deadman release (hold_to_run only), hold lost (one_press: the operator link lost), C TTL, link watchdog,
+            fault stop, executor loop stall, executor freeze,
             bridge forced kill, bridge stall, steering status loss, STOP unconfirmed, second screen and CLI, late
             drive after STOP, MCU reset, USB unplug, half frame, CRC, range error, output guard, system time change,
             executor forced kill); each item with its measured value and the registered criterion; A10 validity per
             script in the wall clock mode (p6a_checks.step_validity); the A19(G) normal-script false detections of the
             drive-ups
   drive     one executor run with a scripted controller and the executor's own input acceptance (development)
+
+The check is the operator in the executor's start mode (status start_mode; docs/steering/OPERATOR_API_KO.md):
+one_press (the front_steer default) = GoBeater, one session's heartbeats every 100 ms and one go once the start checks
+pass; hold_to_run (an executor configured so) = HoldBeater, the press heartbeats and the release. --start-mode asserts
+the mode (auto: whatever the executor runs; the executor configuration decides, never this check).
 
 Every result carries the clock mode, the provenance, the /clock RTF summary and the emulator /clock counters. Times:
 SIM ticks of the emulator log (1 ms), the bridge event log (its clock: monotonic in the wall clock mode, SIM time in
@@ -86,6 +92,12 @@ SCAN_PERIOD_S = .1
 RATE_TOL = .10
 NOISE_TOL = .10
 HOLD_BEAT_S = .1
+GO_WAIT_S = 20.                     # one_press: how long a go waits for the executor's start checks
+GO_RETRY_S = .25
+START_MODES = ('one_press', 'hold_to_run')
+# one_press: scripts of the hold button with no one_press counterpart (the link loss is hold_lost)
+ONE_PRESS_NOT_APPLICABLE = {'deadman_release': 'one_press has no hold to release; the operator screen going away is '
+                                               'hold_lost (operator link lost)'}
 STATE_ACTIVE, STATE_PAUSED, STATE_ENDED = 'ACTIVE', 'PAUSED', 'ENDED'
 CLIENT_LATCHED, CLIENT_ARMED = 'LATCHED', 'ARMED'
 # Bridge snapshot states without a fault (rover_control_core: 'armed_manual' with a lease, else 'disarmed'); any other
@@ -499,6 +511,104 @@ class HoldBeater:
             self.thread.join(timeout=1.)
 
 
+class GoBeater:
+    """The one_press operator screen (docs/steering/OPERATOR_API_KO.md) with the HoldBeater interface: press() starts the
+    heartbeats of one session (every period_s, wall) and sends one go once the start checks pass (a refused go is retried
+    for at most go_wait_s; a session conflict is not retried; press_id None when no go was taken); release() and lose()
+    stop the heartbeats (one_press has no release: the screen goes away, the executor pauses the run after its
+    operator_timeout_s; lose() returns the last heartbeat (wall, mono) like HoldBeater.lose); close() ends the thread."""
+
+    mode = 'one_press'
+
+    def __init__(self, op, period_s=HOLD_BEAT_S, go_wait_s=GO_WAIT_S, retry_s=GO_RETRY_S, sleep=time.sleep,
+                 clock=time.monotonic, prefix='chk'):
+        self.op, self.period_s, self.go_wait_s, self.retry_s = op, float(period_s), float(go_wait_s), float(retry_s)
+        self.sleep, self.clock = sleep, clock
+        self.session = '%s-%s' % (prefix, uuid.uuid4().hex[:16])
+        self.press_id = None
+        self.beating = False
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.replies = collections.Counter()
+        self.last_beat = None                 # (wall, mono) of the last heartbeat sent
+        self.events = []
+        self.go_reply = None
+
+    def _count(self, key):
+        self.replies[key] += 1
+
+    def _ensure_thread(self):
+        if (self.thread is None or not self.thread.is_alive()) and not self.stop_event.is_set():
+            self.thread = threading.Thread(target=self._run, name='exec-check-heartbeat', daemon=True)
+            self.thread.start()
+
+    def beat(self):
+        try:
+            code, reply, wall, mono = self.op.post('/api/heartbeat', {'session': self.session}, timeout_s=1.)
+        except Exception as exc:          # a lost heartbeat is the link loss the executor watches for
+            self._count('error:%s' % type(exc).__name__)
+            return False
+        self.last_beat = (wall, mono)
+        self._count('ok' if reply.get('ok') else 'refused:%s' % reply.get('error'))
+        return bool(reply.get('ok'))
+
+    def _run(self):
+        while not self.stop_event.wait(self.period_s):
+            if self.beating:
+                self.beat()
+
+    def press(self):
+        self.beating = True
+        self._ensure_thread()
+        self.beat()
+        end = self.clock() + self.go_wait_s
+        reply = None
+        while True:
+            code, reply, wall, mono = self.op.post('/api/go', {'session': self.session}, timeout_s=8.)
+            self.events.append(dict(op='go', ok=bool(reply.get('ok')), error=reply.get('error'), code=code, wall=wall,
+                                    mono=mono))
+            if reply.get('ok') or reply.get('error') == 'session_conflict' or self.clock() >= end:
+                break
+            self.sleep(self.retry_s)
+        self.go_reply = reply
+        self.press_id = self.session if reply.get('ok') else None
+        return self.press_id
+
+    def _stop_beating(self, op):
+        self.beating = False
+        last = self.last_beat
+        self.events.append(dict(op=op, press=self.press_id, wall=time.time(), mono=time.monotonic(),
+                                last_beat_wall=None if last is None else last[0],
+                                last_beat_mono=None if last is None else last[1]))
+        self.press_id = None
+        return last
+
+    def release(self):
+        self._stop_beating('release')
+        return dict(wall=self.events[-1]['wall'], mono=self.events[-1]['mono'], code=None)
+
+    def lose(self):
+        return self._stop_beating('lose')
+
+    def close(self):
+        self.beating = False
+        self.stop_event.set()
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join(timeout=1.)
+
+
+def executor_start_mode(op):
+    """The executor's start mode from its operator page status; None when the page does not answer. A page without the
+    field is an executor from before design v2 V2-2: hold_to_run."""
+    try:
+        code, reply, _, _ = op.request('GET', '/api/status')
+    except (OSError, ClientError, ValueError):
+        return None
+    if code != 200 or not isinstance(reply, dict):
+        return None
+    return reply.get('start_mode') or 'hold_to_run'
+
+
 class SocketHooks:
     """One JSON line per connection to a hook socket (the executor's SIM hooks, the steer supervisor's hooks)."""
 
@@ -553,12 +663,14 @@ class ExecCtx(Ctx):
     """p6a_checks.Ctx (the check's own control client, emulator hooks, SimObserver) plus the executor's operator page,
     hold button, SIM hooks and the steer supervisor's hooks."""
 
-    def __init__(self, out, clock='wall', owner='exec-check', exec_dir=EXEC_DIR):
+    def __init__(self, out, clock='wall', owner='exec-check', exec_dir=EXEC_DIR, start_mode='auto'):
         super().__init__(out, owner=owner)
         self.clock = clock
         self.exec_dir = exec_dir
         self.op = OperatorClient(exec_dir)
-        self.hold = HoldBeater(self.op)
+        self.start_mode_option = start_mode
+        self.start_mode = None                # the executor's, read by ensure_start_mode()
+        self.hold = HoldBeater(self.op)       # replaced by a GoBeater for a one_press executor
         self.exec_hooks = SocketHooks(Path(exec_dir) / 'hooks.sock')
         self.sup = SocketHooks(SUPERVISOR_HOOKS)
         self.executor_alive = True
@@ -599,6 +711,25 @@ def bridge_ready_to_arm(status):
             and status.get('moving') is False)
 
 
+def ensure_start_mode(ctx):
+    """The executor's start mode (once per check): one_press -> the operator is a GoBeater, hold_to_run -> HoldBeater.
+    --start-mode other than auto must equal the executor's (the executor configuration decides)."""
+    if ctx.start_mode is not None:
+        return ctx.start_mode
+    mode = executor_start_mode(ctx.op)
+    if mode is None:
+        raise SessionError('no start mode: the executor operator page does not answer /api/status')
+    want = getattr(ctx, 'start_mode_option', 'auto') or 'auto'
+    if want != 'auto' and want != mode:
+        raise SessionError('the executor runs start_mode %s, the check was asked for %s (set start_mode in the executor '
+                           'configuration)' % (mode, want))
+    ctx.start_mode = mode
+    if mode == 'one_press' and not isinstance(ctx.hold, GoBeater):
+        ctx.hold.close()
+        ctx.hold = GoBeater(ctx.op)
+    return mode
+
+
 def ensure_idle(ctx, timeout_s=20.):
     """The executor ready for a new run (no open run, client not latched) and the vehicle still."""
     ctx.hold.lose()
@@ -620,10 +751,12 @@ def ensure_idle(ctx, timeout_s=20.):
 
 
 def start_drive(ctx, spec, moving=True, timeout_s=30., arm_attempts=3):
-    """Start, Arm and press the hold with the scripted controller spec; wait for ACTIVE (and motion). Returns a dict."""
+    """Start, Arm and start the run with the scripted controller spec: one_press = heartbeats and one go, hold_to_run =
+    press the hold; wait for ACTIVE (and motion). Returns a dict."""
+    mode = ensure_start_mode(ctx)
     ensure_idle(ctx)
     ctx.exec_hooks.call('controller', spec=spec)
-    info = dict(spec=spec, arm_attempts=[])
+    info = dict(spec=spec, arm_attempts=[], start_mode=mode)
     for attempt in range(arm_attempts):
         status = ctx.exec_status()
         latched = (status.get('client') or {}).get('state') == CLIENT_LATCHED
@@ -646,8 +779,11 @@ def start_drive(ctx, spec, moving=True, timeout_s=30., arm_attempts=3):
     status = None
     while time.monotonic() < end:
         if ctx.hold.press_id is None:
-            ctx.hold.press()
+            pressed = ctx.hold.press()
             presses += 1
+            if mode == 'one_press' and not pressed:
+                reply = getattr(ctx.hold, 'go_reply', None) or {}
+                raise SessionError('go refused: %s %s' % (reply.get('error'), reply.get('blockers') or ''))
         status = ctx.wait_exec(lambda s: s['runner']['state'] == STATE_ACTIVE or
                                str(s['runner']['reason']).startswith('press_ignored') or
                                s['runner']['state'] == STATE_ENDED, 3.)
@@ -862,8 +998,10 @@ def s_deadman_release(ctx):
 
 
 @script('hold_lost', 'the page stops sending heartbeats while the button is held (the 09-19 test "key held during a '
-        'link loss" on the operator link): the hold times out, pause, zero throttle, no restart', 'A17: no automatic '
-        'restart; hold timeout <= hold_timeout_s + 1 executor tick (report)')
+        'link loss" on the operator link): the hold times out, pause, zero throttle, no restart; one_press: the operator '
+        'screen stops its heartbeats while the run drives (operator link lost)', 'A17: no automatic restart; hold '
+        'timeout <= hold_timeout_s + 1 executor tick (report); one_press: pause operator_link_lost, link expiry <= '
+        'operator_timeout_s + 1 executor tick (report)')
 def s_hold_lost(ctx):
     before, step0 = step_start(ctx, 'exec_hold_lost_start')
     start = start_drive(ctx, drive_spec(40, 4.))
@@ -871,11 +1009,18 @@ def s_hold_lost(ctx):
     mark = ctx.mark('exec_hold_lost')
     last = ctx.hold.lose()
     ctx.obs.spin_sim_for(4.)
+    if ctx.start_mode == 'one_press':
+        link = (ctx.try_exec_status() or {}).get('operator_link') or {}
+        timeout = link.get('timeout_s') if isinstance(link.get('timeout_s'), (int, float)) else .5
+        return _deadman_measure(ctx, 'hold_lost', step0, before, start, mark, last[0] if last else mark['wall'],
+                                'operator_link_lost', timeout_s=float(timeout), expiry_name='link_expiry_after_last_beat_s',
+                                resume='a new go')
     return _deadman_measure(ctx, 'hold_lost', step0, before, start, mark, last[0] if last else mark['wall'],
                             'hold_released', timeout_s=.5)
 
 
-def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason, timeout_s=None):
+def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason, timeout_s=None,
+                     expiry_name='hold_expiry_after_last_beat_s', resume='a new press'):
     emu, bridge = ctx.logs(mark)
     lines = c_lines(emu, mark['tick'])
     held = [c for c in lines if c['c']['L'] != 0 or c['c']['R'] != 0]
@@ -892,7 +1037,7 @@ def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason
     zero_ms = None if zero_line is None else zero_line['last'] - mark['tick']
     criteria = [
         criterion('pause_reason', runner.get('reason'), pause_reason, runner.get('state') == STATE_PAUSED and
-                  runner.get('reason') == pause_reason, 'the run stays open (PAUSED) until a new press'),
+                  runner.get('reason') == pause_reason, 'the run stays open (PAUSED) until %s' % resume),
         criterion('zero_throttle_c_line_ms', zero_ms, 'report (mark before the action to the first zero-duty C line '
                   'at the MCU, SIM ms)', None),
         criterion('steering_held_after_release', None if steer_before is None else dict(before=steer_before,
@@ -912,8 +1057,9 @@ def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason
             reference = last_mono if ctx.clock != 'sim' else interpolate_sim(list(ctx.obs.clock_rows), last_mono)
             if first_pause_t is not None and reference is not None:
                 expiry = round(first_pause_t - reference, 3)
-        criteria.append(criterion('hold_expiry_after_last_beat_s', expiry, 'report (<= %.2f: hold_timeout_s + 1 '
-                                  'executor tick; executor clock %s)' % (timeout_s + .05, ctx.clock), None))
+        criteria.append(criterion(expiry_name, expiry, 'report (<= %.2f: the %s + 1 executor tick; executor clock %s)'
+                                  % (timeout_s + .05, 'operator_timeout_s' if expiry_name.startswith('link') else
+                                     'hold_timeout_s', ctx.clock), None))
     details = dict(start=start, mark=mark, action_wall=t_wall, zero_line_tick=None if zero_line is None else
                    zero_line['last'], drive_zero_tick=zero, pause_ticks=len(pause_ticks), injection_wall=t_wall)
     out = _finish(ctx, name, step0, before, criteria, details, normal_until_tick=None)      # a normal script
@@ -1574,7 +1720,9 @@ DEFAULT_ORDER = ('operator_stop', 'deadman_release', 'hold_lost', 'c_ttl_link_re
 
 def check_safety(ctx, args):
     by_name = {s['name']: s for s in SCRIPTS}
-    order = [n for n in DEFAULT_ORDER if args.only is None or n in args.only]
+    mode = ensure_start_mode(ctx)
+    skipped = dict(ONE_PRESS_NOT_APPLICABLE) if mode == 'one_press' else {}
+    order = [n for n in DEFAULT_ORDER if (args.only is None or n in args.only) and n not in skipped]
     results, errors = [], []
     for name in order:
         entry = by_name[name]
@@ -1605,7 +1753,7 @@ def check_safety(ctx, args):
     blocks = [r['false_detection'] for r in results if r.get('false_detection')]
     false = merge_false_detections(blocks)
     false['rule'] = 'drive-up windows of every script (step start to the injection) and the whole normal scripts ' \
-                    '(operator STOP, deadman release, hold lost)'
+                    '(operator STOP, deadman release (hold_to_run), hold lost)'
     normal_s = sum(float(b.get('normal_sim_s') or 0.) for b in blocks)
     by = false.get('by_code') or {}
     false.update(normal_sim_s=round(normal_s, 2),
@@ -1618,14 +1766,15 @@ def check_safety(ctx, args):
     motion = dict(executor_motion_sent=(end_status.get('counts') or {}).get('motion_sent'),
                   note='op motion samples of the executor (gyro yaw rate, LiDAR speed with valid odometry) for the '
                        'bridge steering_ineffective monitor; A19(G) reports its false-detection rate')
-    return dict(check='A17_G_executor', clock=ctx.clock, criteria=criteria, passed=verdict(criteria),
+    return dict(check='A17_G_executor', clock=ctx.clock, start_mode=mode, criteria=criteria, passed=verdict(criteria),
                 scripts=[dict(name=r['name'], passed=r.get('passed'), valid=(r.get('validity') or {}).get('valid'),
                               error=r.get('error'), wall_s=r.get('wall_s')) for r in results],
                 stops_valid=len(valid_stops), stops=len(stops), errors=errors, false_detection=false, motion=motion,
                 invalid_scripts=[r['name'] for r in results if (r.get('validity') or {}).get('valid') is False],
                 validity_rule='A10 / amendment 10 in the wall clock mode; SIM clock steps are in SIM time',
-                not_run=dict(system_time_change_bridge='the bridge and the emulator clocks are not changed (no '
-                                                       'CAP_SYS_TIME in the containers); the executor side only'))
+                not_run=dict(skipped, system_time_change_bridge='the bridge and the emulator clocks are not changed '
+                                                               '(no CAP_SYS_TIME in the containers); the executor side '
+                                                               'only'))
 
 
 # --- A13 -------------------------------------------------------------------------------------------------------------------
@@ -2075,8 +2224,9 @@ def _run_records(ctx, step0, run_id):
 
 def check_follow(ctx, args):
     """One closed-loop run of the row-following controller through the executor, judged on the evaluation side against
-    the registration steer_follow_gsim_v1 (steering.gsim_follow). The check is the operator: Start, Arm, one press held
-    by heartbeats until the run ends; no second press."""
+    the registration steer_follow_gsim_v1 (steering.gsim_follow). The check is the operator: Start, Arm, one go with the
+    screen's heartbeats until the run ends (one_press) or one press held by heartbeats (hold_to_run); no second go or
+    press."""
     from . import gsim_follow as GF
     from . import exec_run
     spec = json.loads(args.controller) if args.controller else dict(GF.CONTROLLER)
@@ -2174,6 +2324,7 @@ def check_follow(ctx, args):
     criteria = [criterion(item['check'], item['measured'], item['limit'], item['ok'] if validity['valid'] else None)
                 for item in checks]
     return dict(check='gsim_follow', prereg_id=GF.PREREG_ID, run=run, controller=spec, clock=ctx.clock,
+                start_mode=ctx.start_mode,
                 verdict=verdict_text, passed=None if verdict_text == 'invalid' else verdict_text == 'pass',
                 criteria=criteria, checks=checks, validity=validity, metrics=metrics, tick_stats=stats,
                 start=start, start_error=error, placed=placed, gave_up_paused=gave_up, timeline=timeline,
@@ -2209,13 +2360,16 @@ def build_parser():
     p.add_argument('--distance', type=float, default=6.)
     p.add_argument('--run', default='nominal_1', help='follow: a registered run name (gsim_follow.RUNS)')
     p.add_argument('--limit-s', type=float, default=None, help='follow: wall limit of the run')
+    p.add_argument('--start-mode', choices=('auto',) + START_MODES, default='auto',
+                   help='safety / drive / follow: the executor start mode the check expects (auto: the executor\'s; the '
+                        'executor configuration start_mode decides)')
     return p
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
     out = Path(args.out)
-    ctx = ExecCtx(out, clock=args.clock)
+    ctx = ExecCtx(out, clock=args.clock, start_mode=args.start_mode)
     started = time.monotonic()
     counters0 = emulator_counters(ctx.hooks)
     report = dict(schema=SCHEMA, result_kind=RESULT_KIND, field_validated=False, check=args.check,
@@ -2239,6 +2393,8 @@ def main(argv=None):
             report['rtf'] = rtf_summary(ctx.obs.clock_rows)
             report['wall_s'] = round(time.monotonic() - started, 2)
             report['operator_requests'] = list(ctx.op.log)[-60:]
+            report['start_mode'] = ctx.start_mode
+            report['operator_replies'] = dict(ctx.hold.replies)
             report['executor_status_end'] = ctx.try_exec_status()
         finally:
             ctx.close()

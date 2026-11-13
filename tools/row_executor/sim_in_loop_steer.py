@@ -108,7 +108,7 @@ ACTIONS = ('stop', 'release', 'hold_lost', 'press', 'end', 'ack', 'arm', 'start'
 SESSION = 'sim-screen-0001'       # one_press: the operator screen's session id
 OTHER_SESSION = 'sim-screen-0002'  # one_press: a second screen (action other_screen)
 EXECUTOR_EVENTS_KEPT = ('start', 'request', 'emergency_stop', 'bridge_error', 'bridge_stop', 'run_end', 'stop_confirmed',
-                        'stop_unconfirmed', 'stop_watch_timeout', 'watchdog_stall')
+                        'stop_unconfirmed', 'stop_watch_timeout', 'watchdog_stall', 'lease_lost', 'lease_lost_rearm')
 
 
 # --- executor configuration -------------------------------------------------------------------------------------------

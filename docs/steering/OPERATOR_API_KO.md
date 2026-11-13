@@ -59,6 +59,12 @@
 - 한 화면만 운영자다. 다른 세션이 묶인 세션이 살아 있는 동안 heartbeat나 go를 보내면 409 `session_conflict`이고 묶인 화면에는
   아무 일도 없다. 묶인 화면의 연결이 끊긴 뒤에는 다른 세션이 묶일 수 있지만 그 화면의 go를 물려받지 않는다(새 go 필요).
 - STOP은 세션과 상관없이 누구나 된다. STOP은 go를 끝낸다(다시 가려면 확인 → Start → Arm → go).
+- STOP으로 끝난 run의 끝 이유는 언제나 `operator_stop`(`OPERATOR_OR_BACKSTOP`)이다. 실행기가 STOP을 받으면 브리지에 op stop을
+  보내기 전에 표시를 세운다. 그 STOP이 같은 틱의 구동 요청을 막아(`stop_barrier`) 거절이 와도 run은 `operator_stop`으로 끝난다
+  (2026-11-13 SIM 대시보드 세션 s2: 일시정지 중 STOP이 `bridge_error` / `SYSTEM_FAULT`로 남았다). 대시보드는 STOP 때 브리지에도
+  직접 STOP을 보낸다. 그쪽이 먼저 닿아 실행기의 lease가 사라지면(`control_not_owned` / `stop_barrier`, 브리지 제어 이유
+  `operator_stop`, 조향 결함 없음) 그것도 `operator_stop`이고 `stop_detail`은 그대로, 끝 메모가 `bridge_operator_stop:...`이다.
+  CLI나 두 번째 화면의 STOP도 같다. 브리지의 제어 이유만으로는 누가 눌렀는지 모른다.
 - 한 run의 일시정지(신선도, 운영자 연결, 속도 상한 아래, 과속, 사전값 예측 한도)를 합쳐 `max_stale_events`(3)을 넘으면 run을
   끝낸다(`stale_repeat_limit`).
 
@@ -72,6 +78,7 @@
 | `operator_link_not_fresh` | (상태 표시용) 운영자 heartbeat가 기한 안에 없다 |
 | `no_run` / `already_running` | run이 없다(Start 먼저) / 이미 주행 중 |
 | `latched` / `arm_first` | MOTOR: 래치(확인 먼저) / Arm 전 |
+| `lease_lost` | MOTOR: run이 첫 go를 기다리는 동안 브리지가 lease를 거뒀다(3.4절). `arm_first`와 함께 나온다 |
 | `inputs_not_fresh` | 스캔·IMU가 `fresh_recover_s`(1 s) 동안 신선하지 않았다 |
 | `steering_feedback` | 조향 상태가 신선하지 않거나 확인되지 않았다 |
 | `vehicle_moving` | LiDAR 속도 ≥ 0.03 m/s(정지 확인 안 됨) |
@@ -89,6 +96,28 @@
 - 호스트 도구 `steering.exec_run`(G-SIM)은 이 고침 전에 만든 실행기 이미지도 몰기 때문에 그 래치 거절과 브리지 준비 전 거절
   (`ARM_RETRY_ERRORS`)에만 확인 → 새 run → 다시 Arm을 한다. 다른 거절은 한 번에 끝낸다(자동 확인 없음).
 
+### 3.4 기다리는 동안의 lease
+
+- Arm 뒤 go를 기다리는 동안(`armed`) 실행기는 send_hz(10 Hz)마다 구동 0·조향 유지 요청(조향 목표가 아직 없으면
+  keepalive)을 보낸다. 브리지의 티켓(1.5 s)과 소유자(30 s) 기한은 이것으로 늘 새로워진다. 오래 기다려도 lease는 남는다
+  (단위 시험 45 s).
+- 그래도 브리지가 lease를 거둘 수 있다. G-SIM 세션 s2·s4(2026-11-13)에서는 호스트 부하로 MCU 상태 줄이 150 ms 넘게 늦어 브리지가
+  `steering_status_stale` 래치를 걸고 lease를 거뒀다(s4 브리지 사건 기록으로 확인). 이것은 실행기가 막을 일이 아니고 막아서도 안
+  된다(안전 래치).
+- 고른 쪽: run을 끝내지 않고 다시 Arm하게 한다. 조건은 run이 한 번도 움직이지 않았고(첫 go 전, 0만 보냄) 거절이
+  `control_not_owned` / `stop_barrier`이며, 새 브리지 상태에 조향 결함이 없거나 결함이 상태 줄 틈 래치뿐이고, 브리지 제어 이유가
+  STOP(`operator_stop`)이 아닐 때다. 그때 상태는 `run_state` `ready`, `go_blockers` `lease_lost`·`arm_first`, `stop_reason`
+  `CONTROL_AUTHORITY`, `stop_detail` `lease_lost`, 새 칸 `lease_lost`(거절, 브리지 이유, 래치, 시각)다. 화면은 'Arm'을 다시
+  보인다. 다음 Arm 누름이 그 래치의 운영자 확인이다. 실행기는 그 확인으로 브리지 재무장을 청하고, 브리지는 조건이 아직 남아
+  있으면 거절한다(거절이면 run은 `bridge_arm_failed`로 끝난다). 다시 Arm한 뒤 go 한 번으로 출발한다. Arm 응답에
+  `rearm_after_lease_lost: true`가 붙는다.
+- 이 쪽이 안전한 까닭: 차는 움직이지 않았고 브리지는 이미 STOP했다. 실행기는 스스로 다시 Arm하지 않고, 운영자의 Arm과 go라는
+  두 번의 명시적 동작이 있어야 움직인다. go의 다른 시작 조건(입력 신선, 조향 상태, 정지, 통로)도 그대로다. lease를 지키려고
+  기한을 늘리거나 재시도하지 않는다.
+- 그 밖은 전과 같다: 주행 중이거나 한 번이라도 움직인 run에서 lease를 잃음, 기다리는 중의 STOP(`operator_stop`)이나 다른 조향
+  결함(예: `steering_not_following`), 실행기 자신이 티켓 기한(1.5 s)보다 오래 멈춤(`stale_input_rearm_required`, `bridge_error`)은
+  run을 끝낸다(`latched`, 확인 → Start → Arm → go).
+
 ## 4. 상태(`GET /api/status`)
 
 기존 칸에 더해:
@@ -103,6 +132,7 @@
 | `stop_detail` | 원래 이유 문자열(예: `operator_link_lost`, `row_end`, `stale_lidar`, `speed_cap_below_min`) |
 | `speed` | `{target_mps, limit_mps, limit_reason, caps}`(5절) |
 | `tuning` | `{preset, revision, editable, ...}`(6절) |
+| `lease_lost` | 3.4절 상태일 때 `{t, where, error, bridge_reason, bridge_latches, steering_fault, run_id, client_latch}`, 아니면 null |
 
 - `stop_reason` 분류표: 새 이유의 분류는 `operator_link_lost` → `OPERATOR_LINK_LOST`, `speed_cap_below_min`·`prediction_limit` →
   `PERCEPTION_OR_LOCALISATION`(센서 쪽), `overspeed` → `CONTROL_AUTHORITY`(구동 쪽). 제안이며 조향 사전등록(PC-14)에서 정한다.
@@ -152,15 +182,23 @@
 1. 페이지를 열 때 세션 id 하나를 만든다. 보이는 동안 100 ms마다 heartbeat.
 2. Start → Arm(MOTOR). `go_ready`가 참이면 '자율 주행 시작'을 켠다. 누르면 `/api/go` 한 번.
 3. 주행 중에는 STOP을 크게 보인다. 일시정지면 `stop_reason`·`stop_detail`과 '다시 가려면 다시 누르기'를 보인다.
+3a. `run_state`가 `ready`이고 `go_blockers`에 `lease_lost`가 있으면 '브리지가 권한을 거뒀다: Arm을 다시 누른다'를 보인다.
 4. 409 `session_conflict`를 받으면 '다른 화면이 운영자'를 보이고 STOP만 둔다.
 
 ## 8. 시험과 SIM 확인
 
 - 단위·HTTP: `tools/row_executor/tests/test_one_press.py`(링크, 세션, 끊김, 재출발 없음, STOP 우선, MOTOR Arm 순서, HTTP 경로),
-  `test_steer_executor.py`(FirstArmTest), `test_field_tuning.py`, `test_steer_follow_runner.py`(속도 조절기 일시정지).
+  `test_steer_executor.py`(FirstArmTest), `test_field_tuning.py`, `test_steer_follow_runner.py`(속도 조절기 일시정지),
+  `test_stop_lease.py`(일시정지 중 STOP의 분류, 브리지에 먼저 닿은 STOP, 기다리는 동안의 lease와 다시 Arm; 고치기 전에는 10개 중
+  6개가 실패했다).
 - 빠른 SIM(T1, 실행기 포함): 안전 대본 `operator_link_lost`, `operator_link_back_no_restart`, `other_screen_refused`,
   `one_press_stop`. 2026-11-13 결과: 7개(이 넷과 deadman_release, hold_lost, mid_row_stop_w0) 모두 기대대로.
   `operator_link_lost`: 마지막 heartbeat 4.95 s, 일시정지 5.50 s, 구동 명령 0 첫 trace 5.51 s(한도 5.55 s). 자리값 기반 SIM 결과.
 - 호스트 도구: `python3 -B -m steering.exec_run start`(G-SIM 실행기 컨테이너 안)가 one_press 실행기에 세션 heartbeat와 go를 보낸다.
-- 기존 G-SIM 점검(`steering.exec_checks`)은 아직 hold로 누른다. 그 점검은 실행기 컨테이너를
-  `--config-overrides '{"start_mode": "hold_to_run"}'`로 띄우거나 one_press 로 고쳐야 한다(묶음 S2).
+- 빠른 SIM 대본 `armed_wait_lease_lost`(A17 개정 34): 0.85 s부터 상태 줄 0.4 s 끊김 → 브리지 래치 → run 열린 채 →
+  3 s에 다시 Arm → go → 3 m 주행. `two_screens_and_cli`, `late_drive_after_stop`의 기대 끝 이유는 `operator_stop`이다.
+  2026-11-13 등록 실행: T1 안전 대본 71/71 기대대로(자리값 기반 SIM 결과, `EXECUTOR_STEER_KO.md` 13절 8항).
+- G-SIM 점검(`steering.exec_checks`)은 실행기의 `start_mode`를 따른다. one_press(front_steer 기본)면 검사가 이 화면처럼
+  세션 heartbeat 100 ms와 go 한 번으로 출발한다(`GoBeater`). `deadman_release`는 놓을 버튼이 없어 돌리지 않고 `not_run`에
+  적는다. `hold_lost`는 화면 신호 멈춤이 되어 기대 일시정지가 `operator_link_lost`다. hold_to_run 실행기(설정
+  `start_mode: hold_to_run`)에는 예전처럼 hold로 누른다. `--start-mode`는 확인만 한다(다르면 검사가 시작 전에 멈춘다).

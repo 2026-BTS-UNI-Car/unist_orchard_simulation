@@ -249,6 +249,29 @@
   4. 사전값만으로 주행 0: monitor·table·blackout run 모두에서, 사전값 예측 시간이 1.0 s를 넘은 상태로 구동(throttle > 0)하거나 조향 목표를 바꾼 틱이 0개.
 - 참값은 평가 코드(A13 역할 evaluator)만 읽는다. 결과는 자리값 기반 SIM 결과다.
 
+### 개정 34 — 운영자 STOP의 분류, 기다리는 run의 lease, G-SIM 검사의 한 번 눌러 시작 (2026-11-13, SIM 대시보드 세션 s2~s4에서 나온 실행기 결함, T1 안전 대본 등록 실행과 Gazebo 최종 확인 전)
+
+- 이 개정과 같은 커밋이 등록 실행보다 앞선다. 그 전에는 바뀐 T1 대본 셋(`armed_wait_lease_lost`, `two_screens_and_cli`,
+  `late_drive_after_stop`)의 개발 실행 한 번뿐이었다.
+- 운영자 STOP(A17): 실행기가 받은 STOP이 처리 중인 구동 요청을 막아(`stop_barrier`) run이 끝나도 끝 이유는 `operator_stop`이다.
+  다른 클라이언트(대시보드의 브리지 STOP, CLI, 두 번째 화면)의 STOP이 먼저 브리지에 닿아 실행기의 lease가 사라진 경우
+  (`control_not_owned` / `stop_barrier` 거절, 브리지 제어 이유 `operator_stop`, 조향 결함 없음)도 `operator_stop`이다. 그래서 T1
+  `two_screens_and_cli`, `late_drive_after_stop`의 기대 끝 이유를 `bridge_error`에서 `operator_stop`으로 바꾼다. 다른 항목
+  (STOP 시간, 재출발 0, 늦은 구동 거절, 두 번째 클라이언트 응답)은 그대로다.
+- 기다리는 run의 lease(A17): Arm 뒤 첫 go 전(한 번도 움직이지 않았고 0만 보냄)에 브리지가 조향 결함 없이, 또는 상태 줄 틈
+  래치(`steering_status_stale`)만으로 lease를 거두면 run은 끝나지 않는다. `run_state` `ready`, `go_blockers`에 `lease_lost`와
+  `arm_first`. 다음 Arm 누름이 그 래치의 확인이고, 다시 Arm한 뒤 go 한 번으로 출발한다. 새 T1 대본 `armed_wait_lease_lost`
+  (W0, `straight_hold` 40 % 3 m, 0.85 s부터 상태 줄 0.4 s 끊김, 3 s에 Arm)의 판정: 호스트 래치 `steering_status_stale`과 그
+  시각·상태(기존 래치 항목), run_end 전에 `lease_lost` 사건, 첫 ACTIVE가 다시 Arm한 시각 뒤이고 `lease_lost_rearm` 사건이 있음,
+  끝 이유 `script_distance`. 기대 키 `lease_lost`를 더한다. 기다리는 중의 STOP, 다른 조향 결함, 실행기 자신의 멈춤(티켓 1.5 s
+  넘김)은 run을 끝낸다(단위 시험 `test_stop_lease.py`).
+- G-SIM A17(`steering.exec_checks safety`): 검사는 실행기의 시작 방식을 따른다. one_press(front_steer 기본)에서는 세션
+  heartbeat 100 ms와 go 한 번으로 출발하고, `deadman_release`는 놓을 버튼이 없어 돌리지 않고 `not_run`에 적는다. `hold_lost`는
+  화면 신호 멈춤이 되어 기대 일시정지 이유가 `operator_link_lost`이고, 끊김 시간 보고 항목은 `operator_timeout_s` 기준
+  (`link_expiry_after_last_beat_s`)이다. hold_to_run 실행기에는 전과 같다. 검사의 `--start-mode`는 확인만 하고, 방식은 실행기
+  설정이 정한다.
+- 결과는 자리값 기반 SIM 결과다.
+
 ### 개정 40 — 프로필 v0.2 자격 검사 (2026-11-13, ST-10, 측정 전 등록. 묶음 S3는 40번대를 쓴다)
 
 - 대상: `sim/ubts/steering/profiles/front_steer_v0_2_placeholder.yaml`(스키마 v3). 모형: `STEER_EXT_MODEL_KO.md`. 바꾼 값과 이유: 그 파일의 note와 `STEER_PROFILE_V02_KO.md`.
