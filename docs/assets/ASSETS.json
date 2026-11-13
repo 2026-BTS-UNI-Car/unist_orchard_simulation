@@ -350,8 +350,7 @@
      "sha256": "c8efb7ba7b784ff7bc785ff244284642bceb017ff6ce935ddee519498691444e",
      "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
     }
-   },
-   "role": "readme_hero"
+   }
   },
   {
    "path": "docs/assets/video/row_follow_wf5_camera_10x.mp4",
@@ -561,6 +560,69 @@
      "date": "2026-11-13",
      "sha256": "8b2617158011a94ff92b41cb8e0e1e51221a408a7a23646f0508e45454ff6a47",
      "note": "화면 전체를 열어 봄: localhost SIM 대시보드 지도 화면(SIM 과수원 격자, 시각 표시, GNSS 칸 제목만). 주소 막대 없음. 사람, 이름, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/video/row_follow_wf7_user_10x.gif",
+   "kind": "animation",
+   "bytes": 4415757,
+   "sha256": "79aaaa628e82262cbfa4fc7ea2a9044317d57cc7b9da1c2ee3cf12137174d968",
+   "width": 480,
+   "height": 270,
+   "tag": "[SIM · 자리값]",
+   "caption": "사용자 로컬 명령 그대로(sim_stack.py start, sim_auto.py start), 이미지 wf7, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 열 끝에서 섰다",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/sessions/s4f_simauto/media/cam_run3/frames",
+    "made_by": "최종 확인 4단계 F(STEER_FOLLOW_GSIM_FINAL_KO.md 13절) run 3(사용자 명령 sim_stack.py start --no-browser 뒤 sim_auto.py start, ROW_END 33.3 m)을 tools/steer_sim/capture_media.py camera로 받은 프레임(29.98 fps). 출발 직전부터 열 끝 정지 뒤까지 1 s마다 한 장(reset 앞에서 끊음)",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf7_user_10x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "99장 (30..2991, 30장마다)",
+    "frames_sha256": "2918d7c69071a3ca36be661c878e6a108eada537bd42047a3864e9c8f928288d",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-14",
+     "sha256": "79aaaa628e82262cbfa4fc7ea2a9044317d57cc7b9da1c2ee3cf12137174d968",
+     "note": "GIF 처음·1/4·가운데·3/4·끝 프레임과 mp4 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 위 띠의 조건 표시뿐, 사람·사용자 이름·주소·도메인·토큰·GNSS 좌표·실제 밭 지도 없음. 열 끝에서 섬(reset 앞에서 끊김)"
+    }
+   },
+   "role": "readme_hero"
+  },
+  {
+   "path": "docs/assets/video/row_follow_wf7_user_camera_10x.mp4",
+   "kind": "video",
+   "bytes": 489551,
+   "sha256": "2931449b07eb56952dbd2a90828a7c83fb10334c18e06d3211a77e34f9c8f740",
+   "width": 480,
+   "height": 270,
+   "tag": "[SIM · 자리값]",
+   "caption": "같은 run(사용자 로컬 명령, wf7, SIM 시계)의 차량 카메라를 480 폭 저화질 H.264로 줄인 것(약 99 s를 10배속)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/sessions/s4f_simauto/media/cam_run3/frames",
+    "made_by": "같은 F run 3의 프레임, 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf7_user_camera_10x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "198장 (30..2991, 15장마다)",
+    "frames_sha256": "2d2a856ee2a47483ee7902892d2ac238d371fa06b56d73040c272ddbbe21bcc7",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-14",
+     "sha256": "2931449b07eb56952dbd2a90828a7c83fb10334c18e06d3211a77e34f9c8f740",
+     "note": "GIF 처음·1/4·가운데·3/4·끝 프레임과 mp4 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 위 띠의 조건 표시뿐, 사람·사용자 이름·주소·도메인·토큰·GNSS 좌표·실제 밭 지도 없음. 열 끝에서 섬(reset 앞에서 끊김)"
     }
    }
   }
