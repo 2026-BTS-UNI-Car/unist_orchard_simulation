@@ -70,3 +70,16 @@ python -I tools/steer_sim/capture_media.py page --out <파일>.png --wait-s 12
 - 대시보드(2026-11-13, D-13): 대시보드 레포의 새 화면 사본(`dashboard/DASHBOARD_SOURCE.json`)과 SIM 확장(`dashboard_sim/`)이며 sim 네트워크 이름공간에서 돈다(18090 은 sim 서비스가 낸다). 실행기 운영자 페이지를 127.0.0.1:8097 로 부른다. `docs/steering/SIM_DASHBOARD_KO.md`.
 - 개요(Overview) 화면에는 PC 주소가 보인다. rover-control 화면만 갈무리하고, 넣기 전에 사용자 이름·주소·좌표가 없는지 눈으로 본다.
 - 실행기와 검사를 같이 쓰는 스택(대시보드 없음)에서는 화면 갈무리를 할 수 없다. 화면은 기본 스택에서, 주행 영상은 실행기 스택에서 따로 갈무리한다.
+
+## 8. CPU 한도: steer·실행기 3 (2026-11-13, 실행기 처리 시간 작업)
+
+- `compose.ubts-steer.yaml`의 CPU: sim 4, steer(에뮬레이터·브리지) 3, recorder 1, dashboard 1, executor 3. 합 12, 이 PC(Intel Core Ultra 7
+  155H, 논리 CPU 22)의 절반 남짓이다. 그 전에는 steer·executor 가 1.5 였다.
+- 까닭(잰 것, 자리값 기반 SIM 결과): 최종 확인 3단계 F(SIM 시계, `STEER_FOLLOW_GSIM_FINAL_KO.md` 12.6)에서 steer 컨테이너가 CFS 주기
+  5,091 개 중 858 개에서 스로틀됐고, 실행기 루프 p99 가 209 ms 였다. SIM 시계 모드에서 브리지·실행기가 2 ms 마다 시계를 보며 CPU 를
+  더 쓴다(실행기 루프 p50 8.5 -> 17~18 ms, steer CPU p90 74 -> 107~153 %). 개발 확인으로 두 컨테이너를 3 으로 올리자 스로틀이 거의
+  없어지고 루프 p99 가 32 ms 가 됐다. 실행기의 빽빽한 스캔 처리(통로 갱신 한 번 P 코어 약 40 ms, `EXECUTOR_PERF_KO.md`)도 한 코어를
+  넘게 쓸 때가 있다.
+- 메모리 한도(6 GiB 예산)는 그대로다. CPU 는 예산 도구가 묶지 않으므로 다른 측정 스택과 함께 올리지 않는 1절이 그대로 중요하다.
+- 이 PC 는 P·E·저전력 E 코어가 섞여 있어, 같은 일이 놓인 코어에 따라 2~3 배 느리다(`EXECUTOR_PERF_KO.md` 표). 시간을 재는 실행 전에는
+  2절 부하 확인을 한다.

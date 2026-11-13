@@ -8,7 +8,7 @@
     (controller refused while ACTIVE, stall / freeze / kill / wall offset with their bounds); the files (status
     retirement, log pruning); the whole container object without ROS (real ExecutorLoop, Runner, SteerBridgeClient)
   * compose.ubts-steer.yaml: the executor service (profile executor, sim network and IPC, control volume only, no
-    runtime or hooks volume, 0.5 GiB, 1-2 CPU, the clock of the stack, the command line parses), the 6 GiB budget
+    runtime or hooks volume, 0.5 GiB, 3 CPU (steer too; STACK_OPERATIONS_KO.md 8), the clock of the stack, the command line parses), the 6 GiB budget
     (whole stack with the executor = 6.0; checks with the executor run without the dashboard); the Dockerfile copies
     tools/row_executor and imports the new modules; the release grace of the bridge is the vehicle's 1.1 s
   * steering.exec_checks: the A13 R6 judgement with amendment 11, the S2 node rule, the graph listing, the chain
@@ -373,7 +373,8 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual((ex['network_mode'], ex['ipc']), ('service:sim', 'service:sim'))
         self.assertEqual(ex['volumes'], ['control:/run/ubts-steer'])
         self.assertEqual(self.gib(ex['mem_limit']), .5)
-        self.assertTrue(1. <= float(ex['cpus']) <= 2.)
+        self.assertEqual(float(ex['cpus']), 3.)       # STACK_OPERATIONS_KO.md 8 (was 1.5, throttled)
+        self.assertEqual(float(self.services['steer']['cpus']), 3.)
         self.assertEqual((ex['restart'], ex['stop_grace_period']), ('no', '20s'))
         self.assertTrue(ex['init'])
         env = ex['environment']
