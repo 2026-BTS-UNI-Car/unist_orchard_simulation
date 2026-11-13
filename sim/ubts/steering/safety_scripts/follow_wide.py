@@ -5,6 +5,13 @@ Pre-registration: docs/steering/PREREG_STEER_FOLLOW_V2_KO.md and PREREG_STEER_FO
 module; the test sim/ubts/test_steering_follow_wide.py compares them). Do not change CONDITIONS, CRITERIA, seeds or the
 measuring rules after a run; an amendment is written in the pre-registration document first.
 
+Round 2 (pre-registration 11, SIM_ACCEPTANCE amendments 51 and 52, registered before its first run): every condition
+without its own profile runs on profile v0.1.1 (v0.1 with driver_stuck_fault 3 deg, ROUND2_PROFILE); the W2 lateral
+error (RMSE, p95, maximum) is measured from the truth passage centre (w2_passage_centre: the middle of the near side of
+the structure on each side in the raster, PASSAGE_* settings) instead of the catalogue centre line, whose values stay
+as a report; new judgement seeds 4000-4004 (seed set 'judge2'); at most ROUND2_MAX_DEV_ITERATIONS development
+iterations. Round 1 (judgement 3000-3004 on 402a689) is reproduced from that commit.
+
 Simulator: the T1 rig with the executor in the loop (tools/row_executor/sim_in_loop_steer.py), the same chain as
 follow_matrix.py: the real executor loop and Runner (front_steer, MOTOR, single-row mode, one-press start) with the
 controller slot {'kind': 'row_follow'} <-> bridge client <-> host bridge <-> MCU firmware and actuator model <-> steered
@@ -36,7 +43,7 @@ of the MCU and host bridge latches, the GNSS layer block, the operator-link stop
 is a placeholder-based SIM result (자리값 기반 SIM 결과), not field performance.
 
 CLI (from sim/ubts):
-  python -B -m steering.safety_scripts.follow_wide --out <folder outside the repository> --seeds dev|judge
+  python -B -m steering.safety_scripts.follow_wide --out <folder outside the repository> --seeds dev|judge2
          [--workers N (<= 4)] [--only NAME ...] [--iteration K]
   python -B -m steering.safety_scripts.follow_wide --out <folder> --pw08-cell     (PW-08 table cell check)
   python -B -m steering.safety_scripts.follow_wide --prereg                         (print the JSON)
@@ -62,8 +69,10 @@ PREREG_SCHEMA = 'ubts.steer_sim.prereg_follow_wide.v1'
 PREREG_ID = 'steer_follow_wide_v2'
 DEV_SEEDS = (100, 101, 102, 103, 104)
 JUDGE_SEEDS = (3000, 3001, 3002, 3003, 3004)
-SEED_SETS = dict(dev=DEV_SEEDS, judge=JUDGE_SEEDS)
+JUDGE2_SEEDS = (4000, 4001, 4002, 4003, 4004)       # round 2 (pre-registration 11)
+SEED_SETS = dict(dev=DEV_SEEDS, judge=JUDGE_SEEDS, judge2=JUDGE2_SEEDS)
 MAX_DEV_ITERATIONS = 3
+ROUND2_MAX_DEV_ITERATIONS = 2
 FRONT_BUMPER_M = FM.FRONT_BUMPER_M
 HALF_WIDTH_M = FM.HALF_WIDTH_M
 FOOTPRINT_LENGTH_M, FOOTPRINT_WIDTH_M = 2. * FRONT_BUMPER_M, 2. * HALF_WIDTH_M
@@ -73,6 +82,7 @@ ROW_DURATION_S = 200.                # runs that should end at the row end (0.2 
 PAUSE_DURATION_S = 60.               # runs that should pause at 20 s and never restart (40 s of watching)
 SETTLE_M = FM.SETTLE_M
 PROFILE_V03 = 'front_steer_v0_3_placeholder'
+ROUND2_PROFILE = 'front_steer_v0_1_1_placeholder'   # round 2: conditions without a profile_id (amendment 52, R54)
 STEER_FAULTS = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'TRACK', 'THERMAL')
 ABOVE_SIZE_FAULTS = ('STALL', 'TRACK', 'DRV_STUCK', 'POLARITY')     # SIM_ACCEPTANCE amendment 43 (5)
 # Registered criteria (sources: the pre-registration document 4). Do not change after a run.
@@ -228,9 +238,12 @@ CONDITIONS = (
     dict(name='spacing_1p0', family='geometry', expect='row_end', world=dict(spacing_m=1.0)),
     dict(name='spacing_3p0', family='geometry', expect='row_end', world=dict(spacing_m=3.0)),
     # W2: 10/10 development corridors (the rig refuses the sealed ones)
-    dict(name='w2_042301_c03', family='w2', expect='row_end', w2=dict(record='042301', corridor_id='c03')),
-    dict(name='w2_040927_c06', family='w2', expect='row_end', w2=dict(record='040927', corridor_id='c06')),
-    dict(name='w2_045553_c03', family='w2', expect='row_end', w2=dict(record='045553', corridor_id='c03')),
+    dict(name='w2_042301_c03', family='w2', expect='row_end', w2=dict(record='042301', corridor_id='c03'),
+         settle_m=SETTLE_M),
+    dict(name='w2_040927_c06', family='w2', expect='row_end', w2=dict(record='040927', corridor_id='c06'),
+         settle_m=SETTLE_M),
+    dict(name='w2_045553_c03', family='w2', expect='row_end', w2=dict(record='045553', corridor_id='c03'),
+         settle_m=SETTLE_M),
     # B. start offsets (RMSE / p95 after SETTLE_M)
     dict(name='lateral_p040', family='start', expect='row_end', start=(0., .40, 0.), settle_m=SETTLE_M),
     dict(name='lateral_n040', family='start', expect='row_end', start=(0., -.40, 0.), settle_m=SETTLE_M),
@@ -312,6 +325,17 @@ def prereg():
     return dict(schema=PREREG_SCHEMA, id=PREREG_ID, result_kind='placeholder-based SIM result',
                 simulator='F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)',
                 controller=dict(FM.CONTROLLER), seeds=dict(dev=list(DEV_SEEDS), judge=list(JUDGE_SEEDS)),
+                round2=dict(seeds=dict(dev=list(DEV_SEEDS), judge=list(JUDGE2_SEEDS)),
+                            max_dev_iterations=ROUND2_MAX_DEV_ITERATIONS, profile_without_own=ROUND2_PROFILE,
+                            w2_lateral=dict(reference='truth passage centre', window_m=PASSAGE_WINDOW_M,
+                                            side_band_m=list(PASSAGE_SIDE_BAND_M), near_quantile=PASSAGE_QUANTILE,
+                                            min_cells=PASSAGE_MIN_CELLS, step_m=PASSAGE_STEP_M,
+                                            classes='raster reflectors (occupied, added hard, added branch)',
+                                            report='catalogue centre-line values (the round 1 definition)',
+                                            settle_m=SETTLE_M,
+                                            settle_reason='the start pose lies on the catalogue centre line, up to '
+                                                          '0.4 m off the passage centre: an offset start'),
+                            amendments=[51, 52], decisions=['R53', 'R54']),
                 max_dev_iterations=MAX_DEV_ITERATIONS, criteria=CRITERIA, settle_m=SETTLE_M, fault_at_s=FAULT_AT_S,
                 disturbance_at_s=DIST_AT_S, footprint=dict(front_bumper_m=FRONT_BUMPER_M, half_width_m=HALF_WIDTH_M),
                 default_row=RowGeometry().to_dict(), steer_faults=list(STEER_FAULTS),
@@ -346,7 +370,7 @@ def spec(c, seed, name=None):
     from steering.safety_scripts import catalogue as CAT
     rig = {}
     from steering.vehicle_profile import PROFILES_DIR, load_profile
-    base = load_profile() if not c.get('profile_id') else load_profile(PROFILES_DIR / (c['profile_id'] + '.yaml'))
+    base = load_profile(PROFILES_DIR / ((c.get('profile_id') or ROUND2_PROFILE) + '.yaml'))
     overrides = dict(c.get('profile') or {})
     if 'wander_mean_deg_per_m' in c:
         wander = dict(base.value('curvature_wander'))
@@ -354,7 +378,7 @@ def spec(c, seed, name=None):
         overrides['curvature_wander'] = wander
     if overrides:
         rig['profile'] = base.with_overrides(overrides, label=c['name'])
-    elif c.get('profile_id'):
+    else:
         rig['profile'] = base
     if c.get('gnss') is not None:
         rig['gnss'] = json.loads(json.dumps(c['gnss']))
@@ -379,12 +403,51 @@ def printable(episode, c):
     """The episode spec for RESULT.json: the profile object replaced by its identity and overrides."""
     out = dict(episode, rig=dict(episode['rig']))
     if 'profile' in out['rig']:
-        out['rig']['profile'] = dict(profile_id=c.get('profile_id') or 'default', overrides=c.get('profile') or {},
+        out['rig']['profile'] = dict(profile_id=c.get('profile_id') or ROUND2_PROFILE, overrides=c.get('profile') or {},
                                      wander_mean_deg_per_m=c.get('wander_mean_deg_per_m'))
     return out
 
 
 # --- metrics ----------------------------------------------------------------------------------------------------------------
+PASSAGE_WINDOW_M = 2.             # round 2, W2 truth passage centre: structure cells within +-this along s ...
+PASSAGE_SIDE_BAND_M = (.3, 3.5)   # ... with |d| in this band on each side (the vehicle's lane .. the next row line)
+PASSAGE_QUANTILE = .10            # the near side of a side: this quantile of its |d| (one stray cell does not decide)
+PASSAGE_MIN_CELLS = 3             # fewer cells on a side: no centre there (the sample is left out of the lateral error)
+PASSAGE_STEP_M = .1               # the centre is computed on this s grid (nearest grid point per sample)
+
+
+def w2_passage_centre(world, s):
+    """Truth passage centre d_c at the samples s of a W2 corridor (nan where a side has no structure): the middle of
+    the near side of the raster's reflecting cells (occupied, added hard, added branch) on the left and on the right
+    within PASSAGE_WINDOW_M along s. The catalogue centre line is a fit of the rows; where the trees stand off it (the
+    last trees of 045553 c03 stand about 0.4 m inside the right line, beyond its end other structures stand 0.5-0.9 m
+    right of the centre line) the middle of the free passage between the structures is the reference of 'the centre
+    between the rows' (pre-registration 11, amendment 51). Evaluation only (truth)."""
+    from closed_loop import raster_corridor as rc
+    cache = getattr(world, '_follow_wide_cells', None)
+    if cache is None:
+        m = world.map
+        rows, cols = np.nonzero(np.isin(m.classes, rc.REFLECTORS))
+        xs, ys = m.centres(rows, cols)
+        cells = np.array([world.to_field(float(u), float(w))[:2] for u, w in zip(xs, ys)],
+                         dtype=float).reshape(-1, 2)
+        lo, hi = PASSAGE_SIDE_BAND_M
+        cells = cells[(np.abs(cells[:, 1]) >= lo) & (np.abs(cells[:, 1]) <= hi)]
+        cache = cells[np.argsort(cells[:, 0], kind='stable')]
+        world._follow_wide_cells = cache
+    s = np.asarray(s, dtype=float)
+    grid = np.arange(math.floor(float(np.min(s))), math.ceil(float(np.max(s))) + PASSAGE_STEP_M, PASSAGE_STEP_M)
+    centre = np.full(grid.shape, np.nan)
+    for i, g in enumerate(grid):
+        lo, hi = np.searchsorted(cache[:, 0], (g - PASSAGE_WINDOW_M, g + PASSAGE_WINDOW_M))
+        d = cache[lo:hi, 1]
+        left, right = d[d > 0.], -d[d < 0.]
+        if len(left) >= PASSAGE_MIN_CELLS and len(right) >= PASSAGE_MIN_CELLS:
+            centre[i] = (np.quantile(left, PASSAGE_QUANTILE) - np.quantile(right, PASSAGE_QUANTILE)) / 2.
+    index = np.clip(np.rint((s - grid[0]) / PASSAGE_STEP_M).astype(int), 0, len(grid) - 1)
+    return centre[index]
+
+
 def _w2_frame(world):
     def frame(x, y, yaw):
         rows = np.array([world.to_field(float(a), float(b), float(c)) for a, b, c in zip(x, y, yaw)],
@@ -426,6 +489,7 @@ def measure(c, arrays, ticks, summary, world, markers, art, gnss_report=None):
         bumper_s = float(_w2_frame(world)(bx[-1:], by[-1:], yaw[-1:])[0][0])
         truth = world.corridor_truth(0)
         last_structure, last_tree = float(max(truth['line_end_x'])), float(max(truth['line_end_x']))
+        centre = w2_passage_centre(world, s)            # round 2: W2 lateral error from the truth passage centre
         clearance = _w2_clearance(world, x[::25], y[::25], yaw[::25])
     else:
         geo = geometry(c.get('world'))
@@ -433,6 +497,7 @@ def measure(c, arrays, ticks, summary, world, markers, art, gnss_report=None):
         bumper_s = float(geo.frame(bx[-1:], by[-1:], yaw[-1:])[0][0])
         last_structure, last_tree = geo.last_structure_s(), geo.last_tree_s()
         clearance = FM.clearance(x[::5], y[::5], yaw[::5], markers)
+        centre = None
     driving = np.flatnonzero(throttle > 0)
     faults = steer_fault_lines(art)
     out = dict(end_reason=summary.get('end_reason'), ended_at_s=summary.get('ended_at_s'),
@@ -461,14 +526,29 @@ def measure(c, arrays, ticks, summary, world, markers, art, gnss_report=None):
     out['first_pause'] = None if not pauses else [round(pauses[0][0], 3), pauses[0][1]]
     path = np.concatenate(([0.], np.cumsum(np.hypot(np.diff(x[a:b + 1]), np.diff(y[a:b + 1])))))
     k = a + int(np.searchsorted(path, float(c.get('settle_m', 0.))))
+    span = np.arange(a, b + 1)
+    held = span
+    if centre is not None:
+        # round 2 (W2): the judged lateral error is d - the truth passage centre where it is defined; the catalogue
+        # centre-line values (the round 1 definition) stay as a report
+        out['lateral_max_catalogue_m'] = round(float(np.max(np.abs(d[span]))), 4)
+        if k < b:
+            out.update(lateral_rmse_catalogue_m=round(float(np.sqrt(np.mean(d[k:b + 1] ** 2))), 4),
+                       lateral_p95_catalogue_m=round(float(np.percentile(np.abs(d[k:b + 1]), 95)), 4))
+        defined = np.isfinite(centre)
+        out['passage_defined_fraction'] = round(float(np.mean(defined[span])), 4)
+        d = np.where(defined, d - np.where(defined, centre, 0.), np.nan)
+        held = span[defined[span]] if defined[span].any() else span
     out.update(drive_start_s=round(t_a, 2), drive_stop_s=round(float(t[b]), 2), distance_m=round(float(path[-1]), 2),
-               lateral_max_m=round(float(np.max(np.abs(d[a:b + 1]))), 4),
+               lateral_max_m=round(float(np.max(np.abs(d[held]))), 4),
                heading_max_deg=round(float(np.degrees(np.max(np.abs(h[a:b + 1])))), 3),
                speed_mean_m_s=round(float(np.mean(v[a:b + 1])), 3), speed_max_m_s=round(float(np.max(v[a:b + 1])), 3),
                settle_m=float(c.get('settle_m', 0.)))
     if k < b:
-        out.update(lateral_rmse_m=round(float(np.sqrt(np.mean(d[k:b + 1] ** 2))), 4),
-                   lateral_p95_m=round(float(np.percentile(np.abs(d[k:b + 1]), 95)), 4),
+        settled = np.arange(k, b + 1)
+        settled = settled[np.isfinite(d[settled])] if np.isfinite(d[settled]).any() else settled
+        out.update(lateral_rmse_m=round(float(np.sqrt(np.mean(d[settled] ** 2))), 4),
+                   lateral_p95_m=round(float(np.percentile(np.abs(d[settled]), 95)), 4),
                    heading_rmse_deg=round(float(np.degrees(np.sqrt(np.mean(h[k:b + 1] ** 2)))), 3))
     # speed error of the cruise phase (report): true speed - the controller's target speed at the executor ticks
     cruise = [r for r in ticks if r.get('state') == 'ACTIVE' and (r.get('T') or 0) > 0
@@ -659,7 +739,8 @@ CONDENSED_METRICS = ('end_reason', 'ended_at_s', 'first_pause', 'pauses_after_st
                      'heading_max_deg', 'speed_mean_m_s', 'speed_max_m_s', 'row_end_error_m',
                      'row_end_error_last_tree_m', 'min_clearance_m', 'rest_speed_m_s', 'steer_fault_lines',
                      'host_latches', 'lidar_stale_drive_zero_s', 'imu_stale_drive_zero_s', 'link_drive_zero_s',
-                     'link_trace_zero_s', 'cruise_speed_error_m_s', 'stop_distance_m')
+                     'link_trace_zero_s', 'cruise_speed_error_m_s', 'stop_distance_m', 'lateral_max_catalogue_m',
+                     'lateral_rmse_catalogue_m', 'lateral_p95_catalogue_m', 'passage_defined_fraction')
 
 
 def condense(report, rows=True):

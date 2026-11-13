@@ -130,11 +130,31 @@ class SpecTest(unittest.TestCase):
                 self.assertLessEqual(len(ep['world']['markers']), 64)
 
     def test_off_condition_is_the_follow_matrix_spec(self):
+        # round 2: the same spec except the profile v0.1.1 that every condition without its own profile carries
         mine = fw.spec(fw.condition('nominal'), 0, name='follow_nominal_s0')
         theirs = fm.spec(next(c for c in fm.CONDITIONS if c['name'] == 'nominal'), 0)
         mine.pop('duration_s')
         theirs.pop('duration_s')
+        profile = mine['rig'].pop('profile')
+        self.assertEqual(profile.profile_id, fw.ROUND2_PROFILE)
+        self.assertNotIn('profile', theirs.get('rig', {}))
         self.assertEqual(mine, theirs)
+
+    def test_round2_seeds_and_profile(self):
+        self.assertEqual(fw.SEED_SETS['judge2'], (4000, 4001, 4002, 4003, 4004))
+        self.assertFalse(set(fw.JUDGE2_SEEDS) & (set(fw.DEV_SEEDS) | set(fw.JUDGE_SEEDS)))
+        self.assertEqual(fw.prereg()['round2']['seeds']['judge'], list(fw.JUDGE2_SEEDS))
+        self.assertEqual(fw.ROUND2_MAX_DEV_ITERATIONS, 2)
+        from steering.vehicle_profile import PROFILES_DIR, load_profile
+        new = load_profile(PROFILES_DIR / (fw.ROUND2_PROFILE + '.yaml'))
+        old = load_profile()
+        self.assertEqual([n for n in old.names() if old.value(n) != new.value(n)], ['driver_stuck_fault'])
+        self.assertEqual(new.value('driver_stuck_fault'), dict(motion_deg=3.0, duration_s=.3))
+        for name in ('nominal', 'pull_left', 'curve_l30', 'w2_045553_c03'):
+            self.assertEqual(fw.spec(fw.condition(name), 100)['rig']['profile'].profile_id, fw.ROUND2_PROFILE)
+        self.assertEqual(fw.spec(fw.condition('dist_terrain'), 100)['rig']['profile'].profile_id, fw.PROFILE_V03)
+        for name in ('w2_042301_c03', 'w2_040927_c06', 'w2_045553_c03'):
+            self.assertEqual(fw.condition(name)['settle_m'], fw.SETTLE_M)
 
     def test_injections_reach_the_spec(self):
         self.assertEqual(fw.spec(fw.condition('speed_0p5'), 100)['controller']['cruise_speed_m_s'], .5)
@@ -245,6 +265,39 @@ class MetricsAndJudgeTest(unittest.TestCase):
         rows[-1]['gnss'] = dict(counts=dict(jump=2), fence_tripped=True)
         self.assertEqual(sorted(failed(c, measured(c, arrays, tick_rows=rows, gnss_report=report))),
                          ['GNSS fence not tripped', 'GNSS jumps rejected = fixes carrying a jump'])
+
+
+class PassageCentreTest(unittest.TestCase):
+    """w2_passage_centre on a stand-in raster world (identity field frame, 0.1 m cells)."""
+
+    class World:
+        def __init__(self, cells):
+            from closed_loop import raster_corridor as rc
+            xs = np.array([c[0] for c in cells])
+            ys = np.array([c[1] for c in cells])
+            self.cols, self.rows = np.rint(xs / .1).astype(int), np.rint((ys + 5.) / .1).astype(int)
+            classes = np.full((101, 401), rc.FREE, dtype=np.uint8)
+            classes[self.rows, self.cols] = rc.OCCUPIED
+            res = .1
+            self.map = type('M', (), dict(classes=classes,
+                                          centres=lambda _self, r, c: ((np.asarray(c) + .5) * res,
+                                                                       (np.asarray(r) + .5) * res - 5.)))()
+
+        @staticmethod
+        def to_field(x, y, yaw=0.):
+            return x, y, yaw
+
+    def test_the_centre_is_the_middle_of_the_near_sides(self):
+        posts = [(x / 10., 1.8) for x in range(0, 400, 15)] + [(x / 10., -1.4) for x in range(0, 400, 15)]
+        world = self.World(posts + [(20., 3.2)])                      # a far cell on the left does not move it
+        centre = fw.w2_passage_centre(world, np.array([5., 20., 35.]))
+        np.testing.assert_allclose(centre, [.2, .2, .2], atol=.06)
+
+    def test_no_structure_on_a_side_gives_no_centre(self):
+        posts = [(x / 10., 1.8) for x in range(0, 400, 15)] + [(x / 10., -1.4) for x in range(0, 200, 15)]
+        centre = fw.w2_passage_centre(self.World(posts), np.array([5., 30.]))
+        self.assertTrue(np.isfinite(centre[0]))
+        self.assertTrue(np.isnan(centre[1]))
 
 
 if __name__ == '__main__':
