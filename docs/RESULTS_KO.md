@@ -18,6 +18,7 @@
 | 같은 기록, 평가 수정 1(먼저 커밋) 뒤 다시 판정 | 같음 | 4 | 합격 | 4/4 `row_end`. 횡 RMSE 0.021~0.039 m, 방향 최대 10.92°(+0.40 m 출발), e +0.45~+0.46 m, 참 속도 최대 0.443~0.446 m/s | 같음 |
 | 넓은 조건 평가(사전등록 행렬, PC-14·PC-15) | 빠른 SIM 큰 조건 행렬 | - | 미실행 | 다른 묶음이 진행 중(2026-11-13). 결과가 나오면 이 줄을 바꾼다 | - |
 | Gazebo 최종 확인(최종 이미지 wf5, `steer_follow_gsim_final_v1`) | G-SIM 스택, W1 과수원(열 추종·화면·PW-08)과 W0(A25), 한 번 눌러 시작, 실차 시계 | 4 run · 화면 2 시도 · A25 · PW-08 | 불합격 | 열 추종 3/4(`nominal_1`이 18.9 m 에서 `speed_cap_below_min`으로 끝남, 4 run 모두 유효). 화면 확인은 RTF 로 두 번 무효(판정 못 함), A17(G) one_press 판정 못 함(W0 에 통로 없음), A25 합격, PW-08 실행기 표 속도 비 1.1000(기록대로 불합격, 평가 결함 개정 2 로 합격) | [`STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/STEER_FOLLOW_GSIM_FINAL_KO.md) |
+| Gazebo 최종 확인 3단계(이미지 wf6, SIM 시계, `steer_follow_gsim_final3_v1`) | G-SIM 스택 W1, 운영자 연결 기한 1.0 s, IMU 자세, 사용자 로컬 명령 | 4 run · 화면 · A17(G) 25 · PW-08 · 사용자 3 run | 불합격 | 열 추종 3/4(`nominal_1` 27.0 m 에서 `stale_lidar`), 화면 합격(시작·탭 숨김 정지·STOP·STOP 뒤 다시 시작·실시간 지도), A17(G) one_press 24/25(`bridge_stall`), PW-08 합격, 사용자 명령 sim_auto 0/3(`steering_feedback_stale`: 실행기 스캔 처리 지연과 steer 컨테이너 CPU 스로틀) | [`STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/STEER_FOLLOW_GSIM_FINAL_KO.md) 12절 |
 | T1 안전 대본(실행기 포함, 개정 34) | F-SIM T1 | 71 | 합격 | 71/71 기대대로. 운영자 신호 끊김: 마지막 heartbeat 4.95 s → 구동 0 첫 trace 5.51 s(한도 5.55 s) | [`OPERATOR_API_KO.md`](steering/OPERATOR_API_KO.md) 8절 |
 | 구동기 사전값 층 L1(개정 33) | F-SIM T1, W0, seed 0~4 × run 7종 | 55 | 합격 | 55/55. 가중 0은 기본과 바이트까지 같음, 표 ±30 % 어긋남 표시, LiDAR 1 s 끊김 예측 오차 ≤ 0.15 m, 사전값만으로 주행 0 | [`ACTUATOR_PRIOR_KO.md`](steering/ACTUATOR_PRIOR_KO.md) |
 | 프로필 v0.2 자격(개정 40) | T1, 정상 대본 6 × 10 seed 등 | 4 묶음 | 불합격 | ① 시험 기준식에 벨트 유격이 없어 1개 실패(고친 뒤 91/91은 보고), ② 정지 중 ±20° 쓸기에서 호스트 `steering_not_following` 10/10, ③ 9/9 합격, ④ 합격 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md) |
@@ -73,7 +74,7 @@ G(Gazebo) 결과가 다르면 줄을 나눴다. 같은 검사를 다시 쟀으�
 | A17(G) | 같은 대본, 고친 검사로 다시 | 합격 | 5대본 모두 유효·통과. 입력 기한 0.7598·0.7595 s(한도 0.77 s), STOP 재전송 5번·래치 408.2 ms. `steering_status_loss`는 이번 유효 실행 없음(ST-05 2차는 통과) | 11/13, GSIM_GAPS 3.2 |
 | A17(G) | 실행기 고리, SIM 시계 모드 | 미실행 | 조용한 호스트가 필요 | S2_NODE_EXEC 10절 |
 | A17 개정 31 | 한 번 눌러 시작·정지, 빠른 SIM | 합격 | 운영자 신호 끊김 → 구동 0 ≤ 0.5 s + 1틱, 재출발 없음, 다른 화면 거부, STOP | 11/13, OPERATOR_API 8절 |
-| A17 개정 31 | 한 번 눌러 시작·정지, Gazebo | 판정 못 함 | W0 에서 25 대본 모두 go 거절(`corridor_not_acquired`, W0 에 나무 열 없음, 등록 오류). W1 용 새 등록이 필요 | 11/13, GSIM_FINAL 5절 |
+| A17 개정 31·60·62 | 한 번 눌러 시작·정지, Gazebo W1(SIM 시계, 대본마다 출발점) | 불합격 | 24/25(개정 1 뒤). `bridge_stall`이 주입 전 호스트 `steering_ineffective` 래치로 끝남. W0 시도(2단계)는 통로가 없어 판정 못 함 | 11/13, GSIM_FINAL 12.4절 |
 | A18(F) | 식별 복원, 빠른 SIM | 불합격 | 경계가 있는 153행 중 6행 밖(0점 오차 2, κ(δ) 4). 원인은 자리값 곡률 떠돎(sd 0.95°/m) | 11/09, R18 |
 | A18(G 일부) | 식별 복원, Gazebo 한 사례(B, seed 12) | 불합격 | 0점 오차 +0.537°(한도 0.2°), 3단계 값과 같음 | 11/13, GSIM_GAPS |
 | A19 | 결함 코드 범위, MCU | 합격 | 결함 코드 15종 모두 대본이 일으킴, 판정 틱 차 0, 정상 대본 49개 오검출 0 | 11/09 P3, R15 |
