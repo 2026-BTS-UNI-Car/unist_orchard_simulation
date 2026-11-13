@@ -358,3 +358,11 @@
   - ② ST-10 정상 대본 오검출(개정 40 ②와 같은 도구 `steering.steer_hold_checks run --set normal --profile <v0.1.1>`, N1~N6, 판정 seed 1600~1609). 합격: MCU F 줄 DRV_STUCK 0. 다른 결함 줄과 호스트 래치는 개수를 보고한다(v0.1과 같은 값이므로 판정하지 않는다).
   - ③ ST-10 고장 검출 유지(같은 도구 `--set faults`, G1~G3, 판정 seed 1700~1702). 합격: G2(주행 중 드라이버 고착)의 DRV_STUCK이 주입 뒤 3 s 안에 F 줄로 나오고 규칙 재계산과 ±1틱. G1·G3은 개정 40 ③ 기준으로 보고한다.
 - 결과 처리: ①~③이 합격이면 2차는 v0.1.1로 돈다. 하나라도 불합격이면 2차는 v0.1로 돌고 결과만 적는다.
+- 결과(2026-11-13, export `cce15c5`, 기록 저장소 밖 `runs/autonomy_eval_20261113/measure/r2_profile_v011`): **불합격.** ① 적합성 92/92(native), 92/92(backend). ② N1~N6 60회 DRV_STUCK 0(합격). 보고: N5 10/10 THERMAL(v0.1 열 예산 5 s / 30 s 그대로), 호스트 래치 `steering_not_following` 0. ③ G1 POLARITY 3/3(틱 차 0), G3 STALL 3/3(틱 차 0), **G2는 3/3 모두 첫 결함이 POLARITY**(주입 뒤 0.27~0.30 s, 규칙 재계산과 틱 차 0)라 등록한 DRV_STUCK 기준에 못 미친다. 문턱을 3°로 올리자 v0.1의 POLARITY 1° / 0.1 s가 주행 중 드라이버 고착을 먼저 잡았다. 결함 정지는 됐지만 이름이 등록과 다르다. 결과 처리대로 v0.1.1은 2차에 쓰지 않는다.
+
+### 개정 53 — 자리값 변경: 프로필 v0.1.2(driver_stuck_fault 3°, polarity_fault 2° / 0.2 s) (2026-11-13, 묶음 S1c, 개정 52 불합격 뒤, 2차의 첫 run 전)
+
+- 무엇: `sim/ubts/steering/profiles/front_steer_v0_1_2_placeholder.yaml` = v0.1에서 `driver_stuck_fault` 2° / 0.3 s → 3° / 0.3 s와 `polarity_fault` 1° / 0.1 s → 2° / 0.2 s 두 칸만 바꾼 판. 두 값 모두 v0.2·v0.3과 같다(CFG `dsm` 80 → 120‰, `polp` 40 → 80‰, `polt` 100 → 200 ms). 펌웨어 코드·기본값과 v0.1, v0.1.1 파일은 그대로다. 기본 프로필은 v0.1 그대로이고, v0.1.2는 넓은 열 추종 2차의 조건(자기 프로필이 없는 것)에 쓴다.
+- 왜: 개정 52 ③에서 DRV_STUCK 문턱만 올리면 주행 중 드라이버 고착을 v0.1의 POLARITY(1° / 0.1 s)가 먼저 잡았다. 1° / 0.1 s는 결정 R18 결정 2에서 정지 중 오탐으로 이미 적혀 v0.2부터 2° / 0.2 s다. v0.2의 두 값 쌍은 ST-10(개정 40 ③)에서 G1 POLARITY, G2 DRV_STUCK을 따로 잡았다.
+- 어떤 검사로 확인하는가(측정 전 등록): ① 적합성은 펌웨어 그대로이므로 개정 52 ①(92/92 두 전송)을 쓴다. ② ST-10 정상 대본 N1~N6(`--profile <v0.1.2>`, 판정 seed 1800~1809). 합격: MCU F 줄 DRV_STUCK 0, POLARITY 0. 다른 결함 줄과 호스트 래치는 보고. ③ ST-10 고장 검출 G1~G3(판정 seed 1900~1902). 합격: G1 POLARITY, G2 DRV_STUCK, G3 STALL 또는 TRACK이 각각 주입 뒤 3 s 안에 첫 결함으로 F 줄에 나오고 규칙 재계산과 ±1틱.
+- 결과 처리: ②·③이 합격이면 2차는 v0.1.2로 돈다. 하나라도 불합격이면 2차는 v0.1로 돌고 결과만 적는다.

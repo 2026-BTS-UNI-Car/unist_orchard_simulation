@@ -6,7 +6,8 @@ module; the test sim/ubts/test_steering_follow_wide.py compares them). Do not ch
 measuring rules after a run; an amendment is written in the pre-registration document first.
 
 Round 2 (pre-registration 11, SIM_ACCEPTANCE amendments 51 and 52, registered before its first run): every condition
-without its own profile runs on profile v0.1.1 (v0.1 with driver_stuck_fault 3 deg, ROUND2_PROFILE); the W2 lateral
+without its own profile runs on profile v0.1.2 (v0.1 with driver_stuck_fault 3 deg and polarity_fault 2 deg / 0.2 s,
+the v0.2 values; ROUND2_PROFILE, amendment 53: v0.1.1 with driver_stuck_fault only failed amendment 52); the W2 lateral
 error (RMSE, p95, maximum) is measured from the truth passage centre (w2_passage_centre: the middle of the near side of
 the structure on each side in the raster, PASSAGE_* settings) instead of the catalogue centre line, whose values stay
 as a report; new judgement seeds 4000-4004 (seed set 'judge2'); at most ROUND2_MAX_DEV_ITERATIONS development
@@ -82,7 +83,7 @@ ROW_DURATION_S = 200.                # runs that should end at the row end (0.2 
 PAUSE_DURATION_S = 60.               # runs that should pause at 20 s and never restart (40 s of watching)
 SETTLE_M = FM.SETTLE_M
 PROFILE_V03 = 'front_steer_v0_3_placeholder'
-ROUND2_PROFILE = 'front_steer_v0_1_1_placeholder'   # round 2: conditions without a profile_id (amendment 52, R54)
+ROUND2_PROFILE = 'front_steer_v0_1_2_placeholder'   # round 2: conditions without a profile_id (amendment 53, R54)
 STEER_FAULTS = ('POT_OPEN', 'POT_SHORT', 'POT_JUMP', 'POT_NOISE', 'POLARITY', 'DRV_STUCK', 'STALL', 'TRACK', 'THERMAL')
 ABOVE_SIZE_FAULTS = ('STALL', 'TRACK', 'DRV_STUCK', 'POLARITY')     # SIM_ACCEPTANCE amendment 43 (5)
 # Registered criteria (sources: the pre-registration document 4). Do not change after a run.
@@ -335,7 +336,7 @@ def prereg():
                                             settle_m=SETTLE_M,
                                             settle_reason='the start pose lies on the catalogue centre line, up to '
                                                           '0.4 m off the passage centre: an offset start'),
-                            amendments=[51, 52], decisions=['R53', 'R54']),
+                            amendments=[51, 52, 53], decisions=['R53', 'R54']),
                 max_dev_iterations=MAX_DEV_ITERATIONS, criteria=CRITERIA, settle_m=SETTLE_M, fault_at_s=FAULT_AT_S,
                 disturbance_at_s=DIST_AT_S, footprint=dict(front_bumper_m=FRONT_BUMPER_M, half_width_m=HALF_WIDTH_M),
                 default_row=RowGeometry().to_dict(), steer_faults=list(STEER_FAULTS),

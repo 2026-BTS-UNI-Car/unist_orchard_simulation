@@ -130,7 +130,7 @@ class SpecTest(unittest.TestCase):
                 self.assertLessEqual(len(ep['world']['markers']), 64)
 
     def test_off_condition_is_the_follow_matrix_spec(self):
-        # round 2: the same spec except the profile v0.1.1 that every condition without its own profile carries
+        # round 2: the same spec except the profile v0.1.2 that every condition without its own profile carries
         mine = fw.spec(fw.condition('nominal'), 0, name='follow_nominal_s0')
         theirs = fm.spec(next(c for c in fm.CONDITIONS if c['name'] == 'nominal'), 0)
         mine.pop('duration_s')
@@ -148,8 +148,10 @@ class SpecTest(unittest.TestCase):
         from steering.vehicle_profile import PROFILES_DIR, load_profile
         new = load_profile(PROFILES_DIR / (fw.ROUND2_PROFILE + '.yaml'))
         old = load_profile()
-        self.assertEqual([n for n in old.names() if old.value(n) != new.value(n)], ['driver_stuck_fault'])
+        self.assertEqual([n for n in old.names() if old.value(n) != new.value(n)],
+                         ['polarity_fault', 'driver_stuck_fault'])
         self.assertEqual(new.value('driver_stuck_fault'), dict(motion_deg=3.0, duration_s=.3))
+        self.assertEqual(new.value('polarity_fault'), dict(away_deg=2.0, duration_s=.2))
         for name in ('nominal', 'pull_left', 'curve_l30', 'w2_045553_c03'):
             self.assertEqual(fw.spec(fw.condition(name), 100)['rig']['profile'].profile_id, fw.ROUND2_PROFILE)
         self.assertEqual(fw.spec(fw.condition('dist_terrain'), 100)['rig']['profile'].profile_id, fw.PROFILE_V03)

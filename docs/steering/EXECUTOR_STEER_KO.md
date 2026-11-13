@@ -395,5 +395,5 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 ## 15. 넓은 확인 2차에서 고친 것 (2026-11-13, 묶음 S1c 2차, 결정 R53·R54)
 
 1. **열 끝의 자리 확인(추정기).** 설정 `steer_row_end_agree_m`(front_steer, 기본 1.0 m, None = 끔)이 추정기 `row_end_agree_m`을 켠다(`ESTIMATOR_INPUTS_KO.md` 6절). 열 끝은 알린 끝의 자리가 1.0 m 안에서 맞는 두 연속 전체 갱신으로 확인한다. 14절 5의 거짓 열 끝(한 갱신의 튄 회랑 축)을 막는다.
-2. **프로필 v0.1.1(자리값).** 넓은 열 추종 2차의 조건은 `front_steer_v0_1_1_placeholder.yaml`(v0.1에서 DRV_STUCK 문턱만 3°)로 돈다. 실행기 코드는 바뀌지 않는다. 펌웨어 run 규칙은 P9 후보 그대로다.
+2. **프로필 v0.1.2(자리값).** 넓은 열 추종 2차의 조건은 `front_steer_v0_1_2_placeholder.yaml`(v0.1에서 DRV_STUCK 문턱 3°, POLARITY 2° / 0.2 s: v0.2와 같은 두 값)로 돈다. 실행기 코드는 바뀌지 않는다. 펌웨어 run 규칙은 P9 후보 그대로다.
 3. **vendor.** `vendor/closed_loop_copy/estimator.py`를 다시 만들었다. 고정 파일 `estimator.py`의 허용 이유(`PIN_ALLOWLIST.json`)에 이 변경을 더했다.

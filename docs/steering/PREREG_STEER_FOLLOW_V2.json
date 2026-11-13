@@ -760,14 +760,15 @@
  "round2": {
   "amendments": [
    51,
-   52
+   52,
+   53
   ],
   "decisions": [
    "R53",
    "R54"
   ],
   "max_dev_iterations": 2,
-  "profile_without_own": "front_steer_v0_1_1_placeholder",
+  "profile_without_own": "front_steer_v0_1_2_placeholder",
   "seeds": {
    "dev": [
     100,
