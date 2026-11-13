@@ -683,6 +683,7 @@ def main(argv=None):
             args.clock, cfg.digest()[:12], container.slot.digest[:12], container.owner), flush=True)
         if args.max_runtime_s is not None:
             threading.Timer(float(args.max_runtime_s), stop.set).start()
+        XM.freeze_startup_objects(loop)
         if args.clock == 'sim':
             run_loop_sim(container.stepped, stop, container.sim_clock, cfg.control_hz, grid=container.grid)
         else:

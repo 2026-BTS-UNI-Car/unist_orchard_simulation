@@ -88,6 +88,7 @@ stop_unconfirmed; an unconfirmed STOP latches the client).
 import argparse
 import collections
 import concurrent.futures
+import gc
 import hashlib
 import json
 import math
@@ -2050,6 +2051,20 @@ class ExecutorLoop:
 
 
 # --- threads ---------------------------------------------------------------------------------------------
+def freeze_startup_objects(loop=None):
+    """Move every object that exists after the start (modules, numpy / scipy / rclpy, the configuration, the loop) out
+    of the cyclic garbage collector's reach (gc.freeze, after one full collection), so a later full collection only
+    walks the objects made while running. A full collection of an executor-like process took 23-39 ms on a P-core of
+    the development PC before and ~0 ms after (docs/steering/EXECUTOR_PERF_KO.md); on the Jetson several times that,
+    in the middle of a tick. Nothing the loop computes changes. Returns the number of frozen objects."""
+    gc.collect()
+    gc.freeze()
+    count = gc.get_freeze_count()
+    if loop is not None:
+        loop._event('gc_freeze', frozen=count, thresholds=list(gc.get_threshold()))
+    return count
+
+
 def run_loop(loop, stop_event, hz=20., max_exceptions=5, exception_window_s=60., shadow_trace_limit=10,
              shadow_summary_s=10., shadow_reset_after=40, shadow_max_resets=5):
     """Absolute-schedule 20 Hz loop on time.monotonic(); a late iteration skips the missed ticks.
@@ -2257,6 +2272,7 @@ def main(argv=None):
         if not loop.motor_allowed:
             print('SHADOW: the executor does not control the vehicle; the page STOP only ends the shadow run. '
                   'Vehicle stop = dashboard STOP / physical E-stop.', flush=True)
+        freeze_startup_objects(loop)
         run_loop(loop, stop, cfg.control_hz)
     finally:
         loop.shutdown('shutdown')
