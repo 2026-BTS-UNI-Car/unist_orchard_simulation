@@ -397,3 +397,12 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 1. **열 끝의 자리 확인(추정기).** 설정 `steer_row_end_agree_m`(front_steer, 기본 1.0 m, None = 끔)이 추정기 `row_end_agree_m`을 켠다(`ESTIMATOR_INPUTS_KO.md` 6절). 열 끝은 알린 끝의 자리가 1.0 m 안에서 맞는 두 연속 전체 갱신으로 확인한다. 14절 5의 거짓 열 끝(한 갱신의 튄 회랑 축)을 막는다.
 2. **프로필 v0.1.2(자리값).** 넓은 열 추종 2차의 조건은 `front_steer_v0_1_2_placeholder.yaml`(v0.1에서 DRV_STUCK 문턱 3°, POLARITY 2° / 0.2 s: v0.2와 같은 두 값)로 돈다. 실행기 코드는 바뀌지 않는다. 펌웨어 run 규칙은 P9 후보 그대로다.
 3. **vendor.** `vendor/closed_loop_copy/estimator.py`를 다시 만들었다. 고정 파일 `estimator.py`의 허용 이유(`PIN_ALLOWLIST.json`)에 이 변경을 더했다.
+
+## 14. 실행기 처리 시간 (2026-11-13, 브랜치 `executor-perf-20261113`)
+
+- 결과와 근거는 `EXECUTOR_PERF_KO.md`에 있다.
+- 바뀐 것은 셋이다:
+  - 걸음의 입력 처리(긴 스캔 처리)가 조향 상태를 낡게 했을 때 틱 전에 브리지 status 를 한 번 새로 읽는다(`_refresh_steering`). 0.3 s 한도는 그대로다.
+  - 루프 시작 직전에 `gc.freeze()`를 한다.
+  - SIM 스택의 steer·executor CPU 를 3 으로 올렸다.
+- 빠른 SIM 15 회, 차동 기준 에피소드 10 개, 넓은 평가 3 조건, T1 안전 대본 71 개의 직렬 로그와 trace 가 main 8e767dd 와 같다.
