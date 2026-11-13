@@ -1,10 +1,11 @@
 # Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
 # GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0;
 # the dashboard runs in the sim network namespace and the sim service publishes its port).
-# Default image ubts-steer-sim:wf4c (2026-11-12: the executor package, the S2 format node and the row-following
-# controller of the executor slot, kind row_follow, are in the image; from wf4a on the S2 node is in the image, so
-# "up" publishes /scan in the real-rover format; ubts-steer-sim:p6a had /sim/scan only). UBTS_STEER_IMAGE picks
-# another image.
+# Default image ubts-steer-sim:wf5 (2026-11-13, the final image of the steering SIM: the one-press executor, the
+# dashboard copy of the dashboard repository with the SIM extension, the steering sidecar in the recorder role, the
+# SIM LiDAR bridge's profile=mapping scans; wf4c (2026-11-12) had the executor package, the S2 format node and the
+# row-following controller; from wf4a on the S2 node is in the image, so "up" publishes /scan in the real-rover format;
+# ubts-steer-sim:p6a had /sim/scan only). UBTS_STEER_IMAGE picks another image.
 # Never start together with the ubts-sim stack or the fullsensor stack. Reserve 6 GiB with docker_budget.py first:
 #   python -I <tools>/docker_budget.py acquire --label p6a-stack --gib 6
 #   docker compose -p ubts-steer -f compose.ubts-steer.yaml up -d        (UBTS_STEER_SCENE=w0_force|w1_force|field1010;
@@ -76,7 +77,7 @@ x-environment: &environment
   UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
 services:
   sim:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     init: true
     ipc: shareable
     shm_size: 512mb
@@ -131,7 +132,7 @@ services:
       start_period: 240s
       retries: 6
   steer:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -151,7 +152,7 @@ services:
     stop_grace_period: 20s
     restart: "no"
   recorder:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -177,7 +178,7 @@ services:
   # control volume and never reaches the page). The page port 8080 is published by the sim service (127.0.0.1:18090).
   # An image built before the sync (wf4c and earlier) still runs its own older dashboard: it ignores these settings.
   dashboard:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     init: true
     network_mode: "service:sim"
     working_dir: /opt/ubts/dashboard
@@ -220,7 +221,7 @@ services:
   # memory) and mounts the control volume only: no runtime volume (SIM status files) and no emulator hooks. Clock
   # mode = UBTS_STEER_CLOCK (wall | sim, the same value as the bridge wrapper). Profile executor (not started by "up").
   executor:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     profiles: ["executor"]
     init: true
     network_mode: "service:sim"
@@ -256,7 +257,7 @@ services:
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
   # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
   check:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf5}
     profiles: ["check"]
     init: true
     network_mode: "service:sim"
