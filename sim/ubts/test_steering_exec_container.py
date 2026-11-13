@@ -742,6 +742,71 @@ class CheckHelpersTest(unittest.TestCase):
         self.assertTrue(set(EC.ONE_PRESS_NOT_APPLICABLE) <= set(EC.DEFAULT_ORDER))
 
 
+class DiscoverySettleTest(unittest.TestCase):
+    """exec_checks.quiet_since / settle_discovery (G-SIM stage 5: a driving check starts after the DDS graph is quiet)."""
+
+    def test_quiet_since(self):
+        receipts = [9.9] + [10. + .008 * k for k in range(100)] + [11.2 + .008 * k for k in range(100)]
+        quiet_from, gaps = EC.quiet_since(receipts, 10., 12.)
+        self.assertAlmostEqual(quiet_from, 11.2)
+        self.assertEqual(len(gaps), 1)
+        self.assertAlmostEqual(gaps[0][0], .792, places=3)
+        self.assertAlmostEqual(gaps[0][1], .408, places=3)
+        self.assertEqual(EC.quiet_since(receipts, 10., 12.5)[0], 12.5)          # no /clock for 0.5 s: an open gap
+        self.assertEqual(EC.quiet_since([], 10., 11.)[0], 11.)
+        self.assertEqual(EC.quiet_since([10.05, 10.1], 10., 10.15), (10., []))  # the start counts, not earlier
+
+    def test_settle_waits_for_a_quiet_clock_and_reports_the_gaps(self):
+        t = [0.]
+
+        class Obs:
+            sim_time = 1.
+            clock_rows = []
+
+            def spin_until(self_inner, predicate, timeout_s):
+                return predicate()
+
+            def spin_for(self_inner, seconds):
+                end = t[0] + seconds
+                while t[0] < end:
+                    t[0] = round(t[0] + .01, 4)
+                    if not 1. < t[0] < 1.35:                # a 0.35 s stall 1 s after the start
+                        self_inner.clock_rows.append((t[0], t[0]))
+        ctx = types.SimpleNamespace(obs=Obs())
+        original = EC.time.monotonic
+        EC.time.monotonic = lambda: t[0]
+        try:
+            record = EC.settle_discovery(ctx, quiet_s=2., gap_s=.1, max_s=30.)
+        finally:
+            EC.time.monotonic = original
+        self.assertTrue(record['settled'])
+        self.assertGreaterEqual(record['waited_s'], 3.35)              # quiet 2 s after the stall
+        self.assertLess(record['waited_s'], 3.7)
+        self.assertEqual(len(record['gaps']), 1)
+        self.assertAlmostEqual(record['gaps'][0][1], .35, delta=.015)
+
+    def test_settle_gives_up_after_max_s(self):
+        t = [0.]
+
+        class Obs:
+            sim_time = 1.
+            clock_rows = []
+
+            def spin_until(self_inner, predicate, timeout_s):
+                return predicate()
+
+            def spin_for(self_inner, seconds):
+                t[0] = round(t[0] + seconds, 4)              # no /clock at all
+        original = EC.time.monotonic
+        EC.time.monotonic = lambda: t[0]
+        try:
+            record = EC.settle_discovery(types.SimpleNamespace(obs=Obs()), quiet_s=2., max_s=5.)
+        finally:
+            EC.time.monotonic = original
+        self.assertFalse(record['settled'])
+        self.assertGreaterEqual(record['waited_s'], 5.)
+
+
 class OnePressPage:
     """The executor operator page of OperatorClient (request / post) in a start mode: /api/go refused go_refusals times
     (inputs_not_fresh) or always (go_error); /api/hold refused in one_press like the executor."""
