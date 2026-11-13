@@ -65,7 +65,12 @@ SINGLE_ROW_FIELDS = (('row_end_segment_span_m', None), ('row_end_segment_min_gap
 V2_FIELDS = (('actuator_prior', None), ('corridor_quality', False), ('external_corridor_gain', 0.),
              ('external_corridor_sources', ()), ('external_corridor_max_age_s', .5),
              ('external_corridor_min_quality', .5))
-OPT_IN_FIELDS = DISTANCE_FIELDS + ROW_END_POSITION_FIELDS + CONTINUATION_FIELDS + SINGLE_ROW_FIELDS + V2_FIELDS
+# Added by the curved row ends (S1c, 2026-11-13). Never read while OFF (row_end_curve_fit False); no state then.
+CURVE_FIELDS = (('row_end_curve_fit', False), ('row_end_curve_reach_m', (4., 6., 8., 10.)),
+                ('row_end_curve_behind_m', 2.), ('row_end_curve_max_1_m', 1. / 15.), ('row_end_curve_min_points', 6),
+                ('row_end_curve_edge_m', 1.5), ('row_end_curve_max_gap_m', 3.))
+OPT_IN_FIELDS = (DISTANCE_FIELDS + ROW_END_POSITION_FIELDS + CONTINUATION_FIELDS + SINGLE_ROW_FIELDS + V2_FIELDS
+                 + CURVE_FIELDS)
 
 
 def test_frozen_estimator_uses_the_frozen_scan_corridor():
@@ -90,7 +95,7 @@ def main_config(config, variant=False):
                        and added['acquire_behind_m'] is None and added['band_rotate_about_vehicle'] is False
                        and added['row_end_stagger_gap_m'] is None and added['row_end_last_trunk'] is False
                        and added['actuator_prior'] is None and added['corridor_quality'] is False
-                       and added['external_corridor_gain'] == 0.), \
+                       and added['external_corridor_gain'] == 0. and added['row_end_curve_fit'] is False), \
         'reference comparison needs the variants OFF'
     return ref_estimator.EstimatorConfig(**values)
 

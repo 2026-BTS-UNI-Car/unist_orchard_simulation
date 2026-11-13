@@ -331,6 +331,18 @@ def test_throttle_starts_at_the_minimum_speed_duty_and_slews():
     assert fast.last_throttle < high - 10
 
 
+def test_the_duty_never_rises_while_faster_than_the_reference():
+    # S1c: the start ramp of a vehicle faster than the table (table x 1.3) must stop rising once the speed passes v_ref
+    ctl = RowFollowController(config())
+    k = driving(ctl)
+    run(ctl, 20, start=k, speed=.1, still=False)                  # still slow: the ramp rises
+    rising = ctl.last_throttle
+    out = run(ctl, 60, start=k + 20, speed=.45, still=False)      # faster than 0.40: no rise any more
+    duties = [c.throttle for c in out]
+    assert max(duties) <= rising                                  # held (it falls once the PI asks for less)
+    assert ctl.integral < 0.                                      # the integral moves down while the rise is held
+
+
 # --- stops ------------------------------------------------------------------------------------------------------------
 
 def test_row_end_stop_and_hold():

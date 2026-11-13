@@ -26,7 +26,8 @@ The target is limited to steer_follow_limit_deg, low-pass filtered and slew limi
 guard's slew limit, inside limit_margin x the equivalent soft limit. The yaw-rate inner loop gain k_r is a hook (0).
 
 Speed (V2-4, PC-10): v_ref = min of the caps below; duty = table^-1(v_ref / speed_scale) + PI(v_ref - LiDAR speed),
-slewed. The binding cap's name is the limit reason (telemetry 'cap'; every cap's value in 'caps').
+slewed; the duty never rises while the LiDAR speed is above v_ref (S1c: a table that is too low for the vehicle
+kept the start ramp rising past the target, true speed 0.54 m/s with the vehicle 1.3 x the table). The binding cap's name is the limit reason (telemetry 'cap'; every cap's value in 'caps').
   cruise     cruise_speed_m_s inside [min_speed_m_s, max_speed_m_s] (the field tuning 'target speed')
   scan       d_scan / T_scan       T_scan: p90 of the scan stamp spacing over timing_window_s
   blind      d_blind / tau_loop    tau_loop: p90 of the scan age at its first tick + loop_fixed_s + the p90 of the
@@ -391,8 +392,12 @@ class RowFollowController:
             self.duty = min(float(cfg.duty_max_pct), start or 0.)
         else:
             step = wanted - self.duty
+            if error < 0. and step > 0.:
+                step = 0.               # S1c: never raise the duty while faster than the reference (start ramp, table low)
             limited = max(-cfg.duty_fall_pct_s * dt, min(cfg.duty_rise_pct_s * dt, step))
-            if limited == step and 0. < self.duty + limited < cfg.duty_max_pct:      # no wind-up while limited
+            # no wind-up while limited; a lower duty asked for while the rise is held (faster than the reference) is
+            # not wind-up either
+            if (limited == step or error < 0.) and 0. < self.duty + limited < cfg.duty_max_pct:
                 bound = cfg.speed_integral_limit_pct
                 self.integral = max(-bound, min(bound, self.integral + cfg.speed_ki_pct_per_m * error * dt))
             self.duty = max(1., min(float(cfg.duty_max_pct), self.duty + limited))

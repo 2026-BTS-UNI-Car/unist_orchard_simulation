@@ -348,6 +348,8 @@ class ExecutorConfig:
     steer_authority_s: float = 1.5               # >= fraction x soft limit for longer than this and |lateral| not falling
     steer_rotation_centre_x_m: float = -.38      # rotation centre of the side-sweep rule: the rear axle in the base frame
     steer_rotation_centre_sd_m: float = .05      # (profile rear_axle_x_in_base_m, design 6.7) and its uncertainty
+    steer_row_end_curve_fit: bool = True         # front_steer estimator: curved row ends (EstimatorConfig
+                                                 # row_end_curve_fit; False = the straight-band rule). S1c 2026-11-13
 
     # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
     # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
@@ -523,6 +525,9 @@ class ExecutorConfig:
         if self.mode == SINGLE_ROW_MODE:
             # single-row estimator options (other modes: the EstimatorConfig defaults, i.e. the original rules)
             overrides.update(single_row_estimator_fields(self))
+        if is_front_steer(self) and self.steer_row_end_curve_fit:
+            # front_steer: curved row ends (S1c; the differential history keeps the straight-band rule)
+            overrides['row_end_curve_fit'] = True
         overrides.update(PS.estimator_fields(self))   # local grid fusion (empty while the gain is 0)
         return overrides
 
@@ -702,6 +707,7 @@ _SPEC.update({
     'steer_zero_offset_deg': (_REAL, -10., 10., 'nullable'), 'steer_servo_deadband_deg': (_REAL, 0., 10., 'nullable'),
     'steer_polarity_checked': (bool,), 'steer_cal_id': (int, 1, 65535, 'nullable'), 'steer_allow_sim': (bool,),
     'steer_status_max_age_s': (_REAL, .05, 1.),
+    'steer_row_end_curve_fit': (bool,),
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
 })

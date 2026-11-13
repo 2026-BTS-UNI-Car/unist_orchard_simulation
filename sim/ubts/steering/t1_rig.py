@@ -278,6 +278,29 @@ class RigFault:
     params: dict = field(default_factory=dict)
 
 
+DRIVE_TABLE_KEYS = ('points', 'factor', 'duty_scale', 'duty_offset_pct', 'source')
+
+
+def _canonical_drive_table(spec):
+    """RigConfig.drive_table: None, or canonical JSON text of {points, factor, duty_scale, duty_offset_pct, source}
+    (checked by steered_plant.drive_table_spec)."""
+    if spec is None:
+        return None
+    if isinstance(spec, str):
+        spec = json.loads(spec)
+    if not isinstance(spec, dict) or sorted(set(spec) - set(DRIVE_TABLE_KEYS)):
+        raise RigError('drive_table must be a dict with keys from %s' % (DRIVE_TABLE_KEYS,))
+    try:
+        points, factor, duty_scale, offset, source = sp.drive_table_spec(
+            spec.get('points', ()), spec.get('factor', 1.), spec.get('duty_scale', 1.), spec.get('duty_offset_pct', 0.),
+            spec.get('source'))
+    except ValueError as exc:
+        raise RigError(str(exc)) from None
+    return json.dumps(dict(points=[list(p) for p in points], factor=factor, duty_scale=duty_scale,
+                           duty_offset_pct=offset, source=source), sort_keys=True, separators=(',', ':'),
+                      allow_nan=False)
+
+
 @dataclass(frozen=True)
 class RigConfig:
     """Everything one rig run needs (all values placeholders unless a caller sets measured ones).
@@ -331,6 +354,9 @@ class RigConfig:
     report_servo: bool = True
     report_adc: bool = False          # evaluation channel adc_read (raw ADC per tick; P4 A19 POT_NOISE timing check)
     gnss: object = None               # None (no GNSS packets) or a gnss_sim spec dict (stored as canonical JSON text)
+    drive_table: object = None        # None (the profile drive curve) or {points, factor, duty_scale, duty_offset_pct,
+                                      # source}: the plant's steady speed follows the field tuning table x factor
+                                      # (steered_plant.drive_table_spec; PW-08 / PC-11), stored as canonical JSON text
 
     def __post_init__(self):
         for name in ('record_overrides', 'host_overrides'):
@@ -339,6 +365,7 @@ class RigConfig:
                 object.__setattr__(self, name, tuple(sorted(value.items())))
         object.__setattr__(self, 'faults', tuple(self.faults))
         object.__setattr__(self, 'gnss', gnss_sim.canonical(self.gnss))
+        object.__setattr__(self, 'drive_table', _canonical_drive_table(self.drive_table))
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed < 2 ** 32:
             raise RigError('rig_seed_must_be_u32')
         if self.bridge_period_ms % PLANT_STEP_MS or self.bridge_period_ms <= 0:
@@ -555,6 +582,10 @@ class T1Rig:
         self.params = sp.SteeredPlantParams.from_profile(profile, curve=config.curve, geometry_check=False,
                                                          steer_mode='direct_pwm',
                                                          gyro_noise_scale=config.gyro_noise_scale)
+        if config.drive_table is not None:
+            table = json.loads(config.drive_table)
+            self.params = replace(self.params, drive_table=sp.drive_table_spec(
+                table['points'], table['factor'], table['duty_scale'], table['duty_offset_pct'], table['source']))
         self.executable = resolve_native(native_executable, build_dir, compiler)
         self.seed = config.seed
         self.stream_key = config.stream_key
@@ -1386,6 +1417,8 @@ class T1Rig:
                    result_kind=RESULT_KIND)
         if self.config.gnss is not None:
             out['gnss'] = json.loads(self.config.gnss)
+        if self.config.drive_table is not None:
+            out['drive_table'] = json.loads(self.config.drive_table)
         if include_files:
             out['native_executable_sha256'] = self.fw.executable_sha256
         return out

@@ -1,0 +1,788 @@
+{
+ "above_size_faults": [
+  "STALL",
+  "TRACK",
+  "DRV_STUCK",
+  "POLARITY"
+ ],
+ "conditions": [
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "nominal"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "curve_l60",
+   "world": {
+    "curvature_1_m": 0.016666666666666666
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "curve_r60",
+   "world": {
+    "curvature_1_m": -0.016666666666666666
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "curve_l30",
+   "world": {
+    "curvature_1_m": 0.03333333333333333
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "curve_r30",
+   "world": {
+    "curvature_1_m": -0.03333333333333333
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "gap1_left",
+   "world": {
+    "gaps": [
+     [
+      "L",
+      12.0,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "gap2_right",
+   "world": {
+    "gaps": [
+     [
+      "R",
+      12.0,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "gap3_left",
+   "world": {
+    "gaps": [
+     [
+      "L",
+      10.5,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "gap1_both",
+   "world": {
+    "gaps": [
+     [
+      "B",
+      12.0,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "gap3_both",
+   "world": {
+    "gaps": [
+     [
+      "B",
+      10.5,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "endpost_0p6",
+   "world": {
+    "end_post_m": 0.6
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "endpost_1p2",
+   "world": {
+    "end_post_m": 1.2
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "endpost_2p0",
+   "world": {
+    "end_post_m": 2.0
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "width_3p0",
+   "world": {
+    "half_width_m": 1.5
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "width_4p0",
+   "world": {
+    "half_width_m": 2.0
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "spacing_1p0",
+   "world": {
+    "spacing_m": 1.0
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "geometry",
+   "name": "spacing_3p0",
+   "world": {
+    "spacing_m": 3.0
+   }
+  },
+  {
+   "duration_s": 300.0,
+   "expect": "row_end",
+   "family": "w2",
+   "name": "w2_042301_c03",
+   "w2": {
+    "corridor_id": "c03",
+    "record": "042301"
+   }
+  },
+  {
+   "duration_s": 300.0,
+   "expect": "row_end",
+   "family": "w2",
+   "name": "w2_040927_c06",
+   "w2": {
+    "corridor_id": "c06",
+    "record": "040927"
+   }
+  },
+  {
+   "duration_s": 300.0,
+   "expect": "row_end",
+   "family": "w2",
+   "name": "w2_045553_c03",
+   "w2": {
+    "corridor_id": "c03",
+    "record": "045553"
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "start",
+   "name": "lateral_p040",
+   "settle_m": 6.0,
+   "start": [
+    0.0,
+    0.4,
+    0.0
+   ]
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "start",
+   "name": "lateral_n040",
+   "settle_m": 6.0,
+   "start": [
+    0.0,
+    -0.4,
+    0.0
+   ]
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "start",
+   "name": "heading_p10",
+   "settle_m": 6.0,
+   "start": [
+    0.0,
+    0.0,
+    10.0
+   ]
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "start",
+   "name": "heading_n10",
+   "settle_m": 6.0,
+   "start": [
+    0.0,
+    0.0,
+    -10.0
+   ]
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "vehicle",
+   "name": "pull_left",
+   "wander_mean_deg_per_m": 0.6
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "vehicle",
+   "name": "pull_right",
+   "wander_mean_deg_per_m": -0.6
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "vehicle",
+   "name": "steer_zero_p2",
+   "profile": {
+    "steer_zero_offset_deg": 2.0
+   }
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "vehicle",
+   "name": "steer_zero_n2",
+   "profile": {
+    "steer_zero_offset_deg": -2.0
+   }
+  },
+  {
+   "controller": {
+    "cruise_speed_m_s": 0.2
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "speed",
+   "name": "speed_0p2"
+  },
+  {
+   "controller": {
+    "cruise_speed_m_s": 0.5
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "speed",
+   "name": "speed_0p5",
+   "speed_max_key": "speed_max_fast_m_s"
+  },
+  {
+   "drive_table": {
+    "factor": 0.7
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "table_x070"
+  },
+  {
+   "drive_table": {
+    "factor": 0.85
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "table_x085"
+  },
+  {
+   "drive_table": {
+    "factor": 1.0
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "table_x100"
+  },
+  {
+   "drive_table": {
+    "factor": 1.15
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "table_x115"
+  },
+  {
+   "drive_table": {
+    "factor": 1.3
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "table_x130"
+  },
+  {
+   "drive_table": {
+    "duty_scale": 0.85
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "battery_0p85"
+  },
+  {
+   "drive_table": {
+    "duty_offset_pct": 15.0
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "drive_table",
+   "name": "start_threshold_p15"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "name": "dist_none_v03",
+   "no_steer_fault": true,
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "faults": [
+    {
+     "at_s": 6.0,
+     "kind": "steer_torque",
+     "params": {
+      "duration_s": 3.0,
+      "torque_nm": 2.5
+     }
+    }
+   ],
+   "name": "dist_step_p2p5",
+   "no_steer_fault": true,
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "faults": [
+    {
+     "at_s": 6.0,
+     "kind": "steer_torque",
+     "params": {
+      "duration_s": 3.0,
+      "torque_nm": -2.5
+     }
+    }
+   ],
+   "name": "dist_step_n2p5",
+   "no_steer_fault": true,
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "faults": [
+    {
+     "at_s": 6.0,
+     "kind": "steer_torque",
+     "params": {
+      "duration_s": 10.0,
+      "torque_nm": 2.0
+     }
+    }
+   ],
+   "name": "dist_push_2p0",
+   "no_steer_fault": true,
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "faults": [
+    {
+     "at_s": 6.0,
+     "kind": "steer_torque",
+     "params": {
+      "duration_s": 20.0,
+      "torque_nm": 1.0
+     }
+    }
+   ],
+   "name": "dist_push_1p0",
+   "no_steer_fault": true,
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "disturbance",
+   "name": "dist_terrain",
+   "no_steer_fault": true,
+   "profile": {
+    "steer_terrain_impacts": {
+     "duration_s": 0.05,
+     "rate_per_m": 1.0,
+     "torque_sd_nm": 1.0
+    },
+    "steer_terrain_push": {
+     "corr_length_m": 2.0,
+     "sd_nm": 0.5
+    }
+   },
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end_or_steer_fault",
+   "family": "disturbance",
+   "name": "dist_terrain_x2",
+   "profile": {
+    "steer_terrain_impacts": {
+     "duration_s": 0.05,
+     "rate_per_m": 1.0,
+     "torque_sd_nm": 2.0
+    },
+    "steer_terrain_push": {
+     "corr_length_m": 2.0,
+     "sd_nm": 1.0
+    }
+   },
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "steer_fault",
+   "family": "disturbance",
+   "faults": [
+    {
+     "at_s": 6.0,
+     "kind": "steer_torque",
+     "params": {
+      "duration_s": 5.0,
+      "torque_nm": 5.0
+     }
+    }
+   ],
+   "name": "dist_above_5",
+   "profile_id": "front_steer_v0_3_placeholder"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "sensor",
+   "faults": [
+    {
+     "at_s": 20.0,
+     "kind": "sensor_blackout",
+     "params": {
+      "duration_s": 0.2,
+      "which": "lidar"
+     }
+    }
+   ],
+   "name": "lidar_dropout_0p2"
+  },
+  {
+   "duration_s": 60.0,
+   "expect": "stale_lidar",
+   "family": "sensor",
+   "faults": [
+    {
+     "at_s": 20.0,
+     "kind": "sensor_blackout",
+     "params": {
+      "duration_s": 1.0,
+      "which": "lidar"
+     }
+    }
+   ],
+   "name": "lidar_stale_1p0"
+  },
+  {
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "sensor",
+   "faults": [
+    {
+     "at_s": 20.0,
+     "kind": "sensor_blackout",
+     "params": {
+      "duration_s": 0.2,
+      "which": "imu"
+     }
+    }
+   ],
+   "name": "imu_dropout_0p2"
+  },
+  {
+   "duration_s": 60.0,
+   "expect": "stale_imu",
+   "family": "sensor",
+   "faults": [
+    {
+     "at_s": 20.0,
+     "kind": "sensor_blackout",
+     "params": {
+      "duration_s": 1.0,
+      "which": "imu"
+     }
+    }
+   ],
+   "name": "imu_stale_1p0"
+  },
+  {
+   "config": {
+    "gnss_mode": "geofence"
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "gnss",
+   "gnss": {},
+   "name": "gnss_nominal"
+  },
+  {
+   "config": {
+    "gnss_mode": "geofence"
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "gnss",
+   "gnss": {
+    "dropouts": [
+     [
+      10.0,
+      70.0
+     ]
+    ]
+   },
+   "name": "gnss_dropout_60s"
+  },
+  {
+   "config": {
+    "gnss_mode": "geofence"
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "gnss",
+   "gnss": {
+    "jumps": [
+     {
+      "at_s": 30.0,
+      "duration_s": 0.5,
+      "east_m": 5.0,
+      "north_m": 0.0
+     },
+     {
+      "at_s": 45.0,
+      "duration_s": 0.5,
+      "east_m": 2.701512,
+      "north_m": 4.207355
+     },
+     {
+      "at_s": 60.0,
+      "duration_s": 0.5,
+      "east_m": -2.080734,
+      "north_m": 4.546487
+     }
+    ]
+   },
+   "name": "gnss_jump_5m"
+  },
+  {
+   "config": {
+    "gnss_mode": "geofence"
+   },
+   "duration_s": 200.0,
+   "expect": "row_end",
+   "family": "gnss",
+   "gnss": {
+    "jumps": [
+     {
+      "at_s": 30.0,
+      "duration_s": 0.5,
+      "east_m": 15.0,
+      "north_m": 0.0
+     },
+     {
+      "at_s": 45.0,
+      "duration_s": 0.5,
+      "east_m": 8.104535,
+      "north_m": 12.622065
+     },
+     {
+      "at_s": 60.0,
+      "duration_s": 0.5,
+      "east_m": -6.242203,
+      "north_m": 13.639461
+     }
+    ]
+   },
+   "name": "gnss_jump_15m"
+  },
+  {
+   "actions": [
+    {
+     "at_s": 20.0,
+     "op": "screen_hidden"
+    }
+   ],
+   "duration_s": 60.0,
+   "expect": "operator_link_lost",
+   "family": "operator",
+   "name": "operator_link_lost"
+  },
+  {
+   "duration_s": 60.0,
+   "expect": "obstacle_ahead",
+   "family": "obstacle",
+   "name": "obstacle",
+   "world": {
+    "extra": [
+     [
+      12.0,
+      0.0,
+      0.12
+     ]
+    ]
+   }
+  }
+ ],
+ "controller": {
+  "kind": "row_follow"
+ },
+ "criteria": {
+  "after_terminal_window_s": 3.0,
+  "heading_max_deg": 15.0,
+  "heading_rmse_deg": 5.0,
+  "imu_max_age_s": 0.4,
+  "lateral_max_m": 0.5,
+  "lateral_p95_m": 0.35,
+  "lateral_rmse_m": 0.2,
+  "lidar_max_age_s": 0.45,
+  "link_drive_zero_s": 0.55,
+  "min_clearance_m": 0.0,
+  "pw08_cell_ratio_tolerance": 0.01,
+  "rest_speed_m_s": 0.02,
+  "row_end_error_m": 1.0,
+  "speed_max_fast_m_s": 0.55,
+  "speed_max_m_s": 0.5,
+  "stale_drive_zero_s": 0.1,
+  "steer_fault_within_s": 3.0
+ },
+ "default_row": {
+  "curvature_1_m": 0.0,
+  "end_post_m": null,
+  "end_post_radius_m": 0.06,
+  "end_s_m": 24.0,
+  "extra": [],
+  "gaps": [],
+  "half_width_m": 1.75,
+  "post_radius_m": 0.12,
+  "spacing_m": 1.5,
+  "start_s_m": -4.5
+ },
+ "disturbance_at_s": 6.0,
+ "fault_at_s": 20.0,
+ "footprint": {
+  "front_bumper_m": 0.61,
+  "half_width_m": 0.35
+ },
+ "id": "steer_follow_wide_v2",
+ "max_dev_iterations": 3,
+ "pw08_cell": {
+  "cell": [
+   0,
+   1
+  ],
+  "cell_speed_factor": 1.1,
+  "distance_m": 30.0,
+  "duties": [
+   25,
+   50
+  ],
+  "seed": 3100,
+  "tolerance": 0.01,
+  "window": [
+   12.0,
+   22.0
+  ]
+ },
+ "result_kind": "placeholder-based SIM result",
+ "runs_per_seed_set": 275,
+ "schema": "ubts.steer_sim.prereg_follow_wide.v1",
+ "seeds": {
+  "dev": [
+   100,
+   101,
+   102,
+   103,
+   104
+  ],
+  "judge": [
+   3000,
+   3001,
+   3002,
+   3003,
+   3004
+  ]
+ },
+ "settle_m": 6.0,
+ "simulator": "F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)",
+ "steer_faults": [
+  "POT_OPEN",
+  "POT_SHORT",
+  "POT_JUMP",
+  "POT_NOISE",
+  "POLARITY",
+  "DRV_STUCK",
+  "STALL",
+  "TRACK",
+  "THERMAL"
+ ]
+}

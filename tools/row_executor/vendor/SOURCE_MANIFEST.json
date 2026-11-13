@@ -2,9 +2,9 @@
  "copy_method": "git show <commit>:<source_path> (byte-exact, as stored)",
  "derivation": {
   "note": "rewritten by tools/steer_sim/regen_vendor.py; check with tools/steer_sim/check_vendor_sync.py",
-  "previous_manifest_SHA256": "5bd1562f31c16ede8fa5f6263dabde567a6dbf66da2a310e373eb59af85978c0",
+  "previous_manifest_SHA256": "04a344130ab6b4ac4bdb9244c29f147c5da26f814ab9e90ae8157e06d413b037",
   "previous_source_branch": "main",
-  "previous_source_commit": "8cafba39ace776a882a0127367d63898fe042775",
+  "previous_source_commit": "df4fe8d3e5c831829cdc7388568fe78d65e8eb13",
   "previous_source_repository": "2026-BTS-UNI-Car/unist_orchard_simulation"
  },
  "files": [
@@ -30,9 +30,9 @@
    "vendored_path": "closed_loop_copy/controllers.py"
   },
   {
-   "bytes": 109742,
-   "git_blob": "03f94cb658f6cc3485cb3ce7b3107366ddb1059f",
-   "sha256": "20dfe408d908f562887c42b8eaa66b841277dde8f91ac064d12cfc6356ac0cb1",
+   "bytes": 114847,
+   "git_blob": "d86eb222287a56cf85d5a1549a252200021ef554",
+   "sha256": "dd860869208816c61e0b0058dbcda05c0bb0dcace9058ad57a56bbfb101bccf1",
    "source_path": "sim/ubts/closed_loop/estimator.py",
    "vendored_path": "closed_loop_copy/estimator.py"
   },
@@ -44,9 +44,9 @@
    "vendored_path": "closed_loop_copy/single_row.py"
   },
   {
-   "bytes": 30419,
-   "git_blob": "39cbe21d7a3e81e2b20fd2de3c7659acffb6d8fa",
-   "sha256": "c5201d17a2a54b852f9c4953c282d5db58d92736339dd01ed1e86d7a16aaa79e",
+   "bytes": 30921,
+   "git_blob": "72d549820ccb9b0f4efbb6e4d43910f34edbcda9",
+   "sha256": "2105cbed90d670d1883079174d78eb417278fdd34e97ef22c162248f91fd0c56",
    "source_path": "sim/ubts/closed_loop/steer_control.py",
    "vendored_path": "closed_loop_copy/steer_control.py"
   },
@@ -70,7 +70,7 @@
  "modified": false,
  "schema": "ubts.row_executor.vendor_manifest.v1",
  "source_branch": "main",
- "source_commit": "0c15aac26eef7c75997842b04190cec9c971abf0",
+ "source_commit": "1e13cb4bfd25955caf002d468a0af8638a074625",
  "source_repository": "2026-BTS-UNI-Car/unist_orchard_simulation",
  "verification": "row_executor.core.load_vendor() recomputes every sha256 before import and refuses on mismatch, imports the copies under row_executor.vendor (the SIM-tree name orchard_perception points at the vendored copy only while the vendored estimator is imported) and checks the imported files again; closed_loop_copy/single_row.py is imported next to the verified controllers module (core.single_row_module) and its sha256 is checked again at import"
 }

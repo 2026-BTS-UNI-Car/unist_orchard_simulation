@@ -11,6 +11,12 @@ Model (all values from one vehicle profile, steering/vehicle_profile.py; placeho
              curve (drive.py: main P_fit1003 by default, bracket field1010 selectable;
              reverse = forward x reverse_curve; battery scale on the duty) x per-run speed
              scale x (1 + speed fluctuation) x (1 - scrub loss per deg x |delta|).
+             Optional drive table (SteeredPlantParams.drive_table, default None = the curve above; PW-08 / PC-11):
+             the steady speed is the field tuning file's duty -> speed table (the executor's own table, read from
+             the same file) x factor at the duty x duty_scale - duty_offset_pct (piecewise linear through (0, 0),
+             held above the last point), x (1 + speed fluctuation) x (1 - scrub loss); no per-run speed scale.
+             This is how a SIM run makes 'the vehicle = table x factor' (battery sag, table mismatch, a later
+             start threshold). See drive_table_spec().
              Speeding up: first-order lag drive_accel_tau_s. Slowing down: one event per
              slow-down that holds the speed for onset_s and then decelerates at a per-event
              draw median x exp(log_sd x z). The event takes the stop mode: release for a
@@ -105,6 +111,9 @@ SPEED_SNAP_M_S = .005           # FieldPlant.step: v -> 0 when the target is 0 a
 VIBRATION_SPEED_M_S = .02       # FieldPlant.step: drive vibration above this speed
 SPEED_RUN_SCALE_CLIP = (.5, 1.25)   # FieldPlant per-run speed scale clip
 GRAVITY_M_S2 = 9.81
+DRIVE_TABLE_FACTOR_RANGE = (.3, 2.)         # drive_table_spec: plant speed / table speed
+DRIVE_TABLE_DUTY_SCALE_RANGE = (.5, 1.5)    # battery-like duty scale
+DRIVE_TABLE_OFFSET_RANGE_PCT = (0., 40.)    # start threshold shift [% duty]
 # Ideal profile values for geometry checks (A1, A12; design 3.3 uses the L0 ideal servo there).
 # Distributions with zero spread keep the per-run draw form.
 GEOMETRY_CHECK_OVERRIDES = {
@@ -120,6 +129,56 @@ GEOMETRY_CHECK_OVERRIDES = {
     'steer_backlash_wander': {'sd_deg': 0.0, 'corr_length_m': 5.0},
 }
 GEOMETRY_CHECK_LABEL = 'geometry_check'
+
+
+def drive_table_spec(points, factor=1., duty_scale=1., duty_offset_pct=0., source=None):
+    """The plant drive table of SteeredPlantParams.drive_table (PW-08 / PC-11; SIM only): a hashable tuple
+    (points, factor, duty_scale, duty_offset_pct, source). points: the (duty %, speed m/s) table of the field tuning
+    file (the executor's speed table: duty strictly increasing in (0, 100], speed >= 0 never falling, >= 2 points, the
+    last speed > 0); factor: plant speed / table speed (a table mismatch or battery sag); duty_scale: the duty is
+    multiplied first (a battery-like voltage scale); duty_offset_pct: then shifted down (a start threshold that is
+    higher than the table's); source: a short text naming the file (its SHA-256), kept for the records."""
+    try:
+        pts = tuple((float(d), float(v)) for d, v in points)
+    except (TypeError, ValueError):
+        raise ValueError('drive_table_invalid: points must be (duty_pct, speed_m_s) pairs') from None
+    if len(pts) < 2:
+        raise ValueError('drive_table_invalid: at least two points')
+    last_d, last_v = 0., 0.
+    for k, (d, v) in enumerate(pts):
+        if not (math.isfinite(d) and math.isfinite(v) and 0. < d <= 100. and v >= 0.):
+            raise ValueError('drive_table_invalid: point %d needs 0 < duty <= 100 and a finite speed >= 0' % k)
+        if d <= last_d or v < last_v:
+            raise ValueError('drive_table_invalid: point %d: duty must increase, speed must not fall' % k)
+        last_d, last_v = d, v
+    if not last_v > 0.:
+        raise ValueError('drive_table_invalid: the last speed must be > 0')
+    values = dict(factor=factor, duty_scale=duty_scale, duty_offset_pct=duty_offset_pct)
+    ranges = dict(factor=DRIVE_TABLE_FACTOR_RANGE, duty_scale=DRIVE_TABLE_DUTY_SCALE_RANGE,
+                  duty_offset_pct=DRIVE_TABLE_OFFSET_RANGE_PCT)
+    for name, value in values.items():
+        lo, hi = ranges[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not lo <= float(value) <= hi:
+            raise ValueError('drive_table_invalid: %s must be a number in [%g, %g]' % (name, lo, hi))
+    if source is not None and not isinstance(source, str):
+        raise ValueError('drive_table_invalid: source must be a string or None')
+    return (pts, float(factor), float(duty_scale), float(duty_offset_pct), source)
+
+
+def drive_table_speed(spec, duty_abs_pct):
+    """Steady forward speed [m/s] of a drive_table_spec() at |duty| [%]: table(|duty| x duty_scale - offset) x factor;
+    the table is piecewise linear through (0, 0) below its first point and held above its last point (the rule of the
+    executor's closed_loop.actuator_prior.SpeedTable)."""
+    points, factor, duty_scale, offset, _ = spec
+    duty = float(duty_abs_pct) * duty_scale - offset
+    if duty <= 0.:
+        return 0.
+    prev_d, prev_v = 0., 0.
+    for d, v in points:
+        if duty <= d:
+            return (prev_v + (v - prev_v) * (duty - prev_d) / (d - prev_d)) * factor
+        prev_d, prev_v = d, v
+    return points[-1][1] * factor
 
 
 class SteeringBackendLevelWarning(UserWarning):
@@ -265,6 +324,7 @@ class SteeredPlantParams:
     steer_mode: str = 'test_servo'
     gyro_noise_scale: float = 1.
     pot_median_of: int = 5          # pot_filter.median_of: the MCU median filter length (hold_measured target)
+    drive_table: object = None      # None (the drive curve) or drive_table_spec(...) (a tuple; PW-08 / PC-11)
     imu_rotation: Tuple[Tuple[float, float, float], ...] = field(init=False, compare=False, repr=False,
                                                                  default=((1., 0., 0.), (0., 1., 0.), (0., 0., 1.)))
     soft_limits_eq_rad: Tuple[float, float] = field(init=False, compare=False, repr=False, default=(0., 0.))
@@ -832,12 +892,15 @@ class SteeredPlant:
         if duty == 0.:
             return 0.
         p = self.params
-        speed = forward_curve(abs(duty) * p.battery_voltage_scale, p.curve_params)
+        if p.drive_table is not None:
+            speed = drive_table_speed(p.drive_table, abs(duty))
+        else:
+            speed = forward_curve(abs(duty) * p.battery_voltage_scale, p.curve_params)
         if speed == 0.:
             return 0.
         if duty < 0.:
             speed *= p.reverse_curve
-        speed *= self.speed_run_scale * (1. + self.speed_fluctuation)
+        speed *= (1. if p.drive_table is not None else self.speed_run_scale) * (1. + self.speed_fluctuation)
         speed *= max(0., 1. - self.scrub_speed_loss_per_deg * abs(math.degrees(delta)))
         return math.copysign(speed, duty)
 

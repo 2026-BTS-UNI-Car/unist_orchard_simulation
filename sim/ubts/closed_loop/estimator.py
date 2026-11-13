@@ -295,8 +295,40 @@ class EstimatorConfig:
     external_corridor_sources: tuple = ()       # accepted source names, e.g. ('local_grid',); empty = none
     external_corridor_max_age_s: float = .5
     external_corridor_min_quality: float = .5
+    # Opt-in curved row ends (False = OFF = original rules, bit-identical). With True the row-end rule (_side_extents:
+    # line support, free gap, cross structures, segment cuts, stagger) measures the cross offset of every return from
+    # the CURVED row lines of this update instead of the straight band lines: one shared parabola cross = offset_side +
+    # c x along^2, grown outward along the lines (returns within side_extent_tolerance_m of the current curve, from
+    # row_end_curve_behind_m behind the LiDAR to each reach of row_end_curve_reach_m in turn, refitted each time;
+    # |2c| <= row_end_curve_max_1_m; at least row_end_curve_min_points returns per side, else the straight rule). The
+    # straight rule took a curved row for its end: at radius 30 m a line is 1.07 m off the straight band 8 m ahead,
+    # beyond the 0.35 m side tolerance, so both lines 'ended' 4-8 m ahead with free space after them, and a row end
+    # that receded with the band stopped the vehicle in the row once it came close (S1c iteration 1: curve_l30 dev
+    # seeds 102 and 103 stopped 11-15 m before the end of a 24 m row). The tracked band (lateral offset, heading) and
+    # every other rule are unchanged.
+    row_end_curve_fit: bool = False
+    row_end_curve_reach_m: tuple = (4., 6., 8., 10.)
+    row_end_curve_behind_m: float = 2.
+    row_end_curve_max_1_m: float = 1. / 15.
+    row_end_curve_min_points: int = 6
+    # A reach counts only while both lines' returns on the curve reach within row_end_curve_edge_m of it with no along gap
+    # above row_end_curve_max_gap_m; the first reach failing gives c = 0 (the straight rule). Near a row end the lines
+    # stop short of the first reach, so the straight rule decides the end (S1c iteration 2: without this the parabola
+    # was grown into the structures beyond the row end of 042301 c03 and the end came 0.7-1.7 m late).
+    row_end_curve_edge_m: float = 1.5
+    row_end_curve_max_gap_m: float = 3.
 
     def __post_init__(self):
+        if self.row_end_curve_fit and not (
+                isinstance(self.row_end_curve_reach_m, tuple) and self.row_end_curve_reach_m
+                and all(isinstance(r, (int, float)) and math.isfinite(r) and r > 0. for r in self.row_end_curve_reach_m)
+                and list(self.row_end_curve_reach_m) == sorted(self.row_end_curve_reach_m)
+                and math.isfinite(self.row_end_curve_behind_m) and self.row_end_curve_behind_m >= 0.
+                and 0. < self.row_end_curve_max_1_m <= .2 and _count_ok(self.row_end_curve_min_points)
+                and math.isfinite(self.row_end_curve_edge_m) and self.row_end_curve_edge_m >= 0.
+                and math.isfinite(self.row_end_curve_max_gap_m) and self.row_end_curve_max_gap_m > 0.):
+            raise ValueError('row_end_curve_invalid: increasing reaches > 0, behind_m >= 0, 0 < max_1_m <= 0.2, '
+                             'min_points an int >= 1, edge_m >= 0, max_gap_m > 0')
         if self.actuator_prior is not None and not isinstance(self.actuator_prior, ActuatorPriorConfig):
             raise ValueError('actuator_prior_invalid: an ActuatorPriorConfig or None')
         if not (isinstance(self.external_corridor_gain, (int, float)) and 0. <= self.external_corridor_gain <= 1.):
@@ -684,6 +716,8 @@ class SensorEstimator:
         self.prior = None if config.actuator_prior is None else ActuatorPrior(config.actuator_prior)
         self.quality = CorridorQuality() if config.corridor_quality else None
         self.external = ExternalCorridor() if config.external_corridor_gain > 0. else None
+        if config.row_end_curve_fit:
+            self.row_end_curve = 0.      # opt-in row_end_curve_fit only: c of the last full update (evaluation)
 
     # --- opt-in actuator status (never stored while OFF) -------------------------------------------------
     def on_actuator(self, stamp, duty_left_pct, duty_right_pct, steer_rad=None):
@@ -1050,6 +1084,10 @@ class SensorEstimator:
         cross = points @ np.array((-s, c))
         rng = np.hypot(points[:, 0], points[:, 1])
         inside = rng < cfg.support_range_m
+        if cfg.row_end_curve_fit:
+            # opt-in curved row ends: the cross offset from this update's curved row lines (EstimatorConfig)
+            self.row_end_curve = self._row_curve(along, cross, inside, (left, right))
+            cross = cross - self.row_end_curve * along * along
         far = rng < cfg.free_check_range_m
         front = None
         if left is not None and right is not None:
@@ -1137,6 +1175,34 @@ class SensorEstimator:
             if min(objects) >= cfg.row_end_continuation_min_objects:
                 free = [False, False]
         return ends, free, front
+
+    def _row_curve(self, along, cross, inside, offsets):
+        """Opt-in row_end_curve_fit: the shared parabola coefficient c (cross = offset_side + c x along^2) of the two
+        row lines, grown outward reach by reach while both lines continue to the reach (edge, gap); 0 when a side has
+        no line or the first reach fails (the straight rule)."""
+        cfg = self.config
+        if None in offsets:
+            return 0.
+        bound = cfg.row_end_curve_max_1_m / 2.
+        curve, fitted = 0., [float(o) for o in offsets]
+        for reach in cfg.row_end_curve_reach_m:
+            span = inside & (along > -cfg.row_end_curve_behind_m) & (along < reach)
+            masks = [span & (np.abs(cross - curve * along * along - offset) < cfg.side_extent_tolerance_m)
+                     for offset in fitted]
+            if min(int(m.sum()) for m in masks) < cfg.row_end_curve_min_points:
+                break
+            sides = [np.sort(along[m]) for m in masks]
+            if any(a[-1] < reach - cfg.row_end_curve_edge_m or float(np.diff(a).max(initial=0.)) > cfg.row_end_curve_max_gap_m
+                   for a in sides):
+                break                                     # the lines do not continue to this reach: keep the last curve
+            a = np.concatenate([along[m] for m in masks])
+            first = np.concatenate((np.ones(int(masks[0].sum())), np.zeros(int(masks[1].sum()))))
+            design = np.column_stack((a * a, first, 1. - first))
+            y = np.concatenate([cross[m] for m in masks])
+            solution, *_ = np.linalg.lstsq(design, y, rcond=None)
+            curve = max(-bound, min(bound, float(solution[0])))
+            fitted = [float(solution[1]), float(solution[2])]
+        return curve
 
     def _line_continues(self, side, along, cross, far, offset, end, needed, front):
         """Opt-in row_end_continuation_m: does the row line of an ENDED side visibly continue beyond it?

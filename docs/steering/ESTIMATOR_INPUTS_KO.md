@@ -69,3 +69,11 @@
 - 등록 한도로 재는 빠른 SIM 확인(`lidar_blackout_1p0`, 표 ±30 %)은 하지 않았다.
 - 국소 격자 층(PC-07)은 시작하지 않았다. 외부 관측 자리가 그 연결점이다.
   - 2026-11-13 갱신: 국소 격자 층이 이 자리를 쓴다(source `local_grid`, 실행기 설정 `local_grid_fusion_gain`). `LOCAL_GRID_KO.md`. 추정기는 바꾸지 않았다.
+
+## 5. 굽은 열의 열 끝 (2026-11-13, 묶음 S1c, 결정 R51)
+
+- 설정: `EstimatorConfig.row_end_curve_fit`(기본 False), `row_end_curve_reach_m`(4, 6, 8, 10 m), `row_end_curve_behind_m`(2 m), `row_end_curve_max_1_m`(1/15 1/m), `row_end_curve_min_points`(6), `row_end_curve_edge_m`(1.5 m), `row_end_curve_max_gap_m`(3 m). 실행기 front_steer는 `steer_row_end_curve_fit`(기본 참)으로 켠다. 차동 실행기는 그대로(꺼짐)다.
+- 하는 일: 두 선이 다 보이는 갱신마다 열 끝 규칙(`_side_extents`) 앞에서 두 열 선에 공통 포물선 옆 = 열별 거리 + c × 앞^2을 맞춘다. 가까운 곳(LiDAR 뒤 2 m ~ 앞 4 m)의 선 지지(옆 허용 0.35 m)로 시작해 6, 8, 10 m로 넓히며 그때의 곡선 둘레에서 다시 고른다. 열마다 6점이 안 되면 거기서 멈추고, 한쪽 선이 없으면 c = 0(곧은 규칙). |2c| ≤ 1/15 1/m. 한 단계는 두 선의 곡선 둘레 반환이 그 거리의 `row_end_curve_edge_m`(1.5 m) 안까지 이어지고 앞뒤 빈칸이 `row_end_curve_max_gap_m`(3 m) 이하일 때만 쓴다. 첫 단계가 안 되면 c = 0이다. 열 끝 가까이에서는 선이 첫 단계에 못 미쳐 곧은 규칙이 끝을 정한다(반복 2에서 이 조건 없이 W2 `042301_c03`의 열 끝 너머 구조물까지 곡선을 키워 끝이 0.7~1.7 m 늦었다).
+- 열 끝 규칙(선 지지, 빈 거리, 가로 구조물, 지지 자르기, 엇갈림)은 이 곡선에서 잰 옆 거리를 쓴다. band(횡오차·방향·폭)와 다른 규칙은 바뀌지 않는다.
+- 까닭: 곧은 규칙은 반지름 30 m 열(8 m 앞에서 곧은 선과 1.07 m 어긋남)의 두 선이 4~8 m 앞에서 '끝나고' 그 뒤가 비었다고 보아, band와 함께 물러나는 열 끝을 냈다. 넓은 확인 반복 1에서 `curve_l30` 개발 seed 2개가 24 m 열의 9, 13 m에서 섰다(`STEER_FOLLOW_WIDE_RESULT_KO.md`).
+- 시험: `sim/ubts/test_closed_loop_estimator_curve.py`(9: 열 끝 가까이의 구조물·빈칸에서 곡선을 키우지 않음, 반지름 ±30·60 m의 이어지는 열은 열 끝이 아님, 곧은 규칙은 ±30 m에서 거짓 끝, 진짜 열 끝은 곧은 열·굽은 열 모두 그대로, 한쪽 선만 있으면 c = 0, 범위·설정 검사). 꺼진 상태의 비트 동일은 `test_closed_loop_estimator_exact.py`(새 설정 5개를 `CURVE_FIELDS`로 등록, 80 통과)가 본다.
