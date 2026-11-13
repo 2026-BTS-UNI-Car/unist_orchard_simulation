@@ -54,7 +54,7 @@
 
 ## 7. 기본 이미지, override, 그림·영상 갈무리 (2026-11-12 ST-05)
 
-- compose 기본 이미지는 `ubts-steer-sim:wf5`다(2026-11-13 최종 이미지: 한 번 눌러 시작 실행기, 대시보드 사본과 SIM 확장, recorder 역할의 사이드카, LiDAR 브리지의 profile=mapping 원본 스캔. 그 전 wf4c 는 실행기 패키지, S2 형식 노드, 열 추종 제어기). 그냥 `up`이면 `/scan`(실차 형식)이 나온다. 실행기는 `--profile executor`로 켠다. 측정 결과는 `S2_NODE_EXEC_KO.md` 7절.
+- compose 기본 이미지는 `ubts-steer-sim:wf6`이다(2026-11-13 최종 확인 3단계: 운영자 연결 기한 1.0 s, 출발 정지 문턱 0.08 m/s, IMU 게임 회전 벡터, 대시보드 사본 a92cfec. 시계는 `UBTS_STEER_CLOCK`, 로컬 도구는 SIM 시계로 띄운다. wf5 는 2026-11-13 최종 이미지: 한 번 눌러 시작 실행기, 대시보드 사본과 SIM 확장, recorder 역할의 사이드카, LiDAR 브리지의 profile=mapping 원본 스캔. 그 전 wf4c 는 실행기 패키지, S2 형식 노드, 열 추종 제어기). 그냥 `up`이면 `/scan`(실차 형식)이 나온다. 실행기는 `--profile executor`로 켠다. 측정 결과는 `S2_NODE_EXEC_KO.md` 7절.
 - `stack.py up --override <파일>`(여러 번 가능)은 compose override 파일을 스택 파일 뒤에 더한다. 잠금 파일에 남아 `run`·`ps`·`down`이 같은 파일을 쓴다. 쓰는 곳: 검사 컨테이너에만 고친 검사 코드 스냅숏을 붙일 때, field1010 장면의 지도·목록을 sim에 읽기 전용으로 붙일 때.
 - 그림과 영상은 돌고 있는 스택에서 `tools/steer_sim/capture_media.py`로 갈무리한다(스택을 올리거나 내리지 않는다). 문서에 넣는 파일은 `docs/steering/figures/`에 두고 캡션에 '자리값 기반 SIM 결과'를 적는다.
 
