@@ -36,6 +36,8 @@ import signal
 import sys
 import time
 
+from . import exec_checks as _X     # the operator classes (HoldBeater, GoBeater, OperatorClient); no ROS
+
 RESULT_KIND = '자리값 기반 SIM 결과'
 DEFAULT_CONTROLLER = {'kind': 'row_follow'}
 EXEC_DIR = os.environ.get('UBTS_STEER_EXEC_DIR', '/run/ubts-steer/exec')
@@ -53,8 +55,8 @@ ARM_RETRY_ERRORS = ('arm_precheck:steering_fault:steering_status_stale', 'arm_pr
                     'arm_precheck:stop_unconfirmed', 'arm_precheck:bridge_snapshot_stale', 'arm_precheck:status_not_ok')
 RELEASE_WAIT_S = 8.                 # an ended run keeps the lease up to terminal_stop_wait_s before its own STOP
 PAUSE_GIVE_UP_S = 15.
-GO_WAIT_S = 20.                     # one_press: how long the go waits for the executor's start checks
-GO_RETRY_S = .25
+GO_WAIT_S = _X.GO_WAIT_S            # one_press: how long the go waits for the executor's start checks
+GO_RETRY_S = _X.GO_RETRY_S
 EXIT_ROW_END, EXIT_OTHER_END, EXIT_NO_START = 0, 3, 4
 
 
@@ -106,76 +108,15 @@ def status_line(elapsed_s, status, tick):
                 client.get('state')))
 
 
-class GoBeater:
-    """one_press operator screen (docs/steering/OPERATOR_API_KO.md) with the HoldBeater interface: press() starts the
-    heartbeats of one session (every period_s, wall) and sends one go once the start checks pass (retrying a refused go
-    for at most go_wait_s; a session conflict is not retried); release() / lose() stop the heartbeats (the screen goes
-    away: the executor pauses the run after operator_timeout_s); close() ends the heartbeat thread."""
+class GoBeater(_X.GoBeater):
+    """The one_press operator screen of exec_checks (heartbeats every period_s, one go once the start checks pass, a
+    refused go retried for at most go_wait_s, no retry of a session conflict); the session ids of this tool start with
+    exec-run."""
 
     def __init__(self, op, period_s=.1, go_wait_s=GO_WAIT_S, retry_s=GO_RETRY_S, sleep=time.sleep,
                  clock=time.monotonic):
-        import threading
-        import uuid
-        self.op, self.period_s, self.go_wait_s, self.retry_s = op, float(period_s), float(go_wait_s), float(retry_s)
-        self.sleep, self.clock = sleep, clock
-        self.session = 'exec-run-%s' % uuid.uuid4().hex[:16]
-        self.press_id = None
-        self.beating = False
-        self.stop_event = threading.Event()
-        self.thread = threading.Thread(target=self._run, name='exec-run-heartbeat', daemon=True)
-        self.replies = {}
-        self.events = []
-        self.go_reply = None
-
-    def _count(self, key):
-        self.replies[key] = self.replies.get(key, 0) + 1
-
-    def beat(self):
-        try:
-            code, reply, _, _ = self.op.post('/api/heartbeat', {'session': self.session}, timeout_s=1.)
-        except Exception as exc:          # a lost heartbeat is the link loss the executor watches for
-            self._count('error:%s' % type(exc).__name__)
-            return False
-        self._count('ok' if reply.get('ok') else 'refused:%s' % reply.get('error'))
-        return bool(reply.get('ok'))
-
-    def _run(self):
-        while not self.stop_event.wait(self.period_s):
-            if self.beating:
-                self.beat()
-
-    def press(self):
-        self.beating = True
-        if not self.thread.is_alive() and not self.stop_event.is_set():
-            self.thread.start()
-        self.beat()
-        end = self.clock() + self.go_wait_s
-        reply = None
-        while True:
-            code, reply, _, _ = self.op.post('/api/go', {'session': self.session}, timeout_s=8.)
-            self.events.append(dict(op='go', ok=bool(reply.get('ok')), error=reply.get('error'), code=code))
-            if reply.get('ok') or reply.get('error') == 'session_conflict' or self.clock() >= end:
-                break
-            self.sleep(self.retry_s)
-        self.go_reply = reply
-        self.press_id = self.session if reply.get('ok') else None
-        return self.press_id
-
-    def release(self):
-        self.beating = False
-        self.events.append(dict(op='release'))
-        self.press_id = None
-
-    def lose(self):
-        self.beating = False
-        self.events.append(dict(op='lose'))
-        self.press_id = None
-
-    def close(self):
-        self.beating = False
-        self.stop_event.set()
-        if self.thread.is_alive():
-            self.thread.join(timeout=1.)
+        super().__init__(op, period_s=period_s, go_wait_s=go_wait_s, retry_s=retry_s, sleep=sleep, clock=clock,
+                         prefix='exec-run')
 
 
 class Operator:

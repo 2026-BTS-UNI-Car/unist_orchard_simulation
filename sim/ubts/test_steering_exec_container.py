@@ -670,6 +670,147 @@ class CheckHelpersTest(unittest.TestCase):
         self.assertEqual(EC.DEFAULT_ORDER[-1], 'executor_forced_kill')       # the executor is gone after it
         for item in EC.SCRIPTS:
             self.assertTrue(item['purpose'] and item['registered'])
+        self.assertTrue(set(EC.ONE_PRESS_NOT_APPLICABLE) <= set(EC.DEFAULT_ORDER))
+
+
+class OnePressPage:
+    """The executor operator page of OperatorClient (request / post) in a start mode: /api/go refused go_refusals times
+    (inputs_not_fresh) or always (go_error); /api/hold refused in one_press like the executor."""
+
+    def __init__(self, mode='one_press', go_refusals=0, go_error=None):
+        self.mode, self.go_refusals, self.go_error = mode, go_refusals, go_error
+        self.posts, self.sessions = [], []
+        self.lock = threading.Lock()
+        self.t = 0.
+
+    def request(self, method, route, body=None, timeout_s=None):
+        if (method, route) == ('GET', '/api/status'):
+            return 200, dict(ok=True, start_mode=self.mode), 1., 1.
+        return self.post(route, body, timeout_s)
+
+    def post(self, route, body=None, timeout_s=None):
+        with self.lock:
+            self.t += .01
+            self.posts.append(route)
+            if route in ('/api/heartbeat', '/api/go'):
+                self.sessions.append((body or {}).get('session'))
+            if route == '/api/hold' and self.mode == 'one_press':
+                return 409, dict(ok=False, error='start_mode_one_press'), 1000. + self.t, self.t
+            if route == '/api/go':
+                if self.go_error:
+                    return 409, dict(ok=False, error=self.go_error, blockers=[self.go_error]), 1000. + self.t, self.t
+                if self.go_refusals > 0:
+                    self.go_refusals -= 1
+                    return 409, dict(ok=False, error='inputs_not_fresh'), 1000. + self.t, self.t
+            return 200, dict(ok=True), 1000. + self.t, self.t
+
+
+class OnePressOperatorTest(unittest.TestCase):
+    """steering.exec_checks as the operator of a one_press executor (the Gazebo final check): GoBeater (heartbeats + one
+    go) by the executor's start mode, hold_to_run kept for an executor configured so, --start-mode only asserts."""
+
+    def test_go_beater_interface(self):
+        page = OnePressPage(go_refusals=2)
+        beater = EC.GoBeater(page, period_s=60., sleep=lambda s: None)
+        try:
+            self.assertTrue(beater.session.startswith('chk-'))
+            self.assertEqual(beater.press(), beater.session)
+            self.assertEqual(page.posts, ['/api/heartbeat', '/api/go', '/api/go', '/api/go'])
+            self.assertEqual(set(page.sessions), {beater.session})                # one screen: one session id
+            self.assertEqual(beater.replies['ok'], 1)
+            last = beater.lose()
+            self.assertEqual(last, beater.last_beat)
+            self.assertEqual(beater.events[-1]['op'], 'lose')
+            self.assertEqual(beater.events[-1]['last_beat_mono'], last[1])     # the hold_lost expiry reference
+            self.assertIsNone(beater.press_id)
+            self.assertFalse(beater.beating)
+            self.assertEqual(sorted(beater.release()), ['code', 'mono', 'wall'])
+        finally:
+            beater.close()
+        refused = EC.GoBeater(OnePressPage(go_error='session_conflict'), sleep=lambda s: None)
+        try:
+            self.assertIsNone(refused.press())
+            self.assertEqual(refused.go_reply['error'], 'session_conflict')
+        finally:
+            refused.close()
+
+    def ctx(self, page, option='auto'):
+        ctx = types.SimpleNamespace(op=page, start_mode=None, start_mode_option=option)
+        ctx.hold = EC.HoldBeater(page)
+        return ctx
+
+    def test_the_executor_start_mode_chooses_the_operator(self):
+        ctx = self.ctx(OnePressPage())
+        self.assertEqual(EC.ensure_start_mode(ctx), 'one_press')
+        self.assertIsInstance(ctx.hold, EC.GoBeater)
+        ctx.hold.close()
+        ctx = self.ctx(OnePressPage(mode='hold_to_run'))
+        self.assertEqual(EC.ensure_start_mode(ctx), 'hold_to_run')
+        self.assertIsInstance(ctx.hold, EC.HoldBeater)
+        ctx = self.ctx(OnePressPage(mode=None))                # a page from before design v2 V2-2
+        self.assertEqual(EC.ensure_start_mode(ctx), 'hold_to_run')
+        ctx = self.ctx(OnePressPage(), option='hold_to_run')   # the check asserts, the executor decides
+        with self.assertRaises(EC.SessionError):
+            EC.ensure_start_mode(ctx)
+        ctx = self.ctx(OnePressPage(), option='one_press')
+        self.assertEqual(EC.ensure_start_mode(ctx), 'one_press')
+        ctx.hold.close()
+        self.assertEqual(EC.build_parser().parse_args(['safety', '--out', 'x']).start_mode, 'auto')
+        self.assertEqual(EC.build_parser().parse_args(['safety', '--out', 'x', '--start-mode', 'hold_to_run'])
+                         .start_mode, 'hold_to_run')
+
+    def drive_ctx(self, page):
+        """An executor that is idle, PAUSED after the Start and ACTIVE once a go was taken."""
+        ctx = self.ctx(page)
+
+        def status():
+            state = EC.STATE_ACTIVE if '/api/go' in page.posts and page.go_error is None else (
+                EC.STATE_PAUSED if '/api/start' in page.posts else 'IDLE')
+            return dict(runner=dict(state=state, reason='script_drive'), client=dict(state='IDLE'))
+        ctx.wait_exec = lambda predicate, timeout_s=5., period_s=.05: status()
+        ctx.exec_status = status
+        ctx.exec_hooks = types.SimpleNamespace(call=lambda op, **kw: dict(ok=True))
+        ctx.host = lambda: dict(state='disarmed')
+        ctx.wait_host = lambda predicate, timeout_s: True
+        ctx.wait_still = lambda timeout_s: True
+        ctx.obs = types.SimpleNamespace(spin_for=lambda s: None)
+        return ctx
+
+    def test_start_drive_one_press_sends_heartbeats_and_one_go(self):
+        page = OnePressPage()
+        ctx = self.drive_ctx(page)
+        try:
+            info = EC.start_drive(ctx, EC.drive_spec(), moving=False)
+        finally:
+            ctx.hold.close()
+        self.assertEqual((info['start_mode'], info['presses']), ('one_press', 1))
+        self.assertNotIn('/api/hold', page.posts)
+        self.assertEqual(page.posts.count('/api/go'), 1)
+        self.assertIn('/api/heartbeat', page.posts)
+        self.assertLess(page.posts.index('/api/arm'), page.posts.index('/api/go'))
+
+    def test_start_drive_one_press_refused_go_is_an_error(self):
+        page = OnePressPage(go_error='corridor_not_acquired')
+        ctx = self.drive_ctx(page)
+        ctx.hold = EC.GoBeater(page, go_wait_s=0., sleep=lambda s: None)
+        ctx.start_mode = 'one_press'
+        try:
+            with self.assertRaises(EC.SessionError) as caught:
+                EC.start_drive(ctx, EC.drive_spec(), moving=False)
+        finally:
+            ctx.hold.close()
+        self.assertIn('corridor_not_acquired', str(caught.exception))
+
+    def test_safety_in_one_press_lists_the_hold_release_as_not_run(self):
+        ctx = self.ctx(OnePressPage())
+        ctx.clock, ctx.executor_alive = 'wall', True
+        ctx.try_exec_status = lambda: {}
+        try:
+            result = EC.check_safety(ctx, types.SimpleNamespace(only=['deadman_release'], repeat=1))
+        finally:
+            ctx.hold.close()
+        self.assertEqual((result['start_mode'], result['scripts']), ('one_press', []))
+        self.assertIn('deadman_release', result['not_run'])
 
 
 if __name__ == '__main__':

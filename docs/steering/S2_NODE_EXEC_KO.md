@@ -109,7 +109,7 @@
 
 ### 4.5 운영자 페이지
 
-- `operator_http`를 127.0.0.1:8097(sim 네트워크 이름공간)에 연다. 토큰은 `/run/ubts-steer/exec/log/operator_token.txt`(0600). 검사(`exec_checks`)가 운영자처럼 쓴다: Start, Arm, 누름 심장 박동 100 ms마다, 놓기, STOP, ack.
+- `operator_http`를 127.0.0.1:8097(sim 네트워크 이름공간)에 연다. 토큰은 `/run/ubts-steer/exec/log/operator_token.txt`(0600). 검사(`exec_checks`)가 운영자처럼 쓴다: Start, Arm, 실행기의 `start_mode`에 따라 one_press면 세션 heartbeat 100 ms마다와 go 한 번(`GoBeater`), hold_to_run이면 누름 심장 박동 100 ms마다와 놓기(`HoldBeater`), STOP, ack(2026-11-13, `OPERATOR_API_KO.md` 8절).
 - 대시보드 컨테이너는 다른 네트워크 이름공간이라 이 페이지에 닿지 않는다(P6b 화면 연결은 ui·통합 단계 몫).
 
 ### 4.6 SIM 걸이 (`/run/ubts-steer/exec/hooks.sock`, SIM 전용)
@@ -169,9 +169,9 @@ python -I tools/steer_sim/stack.py down --project ubts-steer-<작업> --receipt 
 
 ### 5.3 run을 밖에서 시작하고 멈추는 법
 
-- 지금 있는 길은 실행기의 운영자 페이지(`operator_http`, sim 네트워크 이름공간의 127.0.0.1:8097)다. 토큰은 `/run/ubts-steer/exec/log/operator_token.txt`(control 볼륨, 0600)에 있다. 대시보드 컨테이너에서는 닿지 않는다. 설계 v2 R32의 '한 번 눌러 시작'은 아직 없다(누르고 있는 동안만 달리는 hold-to-run이다).
-- 순서(`exec_checks.start_drive`): `POST /api/start {"row_len_m": null}` → 브리지가 arm 받을 준비가 될 때까지 기다림 → `POST /api/arm` → 누름 시작과 심장 박동 `POST /api/hold`(약 100 ms마다) → Runner가 ACTIVE.
-- 멈춤: 누름을 놓으면(`POST /api/release` 또는 박동이 끊김) PAUSED, `POST /api/stop`은 운영자 STOP(래치, `POST /api/ack`로 풂), `POST /api/end`는 run 끝. 제어기가 스스로 끝내면(예 `script_distance`) ENDED가 된다.
+- 지금 있는 길은 실행기의 운영자 페이지(`operator_http`, sim 네트워크 이름공간의 127.0.0.1:8097)다. 토큰은 `/run/ubts-steer/exec/log/operator_token.txt`(control 볼륨, 0600)에 있다. 대시보드 컨테이너에서는 닿지 않는다. front_steer 실행기의 기본 시작 방식은 설계 v2 R32의 '한 번 눌러 시작'(one_press)이다. 설정 `start_mode: hold_to_run`이면 누르고 있는 동안만 달린다.
+- 순서(`exec_checks.start_drive`): `POST /api/start {"row_len_m": null}` → 브리지가 arm 받을 준비가 될 때까지 기다림 → `POST /api/arm` → one_press: 세션 heartbeat `POST /api/heartbeat`(약 100 ms마다)와 시작 조건이 맞을 때 `POST /api/go` 한 번 / hold_to_run: 누름 시작과 심장 박동 `POST /api/hold`(약 100 ms마다) → Runner가 ACTIVE.
+- 멈춤: one_press는 heartbeat가 0.5 s 끊기면 PAUSED `operator_link_lost`(다시 가려면 새 go), hold_to_run은 누름을 놓으면(`POST /api/release` 또는 박동이 끊김) PAUSED, `POST /api/stop`은 운영자 STOP(래치, `POST /api/ack`로 풂), `POST /api/end`는 run 끝. 제어기가 스스로 끝내면(예 `script_distance`) ENDED가 된다.
 - 끝난 run은 차가 설 때까지 또는 `terminal_stop_wait_s`(1.5 s) 동안 임대를 쥐고 있다가 스스로 STOP을 보낸다. 다음 Start는 그 뒤에 한다(`exec_checks.ensure_idle`이 기다린다).
 - 검사 컨테이너에서 한 번에 하는 명령이 `steering.exec_checks drive`다(Start, Arm, 누름, 끝날 때까지 기다림, 결과 `EXEC_DRIVE.json`). 열 추종 run을 평가까지 하는 것은 `steering.exec_checks follow`다.
 - 검사 컨테이너 없이 호스트에서 run을 시작·정지하는 도구가 `steering.exec_run`이다(`docker exec`로 실행기 컨테이너에서 `start`·`stop`·`status`, sim 컨테이너에서 `reset`). 누름 박동을 이 도구가 보낸다. 쓰는 법은 `STEER_FOLLOW_GSIM_RESULT_KO.md` 5절.
