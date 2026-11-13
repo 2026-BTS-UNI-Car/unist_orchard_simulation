@@ -373,3 +373,11 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
      `lease_lost` + `arm_first`, 다음 Arm이 래치 확인). 까닭과 조건은 `OPERATOR_API_KO.md` 3.4절.
    - `steering.exec_checks`의 운영자: 실행기 `start_mode`를 따라 one_press면 `GoBeater`(heartbeat + go), hold_to_run이면
      `HoldBeater`. `steering.exec_run`의 `GoBeater`는 이 클래스를 쓴다(세션 이름만 `exec-run-`).
+   - 회귀(커밋 8655dec를 내보낸 트리, 무거운 측정 잠금 아래 작업자 4, 2026-11-13 09:55~10:04):
+     - 빠른 SIM 행렬 `steer_follow_v1` 15회: 15/15 기대대로, 직렬 로그와 trace 15개 모두 병합 트리(2040578) 결과와 같다.
+     - T1 안전 대본(safety, fault, mandatory, host, normal): 71/71 기대대로, A17·A22 합격. 예전 대본 70개의 직렬 로그와 trace는
+       모두 병합 트리 결과와 같다. 실행기 기록 digest는 70개 모두 다르지만 다른 것은 조정 파일 경로(내보낸 폴더 이름)와 Arm 응답의
+       새 칸 `rearm_after_lease_lost`뿐이다(한 대본에서 두 칸을 빼고 비교해 193줄 모두 같음을 확인). `two_screens_and_cli`,
+       `late_drive_after_stop`은 끝 이유만 `operator_stop`으로 바뀌었고 직렬 로그·trace는 같다. 새 `armed_wait_lease_lost`:
+       브리지 래치 1.0 s, run 열린 채, 3.0 s 다시 Arm, 첫 ACTIVE 3.15 s, `script_distance`.
+     - 모든 수치는 자리값 기반 SIM 결과다. 결과 원본은 기록 폴더 `measure/follow_defaults_fix3`, `measure/t1_scripts_fix3`(레포 밖).

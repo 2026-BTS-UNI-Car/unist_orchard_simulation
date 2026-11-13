@@ -197,6 +197,7 @@
 - 호스트 도구: `python3 -B -m steering.exec_run start`(G-SIM 실행기 컨테이너 안)가 one_press 실행기에 세션 heartbeat와 go를 보낸다.
 - 빠른 SIM 대본 `armed_wait_lease_lost`(A17 개정 34): 0.85 s부터 상태 줄 0.4 s 끊김 → 브리지 래치 → run 열린 채 →
   3 s에 다시 Arm → go → 3 m 주행. `two_screens_and_cli`, `late_drive_after_stop`의 기대 끝 이유는 `operator_stop`이다.
+  2026-11-13 등록 실행: T1 안전 대본 71/71 기대대로(자리값 기반 SIM 결과, `EXECUTOR_STEER_KO.md` 13절 8항).
 - G-SIM 점검(`steering.exec_checks`)은 실행기의 `start_mode`를 따른다. one_press(front_steer 기본)면 검사가 이 화면처럼
   세션 heartbeat 100 ms와 go 한 번으로 출발한다(`GoBeater`). `deadman_release`는 놓을 버튼이 없어 돌리지 않고 `not_run`에
   적는다. `hold_lost`는 화면 신호 멈춤이 되어 기대 일시정지가 `operator_link_lost`다. hold_to_run 실행기(설정
