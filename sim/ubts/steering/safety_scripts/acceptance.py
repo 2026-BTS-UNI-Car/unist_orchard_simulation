@@ -353,7 +353,7 @@ def evaluate_script(entry, art, result):
         tr = art['trace']
         t, throttle = np.asarray(tr['t_s'], dtype=float), np.asarray(tr['ctrl_throttle_pct'], dtype=float)
         at = float(exp['link_lost_at'])
-        limit = at + float(exp.get('link_timeout_s', .5)) + .05
+        limit = at + float(exp.get('link_timeout_s', 1.)) + .05
         zero = np.flatnonzero((t >= at - 1e-9) & (throttle == 0.))
         first = None if not len(zero) else round(float(t[zero[0]]), 3)
         moving = bool(np.any((t >= at - 1e-9) & (t < at + .01) & (throttle > 0.)))

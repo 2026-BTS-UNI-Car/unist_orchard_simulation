@@ -136,7 +136,7 @@ KEYS = (
     _k('steer_status_max_age_s', 'locked', 'real', .05, 1., .3, 's', ('config', 'steer_status_max_age_s'),
        'steering status freshness'),
     _k('stall_guard_s', 'locked', 'real', .1, 2., .35, 's', ('config', 'stall_guard_s'), 'loop gap'),
-    _k('operator_timeout_s', 'locked', 'real', .5, 3., .5, 's', ('config', 'operator_timeout_s'),
+    _k('operator_timeout_s', 'locked', 'real', .5, 3., 1., 's', ('config', 'operator_timeout_s'),
        'operator link timeout (one_press)'),
     _k('guard_heading_deg', 'locked', 'real', 5., 90., 25., 'deg', ('config', 'guard_heading_deg'),
        'geometry guard heading'),

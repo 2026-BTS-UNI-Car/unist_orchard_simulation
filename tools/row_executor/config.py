@@ -359,8 +359,9 @@ class ExecutorConfig:
     start_mode: object = None                    # None = the profile's default (effective_start_mode): 'one_press' for
                                                  # front_steer, 'hold_to_run' for the differential profile (history);
                                                  # or explicitly 'one_press' / 'hold_to_run'
-    operator_timeout_s: float = .5               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
-                                                 # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31)
+    operator_timeout_s: float = 1.               # one_press: last operator heartbeat + this -> PAUSED operator_link_lost
+                                                 # (locked: config file only; design v2 V2-2 item 3, A17 amendment 31;
+                                                 # 1.0 s from 0.5 s by decision R60, A17 amendment 60)
     tuning_file: object = None                   # front_steer: the field tuning file (field_tuning.py, design v2 V2-5);
                                                  # None = the package default field_tuning.default.json
     tuning_values: dict = field(default_factory=dict)   # front_steer: the steering controller values of the loaded field

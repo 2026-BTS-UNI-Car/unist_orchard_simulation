@@ -51,10 +51,12 @@
 
 - 화면은 자율 화면이 보이는 동안 `/api/heartbeat`를 100 ms마다 보낸다(늦어도 250 ms). 탭을 숨기거나(visibility hidden) 떠나면
   (pagehide) 멈춘다. 실제 기한은 상태의 `operator_link.timeout_s`다.
-- `operator_timeout_s`(실행기 설정, 기본 0.5 s, 범위 0.5~3.0, 잠금): 마지막 heartbeat 뒤 이 시간이 지나면 실행기가 스스로 선다.
-  구동 0을 그 틱에 보내고 조향은 그 자리에 둔다. `run_state` `paused`, `stop_reason` `OPERATOR_LINK_LOST`.
-  초안의 1.0 s가 아니라 0.5 s인 까닭: 설계 V2-2 3항과 R32, 측정 전에 등록된 A17 개정 31("운영자 연결 끊김 → 구동 0 송신
-  ≤ 0.5 s + 1틱")이다. 1.0 s로 바꾸려면 새 결정과 기준 개정이 먼저다.
+- `operator_timeout_s`(실행기 설정, 기본 **1.0 s**, 범위 0.5~3.0, 잠금): 마지막 heartbeat 뒤 이 시간이 지나면 실행기가 스스로
+  선다. 구동 0을 그 틱에 보내고 조향은 그 자리에 둔다. `run_state` `paused`, `stop_reason` `OPERATOR_LINK_LOST`.
+  2026-11-13 결정 R60 으로 0.5 s 에서 1.0 s 로 바꿨다(합격 기준 A17 개정 60: "운영자 연결 끊김 → 구동 0 송신 ≤ operator_timeout_s
+  + 1틱"). 까닭: 느린 연결 시험대(대시보드 docs/slow_link.md 12절, 나쁨 등급 명령 왕복 p50 230 ms, 꼬리 1 s 안팎)와 G-SIM 의
+  대시보드 중계 지연(p95 124 ms, 최대 356 ms)에서 0.5 s 는 heartbeat 틈 하나로 자주 섰다. 화면 heartbeat 100 ms 는 그대로다.
+  처음(개정 31, R32)에는 0.5 s 였다.
 - 자동 재출발은 없다. heartbeat가 다시 와도 run은 일시정지 그대로다. 다시 가려면 새 `/api/go`가 필요하다(입력이 1 s 신선해진 뒤).
 - 한 화면만 운영자다. 다른 세션이 묶인 세션이 살아 있는 동안 heartbeat나 go를 보내면 409 `session_conflict`이고 묶인 화면에는
   아무 일도 없다. 묶인 화면의 연결이 끊긴 뒤에는 다른 세션이 묶일 수 있지만 그 화면의 go를 물려받지 않는다(새 go 필요).
@@ -81,7 +83,7 @@
 | `lease_lost` | MOTOR: run이 첫 go를 기다리는 동안 브리지가 lease를 거뒀다(3.4절). `arm_first`와 함께 나온다 |
 | `inputs_not_fresh` | 스캔·IMU가 `fresh_recover_s`(1 s) 동안 신선하지 않았다 |
 | `steering_feedback` | 조향 상태가 신선하지 않거나 확인되지 않았다 |
-| `vehicle_moving` | LiDAR 속도 ≥ 0.03 m/s(정지 확인 안 됨) |
+| `vehicle_moving` | LiDAR 속도 ≥ 0.08 m/s(정지 확인 안 됨). 자리값, 결정 R62(0.03 에서 바꿈) |
 | `corridor_not_acquired` | 통로를 아직 못 잡았다 |
 
 - 화면의 '자율 주행 시작' 버튼은 상태의 `go_ready`가 참일 때만 켜고, 아니면 `go_blockers`를 보인다.

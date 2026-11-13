@@ -54,7 +54,7 @@ class SchemaTest(unittest.TestCase):
                           d['lookahead_max_m'], d['k_d'], d['k_psi']), (1., .4, 1.5, 1.25, 3., 1., 1.))
         self.assertEqual((d['max_speed_m_s'], d['front_margin_m'], d['operator_timeout_s'], d['lidar_max_age_s'],
                           d['imu_max_age_s'], d['steer_status_max_age_s'], d['stall_guard_s']),
-                         (.5, .35, .5, .45, .4, .3, .35))
+                         (.5, .35, 1., .45, .4, .3, .35))
         self.assertEqual((d['trim_limit_deg'], d['steer_follow_limit_deg'], d['steer_filter_s']), (3., 12., .25))
         self.assertEqual([k.name for k in T.KEYS if k.group == 'basic'], list(T.BASIC))
         self.assertEqual(len(T.BASIC), 8)
@@ -111,7 +111,7 @@ class SchemaTest(unittest.TestCase):
         problems = T.lock_problems(values, steer_shadow(lidar_max_age_s=.4))
         self.assertTrue(problems and problems[0].startswith('lidar_max_age_s'))
         with self.assertRaises(C.ConfigError):
-            C.with_tuning(steer_shadow(operator_timeout_s=1.), values)
+            C.with_tuning(steer_shadow(operator_timeout_s=.5), values)    # default 1.0 (decision R60)
 
     def test_digest_and_config(self):
         values = T.resolve({'target_speed_m_s': .3})
