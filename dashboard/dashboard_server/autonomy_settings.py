@@ -21,12 +21,16 @@ class AutonomySettings:
             raise ValueError('invalid_autonomy_speed')
         return float(value)
 
-    def status(self):
+    def status(self, live=None):
+        from .field_preflight import report
+        preparation=report(Path(__file__).resolve().parents[1]/'config/field_autonomy_preparation.json',live)
         return dict(ok=True, active=False, enabled=False, speed_percent=self.percent,
                     state='NOT_QUALIFIED', runtime_authority=False, motor_command=False,
                     reason='encoderless_autonomy_pending_physical_validation',
                     message='실차 자율주행 준비 중 · LiDAR·IMU 위치 추정과 제동 검증 필요',
-                    speed_units='percent_of_configured_cruise', calibrated_speed_m_s=None)
+                    speed_units='percent_of_configured_cruise', calibrated_speed_m_s=None,
+                    preparation=preparation,
+                    body_feedback=live.get('body_feedback') if isinstance(live,dict) else None)
 
     def set_speed(self, value):
         percent = self.validate(value)

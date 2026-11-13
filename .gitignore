@@ -40,3 +40,5 @@ secrets*.json
 # Drive-response analysis: local data locations and default output
 tools/drive_response/config.json
 tools/out/
+# the dashboard writes its runtime files under its own folder (live map, settings): never tracked
+dashboard/runtime/

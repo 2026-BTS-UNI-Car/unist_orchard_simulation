@@ -7,9 +7,23 @@ import hashlib
 from datetime import datetime
 
 
-def light_segment(cache_dir,index):
+class TimelineLoadUnavailable(RuntimeError):
+    """Transient load refusal, distinct from a genuinely missing preview."""
+    def __init__(self, reason):
+        if reason not in ('timeline_load_busy', 'timeline_load_timeout', 'timeline_source_changed'):
+            raise ValueError('unsupported_timeline_load_reason')
+        super().__init__(reason)
+
+
+def light_timeline(timeline):
+    """A shallow, small view; never retain the LiDAR or camera frame lists."""
+    return {key:timeline[key] for key in ('imu','gps','motor','sync','duration_s','coordinate_frame','segment') if key in timeline}
+
+
+def light_segment(cache_dir,index,*,cached_only=False):
     directory=cache_dir/'segments';target=directory/f'telemetry-{index:06d}.json'
     if target.is_file():return json.loads(target.read_text(encoding='utf-8'))
+    if cached_only:return None
     source=directory/f'segment-{index:06d}.json'
     if not source.is_file():return None
     value=json.loads(source.read_text(encoding='utf-8'))

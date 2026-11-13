@@ -12,21 +12,28 @@ from dashboard_server.tiled_occupancy import TiledOccupancyMap
 
 
 def encode_cells(states):
-    """Row-major states: 0 unknown, 1 free, 2 occupied, 3 observed uncertain.
-
-    Run lengths are numeric state/count pairs. High entropy tiles use two-bit
-    states instead; their base64 is raw cell data, with no image/file codec.
-    """
     values = np.asarray(states, dtype=np.uint8).ravel()
     if len(values) != 4096 or np.any(values > 3):
         raise ValueError('invalid_tile_states')
     edges = np.r_[0, np.flatnonzero(values[1:] != values[:-1])+1, len(values)]
-    runs = np.column_stack((values[edges[:-1]], np.diff(edges))).ravel().tolist()
+    counts = np.diff(edges)
+    # JSON of [state,count,...] has 2 brackets, 2*n-1 commas, n one-digit
+    # states and the decimal digits of n counts. Counts are in [1,4096].
+    # This is exactly the old compact JSON length, with no list/string build.
+    run_count = len(counts)
+    run_bytes = 4*run_count+1
+    if run_bytes <= 1370:
+        run_bytes += int(np.count_nonzero(counts >= 10))
+        run_bytes += int(np.count_nonzero(counts >= 100))
+        run_bytes += int(np.count_nonzero(counts >= 1000))
+    # 4096 two-bit states always pack into 1024 bytes, 1368 base64 characters.
+    # The existing tie rule includes two JSON quotes for that base64 string.
+    if run_bytes <= 1370:
+        runs = np.column_stack((values[edges[:-1]], counts)).ravel().tolist()
+        return dict(encoding='rle2-v1', cells=runs)
     groups = values.reshape(-1, 4)
     packed = (groups[:, 0] | (groups[:, 1] << 2) | (groups[:, 2] << 4) | (groups[:, 3] << 6))
     data = base64.b64encode(packed.tobytes()).decode('ascii')
-    if len(json.dumps(runs, separators=(',', ':'))) <= len(data)+2:
-        return dict(encoding='rle2-v1', cells=runs)
     return dict(encoding='packed2-v1', cells=data)
 
 

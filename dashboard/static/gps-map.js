@@ -1,5 +1,43 @@
-import * as maplibregl from './vendor/maplibre-gl/maplibre-gl.mjs';
 import {FollowModel, validFix, coordinates, frameAt, pathFeatures, accuracyCircle, usedSatellitesText, receptionText} from './gps-map-model.mjs';
+
+// The map library (about 300 kB compressed, with its style sheet and the pmtiles reader) and the Korean label font
+// (about 630 kB) are needed only while a map is on screen, so they are loaded then and not with the page (NET-03).
+// The server gives these addresses their content-hash versions (NET-04); the library would otherwise find its worker
+// file from its own address without one.
+const MAP_LIBRARY_URL = "/static/vendor/maplibre-gl/maplibre-gl.mjs";
+const MAP_WORKER_URL = "/static/vendor/maplibre-gl/maplibre-gl-worker.mjs";
+const MAP_STYLE_URL = "/static/vendor/maplibre-gl/maplibre-gl.css";
+const PMTILES_URL = "/static/vendor/pmtiles/pmtiles.js";
+let mapLibraryPromise = null;
+function addToHead(element, address) {
+  return new Promise((resolve, reject) => {
+    element.onload = () => resolve(element);
+    element.onerror = () => { element.remove(); reject(new Error(`지도 파일을 받지 못했습니다 · ${address}`)); };
+    document.head.append(element);
+  });
+}
+function mapStyleSheet() {
+  if (document.querySelector('link[data-map-style]')) return null;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet'; link.href = MAP_STYLE_URL; link.dataset.mapStyle = '';
+  return addToHead(link, MAP_STYLE_URL);
+}
+function pmtilesReader() {
+  if (window.pmtiles) return null;
+  const script = document.createElement('script');
+  script.src = PMTILES_URL; script.async = true;
+  return addToHead(script, PMTILES_URL);
+}
+function mapLibrary() {
+  if (!mapLibraryPromise) {
+    mapLibraryPromise = Promise.all([import(MAP_LIBRARY_URL), pmtilesReader(), mapStyleSheet()]).then(([library]) => {
+      library.setWorkerUrl?.(MAP_WORKER_URL);
+      library.addProtocol('pmtiles', new window.pmtiles.Protocol().tile);
+      return library;
+    }).catch(error => { mapLibraryPromise = null; throw error; });
+  }
+  return mapLibraryPromise;
+}
 
 const byId = id => document.getElementById(id);
 const text = (id, value) => { const element = byId(id); if (element) element.textContent = value; };
@@ -19,12 +57,20 @@ function samePathFeatures(left, right) {
   }
   return true;
 }
-const protocol = new window.pmtiles.Protocol();
-maplibregl.addProtocol('pmtiles', protocol.tile);
 const qualityName = {autonomous:'일반 GNSS', dgps:'DGNSS', rtk_float:'RTK FLOAT', rtk_fixed:'RTK FIX', dead_reckoning:'추정 위치', no_fix:'위치 미확정'};
 let bundlePromise;
 function bundle() {
-  if (!bundlePromise) bundlePromise = fetch('/api/maps/status').then(r => r.json());
+  if (!bundlePromise) bundlePromise = fetch('/api/maps/status').then(r => {
+    if (!r.ok) throw new Error(`지도 상태 HTTP ${r.status}`);
+    return r.json();
+  }).then(info => {
+    if (!info?.ok) throw new Error(info?.error || '오프라인 지도 파일 확인 필요');
+    return info;
+  }).catch(error => {
+    // Share in-flight/successful metadata, but never cache a transient failure.
+    bundlePromise = null;
+    throw error;
+  });
   return bundlePromise;
 }
 
@@ -43,6 +89,7 @@ class GpsMapView {
     this.model = new FollowModel(); this.map = null; this.marker = null;
     this.sample = {}; this.frames = []; this.until = Infinity; this.lastTrackData = null;
     this.initializing = null; this.lastCentered = '';
+    this.retryInitAt = 0;
     this.markerMounted = false; this.lastPositionKey = null; this.lastAppearanceKey = null;
     this.lastAccuracyKey = null;
     this.paintTask = null; this.paintGeneration = 0;
@@ -66,11 +113,26 @@ class GpsMapView {
     button.classList.toggle('active', this.model.follow);
     button.textContent = this.model.follow ? '로버 중심 추적 중' : '로버 중심으로';
   }
+  // The live map starts when its box comes within 200 px of the screen (NET-03): a page opened on a phone, or with
+  // the map below the visible part, does not download the map library and label font until the map is wanted.
+  initWhenVisible() {
+    const container = byId(`${this.prefix}Map`);
+    if (this.map || this.initializing || !container || typeof IntersectionObserver !== 'function') return this.init();
+    if (this.visibility) return;
+    this.visibility = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      this.visibility.disconnect(); this.visibility = null;
+      this.init();
+    }, {rootMargin: '200px'});
+    this.visibility.observe(container);
+  }
   async init() {
-    if (this.map) { this.map.resize(); return; }
+    if (this.map) return; // ResizeObserver handles layout changes, not each GPS frame.
     if (this.initializing) return this.initializing;
+    if (performance.now() < this.retryInitAt) return;
     this.initializing = this.create().catch(error => {
       text(`${this.prefix}MapStatus`, `지도를 불러오지 못했습니다 · ${error.message}`);
+      this.retryInitAt = performance.now() + 2000;
       this.initializing = null;
     });
     return this.initializing;
@@ -78,6 +140,7 @@ class GpsMapView {
   async create() {
     const info = await bundle();
     if (!info.ok) throw new Error(info.error || '오프라인 지도 파일 확인 필요');
+    const maplibregl = await mapLibrary();
     const font = new FontFace('UBTS Map Korean', 'url(/maps/fonts/korean.woff2)', {weight:'400'});
     document.fonts.add(await font.load());
     const style = await localStyle();
@@ -200,6 +263,12 @@ class GpsMapView {
 const live = new GpsMapView('roverGps');
 const archive = new GpsMapView('roverArchiveGps', true);
 let socket = null, reconnect = null, latest = null, receivedAt = 0, frames = [], frameKey = '', archiveId = null;
+// S12: exponential reconnect backoff with jitter (1.5 s to 30 s), reset by a message.
+let reconnectAttempt = 0;
+function gpsReconnectDelay(attempt, random = Math.random) {
+  const base = Math.min(30000, 1500 * 2 ** Math.max(0, Math.min(10, Number(attempt) || 0)));
+  return Math.round(Math.min(30000, base * (0.8 + 0.4 * random())));
+}
 const active = () => location.pathname.replace(/\/$/, '') === '/rover-control' && !document.hidden;
 function closeSocket() {
   clearTimeout(reconnect); reconnect = null;
@@ -220,9 +289,12 @@ function paintLive() {
 }
 function connect() {
   if (!active() || socket) return;
-  let profile = 'tiny';
-  try { profile = localStorage.getItem('ubts-live-network-profile') || 'tiny'; } catch (_) {}
-  if (profile === 'auto') profile = 'tiny';
+  let profile = 'auto';
+  try { profile = localStorage.getItem('ubts-live-network-profile') || 'auto'; } catch (_) {}
+  if (!['detail', 'balanced', 'slow', 'tiny'].includes(profile)) {
+    const measured = window.RoverLink?.cameraEffectiveProfile?.() || '';
+    profile = measured === 'balanced' || measured === 'detail' ? 'balanced' : 'slow';
+  }
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/gps?profile=${encodeURIComponent(profile)}`);
   socket = ws;
   ws.onmessage = event => {
@@ -230,7 +302,7 @@ function connect() {
     try {
       const payload = JSON.parse(event.data);
       if (payload.type !== 'gps') return;
-      latest = payload; receivedAt = Date.now();
+      latest = payload; receivedAt = Date.now(); reconnectAttempt = 0;
       const key = `${payload.received_at}:${payload.sequence}`;
       if (key !== frameKey && payload.received_at) {
         frames.push({t_s:payload.received_at, sample:payload});
@@ -241,11 +313,11 @@ function connect() {
       if (payload.stream_seq !== undefined && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ack:payload.stream_seq}));
     } catch (_) { text('roverGpsConnection', 'GPS 메시지 확인 실패'); }
   };
-  ws.onclose = () => { if (socket === ws) { socket = null; if (active()) reconnect = setTimeout(connect, 1500); } };
+  ws.onclose = () => { if (socket === ws) { socket = null; if (active()) reconnect = setTimeout(connect, gpsReconnectDelay(reconnectAttempt++)); } };
   ws.onerror = () => text('roverGpsConnection', 'GPS 브리지 연결 대기');
 }
 function routeChanged() {
-  if (active()) { live.init(); connect(); }
+  if (active()) { live.initWhenVisible(); connect(); }
   else closeSocket();
 }
 window.RoverGps = {

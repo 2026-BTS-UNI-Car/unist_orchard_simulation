@@ -1,0 +1,22 @@
+{
+ "source": "ubts-sans-var.woff2",
+ "source_sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5",
+ "source_bytes": 319408,
+ "tool": "fontTools 4.58.0 subset",
+ "ui": {
+  "file": "ubts-sans-ui.woff2",
+  "bytes": 98184,
+  "sha256": "c36908386d2f0638a8ac3c4ab24b9f77b738b19aa76203ca6befed9c9a826910",
+  "codepoints": 807,
+  "hangul_syllables": 483,
+  "missing": []
+ },
+ "ko": {
+  "file": "ubts-sans-ko.woff2",
+  "bytes": 242384,
+  "sha256": "328378a3ce1e878d21fa7b703afb2359b550247fe11387f07d25b7d37622be93",
+  "codepoints": 1867,
+  "hangul_syllables": 1867,
+  "missing": []
+ }
+}

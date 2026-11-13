@@ -45,6 +45,56 @@ class ArchiveMapping:
     def __init__(self, root, renderer='http://127.0.0.1:8810'):
         self.root=Path(root);self.renderer=renderer.rstrip('/')
         self.lock=threading.Lock();self.running=set();self.errors={};self.progress={}
+        from dashboard_server.integrated_archive import IndexedTileHistory
+        self.tile_history=IndexedTileHistory()
+        self.playback_mappers={}
+
+    def close(self):
+        with self.lock:workers=list(self.playback_mappers.values())
+        for worker in workers:worker.close()
+        for worker in workers:
+            if worker.thread:worker.thread.join(timeout=5)
+
+    def new_map(self,archive_id):
+        path=self.directory(archive_id)
+        from dashboard_server.playback_mapping import new_history
+        from dashboard_server.resumable_playback import ResumablePlaybackMapper as PlaybackMapper
+        with self.lock:
+            if self.running:raise ValueError('기존 지도 작업 완료 후 다시 시도하세요.')
+            if len(self.playback_mappers)>=2 and archive_id not in self.playback_mappers:
+                for other in self.playback_mappers.values():other.close()
+                self.playback_mappers.clear()
+            previous=self.playback_mappers.pop(archive_id,None)
+            if previous:previous.close()
+            history=new_history(path,self.signature(path))
+            self.playback_mappers[archive_id]=PlaybackMapper(path,history)
+            self.errors.pop(archive_id,None);self.progress.pop(archive_id,None)
+        return dict(ok=True,state='waiting_for_play',map_epoch=history['epoch'],playback_driven=True)
+
+    def playback(self,archive_id,t_s,playing,control=None):
+        path=self.directory(archive_id)
+        from dashboard_server.resumable_playback import ResumablePlaybackMapper as PlaybackMapper
+        history=read_json(path/'integrated_map_history.json')
+        # Old segmented recordings convert once, on Play. Keep their previous
+        # pointer/epochs recoverable and never open a new frame during tracking.
+        if playing is True and not history.get('playback_driven') and (path/'mapping_source/sensors.jsonl.gz').is_file():
+            self.new_map(archive_id)
+        with self.lock:
+            mapper=self.playback_mappers.get(archive_id)
+            history=mapper.history if mapper and not mapper.closed else read_json(path/'integrated_map_history.json')
+            if not history.get('playback_driven'):return dict(ok=True,playback_driven=False)
+            if mapper and mapper.closed:
+                if mapper.thread:mapper.thread.join(timeout=2)
+                if mapper.running:raise ValueError('이전 지도 작업 정리 중입니다. 잠시 후 다시 시도하세요.')
+                mapper=None
+            if mapper is None:
+                if len(self.playback_mappers)>=2:
+                    for other in self.playback_mappers.values():other.close()
+                    self.playback_mappers.clear()
+                mapper=PlaybackMapper(path,history);self.playback_mappers[archive_id]=mapper
+            for name,other in self.playback_mappers.items():
+                if name!=archive_id and other.running:other.close()
+            return mapper.advance(t_s,playing,control)
 
     def directory(self, archive_id):
         if not re.fullmatch(r'[A-Za-z0-9_.-]{1,128}',archive_id) or archive_id in ('.','..'):
@@ -61,7 +111,7 @@ class ArchiveMapping:
                 s=source.stat();result[name]=[s.st_size,s.st_mtime_ns]
         return result
 
-    def status(self, archive_id, t_s=None, since=None):
+    def status(self, archive_id, t_s=None, since=None, transport=None, tile_since=None, tile_epoch=None):
         path=self.directory(archive_id)
         target=None
         if t_s is not None:
@@ -71,6 +121,25 @@ class ArchiveMapping:
         with self.lock:
             running=archive_id in self.running;error=self.errors.get(archive_id)
             progress=dict(self.progress.get(archive_id,{}) )
+            mapper=self.playback_mappers.get(archive_id)
+        def cursor_progress(indexed):
+            if indexed.get('playback_driven'):
+                active=bool(mapper and not mapper.closed and mapper.running and
+                            mapper.history.get('epoch')==indexed.get('map_epoch'))
+                indexed['generation']={**indexed.get('generation',{}),'worker_active':active,
+                    'mapping_paused':not active or not mapper.playing,
+                    'waiting_for_cursor':not active or not mapper.playing or bool(mapper.history.get('waiting_for_cursor'))}
+            return indexed
+        if transport=='tiles':
+            indexed=self.tile_history.status(path,target,tile_since,tile_epoch)
+            if indexed is not None:
+                indexed=cursor_progress(indexed)
+                return {**indexed,'regeneration_error':error,'state':'regenerating' if running else indexed.get('state','saved'),
+                        'generation':progress or indexed.get('generation',{})}
+        if read_json(path/'integrated_map_history.json').get('playback_driven'):
+            # A stale legacy final PNG must not reappear after a new-map reset.
+            indexed=self.tile_history.status(path,target,tile_since,tile_epoch)
+            if indexed is not None:return cursor_progress(indexed)
         history=read_json(path/'dashboard_occupancy_grid_history.json')
         value={};needs_regeneration=False
         if history:
@@ -114,10 +183,20 @@ class ArchiveMapping:
         threading.Thread(target=self._render,args=(archive_id,),daemon=True,name='archive-map').start()
         return {'ok':True,'state':'regenerating'}
 
+    def window(self,archive_id,start_s,span_s=12,codec=None):
+        return self.tile_history.window(self.directory(archive_id),start_s,span_s,codec)
+
     def _render(self, archive_id):
         session_id=None
         try:
             path=self.directory(archive_id);signature=self.signature(path)
+            if (path/'mapping_source/sensors.jsonl.gz').is_file():
+                from dashboard_server.integrated_archive import build
+                def progress(stage,ratio,time_s):
+                    with self.lock:self.progress[archive_id]=dict(stage=stage,progress=ratio,processed_t_s=time_s,
+                        duration_s=float(read_json(path/'metadata.json').get('duration_s') or 0))
+                build(path,signature,progress)
+                return
             epoch=uuid.uuid4().hex
             folder=path/'dashboard_occupancy_grid_history'/epoch;folder.mkdir(parents=True)
             history=dict(schema='orchard.archive_map_history.v1',epoch=epoch,archive_id=archive_id,

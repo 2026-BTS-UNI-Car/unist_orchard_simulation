@@ -6,7 +6,6 @@ const stages={idle:'유휴',drawing:'그리는 중',waiting_for_sensors:'센서 
   localizing:'위치 추정·지도 저장',paused:'일시정지',waiting_cursor:'재생 시각 대기',
   stopping:'작업 정리 중',stopped:'중단됨',complete:'완료',failed:'오류'};
 export function jobLabel(job){
-  if(job.kind==='native-observer')return `추가 지도 관찰 · ${{idle:'대기',starting:'준비 중',running:'관찰 중',stopping:'정리 중',stopped:'멈춤',failed:'오류'}[job.state]||'연결 대기'} · 완성 지도 ${job.progress?.complete_batches||0}회 · 주행 제어 없음`;
   const head=job.kind==='live'?'실시간 지도':`기록 ${job.recording_id}`;
   const state=stages[job.state]||job.state||stages[job.stage]||job.stage||'대기';
   const elapsed=Number.isFinite(job.last_progress_age_s)?` · 최근 지도 갱신 ${job.last_progress_age_s.toFixed(1)}초 전`:'';
@@ -22,7 +21,7 @@ export function renderJobs(container,value,onStop){
     const label=document.createElement('p');label.textContent=jobLabel(job);row.append(label);
     if(job.active||job.tracking||job.processing){
       const button=document.createElement('button');button.type='button';button.className='action-button secondary';
-      button.textContent='이 작업 중단';button.setAttribute('aria-label',`${job.kind==='native-observer'?'추가 지도 관찰':job.kind==='live'?'실시간 지도':job.recording_id} 매핑 중단`);
+      button.textContent='이 작업 중단';button.setAttribute('aria-label',`${job.kind==='live'?'실시간 지도':job.recording_id} 매핑 중단`);
       button.addEventListener('click',async()=>{button.disabled=true;try{await onStop(job);}finally{button.disabled=false;}});
       row.append(button);
     }

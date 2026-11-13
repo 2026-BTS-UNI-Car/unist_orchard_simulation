@@ -1,0 +1,31 @@
+{
+ "file": "ubts-sans-var.woff2",
+ "bytes": 319408,
+ "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5",
+ "family": "UBTS Sans",
+ "source": "Pretendard Variable Version 1.309;Glyphs 3.2 (3225)",
+ "source_sha256": "3090ccde0442bb347aa7685d9ba8b17436a60682df6e8f92a9a670de14056e22",
+ "source_url": "https://github.com/orioncactus/pretendard (v1.3.9, packages/pretendard/dist/public/variable/PretendardVariable.ttf)",
+ "licence": "SIL Open Font License 1.1 (PRETENDARD-OFL.txt). The original font name is reserved, so this modified copy is renamed.",
+ "weight_axis": [
+  400.0,
+  400.0,
+  700.0
+ ],
+ "codepoints_kept": 2674,
+ "hangul_syllables": 2350,
+ "requested_but_not_in_source": "⅔ⓘ✕ㅥㅦㅧㅨㅩㅪㅫㅬㅭㅮㅯㅰㅱㅲㅳㅴㅵㅶㅷㅸㅹㅺㅻㅼㅽㅾㅿㆀㆁㆂㆃㆄㆅㆆㆇㆈㆉㆊㆋㆌㆎ",
+ "layout_features": [
+  "calt",
+  "case",
+  "clig",
+  "frac",
+  "locl",
+  "pnum",
+  "subs",
+  "sups",
+  "tnum",
+  "zero"
+ ],
+ "tool": "fontTools 4.58.0 (subset, then instancer limit wght 400..700)"
+}

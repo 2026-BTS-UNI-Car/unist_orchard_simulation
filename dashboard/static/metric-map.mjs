@@ -1,5 +1,6 @@
 import {worldBounds, occupiedCellsFromPixels, nearbyWorldBounds, fullWorldBounds, fittedView, worldToScreen, pathOpacity, archivePath, virtualGpsPoint, orchardLayout} from './sim-map-model.mjs';
 import {decodeTileCells, cellPixels, tileOccupiedIndices, nearbyTileBounds} from './grid-cell-codec.mjs';
+import {mergeLivePath} from './live-map-delta.mjs';
 
 const $ = id => document.getElementById(id);
 export class MetricMap {
@@ -27,6 +28,14 @@ export class MetricMap {
     const decoded = [];
     for (const tile of snapshot.tiles || []) {
       if (tile.encoding) {
+        const cached=this.tileEpoch===epoch?this.tileBitmaps?.get(`${tile.x},${tile.y}`):null;
+        const same=cached?.encoding===tile.encoding && (cached.cells===tile.cells ||
+          Array.isArray(tile.cells)&&Array.isArray(cached.cells)&&tile.cells.length===cached.cells.length&&tile.cells.every((v,i)=>v===cached.cells[i]));
+        if(same){
+          // Immutable cell windows often carry a full seed. Reuse identical
+          // bitmaps while installing the new complete snapshot atomically.
+          decoded.push({...tile,image:cached.image,occupied:cached.occupied});continue;
+        }
         const states=decodeTileCells(tile,snapshot.tile_size || 64);
         const image=document.createElement('canvas');image.width=64;image.height=64;
         const context=image.getContext('2d'),pixels=context.createImageData(64,64);
@@ -48,9 +57,12 @@ export class MetricMap {
     for (const tile of decoded) this.tileBitmaps.set(`${tile.x},${tile.y}`,tile);
     this.tileEpoch = epoch; this.bitmap = null; this.occupiedCells = undefined;
     this.pendingTiles = null;
-    const previousPath = this.snapshot.path || [];
-    const path = snapshot.path_append && !snapshot.tiles_reset ? [...previousPath,...(snapshot.path || [])] : snapshot.path;
-    this.commit({...snapshot,path,map_epoch:snapshot.view_epoch || snapshot.map_epoch || epoch});
+    // Live polls may carry only the newest path points (path_from). A
+    // response that cannot be merged keeps the previous path; the next poll
+    // then asks for the full path.
+    const merged = mergeLivePath(this.snapshot, snapshot);
+    this.pathNeedsFull = !merged.ok;
+    this.commit({...snapshot,path:merged.path,map_epoch:snapshot.view_epoch || snapshot.map_epoch || epoch});
   }
   set(snapshot) {
     if (Array.isArray(snapshot.tiles)) return this.setTiles(snapshot).catch(() => {this.tileEpoch = null;});
@@ -196,6 +208,7 @@ export class MetricMap {
     const now=Number.isFinite(this.until)?this.until:Number(this.snapshot.pose?.stamp||this.snapshot.stamp||path.at(-1)?.stamp||0);
     ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.5;
     for(let i=1;i<path.length;i++){
+      if(path[i].break_before)continue;
       const a=xy(path[i-1]),b=xy(path[i]);
       const ageStamp=Number.isFinite(this.until)?Number(path[i].t_s??(path[i].stamp-(this.snapshot.recording_start_stamp||0))):Number(path[i].stamp);
       ctx.strokeStyle=`rgba(240,50,67,${pathOpacity(Number.isFinite(ageStamp)?ageStamp:now,now)})`;

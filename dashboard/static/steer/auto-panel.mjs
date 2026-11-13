@@ -1,0 +1,122 @@
+// Autonomy section of the drive panel (UI-08): one press to start, STOP, the operator heartbeat while the screen is
+// visible, and the state from GET /api/executor/status (docs/STEERING_SERVER_KO.md 6). Loaded by static/app/14-steer.js
+// on a front-steer dashboard. Requests use the page's postJson/getJson. The page never sees the executor token.
+import { HEARTBEAT_MS, STATUS_MS, autoView, heartbeatWanted, newSession, primaryAction, runActive } from './auto-model.mjs';
+
+const HTTP_TEXT = { 403: '대시보드 세션 없음: 화면을 새로 고친다', 409: '실행기가 거절했다', 502: '실행기 연결 안 됨',
+                    503: '실행기 설정 없음', 400: '요청 값 오류', 413: '요청이 너무 큼' };
+
+export function initAutoPanel(page) {
+  const $ = (id) => document.getElementById(id);
+  const root = $('autoPanel');
+  if (!root) return null;
+  const session = newSession();
+  let reply = null, pollTimer = null, beatTimer = null, polling = false, beating = false, busy = false, lastError = '';
+
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden;
+
+  async function poll() {
+    if (polling) return;
+    polling = true;
+    try { reply = await page.getJson('/api/executor/status'); } catch (_) { reply = reply ? { ...reply } : null; }
+    finally { polling = false; }
+    draw();
+  }
+  async function beat() {
+    if (beating || !active() || !heartbeatWanted(reply)) return;
+    beating = true;
+    try {
+      await page.postJson('/api/executor/heartbeat', { session });
+      if (lastError.startsWith('연결 신호')) lastError = '';
+    } catch (err) {
+      lastError = `연결 신호 거절: ${httpText(err)}`;
+    } finally { beating = false; }
+  }
+  function httpText(err) {
+    const code = Number(String(err && err.message || '').split(': ').pop());
+    return HTTP_TEXT[code] || String(err && err.message || err);
+  }
+  function start() {
+    if (!active()) return;
+    if (!pollTimer) { pollTimer = setInterval(poll, STATUS_MS); poll(); }
+    if (!beatTimer) beatTimer = setInterval(beat, HEARTBEAT_MS);
+  }
+  function stop() {
+    clearInterval(pollTimer); pollTimer = null;
+    clearInterval(beatTimer); beatTimer = null;    // no heartbeat: the executor stops the vehicle by itself
+  }
+
+  async function send(action, body = {}) {
+    try { await page.postJson(`/api/executor/${action}`, body); return true; }
+    catch (err) { lastError = `${action}: ${httpText(err)}`; return false; }
+  }
+  async function primary() {
+    const { action } = primaryAction(reply);
+    if (!action || busy) return;
+    busy = true; lastError = ''; draw();
+    try {
+      if (action === 'prepare') {
+        const raw = $('autoRowLen')?.value.trim();
+        const rowLen = raw ? Number(raw) : null;
+        if (raw && !(rowLen > 0)) { lastError = '열 길이는 0보다 큰 수이거나 비워 둔다'; return; }
+        if (await send('start', { row_len_m: rowLen }) && reply?.status?.mode === 'MOTOR') {
+          await poll();
+          if (reply?.status?.run_state === 'ready') await send('arm');
+        }
+      } else if (action === 'go') {
+        await beat();                                   // the link is fresh before the go (go_blockers: operator link)
+        await send('go', { session });
+      } else {
+        await send(action);
+      }
+    } finally {
+      busy = false;
+      await poll();
+    }
+  }
+  // Every STOP of the drive page also stops a run (their own handlers keep sending the bridge STOP).
+  function stopRun() {
+    if (!reply || reply.configured === false) return;
+    if (runActive(reply) || !reply.ok) send('stop').then(poll);   // a run, or a state not known: the executor latches
+  }
+  $('autoPrimary')?.addEventListener('click', primary);
+  $('autoEnd')?.addEventListener('click', () => { if (!busy) send('end').then(poll); });
+  for (const id of ['frameStopButton', 'roverStopButton']) $(id)?.addEventListener('click', stopRun);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && page.currentRoute() === '/rover-control') stopRun();
+  });
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+
+  function draw() {
+    const view = autoView(reply);
+    const chip = $('autoState');
+    if (chip) { chip.className = `status-chip${view.chip[0] ? ` ${view.chip[0]}` : ''}`; chip.textContent = view.chip[1]; }
+    const button = $('autoPrimary');
+    const action = primaryAction(reply);
+    if (button) { button.textContent = busy ? '보내는 중…' : action.text; button.disabled = busy || !action.enabled; }
+    const end = $('autoEnd');
+    if (end) end.disabled = busy || !runActive(reply) || reply.status.run_state === 'running';
+    const notice = $('autoNotice');
+    const [kind, text] = lastError ? ['bad', lastError] : (view.notice || ['', '']);
+    if (notice) { notice.hidden = !text; notice.className = `test-result ${kind}`; notice.textContent = text; }
+    const list = $('autoDetails');
+    if (list) {
+      list.classList.toggle('stale', view.stale);
+      const key = JSON.stringify(view.rows);
+      if (list.dataset.key !== key) {
+        list.dataset.key = key;
+        list.replaceChildren(...view.rows.map(([name, value]) => {
+          const row = document.createElement('div');
+          const dt = document.createElement('dt'); dt.textContent = name;
+          const dd = document.createElement('dd'); dd.textContent = value;
+          row.append(dt, dd);
+          return row;
+        }));
+      }
+    }
+  }
+
+  function routeChanged() { if (active()) start(); else stop(); draw(); }
+  routeChanged();
+  return { routeChanged, draw, session: () => session, state: () => reply };
+}

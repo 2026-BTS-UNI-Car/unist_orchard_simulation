@@ -1,5 +1,6 @@
 # Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
-# GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0).
+# GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0;
+# the dashboard runs in the sim network namespace and the sim service publishes its port).
 # Default image ubts-steer-sim:wf4c (2026-11-12: the executor package, the S2 format node and the row-following
 # controller of the executor slot, kind row_follow, are in the image; from wf4a on the S2 node is in the image, so
 # "up" publishes /scan in the real-rover format; ubts-steer-sim:p6a had /sim/scan only). UBTS_STEER_IMAGE picks
@@ -81,6 +82,10 @@ services:
     shm_size: 512mb
     working_dir: /opt/ubts/sim/ubts
     command: ["python3", "-B", "-m", "steering.supervisor_steer", "--role", "sim"]
+    # The dashboard joins this network namespace (it calls the executor's operator page on 127.0.0.1:8097), so its
+    # port is published here.
+    ports:
+      - "127.0.0.1:18090:8080"
     environment:
       <<: *environment
       UBTS_RENDER_ENGINE: ${UBTS_RENDER_ENGINE:-ogre}
@@ -163,9 +168,18 @@ services:
     cpus: 1
     stop_grace_period: 20s
     restart: "no"
+  # Dashboard (docs/steering/SIM_DASHBOARD_KO.md): dashboard/ is the dashboard repository's server and page at the
+  # commit of dashboard/DASHBOARD_SOURCE.json (tools/steer_sim/sync_dashboard.py); the simulation additions come from
+  # dashboard_sim/ through the dashboard's extension points (provider, extension routes, extra static folder). Front
+  # steering screen (DASHBOARD_VEHICLE=front_steer): manual steering through the bridge's control socket, one-press
+  # autonomy through the executor relay /api/executor/* -> the executor's operator page on 127.0.0.1:8097 (this
+  # container is in the sim network namespace like the executor; the token is the executor's operator_token.txt in the
+  # control volume and never reaches the page). The page port 8080 is published by the sim service (127.0.0.1:18090).
+  # An image built before the sync (wf4c and earlier) still runs its own older dashboard: it ignores these settings.
   dashboard:
     image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf4c}
     init: true
+    network_mode: "service:sim"
     working_dir: /opt/ubts/dashboard
     command: ["python3", "-B", "-m", "dashboard_server"]
     depends_on:
@@ -175,12 +189,18 @@ services:
       <<: *environment
       DASHBOARD_HOST: 0.0.0.0
       DASHBOARD_PORT: "8080"
-      LIDAR_WS_UPSTREAM: ws://sim:8765/ws/lidar
-      CAMERA_WS_UPSTREAM: ws://sim:8770/ws/camera
-      IMU_WS_UPSTREAM: ws://sim:8775/ws/imu
-      GPS_WS_UPSTREAM: ws://sim:8778/ws/gps
-    ports:
-      - "127.0.0.1:18090:8080"
+      DASHBOARD_VEHICLE: front_steer
+      DASHBOARD_PROVIDER: ubts_sim_dashboard.provider:SimulationProvider
+      DASHBOARD_EXTENSION: ubts_sim_dashboard.extension
+      DASHBOARD_EXTRA_STATIC: /opt/ubts/dashboard_sim/static
+      PYTHONPATH: /opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/dashboard_sim:/opt/ubts/sim/ubts
+      UBTS_EXECUTOR_URL: http://127.0.0.1:8097
+      UBTS_EXECUTOR_TOKEN_FILE: /run/ubts-steer/exec/log/operator_token.txt
+      UBTS_EXECUTOR_TUNING_LOG: /runtime/steer/dashboard/executor_tuning_log.jsonl
+      LIDAR_WS_UPSTREAM: ws://127.0.0.1:8765/ws/lidar
+      CAMERA_WS_UPSTREAM: ws://127.0.0.1:8770/ws/camera
+      IMU_WS_UPSTREAM: ws://127.0.0.1:8775/ws/imu
+      GPS_WS_UPSTREAM: ws://127.0.0.1:8778/ws/gps
     volumes:
       - runtime:/runtime
       - control:/run/ubts-steer
@@ -219,7 +239,10 @@ services:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONPATH: /opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts:/opt/ubts/tools
       UBTS_STEER_CLOCK: ${UBTS_STEER_CLOCK:-wall}
-      UBTS_STEER_EXEC_CONTROLLER: ${UBTS_STEER_EXEC_CONTROLLER:-}
+      # the stack's executor starts with the row-following controller: the dashboard's one-press start and
+      # sim_auto.py go through the operator page, which cannot choose a controller (the checks set theirs through the
+      # SIM hook 'controller'; exec_run start sets row_follow the same way). UBTS_STEER_EXEC_CONTROLLER overrides it.
+      UBTS_STEER_EXEC_CONTROLLER: '${UBTS_STEER_EXEC_CONTROLLER:-{"kind": "row_follow"}}'
       UBTS_STEER_EXEC_OVERRIDES: ${UBTS_STEER_EXEC_OVERRIDES:-}
       UBTS_STEER_EXEC_SKIP_SOURCE_CHECK: ${UBTS_STEER_EXEC_SKIP_SOURCE_CHECK:-0}
       UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}

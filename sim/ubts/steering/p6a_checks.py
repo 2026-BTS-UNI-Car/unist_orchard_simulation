@@ -2731,7 +2731,8 @@ def build_parser():
     p.add_argument('--sine-s', type=float, default=8., help='a25: seconds of the steering sine')
     p.add_argument('--gsim-results', nargs='*', default=[],
                    help='a19g_normal: gz_probe a25_firmware result.json files (G-SIM lockstep, normal scripts)')
-    p.add_argument('--dashboard-url', default='http://dashboard:8080')
+    # the dashboard runs in the sim network namespace (compose.ubts-steer.yaml, 2026-11-13), as this check container
+    p.add_argument('--dashboard-url', default='http://127.0.0.1:8080')
     p.add_argument('--throttle', type=int, default=40)
     p.add_argument('--steer-mrad', type=int, default=175)
     p.add_argument('--straight-s', type=float, default=15.)

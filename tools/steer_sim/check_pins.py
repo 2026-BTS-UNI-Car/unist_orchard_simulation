@@ -9,7 +9,10 @@
    package used here, or a top-level package of this repository. "New" means added since the
    merge base with --base; when that ref does not exist (before the first push, or in a clone
    without that remote branch) it means every Python file that is not in the python_baseline
-   list of PIN_MANIFEST.json (the Python files present at the import).
+   list of PIN_MANIFEST.json (the Python files present at the import). The dashboard copy (the files listed in
+   dashboard/DASHBOARD_SOURCE.json: the dashboard repository's server and page at one commit, written and checked by
+   tools/steer_sim/sync_dashboard.py --check) is left out of this rule: those files are that repository's, nested in
+   its dashboard_server package (e.g. a vendored closed_loop under dashboard_server/_field10), never top-level here.
 
 Usage: python -I tools/steer_sim/check_pins.py [--base origin/main] [--json]
 Exit code 0 only when both checks pass.
@@ -25,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = Path(__file__).resolve().with_name("PIN_MANIFEST.json")
+DASHBOARD_COPY = ROOT / "dashboard" / "DASHBOARD_SOURCE.json"
 ALLOWLIST = Path(__file__).resolve().with_name("PIN_ALLOWLIST.json")
 
 # Third-party or repository top-level names that a new module must not reuse.
@@ -106,11 +110,23 @@ def new_python_paths(base: str, baseline: list[str]) -> tuple[list[str], str]:
     return sorted({p for p in added + untracked + staged if p.endswith(".py")}), how
 
 
+def dashboard_copy_paths() -> set[str]:
+    """Repository paths of the dashboard copy (dashboard/DASHBOARD_SOURCE.json), empty when there is none."""
+    try:
+        files = json.loads(DASHBOARD_COPY.read_bytes()).get("files") or {}
+    except (OSError, ValueError):
+        return set()
+    return {"dashboard/" + path for path in files}
+
+
 def check_shadowing(base: str, baseline: list[str]) -> dict:
     reserved = set(getattr(sys, "stdlib_module_names", ())) | EXTRA_RESERVED
     bad = []
     paths, how = new_python_paths(base, baseline)
+    copied = dashboard_copy_paths()
     for rel in paths:
+        if rel in copied:
+            continue
         p = Path(rel)
         names = [p.stem] if p.stem != "__init__" else []
         if p.name == "__init__.py":

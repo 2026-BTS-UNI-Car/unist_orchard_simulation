@@ -1,0 +1,157 @@
+/* Element defaults. Needs tokens.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* In-page jumps stop below the fixed status bar. */
+  scroll-padding-top: calc(var(--statusbar-height) + var(--banner-height) + var(--space-2));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-regular);
+  /* Read-outs keep their width while the digits change. */
+  font-variant-numeric: tabular-nums;
+  /* Hangul breaks between words, not inside them; a word that is wider than
+     its box still breaks. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+/* Page title. */
+h1 {
+  font-size: var(--text-xl);
+  line-height: var(--leading-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-title);
+}
+
+/* Panel title. */
+h2 {
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Title of a part of a panel. */
+h3,
+h4 {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-strong);
+}
+
+b,
+strong,
+th,
+dt,
+summary {
+  font-weight: var(--weight-strong);
+}
+
+small {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+a {
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+summary {
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Line icons: an inline <svg class="icon"><use href="#i-name"/></svg> that
+   refers to a symbol of the page (no icon font, no image file). The symbols
+   sit in one hidden <svg class="icon-sprite"> at the top of the body. */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* One focus ring for every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

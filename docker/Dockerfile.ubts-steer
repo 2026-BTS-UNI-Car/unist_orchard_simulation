@@ -27,6 +27,12 @@
 # ubts-steer-sim:wf4a / wf4b (2026-11-12): the first images with the executor package and the S2 format node; wf4b is
 # the default of compose.ubts-steer.yaml until wf4c. ubts-steer-sim:wf4c (2026-11-12): with the row-following
 # controller (closed_loop/steer_control.py), steering.exec_checks follow and steering.exec_run; the default now.
+# Dashboard (2026-11-13, D-13, docs/steering/SIM_DASHBOARD_KO.md): dashboard/config, dashboard_server and static are the
+# dashboard repository's files at the commit of dashboard/DASHBOARD_SOURCE.json (tools/steer_sim/sync_dashboard.py);
+# the build checks every file against that manifest. dashboard_sim/ (the simulation's provider, extension routes and
+# extra static folder) is copied to /opt/ubts/dashboard_sim. The dashboard's native raster kernel moved to
+# dashboard_server/native_raster.cc in that repository. dashboard/scripts stays the simulation's own copy (sensor
+# bridges, recorder, steering host code).
 ARG UBTS_STEER_BASE=ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29@sha256:6209168a3507cf7a657464af99711e0cdf45329617e67bdafca87007367688b0
 FROM ${UBTS_STEER_BASE}
 ARG UBTS_STEER_BASE
@@ -37,10 +43,11 @@ ARG UBTS_STEER_REQUIRE_FIRMWARE=1
 ARG IMAGE_TAG_HINT=ubts-steer-sim:wf4c
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt/ubts
-RUN rm -rf /opt/ubts/dashboard /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \
+RUN rm -rf /opt/ubts/dashboard /opt/ubts/dashboard_sim /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \
            /opt/ubts/ros2_ws/src/orchard_navigation /opt/ubts/firmware /opt/ubts/tools/row_executor \
  && rm -f /opt/ubts/compose.ubts*.yaml
 COPY dashboard /opt/ubts/dashboard
+COPY dashboard_sim /opt/ubts/dashboard_sim
 COPY sim/ubts /opt/ubts/sim/ubts
 COPY ros2_ws/src/orchard_gazebo /opt/ubts/ros2_ws/src/orchard_gazebo
 COPY ros2_ws/src/orchard_navigation /opt/ubts/ros2_ws/src/orchard_navigation
@@ -53,8 +60,8 @@ ENV PYTHONPATH=/opt/ubts/raydeps:/opt/ubts/dashboard:/opt/ubts/sim/ubts \
     MPLBACKEND=Agg
 # The native raster kernel of the dashboard (same step as docker/Dockerfile.ubts; the base copy went with the old
 # sources) and the steering native lockstep program (decision R1 (d)) are built with the image's g++.
-RUN g++ -O3 -std=c++17 -shared -fPIC /opt/ubts/dashboard/dashboard_server/sensor_mapping/native_raster.cc \
-      -o /opt/ubts/dashboard/dashboard_server/sensor_mapping/_native_raster.so \
+RUN g++ -O3 -std=c++17 -shared -fPIC /opt/ubts/dashboard/dashboard_server/native_raster.cc \
+      -o /opt/ubts/dashboard/dashboard_server/_native_raster.so \
  && mkdir -p /opt/ubts/steer_native_build /runtime /run/ubts-steer \
  && (python3 -B /opt/ubts/sim/ubts/steering/native/build.py --json > /opt/ubts/steer_native_build/BUILD_RESULT.json \
        2> /opt/ubts/steer_native_build/BUILD_STDERR.txt \
@@ -64,7 +71,8 @@ RUN g++ -O3 -std=c++17 -shared -fPIC /opt/ubts/dashboard/dashboard_server/sensor
 fw = r.get('firmware_build_id'); print('steering native build: binary %s, firmware_build_id %s' % (r.get('path'), fw)); \
 sys.exit(0 if (fw or '${UBTS_STEER_REQUIRE_FIRMWARE}' == '0') else 'firmware_build_id missing in BUILD_RESULT.json: the native build failed or ran without firmware/ubts_steer_v3 (see BUILD_STDERR.txt)')"
 RUN python3 -B -c "import hashlib, json, os, time; \
-roots = ('dashboard', 'sim/ubts', 'ros2_ws/src/orchard_gazebo', 'ros2_ws/src/orchard_navigation', 'tools/row_executor', \
+roots = ('dashboard', 'dashboard_sim', 'sim/ubts', 'ros2_ws/src/orchard_gazebo', 'ros2_ws/src/orchard_navigation', \
+         'tools/row_executor', \
          'firmware'); \
 files = sorted(os.path.join(d, n) for r in roots for d, _, ns in os.walk(r) for n in ns); \
 files += sorted(n for n in os.listdir('.') if n.startswith('compose.ubts') and n.endswith('.yaml')); \
@@ -79,6 +87,19 @@ manifest = dict(schema='ubts.steer_image_manifest.v1', image_tag_hint='${IMAGE_T
   firmware_required='${UBTS_STEER_REQUIRE_FIRMWARE}' != '0', firmware_build_id=native.get('firmware_build_id'), \
   note='placeholder-based SIM image; no apt or pip; sources copied from the steering branch work tree'); \
 open('/opt/ubts/STEER_IMAGE_MANIFEST.json', 'w').write(json.dumps(manifest, indent=1, sort_keys=True) + '\n')" \
+ && python3 -B -c "import hashlib, json, os; d = '/opt/ubts/dashboard'; \
+m = json.load(open(os.path.join(d, 'DASHBOARD_SOURCE.json'))); \
+bad = [p for p, r in m['files'].items() if hashlib.sha256(open(os.path.join(d, p), 'rb').read()).hexdigest() != r['sha256']]; \
+extra = sorted(os.path.relpath(os.path.join(w, n), d).replace(os.sep, '/') for root in m['roots'] \
+               for w, ds, ns in os.walk(os.path.join(d, root)) for n in ns if not n.endswith(('.so', '.pyc'))); \
+extra = [p for p in extra if p not in m['files']]; \
+assert not bad and not extra, ('dashboard copy differs from DASHBOARD_SOURCE.json', bad[:5], extra[:5]); \
+print('dashboard copy: commit %s, %d files' % (m['commit'][:12], len(m['files'])))" \
+ && DASHBOARD_MODE=simulation DASHBOARD_VEHICLE=front_steer \
+    DASHBOARD_PROVIDER=ubts_sim_dashboard.provider:SimulationProvider DASHBOARD_EXTENSION=ubts_sim_dashboard.extension \
+    DASHBOARD_EXTRA_STATIC=/opt/ubts/dashboard_sim/static PYTHONPATH=$PYTHONPATH:/opt/ubts/dashboard_sim \
+    python3 -B -c "from dashboard_server import app, extensions; s = extensions.DashboardSettings.from_env(); \
+import ubts_sim_dashboard.provider, ubts_sim_dashboard.extension as e; assert s.simulation and len(extensions.routes_of(e)) == 1" \
  && source /opt/ros/jazzy/setup.bash \
  && python3 -B -c "import numpy, yaml, PIL, matplotlib; import gz.sim8, gz.transport13, gz.msgs10; from steering import gz_model, gz_assemble, gz_probe, gz_direct_drive" \
  && python3 -B -c "import rclpy, adapter; from steering import gz_esp_emulator, supervisor_steer, sensor_contract_steer, verify_steer, p6a_checks, p6a_graph, p6a_client, p6a_imu_model; sensor_contract_steer.make_node_class()" \

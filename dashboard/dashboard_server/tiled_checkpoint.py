@@ -121,8 +121,13 @@ def load(cls, path):
         raise ValueError('tile_checkpoint_hash_mismatch')
     count = integer(value.get('tile_count'), 0, MAX_TILES)
     config = value.get('config', {})
-    if set(config) != {'resolution', 'max_cells', 'max_span', 'max_beams', 'laser_x', 'laser_y'}:
+    required={'resolution','max_cells','max_span','max_beams','laser_x','laser_y'}
+    inverse_model={'conservative_free','endpoint_margin_cells'}
+    if set(config) not in (required,required|inverse_model):
         raise ValueError('invalid_tile_checkpoint_configuration')
+    if inverse_model<=set(config):
+        if type(config['conservative_free']) is not bool:raise ValueError('invalid_tile_checkpoint_inverse_model')
+        integer(config['endpoint_margin_cells'],0,3)
     if not .0001 <= finite(config['resolution']) <= 10:
         raise ValueError('invalid_tile_checkpoint_resolution')
     integer(config['max_cells'], 1, 32000000)

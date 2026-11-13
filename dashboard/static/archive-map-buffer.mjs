@@ -10,7 +10,11 @@ export class ArchiveMapBuffer {
     if(!this.contains(time))return null;
     const frames=this.events.filter(e=>e.frame_t_s<=time);
     const latest=frames.at(-1)||this.seed;
-    const incremental=epoch===this.seed.tile_epoch && version>=this.seed.tile_version && version<=latest.tile_version;
+    // The time-zero seed can precede the first scan and therefore has no tile
+    // epoch. Once the first event establishes it, keep subsequent playback
+    // incremental instead of resetting the entire map on every animation tick.
+    const seedVersion=this.seed.tile_version??this.seed.version??0;
+    const incremental=epoch===latest.tile_epoch && version>=seedVersion && version<=latest.tile_version;
     let tiles=new Map(),path=[],reset=!incremental,packet=this.seed;
     if(!incremental){for(const t of this.seed.tiles||[])tiles.set(`${t.x},${t.y}`,t);path=[...(this.seed.path||[])];}
     for(const row of frames){

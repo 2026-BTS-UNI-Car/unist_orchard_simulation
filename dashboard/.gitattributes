@@ -2,9 +2,3 @@
 *.py text eol=lf
 static/vendor/** -text -whitespace
 static/vendor/gps-map-vendors.json text eol=lf whitespace
-# Stored with CRLF or mixed line ends in the source repository and kept byte-exact (the *.py rule above would
-# rewrite them at the next add).
-dashboard_server/sensor_mapping/occupancy_map.py -text
-dashboard_server/sensor_mapping/raw_mapping/gnss_constraints.py -text
-dashboard_server/sensor_mapping/raw_mapping/raw_localization.py -text
-dashboard_server/sensor_mapping/raw_mapping/raw_point_support.py -text

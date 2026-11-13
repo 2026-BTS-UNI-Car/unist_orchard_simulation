@@ -31,11 +31,16 @@ def atomic_json(path, value):
 
 
 def read_json(path):
-    try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
-        return value if isinstance(value, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    for attempt in range(8):
+        try:
+            value = json.loads(Path(path).read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else {}
+        except PermissionError:
+            # Concurrent atomic replacement/virus scanning can briefly lock
+            # the existing file on Windows. A lock is not an empty map.
+            if os.name!='nt' or attempt==7:return {}
+            time.sleep(.01*(attempt+1))
+        except (OSError, ValueError):return {}
 
 
 def line_cells(x0, y0, x1, y1):
@@ -56,7 +61,7 @@ def line_cells(x0, y0, x1, y1):
             y0 += sy
 
 
-def raster_cells(endpoints):
+def _raster_cells_sorted(endpoints):
     """Exact Bresenham cells for rays from (0,0), in deterministic x/y order.
 
     Array arithmetic avoids building/sorting tens of thousands of Python
@@ -86,6 +91,67 @@ def raster_cells(endpoints):
     return coordinates(free), coordinates(occupied)
 
 
+def raster_cells(endpoints, endpoint_margin_cells=0):
+    """Exact ray union with bounded bitmap/chunks instead of sorting all rays.
+
+    Keep the reference rounding and lexicographic admission order. Chunking
+    bounds scratch arrays even when every S2 beam is integrated.
+    """
+    if not endpoints:
+        return np.empty((0,2),dtype=np.int64),np.empty((0,2),dtype=np.int64)
+    rays=np.asarray(endpoints,dtype=np.int64)
+    # Nearby S2 returns often land in the same grid endpoint. Bresenham is
+    # deterministic, so repeating an identical ray cannot change this union.
+    # Remove those duplicates before allocating per-beam scratch arrays; retain
+    # both hit/free variants so the occupied-endpoint precedence stays exact.
+    rays=np.unique(rays,axis=0)
+    ends_x,ends_y,hits=rays.T
+    xmin,ymin=min(0,int(ends_x.min())),min(0,int(ends_y.min()))
+    width=max(0,int(ends_x.max()))-xmin+1
+    height=max(0,int(ends_y.max()))-ymin+1
+    if width*height>4_194_304:
+        free,occupied=_raster_cells_sorted(endpoints)
+        if endpoint_margin_cells and len(occupied):
+            from scipy.spatial import cKDTree
+            distance,_=cKDTree(occupied).query(free,p=np.inf,workers=1)
+            free=free[distance>endpoint_margin_cells]
+        return free,occupied
+    from .native_raster import raster_bitmap
+    bitmap=raster_bitmap(rays,xmin,ymin,width,height,endpoint_margin_cells)
+    if bitmap is not None:
+        free=np.flatnonzero(bitmap==1);occupied=np.flatnonzero(bitmap==2)
+        return (np.column_stack((free//height+xmin,free%height+ymin)),
+                np.column_stack((occupied//height+xmin,occupied%height+ymin)))
+    seen=np.zeros(width*height,dtype=bool)
+    for first in range(0,len(rays),256):
+        x,y,hit=rays[first:first+256].T;dx,dy=np.abs(x),np.abs(y)
+        major=np.maximum(dx,dy)
+        n=np.arange(int(major.max())+1,dtype=np.int64)[None,:]
+        x_major=(dx>=dy)[:,None]
+        # Only the minor coordinate needs a division. Computing both x/y
+        # candidates allocated two large integer quotients for every ray.
+        minor=(2*n*np.minimum(dx,dy)[:,None]+major[:,None])//(2*np.maximum(major[:,None],1))
+        xx=np.sign(x)[:,None]*np.where(x_major,n,minor)
+        yy=np.sign(y)[:,None]*np.where(x_major,minor,n)
+        allowed=n<=(major-hit)[:,None]
+        seen[(xx[allowed]-xmin)*height+yy[allowed]-ymin]=True
+    occupied=np.unique((ends_x[hits!=0]-xmin)*height+ends_y[hits!=0]-ymin)
+    seen[occupied]=False
+    # Do not call a cell immediately beside a measured hit confidently free.
+    # Preserve earlier evidence there without inflating occupied endpoints.
+    if endpoint_margin_cells and len(occupied):
+        ox,oy=ends_x[hits!=0],ends_y[hits!=0]
+        for ax in range(-endpoint_margin_cells,endpoint_margin_cells+1):
+            for ay in range(-endpoint_margin_cells,endpoint_margin_cells+1):
+                x,y=ox+ax-xmin,oy+ay-ymin
+                valid=(x>=0)&(x<width)&(y>=0)&(y<height)
+                seen[x[valid]*height+y[valid]]=False
+    free=np.flatnonzero(seen)
+    def coordinates(codes):
+        return np.column_stack((codes//height+xmin,codes%height+ymin))
+    return coordinates(free),coordinates(occupied)
+
+
 def grayscale_png(width, height, data):
     def chunk(kind, value):
         return struct.pack(">I", len(value)) + kind + value + struct.pack(">I", zlib.crc32(kind + value) & 0xffffffff)
@@ -96,10 +162,12 @@ def grayscale_png(width, height, data):
 
 class OccupancyMap:
     def __init__(self, resolution=0.10, max_cells=1000000, max_span=1024,
-                 max_beams=360, laser_x=0.18, laser_y=0.0):
+                 max_beams=360, laser_x=0.18, laser_y=0.0,conservative_free=False,endpoint_margin_cells=0):
         self.resolution = resolution
         self.max_cells, self.max_span, self.max_beams = max_cells, max_span, max_beams
         self.laser_x, self.laser_y = laser_x, laser_y
+        if type(endpoint_margin_cells) is not int or not 0<=endpoint_margin_cells<=3:raise ValueError('invalid_endpoint_margin')
+        self.conservative_free=bool(conservative_free);self.endpoint_margin_cells=endpoint_margin_cells
         self._dense = None
         self._cell_count = 0
         self._cells_cache = None
@@ -117,8 +185,11 @@ class OccupancyMap:
         self._raster_cache = None
 
     def config(self):
-        return {name: getattr(self, name) for name in
-                ("resolution", "max_cells", "max_span", "max_beams", "laser_x", "laser_y")}
+        value={name:getattr(self,name) for name in
+               ("resolution","max_cells","max_span","max_beams","laser_x","laser_y")}
+        if self.conservative_free or self.endpoint_margin_cells:
+            value.update(conservative_free=self.conservative_free,endpoint_margin_cells=self.endpoint_margin_cells)
+        return value
 
     @property
     def cells(self):
@@ -243,7 +314,22 @@ class OccupancyMap:
         x0, y0 = math.floor(sx / self.resolution), math.floor(sy / self.resolution)
         stride = max(1, math.ceil(len(ranges) / self.max_beams))
         endpoints = []
-        for i in range(0, len(ranges), stride):
+        if sample.get('preserve_hit_endpoints') is True:
+            # Source-native mapping retains every observed ray, including its
+            # free cells. Vector endpoint conversion avoids a Python trig loop.
+            values=np.asarray(ranges,dtype=float)
+            missing=np.asarray([value is None for value in ranges])
+            valid=missing | (np.isfinite(values)&(values>=rmin))
+            explicit=scan.get('angles')
+            angles=np.asarray(explicit,dtype=float) if isinstance(explicit,list) and len(explicit)==len(ranges) else amin+np.arange(len(ranges))*step
+            valid&=np.isfinite(angles)
+            distances=np.where(missing,rmax,np.minimum(values,rmax))[valid]
+            angles=angles[valid]+yaw
+            hit=(~missing[valid])&(values[valid]<rmax)
+            xx=np.floor((sx+distances*np.cos(angles))/self.resolution).astype(np.int64)-x0
+            yy=np.floor((sy+distances*np.sin(angles))/self.resolution).astype(np.int64)-y0
+            endpoints=np.column_stack((xx,yy,hit.astype(np.int64))).tolist()
+        for i in (() if sample.get('preserve_hit_endpoints') is True else range(0,len(ranges),stride)):
             value = ranges[i]
             # Null is the publisher's explicit no-return (+infinity), not a hit.
             if value is None:
@@ -264,7 +350,7 @@ class OccupancyMap:
         if self._raster_cache is not None and endpoints == self._raster_cache[0]:
             free, occupied = self._raster_cache[1:]
         else:
-            free, occupied = raster_cells(endpoints)
+            free, occupied = raster_cells(endpoints,self.endpoint_margin_cells)
             self._raster_cache = (endpoints, free, occupied)
         self._update_raster(free, x0, y0, -4)
         self._update_raster(occupied, x0, y0, 9)

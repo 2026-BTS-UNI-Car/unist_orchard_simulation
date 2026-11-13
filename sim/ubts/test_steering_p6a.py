@@ -194,7 +194,11 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(env['GZ_PARTITION'], 'ubts-steer')
         self.assertEqual(env['ROVER_CONTROL_SOCKET'], '/run/ubts-steer/control.sock')
         services = d['services']
-        self.assertEqual(services['dashboard']['ports'], ['127.0.0.1:18090:8080'])
+        # 2026-11-13 (D-13, SIM_DASHBOARD_KO.md): the dashboard runs in the sim network namespace (it calls the
+        # executor's operator page on 127.0.0.1:8097), so the sim service publishes its port
+        self.assertEqual(services['sim']['ports'], ['127.0.0.1:18090:8080'])
+        self.assertNotIn('ports', services['dashboard'])
+        self.assertEqual(services['dashboard']['network_mode'], 'service:sim')
         for name in ('steer', 'recorder', 'check'):
             self.assertEqual(services[name]['network_mode'], 'service:sim')
             self.assertEqual(services[name]['ipc'], 'service:sim')

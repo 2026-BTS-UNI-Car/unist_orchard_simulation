@@ -1,3 +1,23 @@
+# Dashboard copy: where it comes from
+
+Since 2026-11-13 (D-13, docs/steering/SIM_DASHBOARD_KO.md) the folders `config/`, `dashboard_server/` and `static/` of
+this directory are the dashboard repository's files at one commit, unchanged:
+https://github.com/2026-BTS-UNI-Car/unist_orachard_dashboard, commit and per-file sha256 / git blob id in
+`DASHBOARD_SOURCE.json`. They are written and checked by `tools/steer_sim/sync_dashboard.py` (do not edit them here;
+change the dashboard repository and copy again). The simulation's own dashboard code (status provider, extension routes,
+extra page script) is in `../dashboard_sim/` and is plugged into the dashboard's extension points.
+
+`scripts/` is not part of that copy. It holds the programs the simulation stack runs in its own containers: the sensor
+bridges and the data recorder in their simulation form (simulation clock, camera health), the steering host bridge
+(whose source of origin is this repository; the dashboard repository has a port of it) and their tests. Their status
+is listed in docs/steering/SIM_DASHBOARD_KO.md section 3.
+
+The notes below describe the earlier copy (a subtree of the deployed dashboard with a simulation overlay, 2026-09/10).
+Its simulation-only server modules and pages (SIM occupancy map, native mapping proxies, old control page) were removed
+from this directory on 2026-11-13; they are in the history of main up to 09cc932.
+
+## Earlier copy (2026-09 to 2026-11-12)
+
 # Deployed dashboard source and local overlay
 
 2026-10-01: deployed common source `9e5ffd0` is merged with the SIM overlay.

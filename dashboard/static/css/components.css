@@ -1,0 +1,1065 @@
+/* Base components. Needs tokens.css and base.css. Shown on /static/ui-kit.html.
+
+   Each rule lists the component class first. The names after it are the class
+   names that the page markup and the page script already use (.action-button,
+   .tag, .test-result, ...): they are the same component and must not get
+   rules of their own that change its look.
+
+   Hover styles are at the end, for devices that can hover; a pressed state
+   (:active) works everywhere. Colour changes take 120ms; nothing moves when
+   data updates. */
+
+/* ---- Button ------------------------------------------------------------ */
+.btn,
+.action-button,
+.container-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+
+.btn-primary,
+.action-button.primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-strong);
+}
+
+/* Destructive or stopping action. Tinted, not solid: solid red is STOP only. */
+.btn-danger,
+.action-button.danger {
+  border-color: transparent;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font-weight: var(--weight-strong);
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-accent-text);
+}
+
+/* A button that is switched on (aria-pressed) or selected in a group. */
+.btn[aria-pressed="true"],
+.btn.active,
+.action-button[aria-pressed="true"],
+.action-button.active {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+  font-weight: var(--weight-strong);
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-danger:disabled,
+.container-actions button:disabled,
+.action-button:disabled {
+  /* Disabled is not "busy": some of these buttons never become available. */
+  border-color: transparent;
+  background: var(--color-fill);
+  color: var(--color-text-disabled);
+  font-weight: var(--weight-medium);
+  cursor: not-allowed;
+}
+
+/* Hold button: acts while it is held (drive pad). A held button is not a
+   scroll, a text selection or a long-press menu. */
+.btn-hold {
+  min-height: var(--hold-height);
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-strong);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ---- Text input and select --------------------------------------------- */
+.input,
+.select,
+select,
+input[type="text"],
+input[type="number"],
+input[type="search"] {
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+
+.input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+/* The arrow is drawn here, the same in every browser. */
+.select,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 36px;
+  background-image: var(--icon-select);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.input:disabled,
+.select:disabled,
+select:disabled,
+input:disabled {
+  border-color: var(--color-border-control);
+  background-color: var(--color-fill);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Label above or beside a control. */
+.field,
+.field-inline {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
+}
+
+.field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- Slider ------------------------------------------------------------ */
+/* Track, filled part and thumb are drawn here. Firefox fills the track by
+   itself; elsewhere the fill is an image sized by --range-fill, which the
+   page script keeps equal to the value. */
+.slider,
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-height);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-border-control);
+  background-image: var(--range-fill-image);
+  background-repeat: no-repeat;
+  background-size: var(--range-fill) 100%;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  /* Centre the thumb on the 6px track. */
+  margin-top: -8px;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-control);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-round);
+  background: var(--color-surface);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  background: var(--color-accent-soft);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  background: var(--color-accent-soft);
+}
+
+/* The focus ring goes around the thumb, not around the whole row. */
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+
+/* A disabled slider keeps its position but loses the accent. */
+input[type="range"]:disabled::-webkit-slider-runnable-track {
+  background-color: var(--color-fill-strong);
+  background-image: none;
+}
+
+input[type="range"]:disabled::-moz-range-track,
+input[type="range"]:disabled::-moz-range-progress {
+  background: var(--color-fill-strong);
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  border-color: var(--color-border-strong);
+  background: var(--color-fill);
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  border-color: var(--color-border-strong);
+  background: var(--color-fill);
+}
+
+/* ---- Check box --------------------------------------------------------- */
+.check,
+.switch-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--control-height);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  cursor: pointer;
+}
+
+.check > input,
+.switch-control > input {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface) center / 14px no-repeat;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+
+.check > input:checked,
+.switch-control > input:checked {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  background-image: var(--icon-check);
+}
+
+.check > input:disabled,
+.switch-control > input:disabled {
+  border-color: var(--color-border-control);
+  background-color: var(--color-fill);
+}
+
+.check > span,
+.switch-control > span {
+  min-width: 0;
+}
+
+/* ---- Switch ------------------------------------------------------------ */
+/* <label class="toggle"><input type="checkbox"><span class="toggle-track"></span>글</label>
+   or a <button class="toggle" aria-pressed> with the same track inside. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.toggle-track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-round);
+  background: var(--color-on-accent);
+  content: "";
+  transition: transform var(--motion-base) var(--ease-out);
+}
+
+.toggle > input:checked + .toggle-track,
+.toggle[aria-pressed="true"] > .toggle-track {
+  background: var(--color-accent);
+}
+
+.toggle > input:checked + .toggle-track::after,
+.toggle[aria-pressed="true"] > .toggle-track::after {
+  transform: translateX(16px);
+}
+
+.toggle > input:focus-visible + .toggle-track {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.toggle > input:disabled + .toggle-track {
+  background: var(--color-fill-strong);
+}
+
+.toggle > input:disabled + .toggle-track::after {
+  background: var(--color-text-disabled);
+}
+
+.toggle > input:disabled ~ * {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Tabs -------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: var(--space-5);
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  position: relative;
+  min-height: var(--control-height);
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+
+/* The selected tab carries a 2px line on the rule of the tab row. */
+.tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  content: "";
+}
+
+.tab[aria-selected="true"],
+.tab.active {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+.tab[aria-selected="true"]::after,
+.tab.active::after {
+  background: var(--color-accent);
+}
+
+/* ---- Segmented control: one of a few options --------------------------- */
+.segmented,
+.segmented-control {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  height: var(--control-height);
+  overflow: hidden;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+/* Each option is as tall as a control (it reaches over the 1px frame, so a
+   finger has the full 44px). Its tint is drawn inside a 3px transparent
+   border, so the selected option sits in the frame like a key. */
+.segmented > button,
+.segmented-control > button {
+  min-width: 0;
+  height: var(--control-height);
+  margin: -1px 0;
+  padding: 0 var(--space-3);
+  border: 3px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  background-clip: padding-box;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+
+.segmented > button[aria-pressed="true"],
+.segmented > button.active,
+.segmented-control > button.active {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-text);
+  font-weight: var(--weight-strong);
+}
+
+.segmented > button:disabled,
+.segmented-control > button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Button group: a few steps side by side (- Auto +) ------------------ */
+.btn-group,
+.map-zoom-buttons,
+.preset-grid,
+.sim-map-zoom {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  height: var(--control-height);
+  overflow: hidden;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.btn-group > button,
+.map-zoom-buttons > button,
+.preset-grid > button,
+.sim-map-zoom > button {
+  min-width: 0;
+  height: var(--control-height);
+  margin: -1px 0;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-left: 1px solid var(--color-border-control);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+
+.btn-group > button:first-child,
+.map-zoom-buttons > button:first-child,
+.preset-grid > button:first-child,
+.sim-map-zoom > button:first-child {
+  border-left: 0;
+}
+
+.btn-group > button.active,
+.sim-map-zoom > button.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+  font-weight: var(--weight-strong);
+}
+
+.btn-group > button:disabled,
+.map-zoom-buttons > button:disabled,
+.preset-grid > button:disabled,
+.sim-map-zoom > button:disabled {
+  background: var(--color-fill);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Status badge: a pill with a dot and one or two words --------------- */
+.status-chip,
+.tag {
+  display: inline-flex;
+  /* A badge keeps the width of its words; the row around it gives way. */
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* The dot has the colour of the words. */
+.status-chip::before,
+.tag.ok::before,
+.tag.warn::before,
+.tag.bad::before {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: currentColor;
+  content: "";
+}
+
+.status-chip.ok,
+.tag.ok {
+  background: var(--color-ok-soft);
+  color: var(--color-ok-text);
+}
+
+.status-chip.warn,
+.tag.warn {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.status-chip.bad,
+.status-chip.recording,
+.tag.bad {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+}
+
+.status-chip.info,
+.tag.info {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+/* A status dot on its own (the first cell of a status row). */
+.status-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  background: var(--color-border-strong);
+}
+
+.status-dot.ok {
+  background: var(--color-ok);
+}
+
+.status-dot.warn {
+  background: var(--color-warning);
+}
+
+.status-dot.bad {
+  background: var(--color-danger);
+}
+
+/* ---- Panel ------------------------------------------------------------- */
+.panel {
+  min-width: 0;
+  padding: var(--panel-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  margin-bottom: var(--space-3);
+}
+
+/* The header of a panel is a bar across its top: every panel of a row starts
+   its title, its actions and its content on the same lines. */
+.panel > .panel-head {
+  min-height: calc(var(--control-height) + 12px);
+  margin: calc(var(--panel-padding) * -1) calc(var(--panel-padding) * -1) var(--space-4);
+  padding: 6px var(--panel-padding);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-head > * {
+  min-width: 0;
+}
+
+.panel-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+
+.panel-sub,
+.panel-head small {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-regular);
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A second-level heading inside a panel: a rule and a title, not a box. */
+.panel-section {
+  min-width: 0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---- Name-value list --------------------------------------------------- */
+.kv-list,
+.detail-list {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.kv-list > div,
+.detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: var(--space-2) 0;
+}
+
+.kv-list > div + div,
+.detail-list > div + div {
+  border-top: 1px solid var(--color-border);
+}
+
+.kv-list dt,
+.detail-list dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-regular);
+}
+
+.kv-list dd,
+.detail-list dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* ---- Table ------------------------------------------------------------- */
+.table,
+.archive-motor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  text-align: left;
+}
+
+.table th,
+.table td,
+.archive-motor-table th,
+.archive-motor-table td {
+  padding: 10px var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table thead th,
+.archive-motor-table thead th {
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child > *,
+.archive-motor-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* Numbers line up on the right. */
+.table .num {
+  text-align: right;
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ---- Notice: an icon and a tinted background ---------------------------- */
+.notice,
+.test-result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+/* The icon is a mask in the colour of the text: a script replaces the text
+   of a notice, so the icon cannot be an element. Masks are written with the
+   -webkit- prefix only: every engine reads it, older Chromium nothing else. */
+.notice::before,
+.test-result::before {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  background: currentColor;
+  -webkit-mask: var(--icon-info) center / contain no-repeat;
+  content: "";
+}
+
+.notice.ok,
+.test-result.ok {
+  background: var(--color-ok-soft);
+  color: var(--color-ok-text);
+}
+
+.notice.ok::before,
+.test-result.ok::before {
+  -webkit-mask-image: var(--icon-ok);
+}
+
+.notice.warn,
+.test-result.warn {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.notice.warn::before,
+.test-result.warn::before {
+  -webkit-mask-image: var(--icon-warn);
+}
+
+.notice.bad,
+.test-result.bad {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+}
+
+.notice.bad::before,
+.test-result.bad::before {
+  -webkit-mask-image: var(--icon-bad);
+}
+
+.notice.info,
+.test-result.testing {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+/* ---- Empty state: an icon, one line, an optional action ----------------- */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  text-align: center;
+}
+
+.empty-state::before {
+  width: 28px;
+  height: 28px;
+  background: var(--color-text-disabled);
+  -webkit-mask: var(--icon-empty) center / contain no-repeat;
+  content: "";
+}
+
+/* ---- Loading skeleton: a quiet block where content will be -------------- */
+.skeleton {
+  display: block;
+  min-height: 12px;
+  border-radius: var(--radius-small);
+  background: var(--color-fill-strong);
+  animation: skeleton-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes skeleton-pulse {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* ---- Progress bar ------------------------------------------------------ */
+.progress {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-strong);
+  overflow: hidden;
+}
+
+.progress > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* ---- Dialog ------------------------------------------------------------ */
+.dialog {
+  width: min(440px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-overlay);
+}
+
+.dialog::backdrop {
+  background: var(--color-scrim);
+}
+
+.dialog-head {
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+.dialog-body {
+  padding: var(--space-2) var(--space-5) var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+/* ---- Toast: a short message that floats above the page ------------------ */
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - var(--space-6)));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-overlay);
+}
+
+.toast::before {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  background: var(--color-accent-text);
+  -webkit-mask: var(--icon-info) center / contain no-repeat;
+  content: "";
+}
+
+.toast.ok::before {
+  background: var(--color-ok-text);
+  -webkit-mask-image: var(--icon-ok);
+}
+
+.toast.bad::before {
+  background: var(--color-danger-text);
+  -webkit-mask-image: var(--icon-bad);
+}
+
+/* ---- Hover and press --------------------------------------------------- */
+/* Hover only where a pointer can hover (a finger leaves no hover behind);
+   press everywhere. Disabled controls take neither. */
+@media (hover: hover) {
+  .btn:not(:disabled):hover,
+  .action-button:not(:disabled):hover,
+  .container-actions button:not(:disabled):hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-fill);
+    text-decoration: none;
+  }
+
+  .btn-primary:not(:disabled):hover,
+  .action-button.primary:not(:disabled):hover {
+    border-color: var(--color-accent-hover);
+    background: var(--color-accent-hover);
+  }
+
+  .btn-danger:not(:disabled):hover,
+  .action-button.danger:not(:disabled):hover {
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft);
+  }
+
+  .btn-quiet:not(:disabled):hover {
+    border-color: transparent;
+    background: var(--color-accent-soft);
+  }
+
+  .btn[aria-pressed="true"]:not(:disabled):hover,
+  .btn.active:not(:disabled):hover,
+  .action-button[aria-pressed="true"]:not(:disabled):hover,
+  .action-button.active:not(:disabled):hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .input:not(:disabled):hover,
+  .select:not(:disabled):hover,
+  select:not(:disabled):hover {
+    border-color: var(--color-text-secondary);
+  }
+
+  .tab:hover,
+  .segmented > button:not(:disabled):hover,
+  .segmented-control > button:not(:disabled):hover {
+    color: var(--color-text);
+  }
+
+  .btn-group > button:not(:disabled):hover,
+  .map-zoom-buttons > button:not(:disabled):hover,
+  .preset-grid > button:not(:disabled):hover,
+  .sim-map-zoom > button:not(:disabled):hover {
+    background: var(--color-fill);
+  }
+
+  .table tbody tr:hover > *,
+  .archive-motor-table tbody tr:hover > * {
+    background: var(--color-fill);
+  }
+}
+
+.btn:not(:disabled):active,
+.action-button:not(:disabled):active,
+.container-actions button:not(:disabled):active,
+.btn-group > button:not(:disabled):active,
+.map-zoom-buttons > button:not(:disabled):active,
+.preset-grid > button:not(:disabled):active,
+.sim-map-zoom > button:not(:disabled):active {
+  background: var(--color-fill-strong);
+}
+
+.btn-primary:not(:disabled):active,
+.action-button.primary:not(:disabled):active {
+  border-color: var(--color-accent-active);
+  background: var(--color-accent-active);
+}
+
+.btn-danger:not(:disabled):active,
+.action-button.danger:not(:disabled):active {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.btn-quiet:not(:disabled):active {
+  background: var(--color-accent-soft);
+}
+
+/* A held button is solid for as long as it is held (pointer or key). */
+.btn-hold:not(:disabled):active,
+.btn-hold.active:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}

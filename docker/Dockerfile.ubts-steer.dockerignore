@@ -1,6 +1,8 @@
 **
 !dashboard/
 !dashboard/**
+!dashboard_sim/
+!dashboard_sim/**
 !sim/
 !sim/ubts/
 !sim/ubts/**

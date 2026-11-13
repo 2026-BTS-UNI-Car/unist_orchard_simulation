@@ -20,12 +20,17 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
 
+from dashboard_server.extensions import DashboardSettings, RouteTable
+from dashboard_server.static_assets import StaticAssets
 from dashboard_server.telemetry import ROOT, TelemetryProvider
+from dashboard_server.ws_relay import relay_sensor_stream
 
 
 STATIC_ROOT = ROOT / "static"
 DOCS_ROOT = ROOT / "docs"
-APP_ROUTES = {"/", "/connection", "/system", "/network", "/docker", "/fan", "/research", "/rover-control", "/docs"}
+# Content-hash addresses, long caching and kept gzip results for /static/ and the page (NET-04).
+STATIC_ASSETS = StaticAssets(STATIC_ROOT)
+APP_ROUTES = {"/", "/connection", "/system", "/network", "/docker", "/fan", "/research", "/rover-control", "/tuning", "/docs"}
 SESSION_COOKIE_NAME = "ubts_session"
 SESSION_TTL_S = int(os.environ.get("DASHBOARD_SESSION_TTL_S", "3600"))
 _SESSION_LOCK = threading.Lock()
@@ -117,34 +122,21 @@ class _TeeWriter:
         self.cache_target.flush()
 
 
-DOCS_CATALOG = [{'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'architecture', 'title': '대시보드 아키텍처', 'category': 'System', 'summary': 'Cloudflare Tunnel, Python 서버, telemetry 파일, 프론트엔드 흐름', 'file': 'architecture.md'}, {'slug': 'jetson-deployment', 'title': 'Jetson 배포', 'category': 'Deployment', 'summary': 'Jetson Orin Nano에서 Docker Compose와 자동 재시작으로 운영하는 절차', 'file': 'jetson_deployment.md'}, {'slug': 'simulation-run', 'title': 'ROS2 시뮬레이션 실행', 'category': 'ROS2', 'summary': '격리된 2D 과수원 시뮬레이션, GUI, 점유 지도, 가상 GPS, 기록 및 자율주행', 'file': 'simulation_run.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'lidar-drive-test-recording', 'title': 'LiDAR 주행 테스트 기록', 'category': 'Data', 'summary': '주행 테스트 중 /scan, TF, cmd_vel, Rover 상태를 rosbag2로 수집하는 절차', 'file': 'lidar_drive_test_recording.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access-20260827', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access_20260827.md'}, {'slug': 'esp-rover-control', 'title': 'ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP USB motor owner, manual lease and ROS status 기준', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'rover-control-todo', 'title': 'Rover Control TODO', 'category': 'Data', 'summary': 'Rover Control, 카메라/LiDAR 디버깅, 아카이브 재생 개선 작업 목록', 'file': 'rover_control_todo.md'}, {'slug': 'jetson-runtime-architecture', 'title': 'Jetson 런타임 아키텍처', 'category': 'Deployment', 'summary': 'ROS2 real bringup, LiDAR bridge, dashboard, fan control 서비스 구성', 'file': 'jetson_runtime_architecture.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}, {'slug': 'telemetry-schema', 'title': '텔레메트리 스키마', 'category': 'Data', 'summary': 'ROS2 bridge가 dashboard server로 넘길 JSON 구조', 'file': 'telemetry_schema.md'}, {'slug': 'research-metrics', 'title': '연구 지표', 'category': 'Research', 'summary': '원본 카메라·LiDAR·IMU 수신 상태와 수동 조종 지표', 'file': 'research_metrics.md'}]
+DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'esp-rover-control', 'title': 'ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP USB motor owner, manual lease and ROS status 기준', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
     provider: TelemetryProvider
     protocol_version = "HTTP/1.1"
+    # D-12 extension points (dashboard_server/extensions.py). create_server() sets them from the environment.
+    dashboard_settings = DashboardSettings()
+    extension_routes = RouteTable()
+    page_filter = None          # changes the page text (simulation mode, vehicle kind); None = the page as it is
+    # Relay of the row executor's operator API (dashboard_server/executor_proxy.py); None = not configured.
+    executor_client = None
+    # Change log of the tuning screen (dashboard_server/steer_tuning.py); create_server() sets it.
+    tuning_log = None
     _last_telemetry_log_at = 0.0
-
-    def _send_index(self):
-        body = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
-        if self.provider.mode == "simulation":
-            if getattr(self.provider, 'external_native_pc', False):
-                body=body.replace('data-runtime-mode="live"','data-runtime-mode="simulation" data-external-native-pc="true"')
-            body = body.replace('data-runtime-mode="live"', 'data-runtime-mode="simulation"')
-            body = body.replace('<title>UBTS Dashboard</title>', '<title>SIM · UBTS Dashboard</title>')
-            body = body.replace('<div hidden="" class="simulation-banner"', '<div class="simulation-banner"')
-            if getattr(self.provider, 'native_owner_enabled', False):
-                body = body.replace('data-native-owner-enabled="false"', 'data-native-owner-enabled="true"')
-            if getattr(self.provider, 'native_view_enabled', False):
-                body = body.replace('data-native-view-enabled="false"', 'data-native-view-enabled="true"')
-        payload = body.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(payload)
 
     def do_HEAD(self):
         self.do_GET()
@@ -152,10 +144,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
-        if path.startswith("/api/sim/"):
-            self._simulation_mapping_request(parsed, action=True)
+        if path.startswith('/api/live/') or path.startswith('/api/autonomy/'):
+            self._live_request(parsed, action=True)
         elif path.startswith("/api/rover/"):
             self._rover_action(path)
+        elif path.startswith("/api/executor/"):
+            self._executor_request(parsed, action=True)
         elif path.startswith("/occupancy-api"):
             self._proxy_occupancy_request(parsed)
         elif path == "/api/lidar/test":
@@ -171,7 +165,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             payload = self._read_json_body()
             self._send_json(self.provider.start_recording(payload))
         elif path == "/api/recordings/stop":
-            self._send_json(self.provider.stop_recording())
+            result = self.provider.stop_recording()
+            if result.get('ok') and result.get('recording_id'):
+                try:self.archive_mapping.regenerate(str(result['recording_id']))
+                except ValueError:pass
+            self._send_json(result)
         elif path == "/api/imu/zero":
             self._send_json(self.provider.zero_imu(), status=410)
         elif path == "/api/network/mode":
@@ -190,14 +188,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(self.provider.set_fan_preset(str(payload.get("preset", ""))))
         elif path.startswith("/api/docker/container/"):
             self._post_docker_container_action(path)
-        else:
+        elif not self._extension_request(parsed):
             self.send_error(404, "Not found")
 
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
-        if path.startswith("/api/sim/"):
-            self._simulation_mapping_request(parsed)
+        if path.startswith('/api/live/') or path.startswith('/api/autonomy/native-map/') or path in ('/api/autonomy','/api/autonomy/preflight','/api/autonomy/observe','/api/autonomy/supervisor'):
+            self._live_request(parsed)
         elif path.startswith("/occupancy-api"):
             self._proxy_occupancy_request(parsed)
         elif path == "/ws/lidar":
@@ -223,11 +221,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 gps = {}
             self._send_json(fresh_snapshot(gps, gps.get("received_at"), driver=gps.get("driver")))
         elif path in APP_ROUTES or path.startswith("/docs/"):
-            self._send_index()
+            self._send_static("index.html")
         elif path == "/api/health":
             self._send_json(self.provider.health())
         elif path == "/api/telemetry":
-            payload = self.provider.telemetry()
+            payload = self._shared_telemetry().get() if isinstance(self.provider, TelemetryProvider) else self.provider.telemetry()
             payload["connection"]["lidar_websocket"] = lidar_websocket_stats()
             payload["connection"]["camera_websocket"] = camera_websocket_stats()
             payload["connection"]["imu_websocket"] = imu_websocket_stats()
@@ -271,224 +269,270 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path.startswith("/rover-proxy/") or path == "/rover-proxy":
             self._proxy_rover_request(parsed)
         elif path.startswith("/static/"):
-            self._send_file(STATIC_ROOT / path.removeprefix("/static/"))
-        else:
+            self._send_static(path.removeprefix("/static/"), parse_qs(parsed.query).get("v", [None])[0])
+        elif path == "/api/dashboard/config":
+            self._send_json({"ok": True, **self.dashboard_settings.public(), "executor_configured": self.executor_client is not None})
+        elif path.startswith("/api/executor/"):
+            self._executor_request(parsed)
+        elif path.startswith("/ext-static/") and self.dashboard_settings.extra_static is not None:
+            folder = self.dashboard_settings.extra_static
+            self._send_file(folder / unquote(path.removeprefix("/ext-static/")), allowed_root=folder)
+        elif not self._extension_request(parsed):
             self.send_error(404, "Not found")
 
     def do_DELETE(self):
         parsed = urlparse(self.path)
         if parsed.path.startswith("/occupancy-api"):
             self._proxy_occupancy_request(parsed)
-        else:
+        elif not self._extension_request(parsed):
             self.send_error(404, "Not found")
 
-    def _simulation_mapping_request(self, parsed, action=False):
-        if self.provider.mode != "simulation":
-            self.send_error(404, "Simulation only")
-            return
-        if getattr(self.provider, 'external_native_pc', False):
-            from .external_native_pc import admit_request,managed
-            if parsed.path=='/api/sim/external-native-pc-view' and not action:
-                try:
-                    if parsed.query or len(self.headers.get_all('Host',[]))!=1 or len(self.headers.get_all('Origin',[]))>1 or len(self.headers.get_all('Sec-Fetch-Site',[]))>1:
-                        raise ValueError('external_view_exact_request_headers')
-                    admit_request(self.command,self.headers.get('Host'),self.headers.get('Origin'),self.headers.get('Sec-Fetch-Site'))
-                    value=self.provider.mapping.view()
-                except (ValueError,OSError,UnicodeError,RecursionError):
-                    self._send_json({'ok':False,'error':'external_native_view_unavailable_or_request_rejected','map_health_observed':False},status=403)
-                    return
-                self._send_json(value)
-                return
-            self._send_json(managed(),status=409)
-            return
-        if parsed.path.startswith(('/api/sim/derived-viewport', '/api/sim/display-overview')):
-            self._derived_owner_request(parsed, action)
-            return
-        if parsed.path.startswith('/api/sim/native-observer/'):
-            self._native_owner_request(parsed, action)
-            return
-        if parsed.path == '/api/sim/native-map' or parsed.path.startswith('/api/sim/native-map/'):
-            proxy = getattr(self.provider, 'native_view', None)
-            if proxy is None:
-                self.send_error(404, 'Optional native view disabled')
-                return
-            target = parsed.path + ('?' + parsed.query if parsed.query else '')
-            with proxy.response(self.command, target, self.headers) as response:
-                self._send_native_view_response(response)
-            return
-        if action:
-            origin = self.headers.get("Origin")
-            if origin and urlparse(origin).netloc != self.headers.get("Host"):
-                self.send_error(403, "Origin mismatch")
-                return
-            payload = self._read_json_body()
-        path = parsed.path
-        if path=='/api/sim/mapping-jobs' and not action:
-            if not getattr(self.provider,'source_only_mapping',False):self.send_error(404);return
-            self._send_json(self.provider.mapping_operations.status())
-        elif path=='/api/sim/mapping-jobs/stop' and action:
-            if not getattr(self.provider,'source_only_mapping',False):self.send_error(404);return
-            if not self._ensure_session(create=False):self.send_error(403);return
-            if not isinstance(payload,dict):self.send_error(400);return
-            if payload.get('job_id') == 'native-observer':
-                if set(payload) != {'job_id','expected_epoch','source_session'}:self.send_error(400);return
-                self._native_owner_action('stop', {'expected_control_epoch':payload['expected_epoch'],'source_session':payload['source_session']})
-                return
-            self._send_json(self.provider.mapping_operations.stop(payload.get('job_id'),payload.get('expected_epoch')))
-        elif path == '/api/sim/navigation' and not action:
-            if not getattr(self.provider, 'source_only_mapping', False):self.send_error(404);return
-            self._send_json(self.provider.mapping.navigation.snapshot())
-        elif path == '/api/sim/autonomy/preflight' and not action:
-            from .field_preflight import report
-            live=self.provider.mapping.task_status() if getattr(self.provider,'source_only_mapping',False) else None
-            self._send_json(report(ROOT/'config/field_autonomy_preparation.json',live))
-        elif path == "/api/sim/autonomy" or path.startswith("/api/sim/autonomy/"):
-            from dashboard_server.rover_api import request
-            session = self._ensure_session(create=False)
-            if not session:
-                self.send_error(403, "Dashboard session required"); return
-            op = path.rsplit("/", 1)[-1] if action else "status"
-            if op not in {"start", "stop", "heartbeat", "status", "speed"}:
-                self.send_error(404); return
-            if action and not isinstance(payload, dict):
-                self.send_error(400, "Object required"); return
-            if getattr(self.provider, 'source_only_mapping', False):
-                if op == 'start':
-                    self._send_json({'ok':False,'error':'native_mapper_observation_only',
-                        'reason':'센서 기반 지도의 자율 제어 검증이 필요합니다. 수동 시뮬레이션은 사용할 수 있습니다.'})
-                    return
-                if op == 'status':
-                    from .field_preflight import report
-                    status=request({'op':'autonomy_status','owner':session})
-                    self._send_json({**status,'start_available':False,
-                        'mapping_profile':'native_sensors','runtime_authority':False,
-                        'navigation':self.provider.mapping.navigation.snapshot(),
-                        'preparation':report(ROOT/'config/field_autonomy_preparation.json',self.provider.mapping.task_status()),
-                        'reason':'LiDAR·IMU·GPS 지도 검증 중 · 자율 제어 보류'})
-                    return
-            self._send_json(request({**(payload if action else {}), "op": "autonomy_"+op, "owner": session}))
-        elif not action and path == "/api/sim/map":
-            query=parse_qs(parsed.query);since=query.get('since',[None])[0]
-            if query.get('transport',[None])[0]=='tiles':
-                self._send_json(self.provider.simulation_map(since,transport='tiles',
-                    tile_since=query.get('tile_since',[None])[0],tile_epoch=query.get('tile_epoch',[None])[0]))
-            else:self._send_json(self.provider.simulation_map(since))
-        elif not action and path == "/api/sim/map-history":
-            self._send_json(self.provider.simulation_map_history())
-        elif not action and path.startswith("/api/sim/map-history/"):
-            self._send_json(self.provider.simulation_map_history(unquote(path.removeprefix("/api/sim/map-history/"))))
-        elif action and path in {"/api/sim/map/start", "/api/sim/map/stop", "/api/sim/map/reset"}:
-            options={'expected_epoch':payload.get('expected_epoch')} if getattr(self.provider,'source_only_mapping',False) and isinstance(payload,dict) else {}
-            self._send_json(self.provider.simulation_map_action(path.rsplit("/", 1)[-1],transport='tiles',**options))
-        elif path.startswith("/api/sim/recordings/"):
-            parts = path.removeprefix("/api/sim/recordings/").split("/")
-            if len(parts) != 2:
-                self.send_error(404, "Not found")
-            elif not action and parts[1] == "map":
-                self._send_json(self.provider.simulation_archive_map(unquote(parts[0])))
-            elif action and parts[1] == "regenerate":
-                self._send_json(self.provider.simulation_archive_regenerate(unquote(parts[0])))
+    def _executor_request(self, parsed, action=False):
+        """/api/executor/*: the row executor's operator API on behalf of the page (docs/STEERING_SERVER_KO.md 6)."""
+        from dashboard_server import executor_proxy as proxy
+        from dashboard_server import steer_tuning
+        client = self.executor_client
+        name = parsed.path.removeprefix("/api/executor/")
+        if not action:
+            if name == "status":
+                self._send_json(client.status() if client is not None else proxy.not_configured_status())
+            elif name == "tuning":
+                self._send_json(steer_tuning.view(client.status() if client is not None else proxy.not_configured_status()))
+            elif name == "tuning/log":
+                log = self.tuning_log
+                self._send_json({"ok": True, "entries": log.recent() if log is not None else []})
             else:
                 self.send_error(404, "Not found")
-        else:
+            return
+        if name not in proxy.ACTIONS and name != "params":
             self.send_error(404, "Not found")
-
-    def _derived_owner_request(self, parsed, action=False):
-        service_name = 'overview_service' if parsed.path.startswith('/api/sim/display-overview') else 'derived_owner_service'
-        service = getattr(self.provider, service_name, None)
-        if service is None:
-            self.send_error(404, 'Optional derived view disabled')
             return
-        payload = None
+        origin = self.headers.get("Origin")
+        if origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send_error(403, "Origin mismatch")
+            return
+        session = self._ensure_session(create=False)
+        if not session:
+            self.send_error(403, "Dashboard session required")
+            return
+        try:
+            body = proxy.read_body(self)
+            if client is None:
+                raise proxy.ExecutorError(503, "executor_not_configured")
+            if name == "params":
+                if self.tuning_log is None:
+                    raise proxy.ExecutorError(503, "tuning_log_not_configured")
+                status, reply = steer_tuning.apply(client, body, self.tuning_log, session[:8])
+            else:
+                status, reply = client.action(name, body)
+        except proxy.ExecutorError as exc:
+            if name == "stop":
+                dashboard_log("executor.stop_failed", error=exc.error)
+            self._send_json(exc.payload(), exc.status)
+            return
+        self._send_json(reply, status)
+
+    def _extension_request(self, parsed) -> bool:
+        """An extra route of a simulation extension (D-12). Only paths the dashboard itself does not serve."""
+        handler = self.extension_routes.find(self.command, parsed.path)
+        if handler is None:
+            return False
+        handler(self, parsed)
+        return True
+
+    def _live_request(self, parsed, action=False):
         if action:
-            origin = self.headers.get('Origin')
+            origin=self.headers.get('Origin')
             if origin and urlparse(origin).netloc != self.headers.get('Host'):
-                self.send_error(403, 'Origin mismatch')
-                return
+                self.send_error(403,'Origin mismatch');return
             if not self._ensure_session(create=False):
-                self.send_error(403, 'Session required')
-                return
-            lengths = self.headers.get_all('Content-Length', [])
-            length = lengths[0] if len(lengths) == 1 else ''
-            if (self.headers.get('Transfer-Encoding') is not None or
-                    not 1 <= len(length) <= 4 or not length.isascii() or
-                    not length.isdigit() or not 1 <= int(length) <= 4096):
-                self.send_error(413, 'Bounded Stop body required')
-                return
-            self.close_connection = True
-            deadline = time.monotonic() + 3
-            data = bytearray()
-            try:
-                while len(data) < int(length):
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise TimeoutError('Stop body deadline')
-                    self.connection.settimeout(remaining)
-                    chunk = self.rfile.read1(int(length) - len(data))
-                    if not chunk:
-                        raise ValueError('Incomplete Stop body')
-                    data.extend(chunk)
-                if time.monotonic() >= deadline:
-                    raise TimeoutError('Stop body deadline')
-                def exact_pairs(pairs):
-                    result = {}
-                    for key, value in pairs:
-                        if key in result:
-                            raise ValueError('Duplicate Stop key')
-                        result[key] = value
-                    return result
-                def invalid_constant(value):
-                    raise ValueError('Nonfinite Stop JSON')
-                payload = json.loads(data.decode('utf-8'), object_pairs_hook=exact_pairs,
-                                     parse_constant=invalid_constant)
-            except (TimeoutError, OSError):
-                self.send_error(408, 'Stop body deadline')
-                return
-            except (ValueError, RecursionError):
-                self.send_error(400, 'Invalid Stop JSON')
-                return
-        target = parsed.path + ('?' + parsed.query if parsed.query else '')
-        response = service.route(self.command, target, payload)
-        body = response['body']
-        if type(body) is not bytes or len(body) > 8 * 1024 * 1024:
-            self.send_error(502, 'Derived response bound')
-            return
-        self.close_connection = True
-        self.connection.settimeout(3)
-        token = self._ensure_session(create=True)
-        self.send_response(response['status'])
-        for name, value in response['headers'].items():
-            self.send_header(name, value)
-        self.send_header('Connection', 'close')
-        self._send_session_cookie(token)
-        self.end_headers()
-        if self.command == 'GET' or self.command == 'POST':
-            self.wfile.write(body)
+                self.send_error(403,'Dashboard session required');return
+            payload=self._read_json_body()
+            if not isinstance(payload,dict):self.send_error(400,'Object required');return
+        path=parsed.path
+        try:
+            if path=='/api/live/mapping-jobs' and not action:
+                result=self.mapping_operations.status()
+            elif path=='/api/live/mapping-jobs/stop' and action:
+                result=self.mapping_operations.stop(payload.get('job_id'),payload.get('expected_epoch'))
+            elif path=='/api/autonomy' and not action:
+                live=self.live_mapping.task_status() if hasattr(self.live_mapping,'task_status') else {'state':'unavailable'}
+                result=self.autonomy_settings.status(live)
+                result={**result,'supervisor':self.autonomy_supervisor.status()}
+            elif path=='/api/autonomy/preflight' and not action:
+                from dashboard_server.field_preflight import report
+                result=report(ROOT/'config/field_autonomy_preparation.json',self.live_mapping.task_status())
+            elif path in ('/api/autonomy/native-map/status','/api/autonomy/native-map/tiles','/api/autonomy/native-map/release') and not action:
+                native=getattr(self,'native_observation_client',None)
+                if not getattr(self,'native_map_preview_enabled',False) or native is None:
+                    result=dict(ok=True,available=False,status=dict(enabled=False,reason='native_map_default_OFF'),
+                        runtime_authority=False,motor_command_sent=False,autonomy_output_enabled=False,
+                        execution_eligible=False,physical_accuracy_verified=False,live_input_eligible=False)
+                else:
+                    query=parse_qs(parsed.query,keep_blank_values=True)
+                    if set(query)-{'cursor','lease'} or any(len(v)!=1 for v in query.values()):
+                        raise ValueError('native_map_get_query_required')
+                    if path.endswith('/status'):
+                        if query:raise ValueError('native_map_status_has_no_query')
+                        result=native.map_status()
+                    elif path.endswith('/release'):
+                        if set(query)!={'lease'}:raise ValueError('native_map_lease_required')
+                        result=native.map_release(query['lease'][0])
+                    else:
+                        if set(query)-{'cursor'}:raise ValueError('native_map_tiles_query_required')
+                        result=native.map_tiles(query.get('cursor',[None])[0])
+                    if (not isinstance(result,dict) or any(result.get(k) is not False for k in
+                            ('runtime_authority','motor_command_sent','autonomy_output_enabled'))):
+                        raise ValueError('native_map_observation_only_reply_required')
+                    if len(json.dumps(result,allow_nan=False,separators=(',',':')).encode())>131072:
+                        raise ValueError('native_map_page_capacity')
+            elif path=='/api/autonomy/native-map/new' and action:
+                native=getattr(self,'native_observation_client',None)
+                if (not getattr(self,'native_map_preview_enabled',False) or native is None or
+                        parsed.query or set(payload)!={'map_epoch'}):
+                    raise ValueError('explicit_enabled_native_new_map_required')
+                result=native.map_new(payload['map_epoch'])
+                if (not isinstance(result,dict) or any(result.get(k) is not False for k in
+                        ('runtime_authority','motor_command_sent','autonomy_output_enabled'))):
+                    raise ValueError('native_map_observation_only_reply_required')
+            elif path=='/api/autonomy/observe' and not action:
+                result=self._autonomy_observe_status()
+            elif path in ('/api/autonomy/observe/start','/api/autonomy/observe/stop') and action:
+                if payload:raise ValueError('observation_actions_do_not_accept_sensor_or_control_inputs')
+                self._autonomy_observe_action(path.rsplit('/',1)[-1])
+                result=self._autonomy_observe_status()
+            elif path=='/api/autonomy/speed' and action:
+                with self.autonomy_observe_lock:
+                    observer=getattr(self,'autonomy_observation',None)
+                    observing=observer is not None and observer.status().get('active') is True
+                    percent=payload.get('speed_percent')
+                    if observing and (isinstance(percent,bool) or not isinstance(percent,(int,float)) or not 0<=percent<=30):
+                        raise ValueError('active_observation_speed_requires_0_to_30_percent')
+                    result=self.autonomy_settings.set_speed(percent)
+                    if observing:observer.set_cruise_percent(percent)
+            elif path=='/api/autonomy/supervisor' and not action:
+                result=self.autonomy_supervisor.status()
+            elif path in ('/api/autonomy/start','/api/autonomy/stop') and action:
+                result=self._native_autonomy_action(path.rsplit('/',1)[-1],payload)
+                if path.endswith('/start') and not result.get('active'):
+                    self._send_json({**result,'ok':False},409);return
+            elif path=='/api/live/map' and not action:
+                query=parse_qs(parsed.query)
+                if query.get('transport',[None])[0]=='tiles':
+                    extra={}
+                    if getattr(self.live_mapping,'supports_path_delta',False) and 'path_token' in query:
+                        extra=dict(path_token=query['path_token'][0],path_count=query.get('path_count',[None])[0],
+                            path_stamp=query.get('path_stamp',[None])[0])
+                    result=self.live_mapping.status(query.get('since',[None])[0],transport='tiles',
+                        tile_since=query.get('tile_since',[None])[0],tile_epoch=query.get('tile_epoch',[None])[0],**extra)
+                else:result=self.live_mapping.status(query.get('since',[None])[0])
+            elif path.startswith('/api/live/map/') and action:
+                operation=path.rsplit('/',1)[-1]
+                if hasattr(self.live_mapping,'task_status'):
+                    result=self.live_mapping.action(operation,expected_epoch=payload.get('expected_epoch'))
+                else:result=self.live_mapping.action(operation)
+            elif path.startswith('/api/live/recordings/'):
+                parts=path.split('/')
+                if len(parts)!=6:raise ValueError('invalid_archive_route')
+                archive_id=unquote(parts[4])
+                if parts[5]=='map' and not action:
+                    query=parse_qs(parsed.query)
+                    if query.get('transport',[None])[0]=='tiles':
+                        result=self.archive_mapping.status(archive_id,query.get('t_s',[None])[0],query.get('since',[None])[0],
+                            transport='tiles',tile_since=query.get('tile_since',[None])[0],tile_epoch=query.get('tile_epoch',[None])[0])
+                    else:result=self.archive_mapping.status(archive_id,query.get('t_s',[None])[0],query.get('since',[None])[0])
+                    if query.get('codec',[None])[0]=='xor2-deflate-v1' and 'tiles' in result:
+                        from dashboard_server.window_cells import compact_window
+                        result=compact_window(dict(ok=True,map_frame=True,seed=result,events=[]),'xor2-deflate-v1')
+                elif parts[5]=='map-window' and not action:
+                    query=parse_qs(parsed.query)
+                    result=self.archive_mapping.window(archive_id,query.get('start_s',['0'])[0],query.get('span_s',['12'])[0],query.get('codec',[None])[0])
+                elif parts[5]=='new-map' and action:
+                    if getattr(self.archive_mapping,'controlled',False):
+                        result=self.archive_mapping.new_map(archive_id,expected_epoch=payload.get('expected_epoch'),client=payload.get('client'))
+                    else:result=self.archive_mapping.new_map(archive_id)
+                elif parts[5]=='map-playback' and action:
+                    kwargs={'resume':payload.get('resume_mapping') is True,'generation':payload.get('mapping_generation')} if getattr(self.archive_mapping,'controlled',False) else {}
+                    result=self.archive_mapping.playback(archive_id,payload.get('t_s'),payload.get('playing'),payload.get('control'),**kwargs)
+                    # One round trip carries the ordered playback cursor and
+                    # its historical cell changes. Pure reads/older clients
+                    # retain the independent map endpoint and full snapshots.
+                    if (payload.get('transport')=='tiles' and result.get('playback_driven')
+                            and not result.get('stale_control_ignored')):
+                        snapshot=self.archive_mapping.status(archive_id,payload.get('t_s'),transport='tiles',
+                            tile_since=payload.get('tile_since'),tile_epoch=payload.get('tile_epoch'))
+                        if payload.get('codec')=='xor2-deflate-v1' and 'tiles' in snapshot:
+                            from dashboard_server.window_cells import compact_window
+                            snapshot=compact_window(dict(ok=True,map_frame=True,seed=snapshot,events=[]),'xor2-deflate-v1')
+                        result={**result,'map_snapshot':snapshot}
+                elif parts[5]=='regenerate' and action:result=self.archive_mapping.regenerate(archive_id)
+                else:self.send_error(404);return
+            else:self.send_error(404);return
+            self._send_json(result)
+        except ValueError as error:
+            from dashboard_server import mapping_operations as operations
+            MappingConflict=operations.MappingConflict
+            deferred=getattr(operations,'MappingDeferred',None)
+            if isinstance(deferred,type) and isinstance(error,deferred):
+                # A deferred read (autonomy priority, busy window slot) is a wait, not an error.
+                self._send_json({'ok':False,'error':str(error),'deferred':True,'retry_after_s':error.retry_after_s},503,
+                                headers={'Retry-After':str(error.retry_after_s)});return
+            self._send_json({'ok':False,'error':str(error)},409 if isinstance(error,MappingConflict) or str(error)=='mapping_epoch_changed_refresh_before_action' else 400)
 
-    def _native_owner_request(self, parsed, action=False):
-        owner = getattr(self.provider, 'native_owner', None)
-        if owner is None or not getattr(self.provider, 'native_owner_enabled', False):self.send_error(404);return
-        if parsed.query:self.send_error(400);return
-        if not action and parsed.path == '/api/sim/native-observer/status' and self.command == 'GET':
-            result = owner.status();self._send_json(result, status=200 if result.get('ok') else 503);return
-        if action and self.command == 'POST' and parsed.path in {'/api/sim/native-observer/start','/api/sim/native-observer/stop'}:
-            self._native_owner_action(parsed.path.rsplit('/',1)[1], self._read_json_body());return
-        self.send_error(405)
+    def _native_autonomy_action(self,action,payload):
+        # Actual arming remains local and requires the existing authenticated session.
+        origin=self.headers.get('Origin')
+        if (not origin or urlparse(origin).netloc!=self.headers.get('Host') or
+                self.client_address[0] not in ('127.0.0.1','::1')):
+            raise ValueError('explicit_local_same_origin_operator_required')
+        session=self._ensure_session(create=False)
+        if not session:raise ValueError('authenticated_local_operator_required')
+        if action=='stop':
+            if payload:raise ValueError('autonomy_stop_accepts_no_control_or_sensor_inputs')
+            return self.autonomy_supervisor.stop()
+        if set(payload)!={'operator_arm','deadman'} or payload.get('operator_arm') is not True or payload.get('deadman') is not True:
+            raise ValueError('explicit_operator_arm_and_deadman_required')
+        return self.autonomy_supervisor.start(session,explicit=True,cruise_percent=self.autonomy_settings.percent)
 
-    def _native_owner_action(self, op, payload):
-        owner = getattr(self.provider, 'native_owner', None)
-        if owner is None or not getattr(self.provider, 'native_owner_enabled', False):self.send_error(404);return
-        origin = self.headers.get('Origin');host = self.headers.get('Host')
-        if not origin or not host or urlparse(origin).scheme not in {'http','https'} or origin != urlparse(origin).scheme+'://'+host:
-            self.send_error(403, 'Same-origin request required');return
-        if not self._ensure_session(create=False):self.send_error(403, 'Dashboard session required');return
-        from .sim_native_owner_proxy import token
-        if (op not in {'start','stop'} or type(payload) is not dict or
-                set(payload) != {'expected_control_epoch','source_session'} or
-                not token(payload['expected_control_epoch']) or not token(payload['source_session'])):
-            self.send_error(400);return
-        result = (owner.start if op=='start' else owner.stop)(payload['expected_control_epoch'],payload['source_session'])
-        self._send_json(result, status=202 if result.get('ok') else 409)
+    def _autonomy_observe_status(self):
+        result=self.autonomy_observation.status()
+        if (not isinstance(result,dict) or result.get('runtime_authority') is not False
+                or result.get('motor_command_sent') is not False
+                or result.get('autonomy_output_enabled') is not False):
+            raise ValueError('observation_only_status_required')
+        # The existing percentage is a preference. No measured m/s conversion,
+        # motor sender, lease or mapping action is introduced by these routes.
+        native=getattr(self,'native_observation_client',None)
+        return {**result,'speed_percent':self.autonomy_settings.percent,
+            'native_source':native.status() if native is not None else {
+                'enabled':False,'reason':'legacy_web_ws_provenance_unverified'},
+            'speed_units':'percent_of_configured_cruise','calibrated_speed_m_s':None}
+
+    def _autonomy_observe_action(self,action):
+        with self.autonomy_observe_lock:
+            native=self.native_observation_client
+            if action=='start':
+                percent=self.autonomy_settings.percent
+                if isinstance(percent,bool) or not isinstance(percent,(int,float)) or not 0<=percent<=30:
+                    raise ValueError('observation_requires_existing_speed_preference_0_to_30_percent')
+                if native is not None:
+                    started=native.start()
+                    if not isinstance(started,dict) or started.get('ok') is not True:
+                        raise ValueError('native_observation_start_failed:'+str(started.get('error','unknown') if isinstance(started,dict) else 'invalid_response'))
+                try:
+                    observed=self.autonomy_observation.start(cruise_percent=percent)
+                    if not isinstance(observed,dict) or observed.get('active') is not True or observed.get('first_failure_reason'):
+                        raise ValueError('autonomy_observation_start_failed:'+str(observed.get('first_failure_reason') or observed.get('state','unknown') if isinstance(observed,dict) else 'invalid_response'))
+                except Exception:
+                    if native is not None:native.stop()
+                    raise
+            else:
+                try:self.autonomy_observation.stop()
+                finally:
+                    if native is not None:
+                        stopped=native.stop()
+                        if not isinstance(stopped,dict) or stopped.get('ok') is not True:
+                            raise ValueError('native_observation_stop_failed:'+str(stopped.get('error','unknown') if isinstance(stopped,dict) else 'invalid_response'))
 
     def _recording_media_action(self):
         origin = self.headers.get("Origin")
@@ -524,52 +568,50 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path not in operations:
             self.send_error(404)
             return
+        supervisor=getattr(self,'autonomy_supervisor',None)
+        if supervisor is not None and (supervisor.status().get('active') or supervisor.status().get('loop_cleanup_pending')):
+            handoff=supervisor.manual_takeover()
+            if path!='/api/rover/stop' and not handoff.get('loop_joined'):
+                self._send_json({'ok':False,'error':'autonomy_manual_handoff_cleanup_pending'},409);return
         self._send_json(request({**payload, "op": operations[path], "owner": session}))
 
     def log_message(self, fmt, *args):
         if os.environ.get("DASHBOARD_ACCESS_LOG", "0") == "1":
             super().log_message(fmt, *args)
 
-    def _send_native_view_response(self, response):
-        # Proxy permit remains held through this bounded byte write.
-        self.close_connection = True
-        remaining = response.deadline - time.monotonic()
-        if remaining <= 0:
-            return
-        try:
-            self.connection.settimeout(remaining)
-            session_token = self._ensure_session(create=True)
-            self.send_response(response.status)
-            for name, value in response.headers:
-                self.send_header(name, value)
-            self.send_header('Connection', 'close')
-            self._send_session_cookie(session_token)
-            remaining = response.deadline - time.monotonic()
-            if remaining <= 0:
-                return
-            self.connection.settimeout(remaining)
-            self.end_headers()
-            if self.command == 'GET':
-                remaining = response.deadline - time.monotonic()
-                if remaining <= 0:
-                    return
-                self.connection.settimeout(remaining)
-                self.wfile.write(response.body)
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            return
+    def parse_request(self):
+        # Start of the server-side time reported in Server-Timing (E0).
+        self._request_started = time.perf_counter()
+        return super().parse_request()
 
-    def _send_json(self, payload, status=200):
+    def _server_timing_header(self):
+        started = getattr(self, "_request_started", None)
+        if started is not None:
+            self.send_header("Server-Timing", f"app;dur={(time.perf_counter() - started) * 1000:.1f}")
+
+    def _shared_telemetry(self):
+        from dashboard_server.telemetry_snapshot import SharedTelemetry
+        shared = getattr(DashboardHandler, "_telemetry_snapshot", None)
+        if shared is None or shared.provider is not self.provider:
+            shared = SharedTelemetry(self.provider, ttl_s=float(os.environ.get("TELEMETRY_SNAPSHOT_TTL_S", "1.0")))
+            DashboardHandler._telemetry_snapshot = shared
+        return shared
+
+    def _send_json(self, payload, status=200, headers=None):
         session_token = self._ensure_session(create=True)
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
         encoded = gzip.compress(body, compresslevel=1) if accepts_gzip and len(body) >= 1024 else body
         self.send_response(status)
+        self._server_timing_header()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Connection", "close")
         self.send_header("Vary", "Accept-Encoding")
         if encoded is not body:
             self.send_header("Content-Encoding", "gzip")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self._send_session_cookie(session_token)
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
@@ -635,6 +677,55 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "updated_at": mtime,
             "url": f"/docs/{item['slug']}",
         }
+
+    def _send_static(self, rel: str, requested_version: str | None = None):
+        """A file below static/ (or the page) with a content-hash ETag. A request naming the current version
+        (?v=...) is cached for a year; anything else is checked again next time (see static_assets.py)."""
+        session_token = self._ensure_session(create=True)
+        accept_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
+        # D-12: read through the class (a function stored on the class would bind to the instance); no work when it is
+        # the filter already in use.
+        STATIC_ASSETS.set_page_filter(type(self).page_filter)
+        try:
+            served = STATIC_ASSETS.serve(rel, requested_version, accept_gzip)
+        except OSError:
+            served = None
+        if served is None:
+            self.send_error(404, "Not found")
+            return
+        if self.headers.get("If-None-Match") == served.etag:
+            self.send_response(304)
+            self.send_header("ETag", served.etag)
+            self.send_header("Cache-Control", served.cache_control)
+            self.send_header("Vary", "Accept-Encoding")
+            self._send_session_cookie(session_token)
+            self.end_headers()
+            return
+        content_type = mimetypes.guess_type(str(served.path))[0] or "application/octet-stream"
+        suffix = served.path.suffix.lower()
+        if suffix in (".js", ".mjs"):
+            content_type = "application/javascript; charset=utf-8"
+        elif suffix == ".css":
+            content_type = "text/css; charset=utf-8"
+        elif suffix == ".html":
+            content_type = "text/html; charset=utf-8"
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", served.cache_control)
+        self.send_header("ETag", served.etag)
+        self.send_header("Vary", "Accept-Encoding")
+        if served.gzip:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Connection", "close")
+        self._send_session_cookie(session_token)
+        self.send_header("Content-Length", str(len(served.body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            try:
+                self.wfile.write(served.body)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+        self.close_connection = True
 
     def _send_file(self, path: Path, allowed_root: Path = STATIC_ROOT):
         session_token = self._ensure_session(create=True)
@@ -725,7 +816,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 active_camera_ws=camera_websocket_stats()["active"],
             )
             return
-        if path not in {"/api/health"}:
+        # High-rate polls of the steering screens are not logged one by one.
+        if path not in {"/api/health", "/api/rover/status", "/api/executor/status", "/api/executor/heartbeat"}:
             dashboard_log(
                 "api.request",
                 path=path,
@@ -865,6 +957,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         session_token = self._ensure_session(create=True)
         self.send_response(206 if partial else 200)
+        self._server_timing_header()
         self.send_header("Content-Type", str(video.get("mime") or "video/mp4"))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("ETag", etag)
@@ -1233,51 +1326,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.close_connection = True
 
     def _relay_websocket(self, upstream: socket.socket, initial_upstream: bytes = b"", deadline: float | None = None):
-        if initial_upstream:
-            try:
-                self.connection.sendall(initial_upstream)
-            except OSError:
-                return
-        sockets = [self.connection, upstream]
-        while True:
-            timeout = 30.0
-            if deadline is not None:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    self._ws_send_close(self.connection)
-                    return
-                timeout = min(timeout, max(0.1, remaining))
-            readable, _, errored = select.select(sockets, [], sockets, timeout)
-            if errored:
-                break
-            if not readable:
-                if deadline is not None and time.time() >= deadline:
-                    self._ws_send_close(self.connection)
-                    return
-                self._ws_send_json(
-                    self.connection,
-                    {
-                        "type": "status",
-                        "device_found": False,
-                        "scan_topic_alive": False,
-                        "last_scan_age_sec": None,
-                        "point_count": 0,
-                        "error": "LiDAR WebSocket bridge timeout",
-                    },
-                )
-                continue
-            for sock in readable:
-                try:
-                    data = sock.recv(65536)
-                except OSError:
-                    return
-                if not data:
-                    return
-                target = upstream if sock is self.connection else self.connection
-                try:
-                    target.sendall(data)
-                except OSError:
-                    return
+        # Sensor previews only. A slow reader must not block reverse ACKs or
+        # retain this registry entry/upstream after the write/session deadline.
+        # Opaque TCP chunks do not establish WS frame boundaries. Injecting an
+        # idle JSON frame could corrupt a delayed JPEG/scan payload; source
+        # bridge status and the existing client sensor-age display remain.
+        result = relay_sensor_stream(self.connection, upstream, initial_upstream,
+                                     session_deadline=deadline)
+        dashboard_log("ws.relay.end", reason=result.reason,
+                      to_client_bytes=result.to_client_bytes,
+                      to_upstream_bytes=result.to_upstream_bytes,
+                      peak_to_client_bytes=result.peak_to_client_bytes,
+                      peak_to_upstream_bytes=result.peak_to_upstream_bytes)
 
     def _ws_send_json(self, sock: socket.socket, payload: dict) -> bool:
         return self._ws_send_frame(sock, 0x1, json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -1303,21 +1363,100 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 class DashboardServer(ThreadingHTTPServer):
-    # Simultaneous sensor/map/video clients must not overflow the default
-    # five-entry TCP accept backlog and delay manual requests by a SYN retry.
-    request_queue_size = 128
     daemon_threads = True
     allow_reuse_address = True
 
+    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True, *,
+                 autonomy_supervisor=None, autonomy_observation=None,
+                 native_observation_client=None, autonomy_observe_lock=None):
+        # TCPServer.__init__ may call our server_close() if bind/activate fails.
+        # Establish instance ownership BEFORE that call, including direct
+        # DashboardServer users which intentionally have no observation worker.
+        self.autonomy_supervisor = autonomy_supervisor
+        self.autonomy_observation = autonomy_observation
+        self.native_observation_client = native_observation_client
+        self.autonomy_observe_lock = (threading.RLock() if autonomy_observe_lock is None
+                                      else autonomy_observe_lock)
+        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
 
-def create_server(host: str, port: int, config: str | None = None) -> ThreadingHTTPServer:
-    if os.environ.get("DASHBOARD_MODE") == "simulation":
-        from dashboard_server.simulation import SimulationProvider
-        DashboardHandler.provider = SimulationProvider(config)
-    else:
-        DashboardHandler.provider = TelemetryProvider(config)
+    def server_close(self):
+        supervisor=getattr(self,'autonomy_supervisor',None)
+        if supervisor is not None:
+            closed=supervisor.close()
+            if not closed.get('loop_joined'):
+                raise RuntimeError('autonomy_supervisor_cleanup_unproven')
+        try:
+            with self.autonomy_observe_lock:
+                try:
+                    observer=getattr(self,'autonomy_observation',None)
+                    if observer is not None:observer.stop(reason='dashboard_server_closed')
+                finally:
+                    native=getattr(self,'native_observation_client',None)
+                    if native is not None:native.stop()
+        finally:
+            super().server_close()
+
+
+def create_server(host: str, port: int, config: str | None = None, *, autonomy_bindings=None) -> ThreadingHTTPServer:
+    from dashboard_server import extensions
+    from dashboard_server.executor_proxy import ExecutorClient
+    from dashboard_server.steer_tuning import TuningLog
+    settings = extensions.DashboardSettings.from_env(os.environ)
+    if settings.ignored:
+        dashboard_log("settings.ignored_in_live_mode", names=list(settings.ignored))
+    extension = extensions.load_extension(settings)
+    DashboardHandler.dashboard_settings = settings
+    DashboardHandler.extension_routes = extensions.routes_of(extension)
+    DashboardHandler.page_filter = extensions.page_filter(settings, extension)
+    DashboardHandler.provider = extensions.load_provider(settings, config) or TelemetryProvider(config)
+    DashboardHandler.executor_client = ExecutorClient.from_env(os.environ)
+    DashboardHandler.tuning_log = TuningLog(os.environ.get("UBTS_EXECUTOR_TUNING_LOG") or ROOT / "runtime/executor_tuning_log.jsonl")
+    from dashboard_server.source_live_mapping import SourceLiveMapping as LiveMapping
+    from dashboard_server.mapping_operations import ManagedArchiveMapping,MappingOperations
+    from dashboard_server.autonomy_settings import AutonomySettings
+    from dashboard_server.autonomy_observation import AutonomyObservation
+    from dashboard_server.record_based_autonomy import RecordBasedAutonomy
+    DashboardHandler.live_mapping=LiveMapping(ROOT/'runtime/live-map',start_worker=os.environ.get('DASHBOARD_LIVE_MAP_WORKER','1')=='1')
+    DashboardHandler.archive_mapping=ManagedArchiveMapping(DashboardHandler.provider.recording_archive_dir,DashboardHandler.live_mapping)
+    DashboardHandler.mapping_operations=MappingOperations(DashboardHandler.live_mapping,DashboardHandler.archive_mapping)
+    DashboardHandler.autonomy_settings=AutonomySettings(ROOT/'runtime/autonomy_settings.json')
+    native_path=os.environ.get('UBTS_NATIVE_STREAM_SOCKET')
+    DashboardHandler.native_observation_client=None
+    DashboardHandler.native_map_preview_enabled=os.environ.get('UBTS_NATIVE_MAP_PREVIEW','0')=='1'
+    if native_path:
+        from dashboard_server.native_observation_client import NativeObservationClient
+        DashboardHandler.native_observation_client=NativeObservationClient(native_path)
+    from dashboard_server.native_autonomy_application import NativeAutonomyApplication
+    def native_session_valid(token):
+        with _SESSION_LOCK:
+            _prune_sessions();return token in _SESSIONS
+    DashboardHandler.autonomy_supervisor=NativeAutonomyApplication(
+        DashboardHandler.native_observation_client,session_valid=native_session_valid,bindings=autonomy_bindings)
+    DashboardHandler.autonomy_observe_lock=threading.RLock()
+    from dashboard_server.field10_shadow import make_field10_shadow_planner
+    # Enabled only by a release that pins BOTH roles to the scalar protocol.
+    # An old/unsupported server returns None; it is never a full-getter fallback.
+    comparison_protocol=os.environ.get('UBTS_NATIVE_CONTROL_COMPARISON_V1','0')
+    if comparison_protocol not in ('0','1'):
+        raise ValueError('explicit_native_comparison_protocol_required')
+    if comparison_protocol=='1' and DashboardHandler.native_observation_client is None:
+        raise ValueError('native_comparison_protocol_requires_native_source')
+    DashboardHandler.autonomy_observation=AutonomyObservation(
+        planner=make_field10_shadow_planner(),input_provider=DashboardHandler.native_observation_client.input
+            if DashboardHandler.native_observation_client is not None else DashboardHandler.live_mapping.observation_input,
+        comparison_provider=DashboardHandler.native_observation_client.control_comparison
+            if comparison_protocol=='1' else None)
     dashboard_log("server.create", host=host, port=port, session_ttl_s=SESSION_TTL_S)
-    return DashboardServer((host, port), DashboardHandler)
+    server=DashboardServer((host, port), DashboardHandler,
+        autonomy_supervisor=DashboardHandler.autonomy_supervisor,
+        autonomy_observation=DashboardHandler.autonomy_observation,
+        native_observation_client=DashboardHandler.native_observation_client,
+        autonomy_observe_lock=DashboardHandler.autonomy_observe_lock)
+    server.autonomy_supervisor=DashboardHandler.autonomy_supervisor
+    server.autonomy_observation=DashboardHandler.autonomy_observation
+    server.native_observation_client=DashboardHandler.native_observation_client
+    server.autonomy_observe_lock=DashboardHandler.autonomy_observe_lock
+    return server
 
 
 def main():
@@ -1333,6 +1472,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        DashboardHandler.live_mapping.close()
+        DashboardHandler.archive_mapping.close()
         server.server_close()
 
 

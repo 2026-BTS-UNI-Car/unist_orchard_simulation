@@ -1,475 +1,21 @@
-:root {
-  color-scheme: dark;
-  --bg: #050816;
-  --bg-2: #09122d;
-  --surface: rgba(11, 18, 42, 0.88);
-  --surface-2: rgba(18, 28, 61, 0.86);
-  --panel: rgba(9, 16, 39, 0.82);
-  --line: rgba(139, 164, 255, 0.18);
-  --line-strong: rgba(174, 191, 255, 0.34);
-  --text: #f7f9ff;
-  --muted: #a9b4d2;
-  --dim: #7480a3;
-  --blue: #1155e6;
-  --cyan: #38d8ff;
-  --violet: #8238c9;
-  --rose: #f21b58;
-  --amber: #f4bd4f;
-  --red: #ff5b72;
-  --good: #55e2b2;
-  --shadow: 0 22px 58px rgba(0, 0, 0, 0.36);
-  --logo-base: #f8faff;
-  --logo-line: rgba(19, 55, 143, 0.24);
-  --chart-grid: rgba(178, 193, 255, 0.12);
-  --chart-bg-top: rgba(255, 255, 255, 0.052);
-  --chart-bg-bottom: rgba(255, 255, 255, 0.012);
-  --chart-blue: #2f76ff;
-  --chart-cyan: #38d8ff;
-  --chart-rose: #f21b58;
-  --chart-amber: #f4bd4f;
-  --chart-good: #55e2b2;
-}
+/* Screens and panels of the dashboard. Loaded after the design system sheets
+   (css/tokens.css, base.css, components.css, frame.css): colours, sizes and the
+   look of buttons, inputs, badges, panels and notices come from there. This
+   sheet places things inside the pages. No raw colours, no gradients, no
+   shadows here. */
 
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f4f7ff;
-  --bg-2: #e9efff;
-  --surface: rgba(255, 255, 255, 0.9);
-  --surface-2: rgba(246, 249, 255, 0.92);
-  --panel: rgba(255, 255, 255, 0.88);
-  --line: rgba(12, 45, 128, 0.14);
-  --line-strong: rgba(12, 45, 128, 0.24);
-  --text: #07132f;
-  --muted: #58627c;
-  --dim: #7b859d;
-  --shadow: 0 18px 42px rgba(20, 45, 112, 0.12);
-  --logo-base: #ffffff;
-  --logo-line: rgba(17, 85, 230, 0.22);
-  --chart-grid: rgba(12, 45, 128, 0.11);
-  --chart-bg-top: rgba(17, 85, 230, 0.055);
-  --chart-bg-bottom: rgba(242, 27, 88, 0.018);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  overflow-x: hidden;
-  background:
-    linear-gradient(135deg, rgba(17, 85, 230, 0.16), transparent 26%),
-    linear-gradient(315deg, rgba(242, 27, 88, 0.12), transparent 34%),
-    linear-gradient(180deg, var(--bg), var(--bg-2));
-  color: var(--text);
-  font-family: Inter, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
-  transition: background 240ms ease, color 180ms ease;
-}
-
-body::before {
-  position: fixed;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-  opacity: 0.42;
-  background-image:
-    linear-gradient(var(--chart-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--chart-grid) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, black, transparent 84%);
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-h1,
-h2,
-p {
-  margin: 0;
-}
-
-h1 {
-  margin-top: 8px;
-  font-size: clamp(30px, 4vw, 54px);
-  line-height: 1.05;
-  letter-spacing: 0;
-}
-
-h2 {
-  font-size: 18px;
-  letter-spacing: 0;
-}
-
-.app-shell {
-  position: relative;
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
-  min-height: 100vh;
-}
-
-.mobile-topbar,
-.mobile-nav-backdrop {
-  display: none;
-}
-
-.sidebar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  padding: 18px;
-  border-right: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(18px);
-}
-
-.brand-block {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-block small,
-.eyebrow,
-.kpi span,
-.detail-list dt {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.brand-block strong {
-  display: block;
-  margin-top: 2px;
-}
-
-.logo-badge {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--logo-line);
-  border-radius: 8px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(235, 240, 255, 0.92)),
-    var(--logo-base);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-    0 18px 44px rgba(11, 37, 111, 0.18);
-}
-
-.logo-badge img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 6%;
-}
-
-.logo-badge-sm {
-  width: 54px;
-  height: 54px;
-  flex: 0 0 auto;
-}
-
-.nav-list {
-  display: grid;
-  gap: 7px;
-}
-
-.nav-list a {
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 900;
-  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
-}
-
-.nav-list a:hover,
-.nav-list a.active {
-  color: var(--text);
-  border-color: var(--line-strong);
-  background: linear-gradient(90deg, rgba(17, 85, 230, 0.14), rgba(242, 27, 88, 0.09));
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  display: grid;
-  gap: 9px;
-}
-
-.sidebar-footer small {
-  color: var(--dim);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.theme-toggle {
-  width: 100%;
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: var(--surface-2);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.theme-track {
-  position: relative;
-  width: 48px;
-  height: 24px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--blue), var(--rose));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-}
-
-.theme-track i {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
-  transform: translate3d(0, 0, 0);
-  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-:root[data-theme="light"] .theme-track i {
-  transform: translate3d(24px, 0, 0);
-}
-
-.main-surface {
-  position: relative;
-  padding: 22px;
-}
-
-.page {
-  display: none;
-  gap: 20px;
-}
-
-.page.active {
-  display: grid;
-}
-
-.page-head,
-.panel,
-.kpi {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.page-head {
-  min-height: 176px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: end;
-  gap: 24px;
-  padding: 30px;
-  background:
-    linear-gradient(115deg, rgba(17, 85, 230, 0.18), transparent 42%),
-    linear-gradient(295deg, rgba(242, 27, 88, 0.15), transparent 46%),
-    var(--panel);
-}
-
-.page-head > .eyebrow,
-.page-head > h1,
-.page-head > p {
-  grid-column: 1 / -1;
-}
-
-.hero-copy p:last-child,
-.page-head > p:last-child {
-  max-width: 760px;
-  margin-top: 12px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.kpi-grid,
-.network-focus-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.fan-control-grid {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.fan-pwm-panel {
-  min-height: 112px;
-}
-
-.fan-head-actions {
-  min-width: min(100%, 270px);
-  display: grid;
-  justify-items: end;
-  gap: 10px;
-}
-
-.fan-head-actions > strong {
-  font-size: 24px;
-  line-height: 1;
-}
-
-.fan-mode-toggle {
-  display: inline-grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 190px;
-  max-width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-  cursor: pointer;
-}
-
-.fan-mode-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.fan-toggle-track {
-  position: relative;
-  width: 46px;
-  height: 26px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: color-mix(in srgb, var(--line) 72%, transparent);
-  transition: background 180ms ease, border-color 180ms ease;
-}
-
-.fan-toggle-track i {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--text);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
-  transition: transform 180ms ease, background 180ms ease;
-}
-
-.fan-mode-toggle input:checked + .fan-toggle-track {
-  border-color: color-mix(in srgb, var(--good) 58%, transparent);
-  background: color-mix(in srgb, var(--good) 34%, transparent);
-}
-
-.fan-mode-toggle input:checked + .fan-toggle-track i {
-  transform: translateX(20px);
-  background: var(--good);
-}
-
-.fan-mode-toggle input:disabled + .fan-toggle-track,
-.fan-mode-toggle input:disabled ~ .fan-toggle-copy {
-  opacity: 0.48;
-}
-
-.fan-toggle-copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.fan-toggle-copy b {
-  color: var(--text);
-  font-size: 13px;
-}
-
-.fan-toggle-copy small {
-  color: var(--dim);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.network-focus-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.kpi {
-  min-height: 112px;
-  padding: 16px;
-  background:
-    linear-gradient(145deg, rgba(17, 85, 230, 0.08), rgba(242, 27, 88, 0.045)),
-    var(--panel);
-}
-
-.kpi strong {
-  display: block;
-  margin-top: 14px;
-  overflow-wrap: anywhere;
-  font-size: clamp(22px, 3vw, 30px);
-  line-height: 1;
-  transition: color 180ms ease;
-}
-
-.network-focus-grid .kpi strong {
-  font-size: clamp(24px, 4vw, 38px);
-}
-
-.kpi small {
-  display: block;
-  margin-top: 10px;
-  color: var(--dim);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
+/* ---- Page grids -------------------------------------------------------- */
 .dashboard-grid,
 .resource-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: var(--page-gutter);
 }
 
-.docs-layout {
-  display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: stretch;
-  min-height: 0;
-}
-
-.resource-grid {
-  align-items: start;
+/* The CPU card has the most to show and takes a full row; the other four pair up
+   (the two cards of a row are equally tall). */
+.resource-grid > .resource-card:first-child {
+  grid-column: 1 / -1;
 }
 
 .wide {
@@ -477,522 +23,740 @@ h2 {
 }
 
 .panel {
-  min-width: 0;
-  padding: 18px;
   overflow: hidden;
 }
 
-.panel-head,
-.card-title {
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+/* A value at the right end of a panel title row (CPU %, throughput). */
+.panel-head > strong,
+.panel-actions > strong,
+.fan-head-actions > strong {
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  letter-spacing: var(--tracking-tight);
 }
 
-.panel-head > div,
-.card-title > div {
-  min-width: 0;
-}
-
-.panel-head strong {
-  font-size: 22px;
-}
-
-.panel-head small {
-  display: block;
-  margin-top: 4px;
-  color: var(--dim);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.panel-actions {
-  min-width: 0;
-  max-width: 100%;
-  display: grid;
-  justify-items: end;
-  gap: 8px;
-}
-
-.segmented-control {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(54px, 1fr));
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-
-.segmented-control button {
-  min-height: 30px;
-  border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.segmented-control button.active {
-  color: #ffffff;
-  background: linear-gradient(90deg, var(--blue), var(--rose));
-  background-clip: padding-box;
-  box-shadow: 0 8px 18px rgba(17, 85, 230, 0.22);
-}
-
-.segmented-control.compact-control {
-  width: min(100%, 360px);
-}
-
-.action-button {
-  min-height: 34px;
-  max-width: 100%;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: #ffffff;
-  background: linear-gradient(90deg, var(--blue), var(--rose));
-  background-clip: padding-box;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.25;
-  white-space: normal;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(17, 85, 230, 0.22);
-}
-
-.action-button:disabled {
-  cursor: wait;
-  opacity: 0.62;
-}
-
-.action-button.secondary {
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 84%, transparent);
-  border-color: var(--line-strong);
-  box-shadow: none;
-}
-
-.action-button.danger {
-  color: #ffffff;
-  background: color-mix(in srgb, var(--rose) 72%, #5b1027);
-  border-color: color-mix(in srgb, var(--rose) 64%, transparent);
-}
-
-.action-button.active {
-  border-color: color-mix(in srgb, var(--good) 48%, transparent);
-  color: var(--good);
+.panel-head.mini {
+  margin-bottom: var(--space-2);
 }
 
 .text-link {
-  color: var(--cyan);
-  font-size: 13px;
-  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
+.text-link .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Secondary explanations under a control, a map or a list. */
+.help-text,
+.control-note,
+.sim-map-note,
+.gps-caption,
+.gps-map-footer,
+.gps-diagnostics p,
+.field-preparation p,
+.media-jobs-note,
+.archive-motor-caption,
+.container-self-lock {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Collapsible blocks inside a panel: a rule and a summary row, not a box. */
+.panel details {
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.panel details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.panel details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel details > summary::before {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  background: var(--color-text-secondary);
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat;
+  content: "";
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.panel details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Name, value and detail cells in a grid (device probe, container details,
+   GPS read-outs, plan): quiet tiles, not bordered boxes. */
+.probe-card,
+.container-detail-grid article,
+.gps-readouts > div,
+.milestone {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+}
+
+.probe-card span,
+.container-detail-grid span,
+.gps-readouts span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
+}
+
+.probe-card strong,
+.container-detail-grid strong,
+.gps-readouts strong {
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow-wrap: anywhere;
+}
+
+.probe-card small,
+.container-detail-grid small {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Charts ------------------------------------------------------------ */
+/* A chart over its legend: the plot has the whole width of the panel. */
 .chart-frame {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(136px, 172px);
-  gap: 14px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
 }
 
+.chart-frame > .chart-readout {
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: var(--space-2);
+}
+
+.resource-chart {
+  display: block;
+  width: 100%;
+  height: 190px;
+  contain: layout paint style;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--chart-surface);
+  transform: translateZ(0);
+}
+
+.chart-panel .resource-chart {
+  height: 220px;
+}
+
+/* Read-out list beside a chart or under a sensor view. One row per value:
+   mark, name and value on a line, the detail below. */
+.chart-readout {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Mark, name and value share a line; a value that does not fit beside its
+   name moves below it as a whole (an address is not cut in the middle). */
+.chart-readout .readout-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: start;
+  column-gap: var(--space-2);
+  min-width: 0;
+}
+
+/* In a list the rows are separated by a rule. */
+.chart-readout .readout-row + .readout-row {
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Beside a chart, and wherever the rows sit side by side, each row is a chip:
+   the legend of the chart. */
+.chart-frame > .chart-readout .readout-row,
+.network-mode-panel .chart-readout .readout-row,
+.sensor-overview .chart-readout .readout-row {
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+}
+
+/* The mark of a series is a small square (a status dot is round). */
+.chart-readout .swatch {
+  flex: 0 0 10px;
+  height: 10px;
+  border-radius: var(--radius-small);
+  background: var(--chart-3);
+}
+
+.chart-readout span {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+.chart-readout b {
+  max-width: 100%;
+  margin-left: auto;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* The detail starts under the name, past the mark. */
+.chart-readout small {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.core-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.core-chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: var(--space-2);
+  align-items: start;
+  min-width: 0;
+}
+
+.core-chart-head {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.core-chart-head b {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.core-chart canvas {
+  width: 100%;
+  height: 116px;
+}
+
+.core-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-4);
+}
+
+.core {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 56px;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.core strong {
+  color: var(--color-text);
+  text-align: right;
+}
+
+.resource-card > .progress {
+  margin-top: var(--space-4);
+}
+
+.resource-card > small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ---- LiDAR polar view -------------------------------------------------- */
 .lidar-map-frame {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(170px, 230px);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 240px);
+  gap: var(--space-5);
   align-items: start;
-}
-
-.camera-live-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(178px, 238px);
-  gap: 16px;
-  align-items: start;
-}
-
-.camera-frame {
-  position: relative;
-  min-width: 0;
-  margin: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--chart-bg-top), var(--chart-bg-bottom));
-  aspect-ratio: 16 / 9;
-}
-
-.camera-frame img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  background: #050816;
-}
-
-.camera-overlay-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.camera-frame.overlay-only,
-.rover-camera-frame.overlay-only,
-.archive-camera-frame.overlay-only {
-  background:
-    radial-gradient(circle at center, rgba(47, 118, 255, 0.14), transparent 52%),
-    var(--chart-bg-bottom);
-}
-
-.camera-frame.overlay-only img,
-.rover-camera-frame.overlay-only img,
-.archive-camera-frame.overlay-only img,
-.archive-camera-frame.overlay-only video {
-  opacity: 0;
-}
-
-.camera-frame img:not([src]),
-.camera-frame img[src=""] {
-  opacity: 0;
-}
-
-.camera-frame figcaption {
-  position: absolute;
-  left: 12px;
-  bottom: 10px;
-  max-width: calc(100% - 24px);
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
-  font-size: 12px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-  backdrop-filter: blur(12px);
-  z-index: 3;
-}
-
-.camera-controls {
-  min-width: 0;
-}
-
-.camera-controls select,
-.rover-sensor-controls select {
-  width: 100%;
-  min-height: 38px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: var(--surface-2);
-  font: inherit;
-  font-weight: 900;
 }
 
 .lidar-map-frame > * {
   min-width: 0;
 }
 
-.lidar-map-frame .chart-readout {
-  min-height: auto;
-}
-
-.lidar-map-frame .chart-readout:empty {
-  min-height: 76px;
+.lidar-map-frame > div:last-child {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .lidar-map-stage {
   position: relative;
-  min-width: 0;
-  min-height: 560px;
   display: grid;
   place-items: center;
-}
-
-.resource-chart {
-  width: 100%;
-  height: 210px;
-  display: block;
-  contain: layout paint style;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: linear-gradient(180deg, var(--chart-bg-top), var(--chart-bg-bottom));
-  transform: translateZ(0);
+  min-width: 0;
+  min-height: 560px;
 }
 
 .lidar-map {
-  width: 520px;
-  max-width: 100%;
-  aspect-ratio: 1 / 1;
-  height: auto;
   display: block;
   justify-self: center;
+  width: 520px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   contain: layout paint style;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: linear-gradient(180deg, var(--chart-bg-top), var(--chart-bg-bottom));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--chart-surface);
   transform: translateZ(0);
 }
 
-.lidar-map[hidden] {
-  display: none;
-}
-
+/* A control group: name and value on one line, then buttons or a slider. */
 .map-control {
   display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  gap: var(--space-2);
+  min-width: 0;
 }
 
-.map-control span {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
+.map-control > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.map-control span,
+.map-range-slider span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
 .map-control strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--text);
-  font-size: 20px;
-}
-
-.map-zoom-buttons {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.map-zoom-buttons button {
   min-width: 0;
-  min-height: 36px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 950;
-  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
-.map-zoom-buttons button:disabled {
-  opacity: 0.45;
-  cursor: default;
+.map-control select {
+  width: 100%;
 }
 
 .map-range-slider {
   display: grid;
-  gap: 8px;
-}
-
-.map-range-slider input[type="range"] {
-  width: 100%;
-  accent-color: var(--cyan);
-}
-
-.map-hint {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  max-width: min(420px, calc(100% - 24px));
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  backdrop-filter: blur(12px);
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.35;
-  pointer-events: none;
-}
-
-.notice-panel {
-  margin-bottom: 14px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 56%, transparent);
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-}
-
-.live-status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.live-status-grid div {
+  gap: 0;
   min-width: 0;
-  min-height: 72px;
-  display: grid;
-  gap: 8px;
-  align-content: center;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-}
-
-.live-status-grid span,
-.toggle-row span,
-.slider-row span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.live-status-grid b {
-  min-width: 0;
-  color: var(--text);
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-
-.toggle-row,
-.switch-control,
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.toggle-row {
-  margin-top: 12px;
-  padding: 10px 2px;
 }
 
 .download-mode {
   width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 10px;
 }
 
-.overlay-mode {
-  width: 100%;
-  min-width: min(100%, 300px);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.perception-mode {
-  width: 100%;
-  min-width: min(100%, 360px);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.camera-overlay-mode {
-  width: 100%;
-  min-width: min(100%, 360px);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.download-mode button {
-  min-width: 0;
-}
-
-.rover-layout {
+/* ---- Camera frames ----------------------------------------------------- */
+.camera-live-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(178px, 240px);
+  gap: var(--space-5);
   align-items: start;
 }
 
-.rover-layout .wide {
-  grid-column: 1 / -1;
+.camera-controls {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.camera-frame,
+.rover-camera-frame,
+.archive-camera-frame {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--color-media-bg);
+}
+
+.camera-frame {
+  aspect-ratio: 16 / 9;
+}
+
+.camera-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* An image without a source would draw a broken-image icon and its alt text. */
+.camera-frame img:not([src]),
+.camera-frame img[src=""],
+.rover-camera-frame img:not([src]),
+.rover-camera-frame img[src=""],
+.archive-camera-frame img:not([src]),
+.archive-camera-frame img[src=""] {
+  opacity: 0;
+}
+
+/* Caption over a camera picture or an attitude view. */
+.camera-frame figcaption,
+.rover-camera-frame span,
+.archive-camera-frame figcaption,
+.imu-attitude-stage > span {
+  position: absolute;
+  bottom: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-raised);
+  max-width: calc(100% - var(--space-4));
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-small);
+  background: var(--color-media-scrim);
+  color: var(--color-media-text);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+.rover-camera-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+}
+
+.rover-camera-frame img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+/* ---- Drive page layout ------------------------------------------------- */
+.rover-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--page-gutter);
+  align-items: start;
+}
+
+/* Panels whose parts are stacked with one gap. */
+.rover-live-panel,
+.rover-drive-panel,
+.rover-record-panel,
+.rover-gps-panel,
+.network-mode-panel,
+.fan-pwm-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The gap follows the header bar: 4px more gives the 16px of the other panels. */
+.rover-live-panel > .panel-head,
+.rover-drive-panel > .panel-head,
+.rover-record-panel > .panel-head,
+.rover-gps-panel > .panel-head,
+.network-mode-panel > .panel-head,
+.fan-pwm-panel > .panel-head {
+  margin-bottom: var(--space-1);
+}
+
+.rover-lidar-stage {
+  min-height: 320px;
+}
+
+.rover-sensor-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+/* Drive panel header: title, then the panel switch and STOP at the right. In
+   a narrow column the two buttons move below the title. */
+.rover-drive-panel h2 {
+  white-space: nowrap;
 }
 
 .drive-head-actions {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .drive-head-actions .action-button {
   min-width: 92px;
 }
 
-.rover-drive-panel .panel-head { display: block; }
-.rover-drive-panel h2 { white-space: nowrap; }
-.rover-drive-panel .drive-head-actions { margin-top: 12px; justify-content: space-between; }
-.rover-arm-controls { display: grid; gap: 8px; margin: 12px 0; min-width: 0; }
-select[data-network-profile] {
-  width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: 8px; color: var(--text); background: var(--surface); font: inherit;
+/* Every STOP has the STOP red, in both themes. */
+.drive-head-actions .action-button.danger {
+  border-color: var(--color-stop);
+  background: var(--color-stop);
+  color: var(--color-on-stop);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
 }
-select[data-network-profile] { width: auto; margin-left: 8px; }
 
-.rover-layout.drive-collapsed .rover-drive-panel {
-  min-height: auto;
-  position: static;
+@media (hover: hover) {
+  .drive-head-actions .action-button.danger:not(:disabled):hover {
+    border-color: var(--color-stop-hover);
+    background: var(--color-stop-hover);
+  }
+}
+
+.drive-head-actions .action-button.danger:not(:disabled):active,
+.rover-pad button[data-rover-drive="stop"]:active {
+  border-color: var(--color-stop);
+  background: var(--color-on-stop);
+  color: var(--color-stop);
 }
 
 .rover-layout.drive-collapsed .rover-drive-panel > :not(.panel-head) {
   display: none;
 }
 
-.rover-live-panel {
+/* Only the header bar is left: it needs no rule under it. */
+.rover-layout.drive-collapsed .rover-drive-panel > .panel-head {
+  margin-bottom: calc(var(--panel-padding) * -1);
+  border-bottom: 0;
+}
+
+.rover-arm-controls {
   display: grid;
-  align-content: start;
+  gap: var(--space-2);
   min-width: 0;
 }
 
-.network-mode-panel {
+/* The arm button is the first step of driving: as tall as a touch control
+   everywhere. While driving is armed it has the tint of the armed badge in
+   the status bar. */
+.rover-arm-controls .action-button {
+  min-height: 44px;
+}
+
+.rover-arm-controls .action-button[aria-pressed="true"],
+.rover-arm-controls .action-button[aria-pressed="true"]:not(:disabled):hover {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.rover-speed-control {
   display: grid;
-  align-content: start;
-  margin-bottom: 18px;
+  gap: 0;
+  min-width: 0;
 }
 
-.network-mode-actions {
-  grid-template-columns: repeat(2, minmax(130px, auto));
-  justify-content: start;
-  justify-items: stretch;
-  margin: 14px 0;
+.rover-speed-control label,
+.sim-autonomy-controls > label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
-.network-mode-panel .chart-readout {
-  min-height: 0;
+.rover-speed-control strong {
+  color: var(--color-text);
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  letter-spacing: var(--tracking-tight);
 }
 
-.network-mode-panel .control-note {
-  display: block;
-  margin-top: 10px;
-  color: var(--dim);
-  line-height: 1.55;
+.sim-autonomy-controls > label strong {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
+.rover-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rover-pad button {
+  /* W over A, STOP, D over S: the middle column unless a rule below says otherwise. */
+  grid-column: 2;
+  min-width: 0;
+  min-height: var(--hold-height);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  /* A held drive button is not a scroll, a text selection or a long-press menu. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.rover-pad button[data-rover-drive="left"] {
+  grid-column: 1;
+}
+
+.rover-pad button[data-rover-drive="right"] {
+  grid-column: 3;
+}
+
+/* A held direction is solid at once (no transition on the drive pad). */
+.rover-pad button.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.rover-pad button[data-rover-drive="stop"] {
+  border-color: var(--color-stop);
+  background: var(--color-stop);
+  color: var(--color-on-stop);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.sim-autonomy-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sim-autonomy-controls > .sim-map-status {
+  color: var(--color-text-secondary);
+}
+
+/* ---- Front-steer drive panel (UI-07): the vehicle kind picks the panel --- */
+html:not([data-vehicle-kind="front_steer"]) [data-vehicle="front_steer"],
+html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
+  display: none;
+}
+
+.steer-drive,
+.tune-stack,
+.steer-pad > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+/* Steering row over the throttle row; every finger keeps its own button. */
+.steer-pad > div {
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  margin-top: var(--space-2);
+}
+
+.steer-gauge {
+  position: relative;
+  height: var(--space-5);
+  border-radius: var(--radius-small);
+  background: var(--color-fill-strong);
+}
+
+.steer-gauge > i {
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--color-border-strong);
+}
+
+.steer-gauge > .target {
+  background: var(--color-accent);
+}
+
+.steer-gauge > .measured {
+  top: var(--space-2);
+  background: var(--color-text);
+}
+
+/* Tuning fields (UI-12): as many columns as fit, one on a phone. */
+.tune-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-3);
+}
+
+/* Autonomy status (UI-08): values older than 1.5 s are dimmed. */
+.detail-list.stale dd {
+  color: var(--color-text-disabled);
+}
+
+/* ---- IMU --------------------------------------------------------------- */
 .imu-attitude-stage {
   position: relative;
-  overflow: hidden;
   min-height: 220px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: #07111f;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--color-media-bg);
 }
 
 .imu-attitude-canvas {
@@ -1001,279 +765,140 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
   height: 220px;
 }
 
-.imu-attitude-stage > span {
-  position: absolute;
-  left: 12px;
-  bottom: 10px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgb(2 8 23 / 75%);
-  color: #dbeafe;
-  font-size: 0.75rem;
-}
-
 .imu-heading-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  margin: 12px 0;
+  gap: var(--space-2);
+}
+
+.imu-heading-row > span:first-child {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
 .imu-heading-row strong {
-  color: var(--accent);
-  font-size: 1.35rem;
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  letter-spacing: var(--tracking-tight);
 }
 
-.record-imu-option {
-  margin-top: 12px;
-  justify-content: flex-start;
-}
-
-.rover-drive-panel,
-.rover-record-panel {
-  display: grid;
-  align-content: start;
-  min-width: 0;
-}
-
-.rover-speed-control {
-  display: grid;
-  gap: 12px;
-}
-
-.rover-speed-control label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.rover-speed-control span,
-.archive-list span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.rover-speed-control strong {
-  color: var(--text);
-  font-size: 24px;
-}
-
-.rover-speed-control input[type="range"] {
-  width: 100%;
-  accent-color: var(--cyan);
-}
-
-.rover-fade-options,
+/* ---- Recording controls ------------------------------------------------ */
 .record-head-actions,
-.archive-player-toolbar,
-.rover-sensor-controls {
+.archive-player-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-}
-
-.rover-sensor-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 12px;
-}
-
-.map-control.compact {
-  margin-bottom: 0;
-  padding: 10px;
-}
-
-.map-control.compact strong {
-  font-size: 16px;
-}
-
-.rover-fade-options {
-  margin: 4px 0 14px;
-}
-
-.rover-fade-options .switch-control {
-  flex: 1 1 150px;
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-}
-
-.rover-pad {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 16px 0;
-  min-width: 0;
-}
-
-.rover-pad button {
-  min-width: 0;
-  min-height: 56px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 76%, transparent);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.rover-pad button[data-rover-drive="forward"] {
-  grid-column: 2;
-}
-
-.rover-pad button[data-rover-drive="left"] {
-  grid-column: 1;
-}
-
-.rover-pad button[data-rover-drive="stop"] {
-  grid-column: 2;
-  color: #fff;
-  background: color-mix(in srgb, var(--rose) 64%, var(--surface-2));
-}
-
-.rover-pad button[data-rover-drive="right"] {
-  grid-column: 3;
-}
-
-.rover-pad button[data-rover-drive="backward"] {
-  grid-column: 2;
-}
-
-.rover-pad button.active,
-.record-button-grid button.active {
-  border-color: color-mix(in srgb, var(--cyan) 76%, #fff);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cyan) 22%, transparent);
-}
-
-.rover-camera-frame {
-  position: relative;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: 0;
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #020617;
-}
-
-.rover-camera-frame img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  max-width: 100%;
-  min-height: 0;
-  object-fit: contain;
-  display: block;
-}
-
-.rover-camera-frame span {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  padding: 8px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  font-size: 12px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-  z-index: 3;
-}
-
-.rover-lidar-stage {
-  min-height: 320px;
-}
-
-.rover-live-panel .chart-readout,
-.rover-drive-panel .chart-readout,
-.rover-record-panel .chart-readout {
-  min-height: 0;
-}
-
-.record-button-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 14px;
-}
-
-.record-button-grid .action-button {
-  min-width: 0;
-}
-
-.record-start-button {
-  width: 100%;
+  gap: var(--space-2) var(--space-3);
 }
 
 .record-head-actions {
   justify-content: flex-end;
 }
 
+.record-start-button {
+  width: 100%;
+}
+
+/* Three equal buttons while every label fits. A button is never narrower than
+   its label ("LiDAR+Camera" is one word): the others give way first, and in a
+   very narrow panel the last button moves to a second row. */
+.record-button-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.record-button-grid .action-button {
+  flex: 1 1 0;
+  min-width: min-content;
+  padding: 6px var(--space-2);
+}
+
+/* Keep the label beside its check box and wrap the words inside the label. */
+.switch-control.record-imu-option {
+  flex-wrap: nowrap;
+  padding: var(--space-1) 0;
+}
+
+/* ---- Recordings: list, player, panels ---------------------------------- */
 .archive-layout {
   display: grid;
   grid-template-columns: minmax(240px, 0.58fr) minmax(0, 1.42fr);
-  gap: 14px;
+  gap: var(--space-5);
   align-items: start;
+  container-type: inline-size;
 }
 
-.archive-list {
+/* A list of things to pick from (recordings, documents): rounded rows, the
+   picked one tinted, like the menu. */
+.archive-list,
+.doc-group {
   display: grid;
-  gap: 8px;
+  gap: 2px;
+  min-width: 0;
 }
 
-.archive-list button {
+.archive-list button,
+.doc-link {
+  display: grid;
+  gap: 2px;
   width: 100%;
   min-width: 0;
-  display: grid;
-  gap: 6px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
-  font: inherit;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 
-.archive-list button.active {
-  border-color: color-mix(in srgb, var(--cyan) 72%, #fff);
-  background: color-mix(in srgb, var(--cyan) 16%, var(--surface-2));
+@media (hover: hover) {
+  .archive-list button:hover,
+  .doc-link:hover,
+  .container-row:hover {
+    background: var(--color-fill);
+    text-decoration: none;
+  }
 }
 
-.archive-list strong {
+.archive-list button.active,
+.doc-link.active,
+.container-row.active {
+  background: var(--color-accent-soft);
+}
+
+.archive-list strong,
+.doc-link strong {
   min-width: 0;
-  color: var(--text);
-  font-size: 15px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   overflow-wrap: anywhere;
 }
 
-.archive-list small {
-  color: var(--dim);
-  font-size: 12px;
-  font-weight: 800;
+.archive-list > span {
+  padding: var(--space-3) 0;
+}
+
+.archive-list span,
+.archive-list small,
+.doc-link small {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
 }
 
 .archive-preview {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -1281,19 +906,10 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
   justify-content: flex-start;
 }
 
-.archive-scrubber {
-  width: 100%;
-  accent-color: var(--cyan);
-}
-
-.archive-map-control {
-  margin-bottom: 0;
-}
-
 .archive-media-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
-  gap: 12px;
+  gap: var(--space-3);
   align-items: stretch;
 }
 
@@ -1310,33 +926,22 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
 }
 
 .archive-camera-frame {
-  position: relative;
-  min-width: 0;
-  min-height: 260px;
-  margin: 0;
-  overflow: hidden;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #020617;
+  min-height: 260px;
 }
 
-.archive-camera-frame img {
+.archive-camera-frame img,
+.archive-camera-frame video {
+  display: block;
   width: 100%;
   height: 100%;
   min-height: 260px;
   object-fit: contain;
-  display: block;
 }
 
 .archive-camera-frame video {
   display: none;
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  object-fit: contain;
-  background: #020617;
 }
 
 .archive-camera-frame.native-video video {
@@ -1347,822 +952,560 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
   display: none;
 }
 
-.archive-imu-panel {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+/* Source and quality selectors sit on the recorded picture. */
+.archive-video-quality {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: var(--z-raised);
+  max-width: calc(100% - var(--space-4));
 }
 
-.archive-imu-panel[hidden] {
-  display: none;
+.archive-camera-source {
+  z-index: var(--z-raised);
+  max-width: calc(100% - var(--space-4));
+  margin: var(--space-1) var(--space-2);
+}
+
+/* Recorded IMU, GPS and motor signals: sections of the player, not boxes. */
+.archive-imu-panel,
+.archive-motor-panel,
+.archive-gps-panel,
+.sim-archive-grid {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
 .archive-imu-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(320px, 1.15fr);
-  gap: 12px;
-  align-items: stretch;
+  gap: var(--space-3);
+  align-items: start;
 }
 
 .archive-imu-attitude-stage,
 .archive-imu-attitude-stage .imu-attitude-canvas {
-  min-height: 240px;
   height: 240px;
+  min-height: 240px;
 }
 
-.archive-imu-panel .chart-readout {
-  min-height: 0;
+.archive-motor-status {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
-@media (max-width: 900px) {
-  .archive-imu-grid {
-    grid-template-columns: 1fr;
-  }
+.archive-motor-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-.archive-motor-panel {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+.archive-motor-table th,
+.archive-motor-table td {
+  white-space: nowrap;
 }
 
-.archive-motor-panel[hidden] { display: none; }
-.archive-motor-status, .archive-motor-caption { margin: 0; font-size: 12px; line-height: 1.55; }
-.archive-motor-caption { color: var(--muted); }
-.archive-motor-table-wrap { overflow-x: auto; }
-.archive-motor-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-.archive-motor-table th, .archive-motor-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.archive-motor-table thead th { color: var(--muted); font-weight: 600; }
+/* The two PWM columns are numbers. */
+.archive-motor-table th:nth-child(n + 4),
+.archive-motor-table td:nth-child(n + 4) {
+  text-align: right;
+}
 
 .archive-download-actions {
   display: grid;
-  justify-items: stretch;
+  justify-items: start;
 }
 
 .archive-download-button {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--cyan) 48%, var(--line));
-  border-radius: 8px;
-  color: var(--text);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--blue) 20%, transparent), color-mix(in srgb, var(--cyan) 12%, transparent)),
-    color-mix(in srgb, var(--surface-2) 82%, transparent);
-  text-decoration: none;
-  box-shadow: 0 12px 24px rgba(56, 216, 255, 0.12);
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 
-.archive-download-button[hidden] {
-  display: none;
+.archive-download-button:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-fill);
+  text-decoration: none;
 }
 
 .archive-download-button span {
   min-width: 0;
-  font-size: 14px;
-  font-weight: 950;
   overflow-wrap: anywhere;
 }
 
 .archive-download-button small {
-  color: var(--cyan);
-  font-size: 12px;
-  font-weight: 900;
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-regular);
   white-space: nowrap;
 }
 
-.orchard-map-panel {
+/* ---- Network mode ------------------------------------------------------ */
+/* Both panels under the mode panel take the full row (the list of interfaces was a lone half). */
+.page[data-page="/network"] .dashboard-grid > .panel {
+  grid-column: 1 / -1;
+}
+
+.network-mode-actions {
+  justify-content: flex-start;
+}
+
+.network-mode-panel .chart-readout {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+
+/* ---- Fan --------------------------------------------------------------- */
+.fan-control-grid {
   display: grid;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--page-gutter);
+  align-items: start;
 }
 
-.panel-head.mini {
-  margin-bottom: 0;
-}
-
-.panel-head.mini h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.orchard-map-timeline {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.fan-head-actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-}
-
-.orchard-map-timeline .tag {
-  white-space: nowrap;
-}
-
-.orchard-map-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.orchard-map-card {
-  display: grid;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-4);
   min-width: 0;
 }
 
-.map-card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 28px;
+.fan-toggle-copy {
+  display: grid;
+  min-width: 0;
+  text-align: left;
 }
 
-.map-card-head span {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.map-card-head small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 850;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-.orchard-map-canvas {
-  width: 100%;
-  min-height: 260px;
-  aspect-ratio: 1.38 / 1;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--chart-bg-bottom);
-  cursor: grab;
-  touch-action: none;
-}
-
-.orchard-map-canvas.dragging {
-  cursor: grabbing;
-}
-
-@media (max-width: 1180px) {
-  .orchard-map-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .orchard-map-canvas {
-    aspect-ratio: 1.75 / 1;
-  }
-}
-
-.archive-camera-frame img:not([src]),
-.archive-camera-frame img[src=""] {
-  opacity: 0;
-}
-
-.archive-camera-frame figcaption {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  padding: 8px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  font-size: 12px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-  z-index: 3;
-}
-
-@media (min-width: 1181px) {
-  .rover-layout {
-    grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) minmax(240px, 0.78fr);
-    align-items: start;
-  }
-
-  .rover-lidar-panel {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-  }
-
-  .rover-camera-panel {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-
-  .rover-drive-panel {
-    grid-column: 3;
-    grid-row: 1;
-    position: sticky;
-    top: 22px;
-    z-index: 2;
-    padding: 12px;
-  }
-
-  .rover-drive-panel .panel-head {
-    margin-bottom: 10px;
-  }
-
-  .rover-drive-panel .rover-speed-control {
-    gap: 8px;
-  }
-
-  .rover-drive-panel .rover-speed-control strong {
-    font-size: 20px;
-  }
-
-  .rover-record-panel {
-    grid-column: 3;
-    grid-row: 2;
-  }
-
-  .rover-layout.drive-collapsed .rover-record-panel {
-    grid-column: 3;
-    grid-row: 2;
-  }
-
-  .rover-lidar-stage {
-    min-height: clamp(300px, 24vw, 430px);
-  }
-
-  .rover-lidar-stage .lidar-map {
-    width: min(100%, clamp(300px, 23vw, 430px));
-  }
-
-  .rover-camera-frame {
-    aspect-ratio: 16 / 9;
-  }
-
-  .rover-camera-frame img {
-    min-height: 0;
-  }
-
-  .rover-sensor-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .rover-drive-panel .chart-readout.compact {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    padding: 8px;
-  }
-
-  .rover-drive-panel .chart-readout.compact .readout-row {
-    min-height: 34px;
-  }
-
-  .rover-pad {
-    gap: 6px;
-    margin: 8px 0;
-  }
-
-  .rover-pad button {
-    min-height: 38px;
-  }
-
-  .rover-drive-panel .test-result {
-    min-height: 34px;
-    margin-bottom: 0;
-    padding: 8px 10px;
-    font-size: 12px;
-  }
-}
-
-.rover-frame-panel {
-  min-height: 620px;
-}
-
-.rover-proxy-frame {
-  width: 100%;
-  min-height: 540px;
-  display: block;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-
-.page[data-page="/connection"] .panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.page[data-page="/connection"] .panel-actions .action-button {
-  flex: 0 1 auto;
-}
-
-.switch-control {
-  min-height: 40px;
-  flex-wrap: wrap;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.switch-control.inline {
-  justify-content: flex-start;
-  margin-bottom: 14px;
-}
-
-.switch-control small {
-  flex-basis: 100%;
-  color: var(--dim);
-  font-size: 12px;
+.fan-toggle-copy small {
+  color: var(--color-text-secondary);
 }
 
 .slider-row {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) auto;
-  margin: 14px 0;
-}
-
-.fan-slider-row {
   grid-template-columns: 64px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-.slider-row input[type="range"] {
-  width: 100%;
+.slider-row span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
-.slider-row input[type="number"] {
-  min-height: 36px;
-  min-width: 0;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: var(--surface-2);
-  font: inherit;
-  font-weight: 900;
+.slider-row b {
+  text-align: right;
 }
 
 .preset-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  width: 100%;
 }
 
-.preset-grid.compact {
+/* ---- Row lists --------------------------------------------------------- */
+.status-list,
+.container-list,
+.disk-list,
+.docs-index {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+}
+
+.status-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) minmax(54px, max-content);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.status-item:first-child {
+  padding-top: 0;
+}
+
+.status-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.status-item strong,
+.interface-card strong,
+.container-row strong,
+.disk-row strong {
+  display: block;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow-wrap: anywhere;
+}
+
+.status-item small,
+.container-row small,
+.disk-row small,
+.interface-card small {
+  display: block;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.status-item b,
+.container-row b,
+.disk-row b {
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* A status list of a panel before its first data: two quiet bars. */
+.panel > .status-list:empty::before,
+.panel > .status-list:empty::after {
+  height: 14px;
+  margin: 9px 0;
+  border-radius: var(--radius-small);
+  background: var(--color-fill-strong);
+  animation: skeleton-pulse 1.2s ease-in-out infinite alternate;
+  content: "";
+}
+
+.panel > .status-list:empty::after {
+  width: 60%;
+}
+
+/* A list that was filled with nothing says so, like .empty-state (the page
+   script leaves the box empty, so the icon and the line are drawn here). */
+.panel > .status-list[data-render-key]:empty,
+.timeline:empty {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.panel > .status-list[data-render-key]:empty::before,
+.timeline:empty::before {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border-radius: 0;
+  background: var(--color-text-disabled);
+  -webkit-mask: var(--icon-empty) center / contain no-repeat;
+  animation: none;
+  content: "";
+}
+
+.panel > .status-list[data-render-key]:empty::after,
+.timeline:empty::after {
+  width: auto;
+  height: auto;
+  margin: 0;
+  background: none;
+  animation: none;
+  content: "표시할 항목이 없습니다.";
+}
+
+.disk-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.disk-row:first-child {
+  padding-top: 0;
+}
+
+.disk-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.interface-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.interface-card {
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+}
+
+.interface-card .card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* On the tinted tile the neutral badge needs the stronger fill. */
+.interface-card .tag:not(.ok) {
+  background: var(--color-fill-strong);
+}
+
+.interface-metrics {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.interface-metrics div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.interface-metrics b {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* ---- Containers -------------------------------------------------------- */
+.container-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 104px 72px 96px minmax(120px, 0.8fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 52px;
+  margin: 0 calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.container-row:last-child {
+  border-bottom: 0;
+}
+
+/* The state badge keeps the width of its word in its column. */
+.container-row .tag {
+  justify-self: start;
+}
+
+.container-detail {
+  margin-bottom: var(--space-4);
+}
+
+.container-toolbar,
+.container-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.container-detail-grid,
+.probe-grid {
+  display: grid;
+  gap: var(--space-2) var(--space-3);
+}
+
+.container-detail-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.preset-grid button {
-  min-height: 38px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.preset-grid button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.chart-panel .resource-chart {
-  height: 260px;
-}
-
-.chart-readout {
-  min-height: 100%;
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-}
-
-.chart-readout.compact {
-  padding: 10px;
-}
-
-.chart-readout .readout-row {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  column-gap: 8px;
-  row-gap: 2px;
-  align-items: center;
-}
-
-.chart-readout .swatch {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--chart-good);
-  box-shadow: 0 0 10px currentColor;
-}
-
-.chart-readout span {
-  min-width: 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-}
-
-.chart-readout b {
-  grid-column: 2;
-  color: var(--text);
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-.chart-readout small {
-  grid-column: 2;
-  display: block;
-  color: var(--dim);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.cpu-mode-view[hidden] {
-  display: none;
-}
-
-.core-chart-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.core-chart {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 8px;
-  align-items: stretch;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-}
-
-.core-chart-head {
-  display: grid;
-  gap: 4px;
-  align-content: start;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.core-chart-head b {
-  color: var(--text);
-  font-size: 14px;
-}
-
-.core-chart canvas {
-  width: 100%;
-  height: 116px;
-}
-
-.progress {
-  width: 100%;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(139, 164, 255, 0.14);
-  background: color-mix(in srgb, var(--line) 64%, transparent);
-}
-
-.progress i {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--blue), var(--violet), var(--rose));
-  box-shadow: 0 0 18px rgba(47, 118, 255, 0.24);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
-}
-
-.resource-card > .progress {
-  margin-top: 16px;
-}
-
-.resource-card > small {
-  display: block;
-  margin-top: 8px;
-}
-
-.test-result {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.scan-progress {
-  display: none;
-  gap: 9px;
-  margin: -4px 0 18px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 56%, transparent);
-}
-
-.scan-progress.active {
-  display: grid;
-}
-
-.scan-progress-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.scan-progress-meta b {
-  color: var(--text);
-}
-
-.scan-progress .progress i {
-  transition: transform 180ms linear;
-}
-
-.test-result.ok {
-  color: var(--good);
-  border-color: color-mix(in srgb, var(--good) 44%, transparent);
-  background: color-mix(in srgb, var(--good) 10%, transparent);
-}
-
-.test-result.bad {
-  color: var(--red);
-  border-color: color-mix(in srgb, var(--red) 44%, transparent);
-  background: color-mix(in srgb, var(--red) 10%, transparent);
-}
-
-.test-result.testing {
-  color: var(--cyan);
-  border-color: color-mix(in srgb, var(--cyan) 44%, transparent);
-  background: color-mix(in srgb, var(--cyan) 10%, transparent);
-}
-
-.status-pill,
-.tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
-  background: var(--surface-2);
-  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-
-.status-pill.ok,
-.tag.ok {
-  color: var(--good);
-  border-color: color-mix(in srgb, var(--good) 46%, transparent);
-  background: rgba(85, 226, 178, 0.12);
-  background: color-mix(in srgb, var(--good) 12%, transparent);
-}
-
-.status-pill.bad {
-  color: var(--red);
-  border-color: color-mix(in srgb, var(--red) 46%, transparent);
-  background: rgba(255, 91, 114, 0.12);
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-}
-
-.detail-list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  border-top: 1px solid var(--line);
-}
-
-.detail-list div {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.5fr) minmax(0, 1fr);
-  gap: 14px;
-  min-height: 42px;
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-}
-
-.detail-list.compact div {
-  min-height: 34px;
-}
-
-.detail-list dd {
-  margin: 0;
-  text-align: right;
-  overflow-wrap: anywhere;
-  font-weight: 800;
-}
-
 .probe-grid {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  margin-top: var(--space-3);
 }
 
-.probe-card {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  min-height: 96px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+/* Boxes that scroll inside the page have a slim scroll bar. */
+.log-view,
+.table-wrap,
+.archive-motor-table-wrap,
+.docs-index,
+.markdown-body,
+.markdown-body pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-control) transparent;
 }
 
-.probe-card.wide {
-  grid-column: 1 / -1;
-}
-
-.probe-card span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.probe-card strong {
-  min-width: 0;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.35;
+.log-view {
+  width: 100%;
+  max-height: 360px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: auto;
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+  color: var(--color-text);
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-.probe-card small {
-  color: var(--dim);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.status-list,
-.interface-list,
-.container-list,
-.disk-list,
-.chip-list,
-.timeline,
-.docs-index {
+/* ---- Plan -------------------------------------------------------------- */
+.timeline {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
 }
 
-.docs-index-panel {
+.milestone p {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+/* State of a step, as a badge. */
+.milestone small {
+  justify-self: start;
+  margin-top: var(--space-2);
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-strong);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.milestone small.done {
+  background: var(--color-ok-soft);
+  color: var(--color-ok-text);
+}
+
+.milestone small.in_progress {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+/* ---- Documents --------------------------------------------------------- */
+.docs-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--page-gutter);
+  align-items: start;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
 }
 
-.doc-group {
+.docs-index-panel,
+.docs-reader-panel {
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
 }
 
 .doc-group h3 {
-  margin: 8px 0 2px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  margin: var(--space-3) 0 var(--space-1);
+  padding: 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
 }
 
-.doc-link {
-  display: grid;
-  gap: 5px;
-  min-height: 72px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
-  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-
-.doc-link:hover,
-.doc-link.active {
-  color: var(--text);
-  border-color: var(--line-strong);
-  background: linear-gradient(90deg, rgba(17, 85, 230, 0.14), rgba(242, 27, 88, 0.08));
-}
-
-.doc-link strong {
-  color: inherit;
-  font-size: 14px;
-}
-
-.doc-link small {
-  color: var(--dim);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.docs-reader-panel {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+.doc-group:first-child h3 {
+  margin-top: 0;
 }
 
 .doc-reader-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+/* The source path keeps its place beside the title while the title has at
+   least 200px; a longer path moves below the title and may break there. */
+.doc-reader-head > div {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.doc-reader-head > .text-link {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .doc-reader-head h2 {
-  margin-top: 4px;
-  font-size: clamp(22px, 3vw, 34px);
-  line-height: 1.12;
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
 }
 
 .doc-reader-head small {
   display: block;
-  margin-top: 8px;
-  color: var(--muted);
-  line-height: 1.55;
+  color: var(--color-text-secondary);
 }
 
 .markdown-body {
-  max-width: 980px;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.72;
+  max-width: 880px;
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  /* Break a word only when it does not fit its line; tables keep their columns. */
+  overflow-wrap: break-word;
 }
 
-.page[data-page="/docs"].active {
-  height: calc(100dvh - 44px);
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-}
+/* Two panes that fill the height below the status bar and scroll on their
+   own. A short screen (a phone on its side) has no room for that: there the
+   page scrolls as a whole. */
+@media (min-height: 600px) {
+  .page[data-page="/docs"].active {
+    height: calc(100dvh - var(--statusbar-height) - var(--banner-height) - 2 * var(--page-gutter));
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
 
-.page[data-page="/docs"] .page-head {
-  min-height: 150px;
-}
+  .page[data-page="/docs"] .docs-layout {
+    align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-.page[data-page="/docs"] .docs-layout {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.page[data-page="/docs"] .docs-index,
-.page[data-page="/docs"] .markdown-body {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 6px;
-  scrollbar-gutter: stable;
+  .page[data-page="/docs"] .docs-index,
+  .page[data-page="/docs"] .markdown-body {
+    min-height: 0;
+    padding-right: var(--space-2);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
 }
 
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  margin: 1.55em 0 0.55em;
-  line-height: 1.22;
+  margin: var(--space-5) 0 var(--space-2);
 }
 
 .markdown-body h1:first-child,
@@ -2172,17 +1515,21 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
 }
 
 .markdown-body h1 {
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: var(--text-xl);
+  line-height: var(--leading-xl);
 }
 
 .markdown-body h2 {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-  font-size: 24px;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
 }
 
-.markdown-body h3 {
-  font-size: 19px;
+.markdown-body h3,
+.markdown-body h4 {
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
 }
 
 .markdown-body p,
@@ -2191,64 +1538,48 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
 .markdown-body blockquote,
 .markdown-body pre,
 .markdown-body .table-wrap {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
 }
 
 .markdown-body ul,
 .markdown-body ol {
-  padding-left: 22px;
+  padding-left: var(--space-5);
 }
 
 .markdown-body li + li {
-  margin-top: 5px;
-}
-
-.markdown-body a {
-  color: var(--cyan);
-  font-weight: 900;
+  margin-top: var(--space-1);
 }
 
 .markdown-body code {
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--cyan);
-  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
-  font-size: 0.92em;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-small);
+  background: var(--color-fill);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
-.markdown-body pre {
+.markdown-body pre,
+.markdown-body .math-block {
+  padding: var(--space-3) var(--space-4);
   overflow: auto;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(3, 8, 24, 0.72);
-}
-
-:root[data-theme="light"] .markdown-body pre {
-  background: rgba(236, 241, 255, 0.86);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
 }
 
 .markdown-body pre code {
   display: block;
+  /* As wide as its longest line, so the scrolling <pre> holds the whole box. */
+  min-width: max-content;
   padding: 0;
-  border: 0;
-  color: var(--text);
   background: transparent;
   white-space: pre;
 }
 
 .markdown-body .math-block {
-  overflow-x: auto;
-  margin: 0 0 16px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--cyan) 32%, var(--line));
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 14px;
-  line-height: 1.65;
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   white-space: pre;
 }
 
@@ -2257,547 +1588,376 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
   width: auto;
   max-width: 100%;
   max-height: 760px;
-  margin: 8px auto 20px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  margin: var(--space-2) auto var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
   object-fit: contain;
-  background: var(--surface-2);
 }
 
+/* A quotation keeps the rule at its left: a convention of text, not a notice. */
 .markdown-body blockquote {
-  padding: 10px 14px;
-  border-left: 3px solid var(--cyan);
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+  padding: var(--space-1) var(--space-4);
+  border-left: 3px solid var(--color-border-control);
+  color: var(--color-text-secondary);
 }
 
 .markdown-body hr {
   height: 1px;
-  margin: 22px 0;
+  margin: var(--space-5) 0;
   border: 0;
-  background: var(--line);
+  background: var(--color-border);
 }
 
 .markdown-body .table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 .markdown-body table {
   width: 100%;
   min-width: 520px;
   border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
 .markdown-body th,
 .markdown-body td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
 }
 
+.markdown-body tr:last-child > td {
+  border-bottom: 0;
+}
+
 .markdown-body th {
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-  font-size: 12px;
-  text-transform: uppercase;
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
 }
 
-.status-item {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) minmax(54px, max-content);
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  min-width: 0;
+/* ---- GPS map panels ---------------------------------------------------- */
+.gps-map {
+  position: relative;
+  width: 100%;
+  height: clamp(340px, 38vw, 540px);
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
 }
 
-.status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--red);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--red) 40%, transparent);
+.gps-map .maplibregl-canvas {
+  outline: none;
 }
 
-.status-dot.ok {
-  background: var(--good);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--good) 40%, transparent);
-}
-
-.status-dot.warn {
-  background: var(--amber);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 40%, transparent);
-}
-
-.status-dot.neutral {
-  background: var(--cyan);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 40%, transparent);
-}
-
-.status-item strong,
-.interface-card strong,
-.container-row strong,
-.disk-row strong {
-  display: block;
-  min-width: 0;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-
-.status-item small,
-.container-row small,
-.disk-row small,
-.interface-card small {
-  display: block;
-  margin-top: 3px;
-  color: var(--dim);
-  font-size: 12px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.status-item b,
-.container-row b,
-.disk-row b {
-  min-width: 0;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.core-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.core {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 52px;
-  gap: 9px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.chip-list {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  margin-top: 14px;
-}
-
-.chip {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.disk-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 0.7fr) minmax(0, 1fr) 64px;
-  align-items: center;
-  gap: 14px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
-}
-
-.interface-list {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.interface-card {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
-}
-
-.interface-metrics {
-  display: grid;
-  gap: 8px;
-}
-
-.interface-metrics div {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.interface-metrics b {
-  color: var(--text);
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.container-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 90px 72px 96px minmax(120px, 0.8fr);
-  gap: 12px;
-  align-items: center;
-  min-height: 58px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
-  color: var(--text);
-  cursor: pointer;
-  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
-}
-
-.container-row:hover,
-.container-row:focus-visible,
-.container-row.active {
-  border-color: var(--line-strong);
-  background:
-    linear-gradient(90deg, rgba(17, 85, 230, 0.14), rgba(242, 27, 88, 0.08)),
-    color-mix(in srgb, var(--surface-2) 72%, transparent);
-}
-
-.container-row:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--cyan) 58%, transparent);
-  outline-offset: 2px;
-}
-
-.container-detail {
-  margin-bottom: 14px;
-}
-
-.container-toolbar {
-  min-width: 0;
-  max-width: 100%;
+.gps-map-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.container-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.container-actions button,
-.container-self-lock {
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 84%, transparent);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.container-actions button {
-  cursor: pointer;
-}
-
-.container-actions button:not(:disabled):hover {
-  background: linear-gradient(90deg, rgba(17, 85, 230, 0.14), rgba(242, 27, 88, 0.09));
-}
-
-.container-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
-.container-self-lock {
-  display: inline-flex;
   align-items: center;
-  color: var(--dim);
+  gap: var(--space-2) var(--space-3);
 }
 
-.container-detail-grid {
+/* Fix state beside the title: a badge with a dot. */
+.gps-map-actions [data-state]::before {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: currentColor;
+  content: "";
+}
+
+.gps-map-actions [data-state="fix"] {
+  background: var(--color-ok-soft);
+  color: var(--color-ok-text);
+}
+
+.gps-map-actions [data-state="waiting"] {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+/* Five read-outs. The position takes two tracks, so every row is full: 2+1 and 1+1+1 in three tracks,
+   2 / 1+1 / 1+1 in two tracks. The wide live panel shows all five in one row. */
+.gps-readouts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-2) var(--space-3);
 }
 
-.container-detail-grid article {
-  min-width: 0;
-  min-height: 94px;
+.gps-readouts > div:first-child {
+  grid-column: span 2;
+}
+
+@media (min-width: 1181px) {
+  .rover-gps-panel .gps-readouts {
+    grid-template-columns: 2fr 1.1fr 1.1fr 1fr 1fr;
+  }
+
+  .rover-gps-panel .gps-readouts > div:first-child {
+    grid-column: auto;
+  }
+}
+
+.gps-map-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.gps-diagnostics p,
+.field-preparation p,
+.media-jobs-note {
+  margin: 0 0 var(--space-2);
+}
+
+/* Rover mark on the map. The map tiles are light in both themes, so the mark
+   keeps one colour pair. */
+.gps-rover-marker {
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.gps-marker-dot {
+  position: absolute;
+  inset: 5px;
+  border: 3px solid var(--color-media-text);
+  border-radius: var(--radius-round);
+  background: var(--chart-1);
+  outline: 1px solid var(--color-media-bg);
+}
+
+.gps-rover-marker.stale .gps-marker-dot {
+  background: var(--color-text-disabled);
+}
+
+.gps-marker-arrow {
+  position: absolute;
+  inset: -4px;
+  display: none;
+  transform: rotate(var(--gps-course, 0deg));
+}
+
+.gps-marker-arrow::before {
+  display: block;
+  width: 0;
+  height: 0;
+  margin: -8px auto 0;
+  border-right: 7px solid transparent;
+  border-bottom: 15px solid var(--chart-1);
+  border-left: 7px solid transparent;
+  content: "";
+}
+
+.gps-rover-marker.has-course .gps-marker-arrow {
+  display: block;
+}
+
+.gps-archive-map {
+  height: 350px;
+}
+
+.gps-map .maplibregl-ctrl-attrib {
+  background: var(--color-media-text);
+  color: var(--color-media-bg);
+}
+
+.gps-map .maplibregl-ctrl-attrib a {
+  color: var(--color-media-bg);
+}
+
+/* ---- Occupancy grid map panels (live and recorded) ---------------------- */
+/* The cells themselves are drawn by the map scripts. */
+.sim-live-map-panel {
   display: grid;
-  gap: 6px;
-  align-content: start;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
 }
 
-.container-detail-grid span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
+.mapping-job-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.container-detail-grid strong {
-  min-width: 0;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.container-detail-grid small {
-  color: var(--dim);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.log-view {
-  width: 100%;
-  max-height: 360px;
-  overflow: auto;
+.mapping-job-row p {
   margin: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: rgba(3, 8, 24, 0.72);
-  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  white-space: pre-wrap;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
   overflow-wrap: anywhere;
 }
 
-:root[data-theme="light"] .log-view {
-  background: rgba(236, 241, 255, 0.9);
+.mapping-job-row button {
+  flex: 0 0 auto;
 }
 
-.empty-state {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
+.sim-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.timeline {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.sim-map-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--color-media-bg);
 }
 
-.milestone {
-  min-height: 104px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 64%, transparent);
+.sim-map-stage canvas {
+  display: block;
+  width: 100%;
+  height: 350px;
+  touch-action: none;
 }
 
-.milestone p {
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
+.sim-archive-grid .sim-map-stage canvas {
+  height: 420px;
 }
 
-.milestone small {
-  display: inline-flex;
-  margin-top: 9px;
-  color: var(--dim);
-  font-size: 11px;
-  font-weight: 900;
+.sim-map-status {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
 }
 
-.milestone small.done {
-  color: var(--good);
+.map-view-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
-@supports not (background: color-mix(in srgb, white 50%, black)) {
-  .sidebar,
-  .theme-toggle,
-  .status-pill,
-  .tag,
-  .chip,
-  .disk-row,
-  .interface-card,
-  .container-row,
-  .doc-link,
-  .probe-card,
-  .scan-progress,
-  .notice-panel,
-  .container-detail-grid article,
-  .live-status-grid div,
-  .markdown-body blockquote,
-  .empty-state,
-  .milestone {
-    background: var(--surface-2);
-  }
+.map-segment-gallery {
+  display: flex;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-2) 0;
+  overflow-x: auto;
 }
 
-@media (max-width: 1180px) {
-  body.nav-open {
-    overflow: hidden;
-  }
-
-  .mobile-topbar {
-    position: sticky;
-    top: 0;
-    z-index: 35;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    min-height: 62px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--surface) 90%, transparent);
-    backdrop-filter: blur(18px);
-  }
-
-  .mobile-brand {
-    min-width: 0;
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 950;
-    letter-spacing: 0;
-  }
-
-  .menu-button {
-    position: relative;
-    width: 44px;
-    height: 40px;
-    display: inline-grid;
-    place-items: center;
-    flex: 0 0 auto;
-    border: 1px solid var(--line-strong);
-    border-radius: 8px;
-    color: var(--text);
-    background: var(--surface-2);
-    cursor: pointer;
-  }
-
-  .menu-button span {
-    position: absolute;
-    width: 18px;
-    height: 2px;
-    border-radius: 999px;
-    background: currentColor;
-    transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
-  }
-
-  .menu-button span:nth-child(1) {
-    transform: translateY(-6px);
-  }
-
-  .menu-button span:nth-child(3) {
-    transform: translateY(6px);
-  }
-
-  body.nav-open .menu-button span:nth-child(1) {
-    transform: rotate(45deg);
-  }
-
-  body.nav-open .menu-button span:nth-child(2) {
-    opacity: 0;
-    transform: scaleX(0.5);
-  }
-
-  body.nav-open .menu-button span:nth-child(3) {
-    transform: rotate(-45deg);
-  }
-
-  .mobile-nav-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    display: block;
-    border: 0;
-    opacity: 0;
-    pointer-events: none;
-    background: rgba(2, 6, 18, 0.56);
-    backdrop-filter: blur(2px);
-    transition: opacity 240ms ease;
-  }
-
-  body.nav-open .mobile-nav-backdrop {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 40;
-    width: min(84vw, 312px);
-    height: 100dvh;
-    padding: 20px;
-    transform: translate3d(-104%, 0, 0);
-    opacity: 0.92;
-    pointer-events: none;
-    overflow-y: auto;
-    box-shadow: 22px 0 52px rgba(0, 0, 0, 0.32);
-    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease;
-    will-change: transform;
-  }
-
-  body.nav-open .sidebar {
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .sidebar-footer {
-    margin-top: auto;
-    margin-left: 0;
-    min-width: 0;
-  }
-
-  .kpi-grid,
-	  .fan-control-grid,
-	  .dashboard-grid,
-	  .rover-layout,
-	  .resource-grid,
-	  .docs-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .chart-frame,
-	  .lidar-map-frame,
-	  .camera-live-layout,
-	  .archive-layout,
-	  .archive-media-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .page[data-page="/connection"] .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
+.map-segment-card {
+  flex: 0 0 160px;
+  min-width: 0;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-@media (min-width: 900px) and (max-width: 1180px) {
-  .kpi-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+.map-segment-card[aria-pressed="true"] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
 
+.map-segment-card img {
+  display: block;
+  width: 100%;
+  height: 96px;
+  border-radius: var(--radius-small);
+  background: var(--color-media-bg);
+  object-fit: contain;
+}
+
+.map-segment-card span {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Field test preparation and observation block of the drive panel ---- */
+.field-preparation {
+  min-width: 0;
+}
+
+.field-preparation ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-5);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+.field-check-passed {
+  color: var(--color-text-secondary);
+}
+
+.field-check-pending {
+  color: var(--color-text);
+}
+
+.field-observation {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.field-observation h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.field-observation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.field-observation p strong {
+  color: var(--color-text);
+}
+
+.field-observation-notice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+}
+
+/* ---- Recording video conversion jobs ----------------------------------- */
+.media-job {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.media-job-description {
+  flex: 1 1 280px;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+.media-job-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- From 900px: three columns on the drive page ----------------------- */
+@media (min-width: 900px) {
+  /* The first row is as tall as the drive panel; the rest of the tall sensor
+     panels goes to the second row, so no gap opens under the drive panel. */
   .rover-layout {
     grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) minmax(220px, 0.78fr);
-    align-items: start;
+    grid-template-rows: auto 1fr;
   }
 
   .rover-lidar-panel {
@@ -2813,14 +1973,6 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
   .rover-drive-panel {
     grid-column: 3;
     grid-row: 1;
-    position: sticky;
-    top: 76px;
-    z-index: 2;
-  }
-
-  .rover-layout.drive-collapsed .rover-record-panel {
-    grid-column: 3;
-    grid-row: 2;
   }
 
   .rover-record-panel {
@@ -2836,85 +1988,83 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
     width: min(100%, clamp(260px, 29vw, 360px));
   }
 
-  .rover-camera-frame {
-    aspect-ratio: 16 / 9;
-  }
-
-  .rover-camera-frame img {
-    min-height: 0;
-  }
-
   .rover-sensor-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .rover-drive-panel .chart-readout.compact {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    padding: 8px;
-  }
-
-  .rover-drive-panel .chart-readout.compact .readout-row {
-    min-height: 34px;
-  }
-
-  .rover-pad {
-    gap: 6px;
-    margin: 12px 0;
-  }
-
-  .rover-pad button {
-    min-height: 52px;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
+@media (min-width: 1181px) {
+  .rover-layout {
+    grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) minmax(240px, 0.78fr);
+  }
+
+  .rover-lidar-stage {
+    min-height: clamp(300px, 24vw, 430px);
+  }
+
+  .rover-lidar-stage .lidar-map {
+    width: min(100%, clamp(300px, 23vw, 430px));
+  }
+
+  /* The full-width CPU card lists the cores four across. */
+  .core-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* A mouse does not need the tall hold buttons: the drive panel stays short. */
+@media (min-width: 1181px) and (pointer: fine) {
+  .rover-layout .rover-pad button {
+    min-height: 44px;
+  }
+}
+
+/* ---- Up to 1180px ------------------------------------------------------ */
+@media (max-width: 1180px) {
+  .lidar-map-frame,
+  .camera-live-layout,
+  .archive-layout,
+  .archive-media-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page[data-page="/connection"] .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The two half-width panels of the connection page share a row (they are not
+   neighbours in the markup; the wide panels keep their order). */
+@media (min-width: 1181px) {
+  .page[data-page="/connection"] .dashboard-grid {
+    grid-auto-flow: dense;
+  }
+}
+
+@media (max-width: 900px) {
+  .archive-imu-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Up to 760px: one column ------------------------------------------- */
 @media (max-width: 760px) {
-  .main-surface {
-    padding: 14px;
-  }
-
-  .sidebar {
-    gap: 18px;
-    padding: 18px;
-  }
-
-  .sidebar-footer {
-    margin-left: 0;
-    min-width: 0;
-  }
-
-  .page {
-    gap: 14px;
-  }
-
-  .page-head,
-  .panel,
-  .kpi {
-    border-radius: 8px;
-  }
-
-  .page-head {
-    min-height: 150px;
-    grid-template-columns: 1fr;
-    padding: 20px;
-  }
-
-  .kpi-grid,
-  .network-focus-grid,
-	  .fan-control-grid,
-	  .dashboard-grid,
-	  .rover-layout,
-	  .resource-grid,
-	  .docs-layout,
+  .fan-control-grid,
+  .dashboard-grid,
+  .rover-layout,
+  .resource-grid,
+  .docs-layout,
   .timeline,
-  .live-status-grid,
   .core-grid,
-  .core-chart-grid {
-    grid-template-columns: 1fr;
+  .core-chart-grid,
+  .probe-grid,
+  .container-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .resource-chart {
-    height: 190px;
+  .resource-chart,
+  .chart-panel .resource-chart {
+    height: 170px;
   }
 
   .lidar-map-stage {
@@ -2930,42 +2080,32 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
     aspect-ratio: 4 / 3;
   }
 
-	  .record-button-grid {
-	    grid-template-columns: 1fr;
-	  }
+  .record-button-grid {
+    flex-direction: column;
+  }
 
-	  .rover-sensor-controls,
-	  .archive-media-grid {
-	    grid-template-columns: 1fr;
-	  }
+  .record-button-grid .action-button {
+    flex: 0 0 auto;
+  }
+
+  .rover-sensor-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
   .rover-camera-frame {
     min-height: min(220px, 56vw);
   }
 
-  .rover-frame-panel {
-    min-height: 460px;
-  }
-
-  .rover-proxy-frame {
-    min-height: 390px;
-  }
-
-  .map-hint {
-    position: static;
-    width: 100%;
-    margin-top: 10px;
-  }
-
   .container-row,
-  .disk-row,
-  .detail-list div {
-    grid-template-columns: 1fr;
-    gap: 7px;
+  .disk-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-2);
   }
 
-  .container-detail-grid {
-    grid-template-columns: 1fr;
+  .disk-row {
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .container-row b,
@@ -2973,40 +2113,14 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
     text-align: left;
   }
 
-  .detail-list dd {
-    text-align: left;
-  }
-
-  .panel-head {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .panel-actions {
-    justify-items: start;
-  }
-
-  .fan-head-actions {
-    width: 100%;
-    justify-items: stretch;
-  }
-
-  .fan-mode-toggle {
-    width: 100%;
-  }
-
-  .page[data-page="/connection"] .panel-actions {
-    justify-content: flex-start;
-  }
-
-  .page[data-page="/connection"] .panel-actions .action-button {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-
   .status-item {
-    grid-template-columns: 10px minmax(0, 1fr);
+    grid-template-columns: 8px minmax(0, 1fr);
+    row-gap: 2px;
     align-items: start;
+  }
+
+  .status-item .status-dot {
+    margin-top: 6px;
   }
 
   .status-item b {
@@ -3014,16 +2128,13 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
     text-align: left;
   }
 
-  .preset-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .slider-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 
-  .probe-grid {
-    grid-template-columns: 1fr;
+  .slider-row b {
+    text-align: left;
   }
 
   .page[data-page="/docs"].active {
@@ -3044,63 +2155,182 @@ select[data-network-profile] { width: auto; margin-left: 8px; }
 
   .doc-reader-head {
     flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .doc-reader-head > div {
+    flex: 0 0 auto;
   }
 }
 
-.simulation-banner { position: sticky; top: 0; z-index: 100; padding: 8px 18px; background: #174a68; color: #fff; text-align: center; font-weight: 700; }
-.simulation-banner[hidden] { display: none; }
-.archive-video-quality {
-  position: absolute; right: 10px; top: 10px; z-index: 2;
-  padding: 5px 8px; border-radius: 6px; background: #111827dd; color: #fff;
-  border: 1px solid #64748b; font-size: 12px;
+@media (max-width: 720px) {
+  .gps-readouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gps-map {
+    height: 350px;
+  }
+
+  .gps-map-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
 }
 
-/* Compact synchronized archive view. No duplicate sensor subscriptions. */
-.archive-camera-source{max-width:100%;margin:4px 8px 6px;z-index:4;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px}
-.archive-preview.sensor-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
-.sensor-overview>.archive-player-toolbar,.sensor-overview>.archive-scrubber,.sensor-overview>.archive-map-control,.sensor-overview>.archive-download-actions{grid-column:1/-1}
-.sensor-overview>.archive-media-grid{display:contents}
-.sensor-overview>.status-list{grid-column:1/-1;order:8}
-.sensor-overview .rover-lidar-stage,.sensor-overview .archive-camera-frame,.sensor-overview .sim-map-stage,.sensor-overview .gps-archive-map{height:240px;min-height:0}
-.sensor-overview .archive-imu-grid{grid-template-columns:1fr}
-.sensor-overview .archive-imu-attitude-stage{height:160px}
-.sensor-overview .archive-camera-frame video,.sensor-overview .archive-camera-frame img{height:210px;object-fit:contain}
-.sensor-overview .gps-readouts{grid-template-columns:repeat(2,minmax(0,1fr))}
-@media(min-width:1500px){.archive-preview.sensor-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:700px){.archive-preview.sensor-overview{grid-template-columns:1fr}}
+@media (max-width: 700px) {
+  .mapping-job-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 
-/* Replay cards use their container width; canvas height matches its stage. */
-.archive-layout{container-type:inline-size}
-.archive-layout:has(.sensor-overview){grid-template-columns:minmax(0,1fr)}
-.archive-layout:has(.sensor-overview)>.archive-list{display:flex;gap:8px;overflow-x:auto;max-height:104px;min-width:0;padding-bottom:4px}
-.archive-layout:has(.sensor-overview)>.archive-list button{flex:0 0 220px;padding:8px;gap:4px}
-.archive-layout:has(.sensor-overview)>.archive-list strong{font-size:12px}
-.archive-layout:has(.sensor-overview)>.archive-list small{font-size:10px}
-.archive-preview.sensor-overview{grid-template-columns:minmax(0,1fr)}
-.sensor-overview > section,.sensor-overview .archive-media-grid > *{min-width:0;align-self:start;overflow-wrap:anywhere}
-.sensor-overview .panel-head{gap:8px;flex-wrap:wrap}
-.sensor-overview [hidden]{display:none!important}
-.sensor-overview .sim-map-stage{height:220px}
-.archive-preview.sensor-overview .sim-map-stage canvas{height:100%;min-height:0}
-.sensor-overview .rover-lidar-stage{height:220px}
-.sensor-overview .rover-lidar-stage canvas{height:100%;min-height:0;width:100%}
-.sensor-overview .archive-camera-frame{height:220px;min-height:0}
-.sensor-overview .archive-camera-frame video,.sensor-overview .archive-camera-frame img{height:100%;min-height:0}
-.sensor-overview .archive-imu-attitude-stage,.sensor-overview .archive-imu-attitude-stage canvas{height:190px;min-height:0;width:100%}
-.sensor-overview .archive-imu-grid{grid-template-columns:minmax(0,1fr)}
-.sensor-overview .chart-readout,.sensor-overview .gps-readouts{grid-template-columns:repeat(2,minmax(0,1fr))}
-.sensor-overview .chart-readout > *,.sensor-overview .gps-readouts > *{min-width:0;overflow-wrap:anywhere}
-.sensor-overview .archive-video-quality{top:44px;max-width:calc(100% - 20px)}
-.sensor-overview .archive-camera-source{position:absolute;top:4px;left:4px;max-width:calc(100% - 16px);margin:0}
-.sensor-overview .archive-camera-frame figcaption{font-size:10px;padding:4px 6px}
-.sensor-overview .archive-motor-table-wrap{max-width:100%;overflow-x:auto}
-.sensor-overview .gps-archive-map{height:220px}
-.sensor-overview .gps-readouts{gap:6px;margin-top:6px}
-.sensor-overview .gps-readouts>div{padding:6px}
-.sensor-overview .gps-readouts strong{font-size:11px}
-.sensor-overview .gps-map-footer,.sensor-overview .gps-caption{font-size:10px}
-.sensor-overview .map-segment-card img{height:52px}
-.sensor-overview .map-segment-card{flex-basis:132px}
-.sensor-overview .sim-map-note{margin:5px 0}
-@container(min-width:760px){.archive-preview.sensor-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container(min-width:1300px){.archive-preview.sensor-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width: 600px) {
+  .sim-map-stage canvas,
+  .sim-archive-grid .sim-map-stage canvas {
+    height: 300px;
+  }
+
+  .sim-map-actions .action-button {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---- Recordings: all sensors at a glance ------------------------------- */
+/* Compact synchronized archive view. No duplicate sensor subscriptions.
+   Replay cards use their container width; canvas height matches its stage. */
+.archive-layout:has(.sensor-overview) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.archive-layout:has(.sensor-overview) > .archive-list {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  max-height: 104px;
+  padding-bottom: var(--space-1);
+  overflow-x: auto;
+}
+
+.archive-layout:has(.sensor-overview) > .archive-list button {
+  flex: 0 0 220px;
+  border: 1px solid var(--color-border);
+}
+
+.archive-preview.sensor-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.sensor-overview > .archive-player-toolbar,
+.sensor-overview > .archive-scrubber,
+.sensor-overview > .archive-map-control,
+.sensor-overview > .archive-download-actions {
+  grid-column: 1 / -1;
+}
+
+.sensor-overview > .archive-media-grid {
+  display: contents;
+}
+
+.sensor-overview > .status-list {
+  grid-column: 1 / -1;
+  order: 8;
+}
+
+.sensor-overview > section,
+.sensor-overview .archive-media-grid > * {
+  align-self: start;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sensor-overview .panel-head {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sensor-overview [hidden] {
+  display: none !important;
+}
+
+.sensor-overview .sim-map-stage,
+.sensor-overview .rover-lidar-stage,
+.sensor-overview .archive-camera-frame,
+.sensor-overview .gps-archive-map {
+  height: 220px;
+  min-height: 0;
+}
+
+.archive-preview.sensor-overview .sim-map-stage canvas {
+  height: 100%;
+  min-height: 0;
+}
+
+.sensor-overview .rover-lidar-stage canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.sensor-overview .archive-camera-frame video,
+.sensor-overview .archive-camera-frame img {
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.sensor-overview .archive-imu-attitude-stage,
+.sensor-overview .archive-imu-attitude-stage canvas {
+  width: 100%;
+  height: 190px;
+  min-height: 0;
+}
+
+.sensor-overview .archive-imu-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sensor-overview .chart-readout,
+.sensor-overview .gps-readouts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sensor-overview .chart-readout > *,
+.sensor-overview .gps-readouts > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sensor-overview .archive-video-quality {
+  top: calc(var(--control-height) + var(--space-3));
+}
+
+.sensor-overview .archive-camera-source {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  margin: 0;
+}
+
+.sensor-overview .map-segment-card img {
+  height: 52px;
+}
+
+.sensor-overview .map-segment-card {
+  flex-basis: 132px;
+}
+
+@container (min-width: 760px) {
+  .archive-preview.sensor-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 1300px) {
+  .archive-preview.sensor-overview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -67,5 +67,6 @@ python -I tools/steer_sim/capture_media.py still --frames <기록>/media/cam --i
 python -I tools/steer_sim/capture_media.py page --out <파일>.png --wait-s 12
 ```
 
+- 대시보드(2026-11-13, D-13): 대시보드 레포의 새 화면 사본(`dashboard/DASHBOARD_SOURCE.json`)과 SIM 확장(`dashboard_sim/`)이며 sim 네트워크 이름공간에서 돈다(18090 은 sim 서비스가 낸다). 실행기 운영자 페이지를 127.0.0.1:8097 로 부른다. `docs/steering/SIM_DASHBOARD_KO.md`.
 - 개요(Overview) 화면에는 PC 주소가 보인다. rover-control 화면만 갈무리하고, 넣기 전에 사용자 이름·주소·좌표가 없는지 눈으로 본다.
 - 실행기와 검사를 같이 쓰는 스택(대시보드 없음)에서는 화면 갈무리를 할 수 없다. 화면은 기본 스택에서, 주행 영상은 실행기 스택에서 따로 갈무리한다.

@@ -21,8 +21,10 @@ from pathlib import Path
 from typing import Any
 import urllib.request
 from collections import OrderedDict
+from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from dashboard_server.motor_pwm import with_recorded_motor
 from dashboard_server.playback_profile import POLAR_PROFILE, point_fields
+from dashboard_server.telemetry_cache import light_timeline, TimelineLoadUnavailable
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "dashboard.json"
@@ -295,6 +297,20 @@ class TelemetryProvider:
         self._external_ip_value: str | None = None
         self._external_ip_error: str | None = None
         self._external_ip_next_refresh = 0.0
+        self._external_ip_thread: threading.Thread | None = None
+        # Slow collectors are refreshed in the background (S03/S23); requests
+        # read the last value. Docker stats take about 1 s per container.
+        self._docker_lock = threading.Lock()
+        self._docker_value: dict[str, Any] | None = None
+        self._docker_at = 0.0
+        self._docker_thread: threading.Thread | None = None
+        self._docker_refresh_s = max(1.0, float(os.environ.get("TELEMETRY_DOCKER_REFRESH_S", "10")))
+        self._docker_yield_refresh_s = max(1.0, float(os.environ.get("TELEMETRY_DOCKER_YIELD_REFRESH_S", "60")))
+        self.docker_yield: Any = None  # callable -> True while background work must yield
+        self._disks_cache: tuple[float, list[dict[str, Any]]] | None = None
+        self._disks_ttl_s = max(0.0, float(os.environ.get("TELEMETRY_DISKS_TTL_S", "30")))
+        self._holders_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+        self._holders_ttl_s = max(0.0, float(os.environ.get("TELEMETRY_DEVICE_HOLDERS_TTL_S", "5")))
         self._last_lidar_test: dict[str, Any] | None = None
         self._last_lidar_scan: dict[str, Any] | None = None
         self._timeline_cache: OrderedDict[str, tuple[int, int, dict[str, Any]]] = (
@@ -304,6 +320,12 @@ class TelemetryProvider:
         self._timeline_cache_limit = max(
             1, int(os.environ.get("ARCHIVE_TIMELINE_CACHE_COUNT", "2"))
         )
+        # Owners run in existing HTTP requests. No executor/background thread is
+        # created; even distinct recordings cannot accumulate unbounded parses.
+        self._timeline_loads: dict[tuple[str, int, int], Future] = {}
+        self._timeline_load_slots = threading.BoundedSemaphore(self._timeline_cache_limit)
+        self._timeline_wait_slots = threading.BoundedSemaphore(4 * self._timeline_cache_limit)
+        self._light_timeline_cache: OrderedDict[str, tuple[int, int, dict[str, Any]]] = OrderedDict()
         self._playback_cache_lock = threading.RLock()
         self._rover_status_cache: dict[str, Any] | None = None
         self._rover_status_next_refresh = 0.0
@@ -334,19 +356,22 @@ class TelemetryProvider:
             "host": self._hostname(),
         }
 
-    def telemetry(self) -> dict[str, Any]:
+    def telemetry(self, include_rover: bool = True) -> dict[str, Any]:
+        # include_rover=False is used by the shared snapshot, which reads the
+        # rover state again for every request (telemetry_snapshot.py).
         external = (
             _load_json(self.telemetry_file) if self.telemetry_file.exists() else {}
         )
-        connection = self.connection(external)
+        connection = self.connection(external, include_rover=include_rover)
         payload = {
             "meta": self._meta(),
             "system": self.system(),
             "network": self.network(),
-            "docker": self.docker(),
+            "docker": self.docker_cached(),
             "fan": self.fan_status(),
             "connection": connection,
-            "rover": external.get("rover", self.rover_status()),
+            "rover": external["rover"] if "rover" in external else (self.rover_status() if include_rover else None),
+            "rover_source": "external" if "rover" in external else "rover_bridge",
             "sensors": connection["sensors"],
             "experiment": external.get("experiment", self._not_connected("experiment")),
             "mission": external.get("mission", self._mission_status()),
@@ -355,7 +380,7 @@ class TelemetryProvider:
         }
         return payload
 
-    def connection(self, external: dict[str, Any] | None = None) -> dict[str, Any]:
+    def connection(self, external: dict[str, Any] | None = None, include_rover: bool = True) -> dict[str, Any]:
         external = external or (
             _load_json(self.telemetry_file) if self.telemetry_file.exists() else {}
         )
@@ -370,17 +395,56 @@ class TelemetryProvider:
             "camera_bridge": camera_bridge,
             "imu_bridge": imu_bridge,
             "rover_bridge": rover_bridge,
-            "rover": self.rover_status(),
+            "rover": self.rover_status() if include_rover else None,
             "services": self._services(
                 external, lidar_bridge, camera_bridge, imu_bridge, rover_bridge
             ),
             "sensors": self._sensors(external, lidar_bridge, camera_bridge, imu_bridge),
         }
 
+    def _disks_cached(self) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        cached = self._disks_cache
+        if cached is not None and now - cached[0] < self._disks_ttl_s:
+            return cached[1]
+        disks = self._disks()
+        self._disks_cache = (now, disks)
+        return disks
+
+    def docker_cached(self) -> dict[str, Any]:
+        """Last Docker summary, refreshed by one background thread.
+
+        Refresh period: 10 s, or 60 s while autonomy has resource priority."""
+        now = time.monotonic()
+        try:
+            yielding = bool(self.docker_yield()) if callable(self.docker_yield) else False
+        except Exception:
+            yielding = False
+        period = self._docker_yield_refresh_s if yielding else self._docker_refresh_s
+        with self._docker_lock:
+            value, at = self._docker_value, self._docker_at
+            running = self._docker_thread is not None and self._docker_thread.is_alive()
+            if (value is None or now - at >= period) and not running:
+                self._docker_thread = threading.Thread(target=self._refresh_docker, daemon=True,
+                                                       name="telemetry-docker")
+                self._docker_thread.start()
+        if value is None:
+            return {"available": False, "pending": True, "error": "Docker 상태 수집 중", "containers": []}
+        return {**value, "age_s": round(max(0.0, now - at), 1)}
+
+    def _refresh_docker(self) -> None:
+        try:
+            value = self.docker()
+        except Exception as exc:  # never let the background thread die silently with a stale lock
+            value = {"available": False, "error": str(exc), "containers": []}
+        with self._docker_lock:
+            self._docker_value = value
+            self._docker_at = time.monotonic()
+
     def system(self) -> dict[str, Any]:
         memory = self._memory()
         swap = self._swap()
-        disks = self._disks()
+        disks = self._disks_cached()
         cpu = self._cpu_percent()
         return {
             "hostname": self._hostname(),
@@ -870,6 +934,9 @@ class TelemetryProvider:
             .upper()[:4]
             or "MJPG"
         )
+        locked = self._camera_size_change_locked(int(mode["width"]), int(mode["height"]))
+        if locked is not None:
+            return {**locked, "supported_view_modes": modes}
         settings = {
             "updated_at": time.time(),
             "source": "dashboard",
@@ -893,6 +960,37 @@ class TelemetryProvider:
             "settings": settings,
             "settings_file": str(self.camera_settings_file),
             "supported_view_modes": modes,
+        }
+
+    def _camera_size_change_locked(self, width: int, height: int) -> dict[str, Any] | None:
+        """A frame-size change is refused unless the recorder is known not to record camera.
+
+        The camera export keeps one frame size per recording and rejects a size
+        change inside it, so a mid-recording resolution change would lose that
+        recording's video. FPS-only changes keep the size and stay allowed.
+        """
+        current = self.camera_settings().get("settings", {})
+        try:
+            if (int(current.get("width")), int(current.get("height"))) == (width, height):
+                return None
+        except (TypeError, ValueError):
+            pass
+        recording = self.recording_status()
+        if recording.get("active") is False:
+            return None
+        if recording.get("active") is True and recording.get("kind") == "lidar":
+            return None
+        error = (
+            "camera_resolution_locked_while_recording"
+            if recording.get("active") is True
+            else "camera_resolution_change_needs_idle_recorder"
+        )
+        return {
+            "ok": False,
+            "error": error,
+            "recording_id": recording.get("recording_id"),
+            "recorder_state": recording.get("state"),
+            "current_resolution": current.get("resolution"),
         }
 
     def camera_status(self) -> dict[str, Any]:
@@ -1051,11 +1149,7 @@ class TelemetryProvider:
     def recordings(self) -> dict[str, Any]:
         rows: list[dict[str, Any]] = []
         if self.recording_archive_dir.exists():
-            for path in sorted(
-                self.recording_archive_dir.iterdir(),
-                key=lambda item: item.stat().st_mtime if item.exists() else 0,
-                reverse=True,
-            ):
+            for path in self.recording_archive_dir.iterdir():
                 if not path.is_dir():
                     continue
                 metadata = _load_json(path / "metadata.json")
@@ -1066,6 +1160,7 @@ class TelemetryProvider:
                         "kind": metadata.get("kind") or "unknown",
                         "state": metadata.get("state") or "archived",
                         "started_at": metadata.get("started_at"),
+                        **__import__("dashboard_server.recording_clock", fromlist=["display_clock"]).display_clock(path, metadata),
                         "finished_at": metadata.get("finished_at"),
                         "duration_s": metadata.get("duration_s"),
                         "path": str(path),
@@ -1075,7 +1170,7 @@ class TelemetryProvider:
         return {
             "ok": True,
             "archive_dir": str(self.recording_archive_dir),
-            "recordings": rows,
+            "recordings": sorted(rows, key=__import__("dashboard_server.recording_clock", fromlist=["sort_key"]).sort_key, reverse=True),
         }
 
     def _recording_archive_count(self) -> int:
@@ -1137,6 +1232,7 @@ class TelemetryProvider:
         ) and summary["imu_frames"] is not None:
             return summary
         timeline_path = path / "timeline.json"
+
         if not timeline_path.exists():
             summary.update({"ok": False, "source": "missing"})
             return summary
@@ -1204,10 +1300,12 @@ class TelemetryProvider:
                 "kind": metadata.get("kind"),
                 "metadata": metadata,
                 "preview_scan": preview_scan,
+                **__import__("dashboard_server.recording_clock", fromlist=["display_clock"]).display_clock(path, metadata),
                 "timeline_summary": timeline_summary,
                 "download_url": f"/api/recordings/{path.name}/download",
                 "source_video": public_video or None,
                 "adaptive_video": adaptive,
+                "video_preparation": _load_json(path / "video_preparation.json"),
                 "video_url": f"/api/recordings/{path.name}/video?v={source_video.get('bytes')}"
                 if source_video and not adaptive
                 else adaptive.get('fallback_url') if adaptive else None,
@@ -1294,7 +1392,10 @@ class TelemetryProvider:
             )
             if cached_segment:
                 return response(cached_segment)
-        timeline = self._load_recording_timeline(timeline_path)
+        try:
+            timeline = self._load_recording_timeline(timeline_path)
+        except TimelineLoadUnavailable as error:
+            return {"ok": False, "error": str(error), "id": recording_id}
         if not timeline:
             # Missing previews are prepared explicitly offline. Never scan a
             # complete raw recording in this HTTP handler or steal live CPU.
@@ -1327,28 +1428,29 @@ class TelemetryProvider:
             start=max(0.0,start);duration=min(24.0,max(.5,duration))
         except (ValueError,TypeError):return dict(ok=False,error='invalid_telemetry_window')
         cache_dir=self._playback_cache_path(path,timeline_path)
-        if cache_dir is None or self._valid_playback_manifest(cache_dir,timeline_path) is None:
-            timeline=self._load_recording_timeline(timeline_path)
+        manifest=self._valid_playback_manifest(cache_dir,timeline_path) if cache_dir is not None else None
+        first=max(0,int(start//PLAYBACK_SEGMENT_SECONDS)-1)
+        last=int((start+duration)//PLAYBACK_SEGMENT_SECONDS)
+        parts=[]
+        if manifest and isinstance(manifest.get('segment_count'),int):
+            # Existing small files remain compatible. Never manufacture them by
+            # reparsing LiDAR-rich segment JSON on the light request path.
+            indices=range(first,min(last+1,manifest['segment_count']))
+            parts=[light_segment(cache_dir,index,cached_only=True) for index in indices]
+        if not parts or any(part is None for part in parts):
+            try:timeline=self._load_recording_light_timeline(timeline_path)
+            except TimelineLoadUnavailable as error:return dict(ok=False,error=str(error))
             if not timeline:
                 from .lidar_preview_recovery import window
                 try: prepared=window(path,self.recording_playback_cache_dir,start,duration)
                 except (OSError,ValueError,TypeError,KeyError): prepared=None
                 if prepared is None:return dict(ok=False,error='preview_recovery_required')
-                timeline=prepared['telemetry']
-                result=self._recording_timeline_segment(timeline,start,duration)
-                result=self._with_recorded_gps(path,result,start,duration)
-                result=with_recorded_motor(path,result,start,duration)
-                result=self._playback_response_profile(result,POLAR_PROFILE)
-                result['playback']['profile']='dashboard-telemetry-v1'
-                return dict(ok=True,timeline=result)
-            self._build_playback_cache(path,timeline_path,timeline,(0.0,0))
-            self._drop_timeline_cache(timeline_path)
-        first=max(0,int(start//PLAYBACK_SEGMENT_SECONDS)-1)
-        last=int((start+duration)//PLAYBACK_SEGMENT_SECONDS)
+                timeline=light_timeline(prepared['telemetry'])
+            # Reuse the existing dedup/window response contract, but only over
+            # the requested small sensor slice, never the LiDAR-rich timeline.
+            parts=[self._recording_timeline_segment(timeline,start,duration)]
         combined={};frames={key:{} for key in ('imu','gps','motor')}
-        for index in range(first,last+1):
-            part=light_segment(cache_dir,index)
-            if not part:continue
+        for part in parts:
             combined.update({k:v for k,v in part.items() if k not in frames})
             for kind in frames:
                 section=part.get(kind) or {}
@@ -1669,13 +1771,18 @@ class TelemetryProvider:
             key = str(timeline_path)
         with self._timeline_cache_lock:
             self._timeline_cache.pop(key, None)
+            # The bounded light projection retains no LiDAR/camera references.
+            # Dropping the expensive full view must not force another cold parse.
 
     def _prewarm_playback_cache(self, recording_id: str) -> None:
         archive = self.recording_archive_path(recording_id)
         if archive is None or not archive.is_dir():
             return
         timeline_path = archive / "timeline.json"
-        timeline = self._load_recording_timeline(timeline_path)
+        try:
+            timeline = self._load_recording_timeline(timeline_path)
+        except TimelineLoadUnavailable:
+            return
         if not timeline:
             return
         try:
@@ -1686,26 +1793,118 @@ class TelemetryProvider:
             self._drop_timeline_cache(timeline_path)
 
     def _load_recording_timeline(self, timeline_path: Path) -> dict[str, Any]:
-        try:
-            stat = timeline_path.stat()
-        except OSError:
+        deadline = time.monotonic() + 30.0
+        signature = self._playback_source_signature(timeline_path)
+        if signature is None:
             return {}
         key = str(timeline_path.resolve())
-        signature = (stat.st_mtime_ns, stat.st_size)
+        flight_key = (key, *signature)
         with self._timeline_cache_lock:
             cached = self._timeline_cache.get(key)
             if cached and cached[:2] == signature:
                 self._timeline_cache.move_to_end(key)
                 return cached[2]
-        timeline = _load_json(timeline_path)
-        if not timeline:
+            future = self._timeline_loads.get(flight_key)
+        if future is not None:
+            return self._wait_for_timeline_load(future, timeline_path, signature, deadline)
+        owns_slot = self._timeline_load_slots.acquire(blocking=False)
+        if not owns_slot:
+            if not self._timeline_wait_slots.acquire(blocking=False):
+                raise TimelineLoadUnavailable('timeline_load_busy')
+            try:
+                owns_slot = self._timeline_load_slots.acquire(timeout=max(0.0, deadline - time.monotonic()))
+            finally:
+                self._timeline_wait_slots.release()
+            if not owns_slot:
+                raise TimelineLoadUnavailable('timeline_load_timeout')
+        future = None
+        owner = False
+        try:
+            # Admission wait is outside the shared lock. Never publish a parse
+            # against the signature seen before a source replacement.
+            if self._playback_source_signature(timeline_path) != signature:
+                raise TimelineLoadUnavailable('timeline_source_changed')
+            with self._timeline_cache_lock:
+                cached = self._timeline_cache.get(key)
+                if cached and cached[:2] == signature:
+                    self._timeline_cache.move_to_end(key)
+                    return cached[2]
+                future = self._timeline_loads.get(flight_key)
+                if future is None:
+                    future = Future()
+                    self._timeline_loads[flight_key] = future
+                    owner = True
+            if not owner:
+                self._timeline_load_slots.release()
+                owns_slot = False
+                return self._wait_for_timeline_load(future, timeline_path, signature, deadline)
+            timeline = _load_json(timeline_path)
+            # Loading/parsing occurs in this request, outside all cache locks.
+            with self._timeline_cache_lock:
+                # The metadata check belongs at publication, after acquiring
+                # this short lock; an older owner cannot overwrite a newer
+                # generation that finished while it waited for the lock.
+                if self._playback_source_signature(timeline_path) != signature:
+                    raise TimelineLoadUnavailable('timeline_source_changed')
+                if timeline:
+                    self._timeline_cache[key] = (*signature, timeline)
+                    self._timeline_cache.move_to_end(key)
+                    self._light_timeline_cache[key] = (*signature, light_timeline(timeline))
+                    self._light_timeline_cache.move_to_end(key)
+                    while len(self._timeline_cache) > self._timeline_cache_limit:
+                        self._timeline_cache.popitem(last=False)
+                    while len(self._light_timeline_cache) > self._timeline_cache_limit:
+                        self._light_timeline_cache.popitem(last=False)
+                future.set_result(timeline)
+            if self._playback_source_signature(timeline_path) != signature:
+                raise TimelineLoadUnavailable('timeline_source_changed')
+            return timeline
+        except BaseException as error:
+            if owner and future is not None and not future.done():
+                future.set_exception(error)
+            raise
+        finally:
+            if owner:
+                with self._timeline_cache_lock:
+                    if self._timeline_loads.get(flight_key) is future:
+                        self._timeline_loads.pop(flight_key)
+            if owns_slot:
+                self._timeline_load_slots.release()
+
+    def _wait_for_timeline_load(self, future, timeline_path, signature, deadline=None):
+        if deadline is None:
+            deadline = time.monotonic() + 30.0
+        if not self._timeline_wait_slots.acquire(blocking=False):
+            raise TimelineLoadUnavailable('timeline_load_busy')
+        try:
+            try:
+                timeline = future.result(timeout=max(0.0, deadline - time.monotonic()))
+            except FutureTimeoutError:
+                if not future.done():
+                    raise TimelineLoadUnavailable('timeline_load_timeout')
+                # An owner's TimeoutError is an owner failure, not our wait
+                # deadline. Re-read a completed Future to preserve its outcome.
+                timeline = future.result()
+            if self._playback_source_signature(timeline_path) != signature:
+                raise TimelineLoadUnavailable('timeline_source_changed')
+            return timeline
+        finally:
+            self._timeline_wait_slots.release()
+
+    def _load_recording_light_timeline(self, timeline_path: Path) -> dict[str, Any]:
+        signature = self._playback_source_signature(timeline_path)
+        if signature is None:
             return {}
+        key = str(timeline_path.resolve())
         with self._timeline_cache_lock:
-            self._timeline_cache[key] = (signature[0], signature[1], timeline)
-            self._timeline_cache.move_to_end(key)
-            while len(self._timeline_cache) > self._timeline_cache_limit:
-                self._timeline_cache.popitem(last=False)
-        return timeline
+            cached = self._light_timeline_cache.get(key)
+            if cached and cached[:2] == signature:
+                self._light_timeline_cache.move_to_end(key)
+                return cached[2]
+        timeline = self._load_recording_timeline(timeline_path)
+        if self._playback_source_signature(timeline_path) != signature:
+            raise TimelineLoadUnavailable('timeline_source_changed')
+        return light_timeline(timeline)
 
     def _recording_timeline_segment(
         self, timeline: dict[str, Any], start_s: Any = None, duration_s: Any = None
@@ -1864,10 +2063,7 @@ class TelemetryProvider:
             method="POST",
         )
         try:
-            # Closing MCAP and flushing the archive legitimately outlasts the
-            # ordinary status/control request budget. This is recording stop,
-            # not the independent immediate motor STOP endpoint.
-            with urllib.request.urlopen(req, timeout=15.0 if path == "/stop" else 2.0) as res:
+            with urllib.request.urlopen(req, timeout=2.0) as res:
                 data = json.loads(res.read().decode("utf-8"))
                 data.setdefault("ok", 200 <= int(res.status) < 300)
                 return data
@@ -2510,8 +2706,19 @@ class TelemetryProvider:
             return str(path)
 
     def _device_holders(self, device_path: str | None) -> list[dict[str, Any]]:
+        # Scanning every /proc/<pid>/fd is the most expensive part of a
+        # telemetry build; holders change rarely, so reuse the result briefly.
         if not device_path:
             return []
+        now = time.monotonic()
+        cached = self._holders_cache.get(device_path)
+        if cached is not None and now - cached[0] < self._holders_ttl_s:
+            return cached[1]
+        holders = self._device_holders_uncached(device_path)
+        self._holders_cache[device_path] = (now, holders)
+        return holders
+
+    def _device_holders_uncached(self, device_path: str) -> list[dict[str, Any]]:
         try:
             device_name = Path(device_path).resolve().name
         except OSError:
@@ -3802,9 +4009,23 @@ class TelemetryProvider:
         return counters
 
     def _cached_external_ip(self) -> str | None:
+        # Never block a telemetry request on DNS/HTTP (S23): the lookup runs in
+        # one background thread and the next refresh time is set before it starts.
         now = time.time()
         if now < self._external_ip_next_refresh:
             return self._external_ip_value
+        if not os.environ.get("EXTERNAL_IP_URL", "https://api64.ipify.org"):
+            return self._external_ip_value
+        if self._external_ip_thread is not None and self._external_ip_thread.is_alive():
+            return self._external_ip_value
+        self._external_ip_next_refresh = now + int(os.environ.get("EXTERNAL_IP_RETRY_S", "60"))
+        self._external_ip_thread = threading.Thread(target=self._lookup_external_ip, daemon=True,
+                                                    name="telemetry-external-ip")
+        self._external_ip_thread.start()
+        return self._external_ip_value
+
+    def _lookup_external_ip(self) -> None:
+        now = time.time()
         url = os.environ.get("EXTERNAL_IP_URL", "https://api64.ipify.org")
         timeout = float(os.environ.get("EXTERNAL_IP_TIMEOUT_S", "0.8"))
         try:
@@ -3821,7 +4042,6 @@ class TelemetryProvider:
             self._external_ip_next_refresh = now + int(
                 os.environ.get("EXTERNAL_IP_RETRY_S", "60")
             )
-        return self._external_ip_value
 
     def _primary_ipv4(self, interfaces: list[dict[str, Any]]) -> str | None:
         target = os.environ.get("PRIMARY_IP_ROUTE_TARGET", "1.1.1.1")

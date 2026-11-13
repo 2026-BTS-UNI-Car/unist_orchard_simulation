@@ -1,7 +1,0 @@
-.media-jobs { margin-top: 12px; }
-.media-jobs summary { cursor: pointer; font-weight: 600; }
-.media-jobs-note { margin: 10px 0; font-size: .85rem; }
-.media-job { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line, #364152); }
-.media-job-description { flex: 1 1 280px; overflow-wrap: anywhere; font-size: .85rem; }
-.media-job-controls { display: flex; flex-wrap: wrap; gap: 6px; }
-.media-job-controls button[hidden] { display: none; }
