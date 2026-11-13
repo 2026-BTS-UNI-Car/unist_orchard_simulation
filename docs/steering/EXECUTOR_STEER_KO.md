@@ -391,3 +391,9 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
 3. **조향 명령 창(시도 뒤 뺌).** 반복 2에 주행 중 명령을 측정 조향각 ± 2.5° 안에 두고 5 s 넘게 묶이면 멈추는 규칙을 넣었다가, 1.0 N·m 미는 힘에서 서보가 최소 출력에 머물러 움직이지 못하는 새 실패가 나와 반복 3에서 뺐다(R52). 조향축 외란이 크기 안이어도 실행기 바깥 루프가 있으면 MCU STALL로 서는 것은 남은 한계다.
 4. **vendor.** `vendor/closed_loop_copy/estimator.py`, `steer_control.py`를 다시 만들었다(`regen_vendor.py`). 고정 파일 `estimator.py`의 허용 이유(`PIN_ALLOWLIST.json`)에 이 변경을 더했다.
 5. **알려진 결함(고치지 않음).** 판정(seed 3000~3004, 코드 `402a689`)은 251/275로 불합격이다. 실행기 쪽 결함으로 남은 것은 굽은 열(반지름 30 m) 열 끝 약 3 m 앞에서 추정기 한 갱신의 회랑 축이 튀어 열 끝 정지가 그 한 갱신으로 래치되는 거짓 열 끝(판정 2 run, 개발 1 run)이다. 고칠 후보(열 끝 정지에 연속 갱신 확인 등)와 나머지 실패(조향 외란 STALL, DRV_STUCK 오검출, W2 한쪽 열 구간)는 결과 문서 7절.
+
+## 15. 넓은 확인 2차에서 고친 것 (2026-11-13, 묶음 S1c 2차, 결정 R53·R54)
+
+1. **열 끝의 자리 확인(추정기).** 설정 `steer_row_end_agree_m`(front_steer, 기본 1.0 m, None = 끔)이 추정기 `row_end_agree_m`을 켠다(`ESTIMATOR_INPUTS_KO.md` 6절). 열 끝은 알린 끝의 자리가 1.0 m 안에서 맞는 두 연속 전체 갱신으로 확인한다. 14절 5의 거짓 열 끝(한 갱신의 튄 회랑 축)을 막는다.
+2. **프로필 v0.1.2(자리값).** 넓은 열 추종 2차의 조건은 `front_steer_v0_1_2_placeholder.yaml`(v0.1에서 DRV_STUCK 문턱 3°, POLARITY 2° / 0.2 s: v0.2와 같은 두 값)로 돈다. 실행기 코드는 바뀌지 않는다. 펌웨어 run 규칙은 P9 후보 그대로다.
+3. **vendor.** `vendor/closed_loop_copy/estimator.py`를 다시 만들었다. 고정 파일 `estimator.py`의 허용 이유(`PIN_ALLOWLIST.json`)에 이 변경을 더했다.

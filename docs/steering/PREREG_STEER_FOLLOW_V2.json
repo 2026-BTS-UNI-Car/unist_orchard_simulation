@@ -191,6 +191,7 @@
    "expect": "row_end",
    "family": "w2",
    "name": "w2_042301_c03",
+   "settle_m": 6.0,
    "w2": {
     "corridor_id": "c03",
     "record": "042301"
@@ -201,6 +202,7 @@
    "expect": "row_end",
    "family": "w2",
    "name": "w2_040927_c06",
+   "settle_m": 6.0,
    "w2": {
     "corridor_id": "c06",
     "record": "040927"
@@ -211,6 +213,7 @@
    "expect": "row_end",
    "family": "w2",
    "name": "w2_045553_c03",
+   "settle_m": 6.0,
    "w2": {
     "corridor_id": "c03",
     "record": "045553"
@@ -754,6 +757,50 @@
   ]
  },
  "result_kind": "placeholder-based SIM result",
+ "round2": {
+  "amendments": [
+   51,
+   52,
+   53
+  ],
+  "decisions": [
+   "R53",
+   "R54"
+  ],
+  "max_dev_iterations": 2,
+  "profile_without_own": "front_steer_v0_1_2_placeholder",
+  "seeds": {
+   "dev": [
+    100,
+    101,
+    102,
+    103,
+    104
+   ],
+   "judge": [
+    4000,
+    4001,
+    4002,
+    4003,
+    4004
+   ]
+  },
+  "w2_lateral": {
+   "classes": "raster reflectors (occupied, added hard, added branch)",
+   "min_cells": 3,
+   "near_quantile": 0.1,
+   "reference": "truth passage centre",
+   "report": "catalogue centre-line values (the round 1 definition)",
+   "settle_m": 6.0,
+   "settle_reason": "the start pose lies on the catalogue centre line, up to 0.4 m off the passage centre: an offset start",
+   "side_band_m": [
+    0.3,
+    3.5
+   ],
+   "step_m": 0.1,
+   "window_m": 2.0
+  }
+ },
  "runs_per_seed_set": 275,
  "schema": "ubts.steer_sim.prereg_follow_wide.v1",
  "seeds": {

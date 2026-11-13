@@ -350,6 +350,9 @@ class ExecutorConfig:
     steer_rotation_centre_sd_m: float = .05      # (profile rear_axle_x_in_base_m, design 6.7) and its uncertainty
     steer_row_end_curve_fit: bool = True         # front_steer estimator: curved row ends (EstimatorConfig
                                                  # row_end_curve_fit; False = the straight-band rule). S1c 2026-11-13
+    steer_row_end_agree_m: object = 1.0          # front_steer estimator: a row end needs two consecutive full updates
+                                                 # whose reported ends agree within this (EstimatorConfig
+                                                 # row_end_agree_m; None = the original streak). S1c round 2, R53
 
     # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
     # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
@@ -528,6 +531,9 @@ class ExecutorConfig:
         if is_front_steer(self) and self.steer_row_end_curve_fit:
             # front_steer: curved row ends (S1c; the differential history keeps the straight-band rule)
             overrides['row_end_curve_fit'] = True
+        if is_front_steer(self) and self.steer_row_end_agree_m is not None:
+            # front_steer: the two confirming full updates must agree on the end (S1c round 2, decision R53)
+            overrides['row_end_agree_m'] = float(self.steer_row_end_agree_m)
         overrides.update(PS.estimator_fields(self))   # local grid fusion (empty while the gain is 0)
         return overrides
 
@@ -708,6 +714,7 @@ _SPEC.update({
     'steer_polarity_checked': (bool,), 'steer_cal_id': (int, 1, 65535, 'nullable'), 'steer_allow_sim': (bool,),
     'steer_status_max_age_s': (_REAL, .05, 1.),
     'steer_row_end_curve_fit': (bool,),
+    'steer_row_end_agree_m': (_REAL, .1, 5., 'nullable'),
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
 })
