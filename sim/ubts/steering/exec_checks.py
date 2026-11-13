@@ -2195,6 +2195,103 @@ def check_drive(ctx, args):
                                   'controller)')
 
 
+# --- PW-08 on the Gazebo stack (registration steer_follow_gsim_final_v1, part E) ---------------------------------------
+PW08_DUTY_PCT = 50                   # a duty inside the speed table (25 .. 100 %), on the straight part of the W0 floor
+PW08_SCALE = 1.10                    # the speed table scale of the field tuning (basic key speed_scale)
+PW08_DRIVE_M = 8.
+PW08_STEADY_S = (3., 7.)             # the steady window of each drive: seconds after the first moving truth sample
+
+
+def table_speed(values, duty_pct):
+    """Expected speed [m/s] of the executor's field tuning at a duty: the speed table (piecewise linear through
+    (0, 0), held above its last point) x speed_scale x surface_scale x battery_scale (field_tuning.speed_scale)."""
+    adv, basic = values['advanced'], values['basic']
+    prev_d, prev_v, speed = 0., 0., None
+    for d, v in adv['speed_table']:
+        if duty_pct <= d:
+            speed = prev_v + (v - prev_v) * (duty_pct - prev_d) / (d - prev_d)
+            break
+        prev_d, prev_v = d, v
+    if speed is None:
+        speed = adv['speed_table'][-1][1]
+    return speed * basic['speed_scale'] * adv['surface_scale'] * adv['battery_scale']
+
+
+def _pw08_drive(ctx, label):
+    """One straight drive at PW08_DUTY_PCT (scripted controller through the executor, one go) and the steady truth
+    speed of the plant over PW08_STEADY_S."""
+    ensure_idle(ctx)
+    before, step0 = step_start(ctx, 'pw08_%s' % label)
+    start = start_drive(ctx, dict(kind='straight_hold', drive_pct=PW08_DUTY_PCT, distance_m=PW08_DRIVE_M), moving=True)
+    t0 = ctx.obs.sim_time
+    ctx.wait_exec(lambda s: s['runner']['state'] == STATE_ENDED, 90.)
+    ctx.wait_still(10.)
+    rows = odom_rows(ctx.obs, t0, ctx.obs.sim_time)
+    moving = [r for r in rows if abs(r[4]) > .05]
+    steady = [] if not moving else [r for r in rows if moving[0][0] + PW08_STEADY_S[0] <= r[0] <= moving[0][0] +
+                                    PW08_STEADY_S[1]]
+    speed = statistics.mean(r[4] for r in steady) if steady else None
+    ctx.op.post('/api/end')
+    after = emulator_counters(ctx.hooks)
+    validity = step_validity(ctx, ctx.clock, step0['mono'], time.monotonic(), before, after)
+    return dict(label=label, start=start, steady_samples=len(steady), plant_speed_m_s=None if speed is None else
+                round(speed, 5), validity=validity)
+
+
+def check_pw08(ctx, args):
+    """PW-08 on the Gazebo stack: the field tuning's table scale (speed_scale) 1.00 -> 1.10 through POST /api/params at
+    rest. Executor side (judged): the status values and the start event's tuning digest show the new value, the
+    executor's table speed at PW08_DUTY_PCT moves by 1.10 +- 1 %. Plant side (reported): the Gazebo plant's steady
+    speed at the same duty before and after (the Gazebo drive is the physics model of the profile; it does not read
+    the tuning file). The default preset is restored at the end."""
+    ensure_idle(ctx)
+    status0 = (ctx.op.status() or {}).get('tuning') or {}
+    first = _pw08_drive(ctx, 'scale_1_00')
+    ensure_idle(ctx)
+    code, reply, _, _ = ctx.op.post('/api/params', {'speed_scale': PW08_SCALE})
+    status1 = (ctx.op.status() or {}).get('tuning') or {}
+    second = _pw08_drive(ctx, 'scale_1_10')
+    records = executor_log(ctx.exec_dir, after_wall=time.time() - 600.)
+    starts = [r for r in executor_events(records, ('start',)) if r.get('tuning')]
+    changes = executor_events(records, ('tuning_change',))
+    ensure_idle(ctx)
+    restore = ctx.op.post('/api/params', {'preset': 'default'})
+    status2 = (ctx.op.status() or {}).get('tuning') or {}
+    v0, v1 = status0.get('values'), status1.get('values')
+    exec0 = None if not v0 else table_speed(v0, PW08_DUTY_PCT)
+    exec1 = None if not v1 else table_speed(v1, PW08_DUTY_PCT)
+    ratio_exec = None if not (exec0 and exec1) else exec1 / exec0
+    p0, p1 = first['plant_speed_m_s'], second['plant_speed_m_s']
+    ratio_plant = None if not (p0 and p1) else p1 / p0
+    start_digest = (starts[-1].get('tuning') or {}).get('digest') if starts else None
+    valid = all((d['validity'] or {}).get('valid', True) for d in (first, second))
+    criteria = [
+        criterion('params_accepted', code, 200, code == 200),
+        criterion('status_speed_scale', None if not v1 else v1['basic']['speed_scale'], PW08_SCALE,
+                  bool(v1) and abs(v1['basic']['speed_scale'] - PW08_SCALE) < 1e-9),
+        criterion('revision_and_digest_change', [status0.get('revision'), status1.get('revision'),
+                                                 status0.get('digest') != status1.get('digest')],
+                  'revision + 1, new digest', status1.get('revision') == (status0.get('revision') or 0) + 1 and
+                  status0.get('digest') != status1.get('digest')),
+        criterion('run_start_uses_the_new_tuning', start_digest, status1.get('digest'),
+                  start_digest is not None and start_digest == status1.get('digest')),
+        criterion('executor_table_speed_ratio', None if ratio_exec is None else round(ratio_exec, 5),
+                  '1.10 +- 1 %', ratio_exec is not None and abs(ratio_exec / PW08_SCALE - 1.) <= .01),
+        criterion('plant_steady_speed_ratio', None if ratio_plant is None else round(ratio_plant, 5),
+                  'report (the Gazebo plant does not read the tuning file)', None),
+        criterion('default_restored', [restore[0], status2.get('preset'), status2.get('digest') == status0.get('digest')],
+                  'preset default, the first digest', restore[0] == 200 and status2.get('digest') == status0.get('digest')),
+    ]
+    if not valid:
+        criteria = invalidate(criteria, dict(valid=False, reason='a drive step was invalid (A10 rule)'))
+    return dict(check='pw08_gazebo', clock=ctx.clock, duty_pct=PW08_DUTY_PCT, scale=PW08_SCALE,
+                executor=dict(before=exec0, after=exec1, ratio=ratio_exec, tuning_before=status0.get('digest'),
+                              tuning_after=status1.get('digest'), file=status0.get('file'),
+                              file_sha256=status0.get('file_sha256'), changes=len(changes)),
+                plant=dict(before=p0, after=p1, ratio=ratio_plant), drives=[first, second], criteria=criteria,
+                passed=verdict(criteria), result_kind=RESULT_KIND)
+
+
 # --- G-SIM row following (steer_follow_gsim_v1) -----------------------------------------------------------------------
 SCENE_DIR = Path(os.environ.get('UBTS_STEER_SCENE_DIR', '/runtime/steer/scene'))
 
@@ -2341,7 +2438,7 @@ def check_follow(ctx, args):
 
 # --- main -----------------------------------------------------------------------------------------------------------------
 CHECKS = dict(graph=check_graph, scan=check_scan, imu=check_imu, display=check_display, chain=check_chain,
-              safety=check_safety, drive=check_drive, follow=check_follow, pose=check_pose)
+              safety=check_safety, drive=check_drive, follow=check_follow, pose=check_pose, pw08=check_pw08)
 
 
 def build_parser():
@@ -2400,7 +2497,7 @@ def main(argv=None):
             ctx.close()
     name = dict(graph='A13_G_EXEC.json', scan='A5_G_SCAN.json', imu='A5_G_IMU.json', display='A5_G_DISPLAY.json',
                 chain='W2_CHAIN.json', safety='A17_G_EXEC.json', drive='EXEC_DRIVE.json',
-                follow='GSIM_FOLLOW_RUN.json', pose='POSE.json')[args.check]
+                follow='GSIM_FOLLOW_RUN.json', pose='POSE.json', pw08='PW08_GAZEBO.json')[args.check]
     write_json(out / name, report)
     failed = [c['name'] for c in report.get('criteria', []) if c.get('passed') is False]
     print(json.dumps(dict(check=args.check, passed=report.get('passed'), failed=failed[:40],

@@ -1,0 +1,111 @@
+{
+ "schema": "ubts.steer_sim.gsim_final.v1.prereg",
+ "prereg_id": "steer_follow_gsim_final_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "image": "ubts-steer-sim:wf5",
+ "based_on": "steer_follow_gsim_v1",
+ "clock": "wall",
+ "settle_after_healthy_s": 120.0,
+ "rtf_min": 0.9,
+ "reruns_per_slot": 1,
+ "link_lost_limit_s": 0.55,
+ "parts": {
+  "A": {
+   "check": "steering.exec_checks follow --run <name> --out /runs/follow (start mode one_press)",
+   "scene": "w1_force",
+   "controller": {
+    "kind": "row_follow"
+   },
+   "runs": [
+    {
+     "name": "nominal_1",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_2",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_3",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "lateral_p040",
+     "expect": "row_end",
+     "start": "set_pose",
+     "lateral_offset_m": 0.4,
+     "settle_m": 6.0
+    }
+   ],
+   "criteria": {
+    "lateral_rmse_m": 0.2,
+    "lateral_p95_m": 0.35,
+    "lateral_max_m": 0.5,
+    "heading_rmse_deg": 5.0,
+    "heading_max_deg": 15.0,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "min_clearance_m": 0.0,
+    "after_terminal_window_s": 3.0,
+    "rest_speed_m_s": 0.02
+   },
+   "settle_m": 6.0,
+   "fresh_stack_per_run": true,
+   "validity": "the run is valid when the A10 rule of steer_follow_gsim_v1 holds (RTF of the run, emulator /clock wall gap above 100 ms, host latch made by a SIM stall) AND the smallest 5 s /clock window RTF of the check (rtf.min of the record) is >= 0.9; an invalid run is recorded, not judged, and run once more on a fresh stack; a slot invalid twice is reported as not judged",
+   "passed": "every judged run passes every criterion of steer_follow_gsim_v1 (row_end, no pause after the drive started, lateral / heading / speed / e / clearance limits, rest speed, no guard ending, no commanded steering motion in the 3 s after the end) and at least three of the four slots are judged"
+  },
+  "B": {
+   "check": "the SIM dashboard in Chrome (playwright, the page as an operator uses it); services sim, steer, recorder, dashboard, executor; scene w1_force",
+   "items": [
+    {
+     "name": "prepare",
+     "rule": "the auto panel offers 준비; pressing it (and Arm if the page offers it) reaches 자율 주행 시작 within 16 s; a second press is recorded"
+    },
+    {
+     "name": "one_press_running",
+     "rule": "go_ready, one press -> 주행 중 within 10 s and the vehicle moves (emulator speed > 0.05 m/s)"
+    },
+    {
+     "name": "heartbeat",
+     "rule": "heartbeats while the tab is visible: largest gap of the last 20 < 0.35 s"
+    },
+    {
+     "name": "tab_hidden_link_lost",
+     "rule": "tab hidden -> run_state paused, stop_reason OPERATOR_LINK_LOST at 1.5 s, no heartbeat after hiding, the vehicle stopped (< 0.05 m/s) 4 s after hiding, visible again -> 다시 출발 and still paused"
+    },
+    {
+     "name": "screen_stop_while_running",
+     "rule": "a new run, one press, 6 s of driving, the status-bar STOP -> stop_detail operator_stop (stop_reason OPERATOR_OR_BACKSTOP), the vehicle stopped within 3 s, no restart"
+    },
+    {
+     "name": "live_map",
+     "rule": "the dashboard's own live map started from the page builds from the SIM scans: /api/live/map scan_count > 0 after 20 s"
+    }
+   ],
+   "validity": "the session is valid when the RTF of the check node stays >= 0.9 in the steps (else run once more)",
+   "passed": "every item passes"
+  },
+  "C": {
+   "check": "steering.exec_checks safety --out /runs/safety (scene w0_force, the executor in one_press)",
+   "criteria": "SIM_ACCEPTANCE_KO.md A17 per script as coded in exec_checks (with amendment 31: operator link lost -> drive 0 <= 0.5 s + 1 tick); deadman_release is not applicable to one_press",
+   "validity": "A10 rule per step (exec_checks); invalid steps are run once more with --only",
+   "passed": "every valid step passes; steps invalid twice are reported"
+  },
+  "D": {
+   "check": "steering.p6a_checks a25 --out /runs/a25 (scene w0_force)",
+   "criteria": "A25 as coded in p6a_checks (joint - shared model p99 <= 0.2 deg at the best lag, no joint speed spikes, the steering moved, no drive refusal), with the host bridge of the final image (amendment 43: steering_not_following counts settled ramp lines only)",
+   "validity": "A10 rule",
+   "passed": "every criterion passes"
+  },
+  "E": {
+   "check": "steering.exec_checks pw08 --out /runs/pw08 (scene w0_force)",
+   "criteria": "executor: POST /api/params speed_scale 1.10 accepted at rest, the status shows it with revision +1 and a new digest, the next run starts with that digest, the executor table speed at 50 % duty moves by 1.10 +- 1 %, the default preset restored; plant: the Gazebo plant steady speed ratio at 50 % duty is reported (the Gazebo drive model does not read the tuning file)",
+   "validity": "A10 rule for both drives",
+   "passed": "every executor criterion passes"
+  }
+ },
+ "host": "before each session the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded; the stall probe is not run in these sessions"
+}
