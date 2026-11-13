@@ -10,8 +10,15 @@ Gazebo IMU sample (sensor frame, mount rotation already in the SDF sensor pose b
                     drive duty is not 0 and |speed| > 0.02 m/s, else the still vibration
                     gyro z = scale x gyro z + bias + n, gyro x, y + n, n ~ N(0, hypot(still noise, coupling x v))
                     accel each axis + N(0, v / sqrt 3)
-  orientation       not simulated (the F-SIM IMU model has none): identity quaternion with orientation_covariance[0]
-                    = -1 (REP 145: orientation not provided); Gazebo's ideal orientation would be a truth heading
+  orientation       GameRotationVector (gsim-final3, 2026-11-13): like the BNO085 game rotation vector (gyroscope +
+                    accelerometer, no magnetometer), computed from the modelled gyro and accel of this model only:
+                    the gyro is integrated, the tilt is pulled towards the accelerometer's gravity direction
+                    (proportional correction, time constant ORIENTATION_TAU_S, only while |a| is within
+                    ORIENTATION_ACCEL_GATE of g); the heading starts at 0 and drifts with the gyro bias. Gazebo's ideal
+                    orientation is never used (it would be a truth heading, A13). orientation_covariance is the
+                    placeholder diagonal ORIENTATION_VARIANCE_RAD2 (roll, pitch, yaw). Until gsim-final3 the
+                    orientation was the identity with orientation_covariance[0] = -1 (REP 145: not provided), and the
+                    dashboard's live map waited for it (orientation_unavailable)
   covariances       angular velocity and acceleration covariance all 0 = unknown (the old SIM convention)
 
 The drive duty, steering PWM and speed come from the plant side (/sim/truth/steering, /ground_truth/odom): the IMU
@@ -30,6 +37,85 @@ import warnings
 
 VIBRATION_SPEED_M_S = .02      # steered_plant / FieldPlant: drive vibration only above this speed
 SCHEMA = 'ubts.steer_imu_model.v1'
+GRAVITY_M_S2 = 9.80665
+ORIENTATION_TAU_S = 2.         # placeholder: time constant of the tilt correction towards the accelerometer
+ORIENTATION_ACCEL_GATE = .2    # placeholder: no tilt correction while | |a| / g - 1 | is above this
+ORIENTATION_VARIANCE_RAD2 = (math.radians(1.) ** 2, math.radians(1.) ** 2, math.radians(3.) ** 2)   # placeholder
+ORIENTATION_MAX_STEP_S = .5    # a sample gap above this is not integrated (the tilt correction still runs)
+
+
+class GameRotationVector:
+    """Orientation of the IMU sensor frame from the modelled samples (module docstring 'orientation').
+
+    update(gyro_rad_s, accel_m_s2, t_s) -> (x, y, z, w): the sensor-to-reference rotation, reference z up, heading 0 at
+    the first sample. Proportional (Mahony) correction of the gyro with the error between the measured gravity
+    direction and the one the current orientation predicts; no integral term, no magnetometer."""
+
+    def __init__(self, tau_s=ORIENTATION_TAU_S, gate=ORIENTATION_ACCEL_GATE):
+        if not (math.isfinite(tau_s) and tau_s > 0.):
+            raise ValueError('tau_s must be a finite number > 0')
+        self.kp, self.gate = 1. / float(tau_s), float(gate)
+        self.q = None          # (w, x, y, z)
+        self.t = None
+        self.samples = self.corrected = self.skipped_gaps = 0
+
+    @staticmethod
+    def _from_accel(accel):
+        ax, ay, az = accel
+        roll, pitch = math.atan2(ay, az), math.atan2(-ax, math.hypot(ay, az))
+        cr, sr, cp, sp = math.cos(roll / 2.), math.sin(roll / 2.), math.cos(pitch / 2.), math.sin(pitch / 2.)
+        return (cr * cp, sr * cp, cr * sp, -sr * sp)      # yaw 0
+
+    def update(self, gyro, accel, t_s):
+        gx, gy, gz = (float(v) for v in gyro)
+        accel = tuple(float(v) for v in accel)
+        t_s = float(t_s)
+        self.samples += 1
+        norm_a = math.sqrt(sum(a * a for a in accel))
+        if self.q is None:
+            self.q = self._from_accel(accel) if norm_a > 0. else (1., 0., 0., 0.)
+            self.t = t_s
+            return self.xyzw()
+        dt = t_s - self.t
+        self.t = t_s
+        if not 0. < dt <= ORIENTATION_MAX_STEP_S:
+            self.skipped_gaps += 1
+            dt = 0.
+        w, x, y, z = self.q
+        if norm_a > 0. and abs(norm_a / GRAVITY_M_S2 - 1.) <= self.gate:
+            ax, ay, az = (a / norm_a for a in accel)
+            vx, vy, vz = 2. * (x * z - w * y), 2. * (w * x + y * z), w * w - x * x - y * y + z * z
+            gx += self.kp * (ay * vz - az * vy)
+            gy += self.kp * (az * vx - ax * vz)
+            gz += self.kp * (ax * vy - ay * vx)
+            self.corrected += 1
+        h = .5 * dt
+        w, x, y, z = (w + h * (-x * gx - y * gy - z * gz), x + h * (w * gx + y * gz - z * gy),
+                      y + h * (w * gy - x * gz + z * gx), z + h * (w * gz + x * gy - y * gx))
+        n = math.sqrt(w * w + x * x + y * y + z * z)
+        self.q = (w / n, x / n, y / n, z / n)
+        return self.xyzw()
+
+    def xyzw(self):
+        w, x, y, z = self.q
+        return (x, y, z, w)
+
+    def rpy(self):
+        w, x, y, z = self.q
+        return (math.atan2(2. * (w * x + y * z), 1. - 2. * (x * x + y * y)),
+                math.asin(max(-1., min(1., 2. * (w * y - z * x)))),
+                math.atan2(2. * (w * z + x * y), 1. - 2. * (y * y + z * z)))
+
+    @staticmethod
+    def covariance():
+        r, p, yaw = ORIENTATION_VARIANCE_RAD2
+        return [r, 0., 0., 0., p, 0., 0., 0., yaw]
+
+    def describe(self):
+        return dict(kind='game_rotation_vector (gyro + accel, no magnetometer)', tau_s=1. / self.kp, gate=self.gate,
+                    variance_rad2=list(ORIENTATION_VARIANCE_RAD2), samples=self.samples, corrected=self.corrected,
+                    skipped_gaps=self.skipped_gaps, heading='0 at the first sample, drifts with the modelled gyro bias',
+                    source='the modelled gyro and accel only (no Gazebo orientation: truth isolation A13)')
 
 
 class ImuErrorModel:
@@ -92,7 +178,7 @@ class ImuErrorModel:
                     drive_vibration_m_s2=dict(below_90=self.drive_below_90, at_90=self.drive_at_90,
                                               at_100=self.drive_at_100),
                     steer_vibration_m_s2_per_full_pwm=self.steer_vibration, gyro_noise_scale=self.gyro_noise_scale,
-                    orientation='not simulated: identity with orientation_covariance[0] = -1',
+                    orientation='GameRotationVector: gyro + accel of this model (gsim-final3); covariance placeholder',
                     samples=self.samples, rule='steered_plant.imu_sample (field_response) on the Gazebo IMU sample')
 
 

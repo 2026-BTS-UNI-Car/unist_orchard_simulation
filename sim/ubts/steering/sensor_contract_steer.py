@@ -12,7 +12,8 @@ publish_imu, and gps_cb (the virtual GPS through sim_telemetry.SensorTelemetry).
        virtual GPS and the IMU model's speed), /sim/truth/steering (truth: drive duty and steering PWM for the IMU
        vibration terms), /rover/steering/state (liveness of the steering status lines through the bridge),
        /scan only when an S2 format node is configured (liveness)
-  out  /imu/data_raw (p6a_imu_model error model, frame imu_link), /gps/data, /gps/fix, /gps/driver_status (virtual
+  out  /imu/data_raw (p6a_imu_model error model and its game rotation vector, frame imu_link), /gps/data, /gps/fix,
+       /gps/driver_status (virtual
        GPS with the obviously virtual origin 0 N 0 E, display only, never a control input; the antenna is the
        profile's gnss_antenna_pose_in_base (0.9 m above base_footprint in v0.1), WF-4 g_gaps / audit G20), /tf_static
        (base_footprint -> base_link -> laser, imu_link, camera_link, gps_link; camera_link -> camera_link_optical)
@@ -172,6 +173,7 @@ def rtf_estimate(samples):
 def make_node_class():
     """The SteerSensorContract class (imports ROS and the pinned adapter module)."""
     import collections
+    from .p6a_imu_model import GameRotationVector
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
@@ -202,6 +204,7 @@ def make_node_class():
             self.camera_present = bool(camera_present)
             self.run_token = run_token
             self.imu_model = imu_model
+            self.orientation = GameRotationVector()
             self.lock = threading.RLock()
             self.sim_time = 0.
             self.clock_seen = None
@@ -302,9 +305,12 @@ def make_node_class():
             g.x, g.y, g.z = gyro
             a.x, a.y, a.z = accel
             msg.header.frame_id = 'imu_link'
-            msg.orientation.x = msg.orientation.y = msg.orientation.z = 0.
-            msg.orientation.w = 1.
-            msg.orientation_covariance = [-1.] + [0.] * 8
+            # BNO085-like game rotation vector from the modelled gyro and accel (p6a_imu_model.GameRotationVector;
+            # gsim-final3: the dashboard's live map needs an orientation; Gazebo's own orientation is truth, unused)
+            stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+            ox, oy, oz, ow = self.orientation.update(gyro, accel, stamp)
+            msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w = ox, oy, oz, ow
+            msg.orientation_covariance = self.orientation.covariance()
             msg.angular_velocity_covariance = [0.] * 9
             msg.linear_acceleration_covariance = [0.] * 9
             self.publish_imu(msg)
@@ -335,7 +341,7 @@ def make_node_class():
                                  old_control_socket=False),
                     odometry=dict(published=False, dynamic_tf=False,
                                   note='encoderless sensor contract: no /odom, no dynamic /tf; static TF only'),
-                    imu_model=self.imu_model.describe(),
+                    imu_model=self.imu_model.describe(), imu_orientation=self.orientation.describe(),
                     gps=dict(virtual=True, origin_deg=list(GPS_ORIGIN), display_only=True,
                              lever_arm_m=list(self.antenna), lever_arm_source='profile gnss_antenna_pose_in_base',
                              telemetry_height_m=GPS_HEIGHT_M),

@@ -7,9 +7,9 @@ and reads the truth for evaluation. Run in the check service of compose.ubts-ste
   python3 -B -m steering.verify_steer --out /runs/verify [--circle-s 20] [--throttle 40] [--steer-mrad 175]
 
   health         simulation_status.json: every sensors_alive value true (the pinned health.py rule)
-  sensors        /imu/data_raw rate and frame, orientation not provided (covariance[0] -1); /sim/scan from the
-                 Embree LiDAR; /scan from the S2 format node (WF-4: 3240 beams, frame laser, 10 Hz; absent with
-                 --s2-node none); virtual GPS origin 0 N 0 E; static TF only (no /tf, no /odom publisher)
+  sensors        /imu/data_raw rate and frame, orientation provided (game rotation vector, covariance[0] > 0);
+                 /sim/scan from the Embree LiDAR; /scan from the S2 format node (WF-4: 3240 beams, frame laser,
+                 10 Hz; absent with --s2-node none); virtual GPS origin 0 N 0 E; static TF only (no /tf, no /odom publisher)
   arm            arm with vehicle_profile front_steer, MCU confirmation (st ARMED)
   circle         fixed steering angle +/-steer_mrad at the throttle: rear-axle-centre circle fit (8 s .. end), the
                  radius against L / tan(delta) of the commanded and of the true angle (G-SIM force mode; A1(G) gives
@@ -164,8 +164,9 @@ def run(args):
         imu_hz = (len(imu) - 1) / (imu[-1][0] - imu[0][0]) if len(imu) > 2 and imu[-1][0] > imu[0][0] else None
         criteria.append(criterion('imu_rate_hz', imu_hz, '%s +-10 %%' % profile.value('imu_rate_hz'),
                                   imu_hz is not None and abs(imu_hz / float(profile.value('imu_rate_hz')) - 1.) <= .1))
-        criteria.append(criterion('imu_frame_and_orientation_not_provided', imu[-1][1:] if imu else None,
-                                  ['imu_link', -1.0], bool(imu) and imu[-1][1] == 'imu_link' and imu[-1][2] == -1.))
+        criteria.append(criterion('imu_frame_and_orientation_provided', imu[-1][1:] if imu else None,
+                                  ['imu_link', '> 0 (game rotation vector, gsim-final3)'],
+                                  bool(imu) and imu[-1][1] == 'imu_link' and imu[-1][2] > 0.))
         criteria.append(criterion('sim_scan_3200_beams', seen['scan'][-1] if seen['scan'] else None, 3200,
                                   bool(seen['scan']) and seen['scan'][-1] == 3200))
         fix = seen['fix'][-1] if seen['fix'] else None
