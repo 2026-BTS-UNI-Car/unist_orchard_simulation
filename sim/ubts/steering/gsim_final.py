@@ -136,11 +136,15 @@ def judge_pw08(report):
             c = dict(c, passed=restored, value=[end.get('preset'), end.get('digest') == before],
                      source='executor_status_end.tuning (amendment 2)')
         judged.append(c)
-    verdict = lambda cs: 'pass' if all(c.get('passed') is not False for c in cs) else 'fail'
+    def verdict(cs):
+        if report.get('error') or not cs:
+            return 'not_judged'               # the check stopped before its criteria (e.g. a refused go)
+        if not valid:
+            return 'invalid'
+        return 'pass' if all(c.get('passed') is not False for c in cs) else 'fail'
     valid = all(((d.get('validity') or {}).get('valid', True)) for d in report.get('drives') or [])
-    return dict(schema=SCHEMA + '.pw08', prereg_id=PREREG_ID, valid=valid,
-                recorded=verdict(criteria) if valid else 'invalid',
-                amendment_2=verdict(judged) if valid else 'invalid', criteria_amendment_2=judged,
+    return dict(schema=SCHEMA + '.pw08', prereg_id=PREREG_ID, valid=valid, error=report.get('error'),
+                recorded=verdict(criteria), amendment_2=verdict(judged), criteria_amendment_2=judged,
                 plant=report.get('plant'), executor=report.get('executor'), result_kind=RESULT_KIND)
 
 

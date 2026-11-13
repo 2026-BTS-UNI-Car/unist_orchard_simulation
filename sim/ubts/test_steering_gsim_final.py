@@ -65,6 +65,7 @@ class FinalRegistrationTest(unittest.TestCase):
         self.assertEqual(GX.judge_pw08(report)['amendment_2'], 'fail')
         report['drives'] = [dict(validity=dict(valid=False))]
         self.assertEqual(GX.judge_pw08(report)['recorded'], 'invalid')
+        self.assertEqual(GX.judge_pw08(dict(criteria=[], error='SessionError: go refused'))['recorded'], 'not_judged')
         self.assertEqual([a['n'] for a in GX.prereg()['amendments']], [1, 2])
 
 
