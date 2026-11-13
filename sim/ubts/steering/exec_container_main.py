@@ -19,8 +19,9 @@ What differs from executor_main.main (the vehicle entry, unchanged):
                   the monotonic clock): the vehicle code path. --clock sim: the node also subscribes /clock; receipts,
                   the loop clock, the stall watchdog, the hold timeout, the SteerBridgeClient clock and the steering
                   status age are SIM time; one step per 50 ms of SIM time (a jump over several grid points runs one
-                  step, the missed ones are counted, never caught up), polled every 2 ms wall like the bridge
-                  wrapper's --clock sim; the bridge wrapper must run with --clock sim too (UBTS_STEER_CLOCK). The
+                  step, the missed ones are counted, never caught up); the /clock sample that reaches the next grid
+                  point wakes the loop (G-SIM stage 6; it was a 2 ms wall poll like the bridge wrapper's --clock sim);
+                  the bridge wrapper must run with --clock sim too (UBTS_STEER_CLOCK). The
                   vehicle deadlines (bridge input 0.75 s, release 1.1 s) are the bridge's, in its clock
   operator page   operator_http on 127.0.0.1:<--bind-port, 8097> inside the sim network namespace; the token goes to
                   <exec dir>/log/operator_token.txt (0600). The checks of steering.exec_checks drive the page like the
@@ -40,18 +41,21 @@ What differs from executor_main.main (the vehicle entry, unchanged):
   files           <exec dir> (default /run/ubts-steer/exec, inside the control volume): config.json, status.json
                   (1 s), log/ (the executor JSONL log, operator_token.txt), hooks.sock; an earlier status.json is
                   moved to retired/<run token>/ at the start (audit G06)
-  diagnostics     SIM clock mode (G-SIM stage 5): SpinMonitor watches the input thread (subscription callbacks, its own
-                  20 Hz timer), a GIL probe thread (10 ms sleeps) and the main loop's poll gaps; every executor tick
-                  carries 'diag' (callbacks per topic, the longest gaps, timer callbacks, probe lateness, poll gap, the
-                  monotonic time) and a subscription gap above 150 ms is an 'input_gap' event. executor_main adds the
-                  phase times of a slow step ('ph') and the time of each request ('ms'). Nothing the loop decides changes
+  diagnostics     opt-in (G-SIM stage 6: --input-diag on, or UBTS_STEER_EXEC_INPUT_DIAG=1; default off), SIM clock
+                  mode only (G-SIM stage 5): SpinMonitor watches the input thread (subscription callbacks, its own
+                  20 Hz timer), a GIL probe thread (10 ms sleeps) and the main loop's wake latency; every executor tick
+                  carries 'diag' (callbacks per topic, the longest gaps, timer callbacks, probe lateness, wake latency,
+                  the monotonic time) and a subscription gap above 150 ms is an 'input_gap' event. Off: no monitor, no
+                  probe thread, no extra timer; the tick's 'diag' holds only its monotonic and wall time (wm, ww).
+                  executor_main always adds the phase times of a slow step
+                  ('ph') and the time of each request ('ms'). Nothing the loop decides changes
   sources         executor_main.verify_sources() (SHA256SUMS of tools/row_executor) and verify_vendor() as on the
                   vehicle; --skip-source-check (development snapshots only) is recorded in config.json and the status
 
 CLI (compose service 'executor'; tools/row_executor and sim/ubts on PYTHONPATH):
   python3 -B -m steering.exec_container_main --clock wall|sim [--controller JSON] [--config-overrides JSON]
       [--profile YAML] [--cal-id N] [--exec-dir DIR] [--socket PATH] [--bind-port N] [--max-log-mb MB]
-      [--skip-source-check] [--max-runtime-s S]
+      [--skip-source-check] [--max-runtime-s S] [--input-diag off|on]
 Placeholder-based SIM results (자리값 기반 SIM 결과), not field validation.
 """
 from __future__ import annotations
@@ -77,13 +81,16 @@ SIM_SOCKET = '/run/ubts-steer/control.sock'
 BIND_HOST = '127.0.0.1'
 BIND_PORT = 8097
 CLOCK_MODES = ('wall', 'sim')
-SIM_POLL_S = .002                     # SIM clock mode: wall poll of the /clock grid (steer_rover_bridge SIM_POLL_PERIOD_S)
+SIM_WAIT_S = .05                      # SIM clock mode: the longest wait for the next grid point (stop / deadline checks);
+                                      # the /clock callback wakes the loop when the SIM time reaches it (G-SIM stage 6:
+                                      # was a 2 ms wall poll, steer_rover_bridge SIM_POLL_PERIOD_S)
 STATUS_PERIOD_S = 1.
 LOG_FILES_KEPT = 30
 MAX_HOOK_STALL_S = 30.
 MAX_WALL_OFFSET_S = 7. * 86400.
 DEFAULT_CONTROLLER = {'kind': 'straight_hold', 'drive_pct': 40, 'distance_m': 8.0}
 BASE_DUTY_PCT = 55                    # as sim_in_loop_steer.steer_executor_config
+INPUT_DIAG_ENV = 'UBTS_STEER_EXEC_INPUT_DIAG'   # '1' / 'on': the stage 5 input diagnostics (SpinMonitor); default off
 SCAN_TOPIC, IMU_TOPIC, HUMAN_TOPIC, CLOCK_TOPIC = '/scan', '/imu/data_raw', '/rover/control/requested', '/clock'
 
 
@@ -150,12 +157,20 @@ def parse_json_arg(text, what):
 
 # --- clocks -------------------------------------------------------------------------------------------------------------
 class SimClock:
-    """SIM time from /clock samples: never decreasing; 0.0 before the first sample (started() False)."""
+    """SIM time from /clock samples: never decreasing; 0.0 before the first sample (started() False).
+
+    Wake-up of the SIM clock run loop (G-SIM stage 6): the loop sets wake_at to its next grid point; the sample that
+    reaches it sets `reached` (and reached_mono, time.monotonic() of that moment). Before the loop set a grid point
+    (wake_at None) every sample sets it. The loop clears `reached` before it reads the clock, so a sample is never lost
+    between the read and the wait."""
 
     def __init__(self):
         self.t = 0.
         self.samples = 0
         self.backwards = 0
+        self.wake_at = None
+        self.reached = threading.Event()
+        self.reached_mono = None
 
     def update(self, sec, nanosec):
         value = int(sec) + int(nanosec) * 1e-9
@@ -164,6 +179,10 @@ class SimClock:
             self.t = value
         else:
             self.backwards += 1           # a rewind of the SIM is not followed (the executor clock never goes back)
+        target = self.wake_at
+        if (target is None or self.t + 1e-9 >= target) and not self.reached.is_set():
+            self.reached_mono = time.monotonic()
+            self.reached.set()
 
     def started(self):
         return self.samples > 0
@@ -226,10 +245,11 @@ class SpinMonitor:
       data(i)   a subscription callback of topic TOPICS[i] began (the input thread, wall = time.monotonic())
       timer()   the input thread's own 20 Hz timer ran (no DDS data involved: the thread itself is alive)
       probe(s)  the GIL probe thread woke s seconds late from a 10 ms sleep (the whole process: GIL, scheduler)
-      poll(s)   the main loop's SIM clock poll came s seconds after the previous one (2 ms nominal)
+      poll(s)   the main loop woke s seconds after the /clock sample that reached its grid point set the wake-up
+                (stage 6; stage 5: the gap between two 2 ms polls)
     A gap of the subscription callbacks longer than gap_event_s is kept as one 'input_gap' event with what the other
     three saw meanwhile: timer callbacks (the thread ran: the data did not come), the probe's worst lateness and the
-    main loop's longest poll gap (the process or the main thread did not run)."""
+    main loop's longest wake latency (the process or the main thread did not run)."""
 
     TOPICS = ('clock', 'scan', 'imu', 'human')
     GAP_EVENT_S = .15
@@ -298,7 +318,7 @@ class SpinMonitor:
         """(diag dict for the tick, list of input_gap events since the last take); resets the per-tick values.
         diag (ms, per tick): wm time.monotonic() [s], cb callbacks per topic (TOPICS), gap / cgap the longest
         subscription / clock callback gap, tm timer callbacks and tgap their longest gap, gil the probe's worst
-        lateness, poll the main loop's longest poll gap."""
+        lateness, poll the main loop's longest wake latency."""
         with self.lock:
             diag = dict(wm=round(self.mono(), 3), cb=list(self.counts), gap=round(self.max_data_gap * 1e3, 1),
                         cgap=round(self.max_clock_gap * 1e3, 1), tm=self.timers, tgap=round(self.max_timer_gap * 1e3, 1),
@@ -322,12 +342,23 @@ def gil_probe(monitor, stop_event, period_s=.01):
 
 
 def tick_diag(loop, monitor):
-    """The ExecutorLoop's tick_extra: the monitor's per-tick values; its input_gap events go to the log as events."""
+    """The ExecutorLoop's tick_extra: the monitor's per-tick values (plus ww, the tick's wall time); its input_gap
+    events go to the log as events."""
     def extra():
         diag, events = monitor.take()
         for event in events:
             loop._event('input_gap', **event)
+        diag['ww'] = round(time.time(), 3)
         return diag
+    return extra
+
+
+def tick_time():
+    """The ExecutorLoop's tick_extra without the input diagnostics (SIM clock mode, G-SIM stage 6): only the tick's
+    monotonic time wm and wall time ww [s] (the tick records carry SIM time; the host-fault rule of the stage 6
+    registration matches a run's events with the Windows host sampler by wall time). Two clock reads per tick."""
+    def extra():
+        return dict(wm=round(time.monotonic(), 3), ww=round(time.time(), 3))
     return extra
 
 
@@ -335,19 +366,29 @@ def tick_diag(loop, monitor):
 class SimRosInput:
     """The executor node ubts_row_executor in the SIM clock mode: the subscriptions of executor_main.RosInput (same
     topics and QoS) plus /clock; the receipt of a scan, IMU or /rover/control/requested message is the SIM time of the
-    last /clock sample at callback entry. Callbacks only append to the loop's input buffers."""
+    last /clock sample at callback entry. Callbacks only append to the loop's input buffers.
+
+    The node has no parameter services, no type description service and no /rosout publisher (G-SIM stage 6,
+    NODE_OPTIONS): nothing uses them, and rclpy's executor adds every service of the node to the wait set it builds
+    for each callback (stage 6 step 1: the input thread of the idle executor used 13.9 % of a core at about 164
+    callbacks/s, 11.1 % without them). The subscriptions, their QoS and the callbacks are unchanged."""
+
+    NODE_OPTIONS = dict(start_parameter_services=False, enable_rosout=False)
 
     def __init__(self, loop, sim_clock, scan_topic=SCAN_TOPIC, imu_topic=IMU_TOPIC, human_topic=HUMAN_TOPIC,
                  clock_topic=CLOCK_TOPIC, monitor=None):
         import rclpy
         from rclpy.executors import SingleThreadedExecutor
+        from rclpy.parameter import Parameter
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
         from rosgraph_msgs.msg import Clock
         from sensor_msgs.msg import Imu, LaserScan
         from std_msgs.msg import String
         self.rclpy = rclpy
         rclpy.init(args=None)
-        self.node = rclpy.create_node('ubts_row_executor')
+        self.node = rclpy.create_node(
+            'ubts_row_executor', parameter_overrides=[Parameter('start_type_description_service', value=False)],
+            **self.NODE_OPTIONS)
 
         def sensor_qos(depth):
             return QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=depth,
@@ -426,27 +467,36 @@ class SteppedLoop:
         return getattr(self._loop, name)
 
 
-def run_loop_sim(loop, stop_event, sim_clock, hz=20., poll_s=SIM_POLL_S, max_exceptions=5, exception_window_s=60.,
+def run_loop_sim(loop, stop_event, sim_clock, hz=20., poll_s=SIM_WAIT_S, max_exceptions=5, exception_window_s=60.,
                  grid=None, deadline=None, monitor=None):
     """SIM clock mode loop (module docstring): one loop.step() each time the SIM clock reaches the next 1/hz grid point;
     a jump over several points runs one step and counts the missed ones (loop.counts['missed_ticks'], grid['skipped']).
-    An exception in a step: as executor_main.run_loop in MOTOR mode (logged, emergency STOP, the process ends after more
-    than max_exceptions within exception_window_s of the monotonic clock). monitor (SpinMonitor, diagnostics): the wall
-    gap between two polls (a step in between counts too)."""
+    The loop waits on sim_clock.reached (the /clock sample that reaches the grid point wakes it; G-SIM stage 6) for at
+    most poll_s, then checks stop and deadline; it no longer polls the clock every 2 ms. grid['polls'] counts the
+    wake-ups (reached or timed out), grid['timeouts'] the timed-out ones. An exception in a step: as
+    executor_main.run_loop in MOTOR mode (logged, emergency STOP, the process ends after more than max_exceptions within
+    exception_window_s of the monotonic clock). monitor (SpinMonitor, diagnostics): the wake latency after the sample
+    that reached the grid point."""
     import traceback
     period = 1. / float(hz)
     grid = {} if grid is None else grid
-    grid.update(steps=0, skipped=0, polls=0, next_t=None, started=False)
+    grid.update(steps=0, skipped=0, polls=0, timeouts=0, next_t=None, started=False)
     recent = collections.deque()
-    last_poll = time.monotonic()
-    while not stop_event.wait(poll_s):
+    reached = sim_clock.reached
+    sim_clock.wake_at = None
+    while not stop_event.is_set():
+        woke = reached.wait(poll_s)
+        reached.clear()                  # before the clock is read: a later sample sets it again (no lost wake-up)
         mono = time.monotonic()
-        if monitor is not None:
-            monitor.poll(mono - last_poll)
-        last_poll = mono
+        if monitor is not None and woke and sim_clock.reached_mono is not None:
+            monitor.poll(max(0., mono - sim_clock.reached_mono))
         if deadline is not None and mono >= deadline:
             break
+        if stop_event.is_set():
+            break
         grid['polls'] += 1
+        if not woke:
+            grid['timeouts'] += 1
         if not sim_clock.started():
             continue
         now = sim_clock()
@@ -454,12 +504,16 @@ def run_loop_sim(loop, stop_event, sim_clock, hz=20., poll_s=SIM_POLL_S, max_exc
             grid['next_t'] = math.floor(now / period + 1e-9) * period
             grid['started'] = True
         if now + 1e-9 < grid['next_t']:
+            sim_clock.wake_at = grid['next_t']
+            if sim_clock() + 1e-9 >= grid['next_t']:
+                reached.set()            # a sample came between the read and wake_at: do not wait for the next one
             continue
         missed = int(math.floor((now - grid['next_t']) / period + 1e-9))
         if missed > 0:
             grid['skipped'] += missed
             loop.counts['missed_ticks'] = loop.counts.get('missed_ticks', 0) + missed
         grid['next_t'] = grid['next_t'] + (missed + 1) * period
+        sim_clock.wake_at = grid['next_t']
         grid['steps'] += 1
         try:
             loop.step()
@@ -678,7 +732,16 @@ def build_parser():
                    default=os.environ.get('UBTS_STEER_EXEC_SKIP_SOURCE_CHECK') == '1',
                    help='development snapshots only: run although tools/row_executor does not match SHA256SUMS')
     p.add_argument('--max-runtime-s', type=float, default=None, help='stop after this many seconds (tests)')
+    p.add_argument('--input-diag', choices=('off', 'on'), default=input_diag_default(),
+                   help='SIM clock mode: the input thread diagnostics (SpinMonitor, tick diag, input_gap events; '
+                        'default off, %s=1 turns them on)' % INPUT_DIAG_ENV)
     return p
+
+
+def input_diag_default(environ=None):
+    """'on' when UBTS_STEER_EXEC_INPUT_DIAG is 1 / on / true / yes, else 'off' (G-SIM stage 6: opt-in)."""
+    value = (os.environ if environ is None else environ).get(INPUT_DIAG_ENV, '')
+    return 'on' if str(value).strip().lower() in ('1', 'on', 'true', 'yes') else 'off'
 
 
 class Container:
@@ -727,10 +790,14 @@ class Container:
             stop_transport=UnixSocketTransport(cfg.socket_path, cfg.bridge_timeout_s),
             runner_factory=lambda c: Runner(c, controller_factory=self.slot.factory_for(c)))
         self.cfg = self.loop.config               # with the field tuning the loop loaded (config.json, status digest)
-        # diagnostics of the input thread (SIM clock mode; G-SIM stage 5): the tick's 'diag' and 'input_gap' events
-        self.monitor = SpinMonitor() if self.sim_clock is not None else None
+        # diagnostics of the input thread (SIM clock mode; G-SIM stage 5): the tick's 'diag' and 'input_gap' events;
+        # opt-in since stage 6 (--input-diag on / UBTS_STEER_EXEC_INPUT_DIAG=1)
+        self.input_diag = getattr(args, 'input_diag', 'off') == 'on' and self.sim_clock is not None
+        self.monitor = SpinMonitor() if self.input_diag else None
         if self.monitor is not None:
             self.loop.tick_extra = tick_diag(self.loop, self.monitor)
+        elif self.sim_clock is not None:
+            self.loop.tick_extra = tick_time()
         self.stepped = SteppedLoop(self.loop, self.hooks_state)
         self.hooks = ExecHooks(self.exec_dir / 'hooks.sock', self.hooks_state, loop=self.loop, slot=self.slot,
                                wall=self.wall, status_fn=self.status)
@@ -748,7 +815,7 @@ class Container:
                     tuning=None if self.loop.tuning is None else self.loop.tuning.brief(),
                     topics=dict(scan=SCAN_TOPIC, imu=IMU_TOPIC, human=HUMAN_TOPIC,
                                 clock=CLOCK_TOPIC if self.args.clock == 'sim' else None),
-                    retired_status=self.retired, log_files_pruned=self.log_pruned,
+                    retired_status=self.retired, log_files_pruned=self.log_pruned, input_diag=self.input_diag,
                     source_commit=os.environ.get('UBTS_STEER_SOURCE_COMMIT'),
                     source_status_sha256=os.environ.get('UBTS_STEER_SOURCE_STATUS_SHA256'),
                     started_wall=self.started_wall)

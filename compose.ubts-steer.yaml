@@ -256,12 +256,18 @@ services:
       UBTS_STEER_EXEC_CONTROLLER: '${UBTS_STEER_EXEC_CONTROLLER:-{"kind": "row_follow"}}'
       UBTS_STEER_EXEC_OVERRIDES: ${UBTS_STEER_EXEC_OVERRIDES:-}
       UBTS_STEER_EXEC_SKIP_SOURCE_CHECK: ${UBTS_STEER_EXEC_SKIP_SOURCE_CHECK:-0}
+      # the stage 5 input diagnostics of the SIM clock mode (SpinMonitor, tick diag, input_gap): 1 turns them on
+      UBTS_STEER_EXEC_INPUT_DIAG: ${UBTS_STEER_EXEC_INPUT_DIAG:-0}
       UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
       UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
     volumes:
       - control:/run/ubts-steer
     mem_limit: 512m
     cpus: 3                 # was 1.5 (throttled; dense-scan processing; STACK_OPERATIONS_KO.md 8)
+    # CPU weight above the other services (no cpu_shares: cgroup v2 cpu.weight 100) when the VM's CPUs are contended;
+    # the quota (cpus) is unchanged. 8192 shares = cpu.weight 532 in the container (read on Docker 29.9, the runc
+    # mapping where 1024 shares = 100). STACK_OPERATIONS_KO.md 10
+    cpu_shares: 8192
     stop_grace_period: 20s
     restart: "no"
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
