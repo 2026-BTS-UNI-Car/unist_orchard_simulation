@@ -104,13 +104,28 @@ PART_F = dict(
     passed='%d of %d runs end at the row end' % (SIM_AUTO_RUNS, SIM_AUTO_RUNS))
 
 
+AMENDMENTS = [dict(
+    n=1, date='2026-11-13', written='after parts A, W, B, C, E (09:29-10:31 UTC), before B is run again and before F',
+    B=('evaluation defects of the browser script: (i) a speed check written abs(v or 9) < 0.05 counted an emulator speed '
+       'of exactly 0.0 as moving (attempt 1: "screen STOP: no restart (3 s later)" and "restart: the STOP stops it '
+       'again" with v 0.0); (ii) the heartbeat times were taken when the own event handler of the script ran, and the '
+       'script blocked that handler with synchronous docker exec calls (attempt 1: gap 1.926 s while the executor saw '
+       'no link loss). (i) is judged again on the same record from the recorded values; (ii) cannot be judged from the '
+       'record. B is run once more on a fresh stack with the script fixed (speeds: None only counts as missing; '
+       'heartbeat times: the request start times of the browser). The verdict of B is attempt 2; attempt 1 is kept'),
+    C=('evaluation defect of second_screen_and_cli: exec_checks still expected the end reason bridge_error or '
+       'bridge_latched, against acceptance amendment 34 (registered before this registration: a STOP of another '
+       'client that reaches the bridge first ends the run as operator_stop). The same record is judged again with '
+       'operator_stop expected; exec_checks is fixed for later runs. Every other script as recorded'))]
+
+
 def prereg():
     """The machine-readable registration (PREREG_STEER_FOLLOW_GSIM_FINAL3.json)."""
     return dict(schema=SCHEMA + '.prereg', prereg_id=PREREG_ID, result_kind=RESULT_KIND, based_on='steer_follow_gsim_final_v1',
                 common=COMMON, rtf_host_failure=RTF_HOST_FAILURE, reruns_per_slot=RERUNS_PER_SLOT,
                 operator_timeout_s=OPERATOR_TIMEOUT_S, link_lost_limit_s=LINK_LOST_LIMIT_S,
                 heartbeat_gap_max_s=HEARTBEAT_GAP_MAX_S, link_check_s=LINK_CHECK_S,
-                parts=dict(A=PART_A, W=PART_W, B=PART_B, C=PART_C, E=PART_E, F=PART_F), amendments=[])
+                parts=dict(A=PART_A, W=PART_W, B=PART_B, C=PART_C, E=PART_E, F=PART_F), amendments=AMENDMENTS)
 
 
 def judge_follow(report):

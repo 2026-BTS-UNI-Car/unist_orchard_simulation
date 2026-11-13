@@ -1593,8 +1593,11 @@ def s_second_screen(ctx):
                 criterion('executor_late_drive_refused', errors[:3], 'a refusal (stop_barrier / control_not_owned)',
                           bool(errors) and any(('stop_barrier' in str(e)) or ('control_not_owned' in str(e)) or
                                                ('not_owned' in str(e)) for e in errors)),
-                criterion('executor_end_reason', end_reason, 'bridge_error or bridge_latched',
-                          str(end_reason).startswith('bridge_')),
+                # acceptance amendment 34: a STOP of another client (here the CLI) that reaches the bridge first also
+                # ends the run as operator_stop (the T1 scripts were changed then; this G-SIM check was not until
+                # gsim-final3, registration steer_follow_gsim_final3_v1 amendment 1)
+                criterion('executor_end_reason', end_reason, 'operator_stop (acceptance amendment 34)',
+                          end_reason == 'operator_stop'),
                 criterion('no_automatic_restart', len(restart), 0, not restart)]
     return _finish(ctx, 'second_screen_and_cli', step0, before, criteria,
                    dict(start=start, mark=mark, end_reason=end_reason, end_note=end_note, client=client.get('state'),
