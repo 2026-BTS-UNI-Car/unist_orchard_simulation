@@ -30,8 +30,13 @@ function sensorReconnectDelay(attempt, closeEvent = {}, random = Math.random) {
   const base = Math.min(SENSOR_RECONNECT_MAX_MS, SENSOR_RECONNECT_BASE_MS * 2 ** step);
   return Math.round(Math.min(SENSOR_RECONNECT_MAX_MS, base * (0.8 + 0.4 * random())));
 }
+// NET-11: when the link comes back the channels do not all reconnect at the same
+// moment: LiDAR first, IMU 0.25 s later, the camera (the big one) 0.6 s later.
+const SENSOR_RECONNECT_STAGGER_MS = { lidar: 0, imu: 250, camera: 600 };
 function nextSensorReconnectDelay(live, closeEvent = {}) {
-  const delay = sensorReconnectDelay(live.reconnectAttempt || 0, closeEvent);
+  const channel = live === state.cameraLive ? "camera" : live === state.imuLive ? "imu" : "lidar";
+  const fast = closeEvent?.code === 4001 && closeEvent?.reason === "autonomy_priority";
+  const delay = sensorReconnectDelay(live.reconnectAttempt || 0, closeEvent) + (fast ? 0 : SENSOR_RECONNECT_STAGGER_MS[channel]);
   if (!(closeEvent?.code === 4001 && closeEvent?.reason === "autonomy_priority")) {
     live.reconnectAttempt = (live.reconnectAttempt || 0) + 1;
   }
@@ -72,7 +77,10 @@ function resumeSensorStreamsForVisiblePage() {
   const cameraPausedByAck = state.cameraLive.ackExhausted === true;
   if ((closed.camera || cameraPausedByAck) && routeSupportsCameraLive() && !state.cameraLive.socket &&
       (cameraPausedByAck || !state.cameraLive.userStopped)) {
-    state.cameraLive.reconnectAttempt = 0; startCameraLive();
+    state.cameraLive.reconnectAttempt = 0;
+    // An off-screen camera panel stays closed until it is scrolled back (NET-08).
+    if (cameraPanel.visible === false) cameraPanel.closed = true;
+    else startCameraLive();
   }
   if (closed.imu && routeSupportsImuLive() && !state.imuLive.socket && !state.imuLive.userStopped) {
     state.imuLive.reconnectAttempt = 0; startImuLive();
@@ -85,6 +93,52 @@ function handleSensorStreamVisibility() {
   }
   resumeSensorStreamsForVisiblePage();
   tick();
+}
+
+// Hidden camera panel (NET-08): when the picture box of the camera has been off
+// screen (scrolled away, collapsed or display:none) for 1 s, the camera socket is
+// closed (not a user stop) and opened again as soon as the box is back on screen.
+// Nothing else changes: a user stop stays a user stop and the recording is untouched.
+const CAMERA_PANEL_HIDDEN_MS = 1000;
+const cameraPanel = { observer: null, element: null, visible: null, timer: null, closed: false };
+function cameraPanelElement() {
+  const image = $(currentRoute() === "/rover-control" ? "roverCameraImage" : "cameraLiveImage");
+  return image?.parentElement || image || null;
+}
+function watchCameraPanel() {
+  if (typeof IntersectionObserver !== "function") return;
+  const element = cameraPanelElement();
+  if (element === cameraPanel.element) return;
+  if (!cameraPanel.observer) cameraPanel.observer = new IntersectionObserver(onCameraPanelIntersection);
+  if (cameraPanel.element) cameraPanel.observer.unobserve(cameraPanel.element);
+  cameraPanel.element = element;
+  cameraPanel.visible = null;
+  if (element) cameraPanel.observer.observe(element);
+}
+function onCameraPanelIntersection(entries) {
+  const entry = [...entries].reverse().find((item) => item.target === cameraPanel.element);
+  if (!entry) return;
+  cameraPanel.visible = Boolean(entry.isIntersecting);
+  if (cameraPanel.visible) {
+    if (cameraPanel.timer) { window.clearTimeout(cameraPanel.timer); cameraPanel.timer = null; }
+    if (cameraPanel.closed) {
+      cameraPanel.closed = false;
+      if (!document.hidden && routeSupportsCameraLive() && !state.cameraLive.socket && !state.cameraLive.userStopped) {
+        state.cameraLive.reconnectAttempt = 0;
+        startCameraLive();
+      }
+    }
+  } else if (!cameraPanel.timer) {
+    cameraPanel.timer = window.setTimeout(closeCameraForHiddenPanel, CAMERA_PANEL_HIDDEN_MS);
+  }
+}
+function closeCameraForHiddenPanel() {
+  cameraPanel.timer = null;
+  if (cameraPanel.visible !== false) return;
+  if ((state.cameraLive.socket || state.cameraLive.enabled) && !state.cameraLive.userStopped) {
+    cameraPanel.closed = true;
+    closeCameraLive("카메라 화면이 보이지 않아 수신을 쉽니다.", { userStopped: false });
+  }
 }
 
 function toggleLidarLive() {
@@ -115,6 +169,7 @@ function startLidarLive() {
   debugLog("ws", `connecting ${url}`);
   try {
     const socket = new WebSocket(url);
+    socket.binaryType = "arraybuffer";  // polar-v2 scans are binary (NET-07)
     state.lidarLive.socket = socket;
     socket.addEventListener("open", () => {
       if (socket !== state.lidarLive.socket) return;
@@ -261,9 +316,13 @@ function liveNetworkProfile() {
   try { return localStorage.getItem("ubts-live-network-profile") || (SIMULATION ? "detail" : "auto"); }
   catch (_) { return SIMULATION ? "detail" : "auto"; }
 }
+// The plan every channel follows. A chosen transfer quality is used as it is; in
+// automatic mode the link grade decides (04-link-grade.js, NET-10).
 function effectiveLinkProfile() {
   const chosen = liveNetworkProfile();
   if (chosen !== "auto") return chosen;
+  const graded = window.LinkGrade?.profile?.();
+  if (["detail", "balanced", "slow", "tiny"].includes(graded)) return graded;
   const measured = state.cameraLive.effectiveProfile;
   return ["detail", "balanced", "slow", "tiny"].includes(measured) ? measured : "balanced";
 }
@@ -280,23 +339,26 @@ function setLiveNetworkProfile(value) {
 }
 
 function cameraWebSocketUrl() {
+  const chosen = liveNetworkProfile();
+  // Automatic mode follows the plan of the link grade; a chosen quality keeps the page's settings.
+  const plan = chosen === "auto" ? cameraStreamPlan() : null;
   const params = new URLSearchParams({
-    resolution: state.cameraLive.resolution,
-    fps: String(state.cameraLive.fps),
-    quality: "70",
-    profile: liveNetworkProfile(),
+    resolution: plan ? plan.resolution : state.cameraLive.resolution,
+    fps: String(plan ? plan.fps : state.cameraLive.fps),
+    quality: String(plan ? plan.quality : 70),
+    profile: plan ? plan.profile : chosen,
     transport: "binary-v1",
     flow: "decode-ack",
   });
-  const originalPreview = new URLSearchParams(location.search).get("camera_preview") ??
-    (window.UBTS_CAMERA_ORIGINAL_PREVIEW === true ? "original" : "legacy");
-  if (originalPreview === "original") {
+  if (cameraPreviewMode() === "original") {
     params.set("resolution", "1920x1080");
     params.set("quality_mode", "original");
   }
   // V1 remains the default. Only an explicit supported-client opt-in asks
-  // the server to negotiate more than one outstanding preview frame.
-  const explicitWindow = new URLSearchParams(location.search).get("camera_ack_window") ?? window.UBTS_CAMERA_ACK_WINDOW;
+  // the server to negotiate more than one outstanding preview frame; in
+  // automatic mode the plan says how many pictures may be on the way.
+  const explicitWindow = new URLSearchParams(location.search).get("camera_ack_window") ??
+    (plan ? String(plan.window) : window.UBTS_CAMERA_ACK_WINDOW);
   if (["2", "3"].includes(String(explicitWindow))) {
     params.set("flow", "decode-ack-v2");
     params.set("ack_window", String(explicitWindow));
@@ -309,6 +371,38 @@ function cameraWebSocketUrl() {
   return `${scheme}://${location.host}/ws/camera?${params.toString()}`;
 }
 
+// Which preview the camera asks for (NET-08). The 1920x1080 original JPEG (about
+// 112 kB a picture) is a preview choice only; the recording is always the original.
+// It is used when it is asked for: ?camera_preview=original, or the transfer quality
+// "detail" on a dashboard that allows it (window.UBTS_CAMERA_ORIGINAL_PREVIEW).
+// Automatic mode starts with the bridge's re-encoded ladder (640x360 up to 1280x720).
+function cameraPreviewMode(profile = liveNetworkProfile()) {
+  const explicit = new URLSearchParams(location.search).get("camera_preview");
+  if (explicit === "original" || explicit === "legacy") return explicit;
+  if (window.UBTS_CAMERA_ORIGINAL_PREVIEW !== true) return "legacy";
+  if (profile === "auto") return cameraStreamPlan().original ? "original" : "legacy";
+  return profile === "detail" ? "original" : "legacy";
+}
+
+// Camera preview per link grade in automatic mode (NET-08 (1)(3), NET-10). The
+// size, rate and quality bound what the camera may take of the link so that
+// control answers do not wait behind it (pictures measured on the bench frames:
+// 640x360 Q40 about 19 kB, 320x180 Q35 about 6 kB, 160x90 Q30 about 2 kB):
+//   good      original 1080 preview where allowed, one picture on the way
+//   normal    640x360 Q40, 6 per second, one on the way (two let a control answer
+//             wait behind two pictures: command p95 312 ms on the bench, 5a15199)
+//   slow      320x180 Q35, 5 per second, two on the way
+//   very slow the bridge's "tiny" profile (160x90, 2 per second, 3 kB/s)
+const CAMERA_STREAM_PLAN = {
+  detail: { original: true, profile: "detail", resolution: "1280x720", fps: 30, quality: 70, window: 1 },
+  balanced: { original: false, profile: "balanced", resolution: "640x360", fps: 6, quality: 40, window: 1 },
+  slow: { original: false, profile: "balanced", resolution: "320x180", fps: 5, quality: 35, window: 2 },
+  tiny: { original: false, profile: "tiny", resolution: "320x180", fps: 2, quality: 30, window: 1 },
+};
+function cameraStreamPlan(profile = effectiveLinkProfile()) {
+  return CAMERA_STREAM_PLAN[profile] || CAMERA_STREAM_PLAN.balanced;
+}
+
 function startCameraLive() {
   if (!routeSupportsCameraLive()) {
     debugLog("camera", "skip start outside live routes");
@@ -316,6 +410,13 @@ function startCameraLive() {
   }
   if (state.cameraLive.socket) return;
   clearCameraReconnectTimer();
+  watchCameraPanel();
+  if (cameraPanel.visible === false) {
+    // Off screen: open when the picture box is visible again (NET-08).
+    state.cameraLive.userStopped = false;
+    cameraPanel.closed = true;
+    return;
+  }
   const url = cameraWebSocketUrl();
   state.cameraLive.enabled = true;
   state.cameraLive.userStopped = false;

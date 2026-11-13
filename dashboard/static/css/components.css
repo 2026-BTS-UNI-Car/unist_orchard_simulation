@@ -405,6 +405,10 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .tab {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
   min-height: var(--control-height);
   padding: 0 2px;
   border: 0;

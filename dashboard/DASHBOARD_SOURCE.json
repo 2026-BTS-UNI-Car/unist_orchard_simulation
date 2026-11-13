@@ -1,10 +1,10 @@
 {
- "bytes": 4825731,
- "commit": "654f80b259990209366bb6d2d796a137615cbcb3",
+ "bytes": 4907005,
+ "commit": "90094fd904e5d3b608cfeb29e66f4bd7befa3203",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
- "file_count": 130,
+ "file_count": 133,
  "files": {
   "config/dashboard.json": {
    "blob": "67f0ec8e55737a0efc71fe54601cd188cd8765d6",
@@ -37,10 +37,10 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "03aa709c2168effc1a550298e5fc60ab89c50309",
-   "bytes": 77172,
+   "blob": "ed1d6c220ff880debe05f931e902ddf5e50a98b8",
+   "bytes": 89534,
    "mode": "100644",
-   "sha256": "a2aaf1befa18e0ae6d41f5c2436c485cf67d25b14e0c09791c1837a1b4a4c2d5"
+   "sha256": "7196e9a8c9743bed0575d5433927427d3683b58d2b61e00fc14b3e8988ca5de0"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
@@ -79,10 +79,10 @@
    "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
   },
   "dashboard_server/executor_proxy.py": {
-   "blob": "947ce236884da63801cd603fed3d01ccd5c2f8ad",
-   "bytes": 10417,
+   "blob": "998238224956b1fbd230c117c6b1f7a661144100",
+   "bytes": 14994,
    "mode": "100644",
-   "sha256": "bc40158fd3cf70c0bf221cf52f33fcb0697bbc0e5bb4bf3078520b96ba949636"
+   "sha256": "b2397ef46a260957787f09f75b29579d6c20c1b8e04e929e01896f26651f4f68"
   },
   "dashboard_server/extensions.py": {
    "blob": "18110aea03888e63eac5eb1de435277b18171aef",
@@ -307,22 +307,22 @@
    "sha256": "4ed2eab01aed8df421dd0a18cb9fc5bf5a373444c1ffe9094c7f58feb76e5eb1"
   },
   "dashboard_server/static_assets.py": {
-   "blob": "c8242425e34bacffa53d9a7d06a20581c0faf2e7",
-   "bytes": 10942,
+   "blob": "8edd70ad8f090350f23a6ea79000adec8396110a",
+   "bytes": 13512,
    "mode": "100644",
-   "sha256": "6507831f378fb815b993a1fe534eadabdd910985db1e29e05e2a7f499a0a5dc8"
+   "sha256": "385fa7f377c1f4511f437686fecaf17c50b13fbdec94185d4dd61420b83bea49"
   },
   "dashboard_server/steer_tuning.py": {
-   "blob": "6b977ba42b78bb9aa587c6eebf4306b056ebf857",
-   "bytes": 8984,
+   "blob": "0b28f4f3404a184134c41c08dd358e761e1c1947",
+   "bytes": 14493,
    "mode": "100644",
-   "sha256": "7f6bc165ae2d96580dc54ecbcfd1b95f6c4609d4bbb5004e6fdda6bf01ed700a"
+   "sha256": "61875399950aa9020148d5ca7367fb92a526e165c614584bca48846d656d6911"
   },
   "dashboard_server/telemetry.py": {
-   "blob": "ec6daa89a3178971a8edc53823a5dc12653e74fc",
-   "bytes": 174728,
+   "blob": "7a5f8c584540f4ad1139eae0c77a3f683876ce4c",
+   "bytes": 174325,
    "mode": "100644",
-   "sha256": "278e299689d0770eeea2219aeb4801767e987dc4490da5a436758130dae40efb"
+   "sha256": "1ed8c3396b267b99d0cc7097836bb465f548da7efc9d546f6b440d06aff6cc05"
   },
   "dashboard_server/telemetry_cache.py": {
    "blob": "6fd1bb08db1c26765f916b92b817710283c9dcdf",
@@ -331,10 +331,10 @@
    "sha256": "26831e05e8504f1d01c37fca8a0faedcaef00f34106a09d0f263a2179a045cc6"
   },
   "dashboard_server/telemetry_snapshot.py": {
-   "blob": "338a45b1ab743100ef389980a7833a3228ce8899",
-   "bytes": 3368,
+   "blob": "bc7356112b01964c4ce735d49a81f7ce22df65a6",
+   "bytes": 4966,
    "mode": "100644",
-   "sha256": "2e7348cf9d1c305e64ce3ab0f09a268f5ea1af26d76ee97486c9e47dfd430299"
+   "sha256": "b369e9ba942d59f288e1fae9636e1d44ef2574b8b6bab6bca936c47ecbf84af0"
   },
   "dashboard_server/tile_transport.py": {
    "blob": "aba223fa6b34b8fc91385976b3a59ac166601ca8",
@@ -361,28 +361,28 @@
    "sha256": "81864ab83e647c70e7ecf3a1fa0fc8bbeb0dd7dd1841b2279b4acd9e7e1ced98"
   },
   "dashboard_server/ws_relay.py": {
-   "blob": "c1fa7188dd2de2121478e6d90e1adbc792809f68",
-   "bytes": 5016,
+   "blob": "13e6f16e195b5fb7d54727b5868be1581f2f083c",
+   "bytes": 5374,
    "mode": "100644",
-   "sha256": "eec926c2f7d376b9cdd50dae5ca1e9f4927b0291b7754161f5f798f9e9e01b46"
+   "sha256": "7836fa5e19e89da70eac9b01980543996ee848c7c457ccadbc4ff73e15b90516"
   },
   "static/app/00-config-state.js": {
-   "blob": "72c11096bb11489422a79b89cf4b2dc3f2a82eca",
-   "bytes": 6871,
+   "blob": "b65927c1e597b6151ba920535233c81ce0869bd8",
+   "bytes": 7345,
    "mode": "100644",
-   "sha256": "6c9b87eb05d5771e552257a8a123eda01c16fafe78367cf049c29a28d0295737"
+   "sha256": "e1362cb2c92bc3b8b3646932a02b60e3772640603e17ebb5cda41d6a58149d60"
   },
   "static/app/01-format-http.js": {
-   "blob": "d0ba8b71665d8cf84bb970069afe03af632f225d",
-   "bytes": 4072,
+   "blob": "a5dd686fa21b5e96dde634777ec4cd3d70eae301",
+   "bytes": 11207,
    "mode": "100644",
-   "sha256": "8829339979b4c3e97c7f84f1c2e5d5bf7724378c5a0bfe7cd6721622db0d2551"
+   "sha256": "9a2949f9186b27d0892f4733afb318512fd9394a47ced39a71f6728333c91d01"
   },
   "static/app/02-shell.js": {
-   "blob": "9f43a1b70f67adff54ba1fb762468078cb5ac2b2",
-   "bytes": 7076,
+   "blob": "5b440bdcc88f0ca4c98efd870bc88ccb1de8160b",
+   "bytes": 8987,
    "mode": "100644",
-   "sha256": "3fd981c0fbef19dfb9f529b8c209a0b684f807e6d5799acaac73c547d77e5e59"
+   "sha256": "c9e8e25cf5b260d19df46ea2e2a76928f86fa31fb430ad0ec33f48d2e7c71868"
   },
   "static/app/03-sensor-settings.js": {
    "blob": "35cf3abada6b58a60690d6b701ed37a4127f2438",
@@ -390,77 +390,83 @@
    "mode": "100644",
    "sha256": "67066d530872b7ef09e7c8e76e10b2e249be4bc356e576cb993a0845816457f1"
   },
-  "static/app/04-telemetry.js": {
-   "blob": "10a9b112a45d19de685b404dfc61c84882233446",
-   "bytes": 11878,
+  "static/app/04-link-grade.js": {
+   "blob": "e941e62956d3a282ff9819548951b0605f01ced1",
+   "bytes": 12746,
    "mode": "100644",
-   "sha256": "02bcf3e38c61a881d1ab59dc6a0bc85e5e6a34a8694655ff70665c4bc2924482"
+   "sha256": "517c5973bc2057b885bdb2d1a6bcf38bfdc99bce864dfbb107d8480ed44df390"
+  },
+  "static/app/04-telemetry.js": {
+   "blob": "c2cd1e05323d5ff494f7cc7c93f2d52d40254846",
+   "bytes": 12597,
+   "mode": "100644",
+   "sha256": "ebf862ab9a07237720acd6ef9aa949c49da88591375c8a2698664da76fc810d6"
   },
   "static/app/05-live-lidar-camera.js": {
-   "blob": "aba2a735f62253425b889a3948ee1ef8acdfb857",
-   "bytes": 35726,
+   "blob": "e213666877e5cd52a8baacd1a85b1f68a58a8b10",
+   "bytes": 41511,
    "mode": "100644",
-   "sha256": "ff857defc5c47f870461132793984b0db154f3fdd9b1a4d7ad08126a1522d34c"
+   "sha256": "4edf36104c6826a2e511a812f497f0119dadff6941726b07cb5c3fa81480c926"
   },
   "static/app/06-live-imu.js": {
-   "blob": "140b9b0de161ff58246f3198e0f1a8b49049f098",
-   "bytes": 9510,
+   "blob": "37dfca1df2c3f1194b694f0529998f747d763d13",
+   "bytes": 10002,
    "mode": "100644",
-   "sha256": "b0b04a9e68d4851eed45ccda2bfbca6eccb1482fd98103793be156d1bb0f42da"
+   "sha256": "ae6a9a8cb63d8daefe815f62a03160e161b0332ca16ddf800429ce5eeb7bc4cb"
   },
   "static/app/07-lidar-data.js": {
-   "blob": "03fccef136cb1e785db0abdc53d02ee2596dbc61",
-   "bytes": 14442,
+   "blob": "daac5ba1a7ea8e8f9e71078b7217098dfe3a0c5f",
+   "bytes": 16888,
    "mode": "100644",
-   "sha256": "3134ea550e0d40e55006951655bb1578e1941615b9935427ba8d7068752f589f"
+   "sha256": "b85a51436256c9049898f60a1bdfaff485bb09c5dd944b53dcc9e04619aea41a"
   },
   "static/app/08-system-panels.js": {
-   "blob": "9870dbba37c1ca9dcbbfcbcb76f616cd8eaff5f7",
-   "bytes": 38333,
+   "blob": "b9f83ca5cbdbfd587563d14a73be0f7c88a91225",
+   "bytes": 38903,
    "mode": "100644",
-   "sha256": "4223f25d666dfe89d486335d15df7edafe2c48d3c8da7c00ebe56498223d5f0a"
+   "sha256": "587d002078cdc7db300f0e268d2923bdf388d1064f84bb23faa7b833c31b0ceb"
   },
   "static/app/09-docs.js": {
-   "blob": "5ea9732f89523477746b6b68f6db116c864c1650",
-   "bytes": 10114,
+   "blob": "4537c2ac7888358773a41197bf91feacfd665acc",
+   "bytes": 9669,
    "mode": "100644",
-   "sha256": "3f5b002df5a39caf4b5876cb51ebe521fc15394982685ce1b5f98c04d58a32df"
+   "sha256": "96898a93946a6f047fb5c0029943d0ee42ff294f01e0a10a09b463f7877f3275"
   },
   "static/app/10-rover-control.js": {
-   "blob": "a2fa8b805dda3ff27fb9242ba914fdad30a28d2e",
-   "bytes": 21869,
+   "blob": "8a1a3322880291838d75daa36b4f8330d63a621a",
+   "bytes": 21893,
    "mode": "100644",
-   "sha256": "8e8e382ef3409fab1d2303fbf323c39873f91ebfb345f81a0fb625088010719f"
+   "sha256": "2c952b5f54466de7fb3af5227ace808b9ecc06e5dca6201bd918d1cf5dd336a0"
   },
   "static/app/11-recording.js": {
-   "blob": "0139d6ce90e5babd869d13ccdfafa634a8b1280d",
-   "bytes": 9398,
+   "blob": "07ea9df514231892c32787a722bb52a08c0842f7",
+   "bytes": 9390,
    "mode": "100644",
-   "sha256": "e19e47203df897b047f126c4513c9e3055bfaa13ae68de18905679951416fd6a"
+   "sha256": "9358f2dc89b16e848810b5600e15e8549103e7e3f3fcd79df542cb8aa66ffdcd"
   },
   "static/app/12-archive.js": {
-   "blob": "8cbaf256222400cabec91b7a21b0774a9f8902d9",
-   "bytes": 53609,
+   "blob": "5cff0ce9100f05c7a67bab1d0e86619cf0d51974",
+   "bytes": 53603,
    "mode": "100644",
-   "sha256": "5a77a9d3d6dc337e2c61bbd7151b1e28157a231d999884ae9cb781795380af0b"
+   "sha256": "2a0110a98dccd3efe1f0f70e5b405dc8940c4b799c95e457e6c203f0c9a8486c"
   },
   "static/app/13-charts-canvas.js": {
-   "blob": "3cbf9ff00d98bbe963d63fa4cd9605bdc8dbe5d2",
-   "bytes": 16624,
+   "blob": "de4a31a4f56b24bc6d091901f6deb218bbe2483d",
+   "bytes": 16493,
    "mode": "100644",
-   "sha256": "b03b7bd2b32be7c37fa4d4c913a2255ba126bebf270dec55f4a4f6c50bb8011f"
+   "sha256": "5f7b60bc88eeff840d98cb74a9e691ff51bb74ee89c597c4c39b16bf5cd40ead"
   },
   "static/app/14-steer.js": {
-   "blob": "38eebaf9aa67986a5a2b0f2fba250f9c32e76e21",
-   "bytes": 1684,
+   "blob": "6a6bce96e58036a1a77fcde479032d16e71f8da8",
+   "bytes": 2239,
    "mode": "100644",
-   "sha256": "c51200d69e036237bcf15217f6cbf659d0690c9d8489a27768aa3dabaf91c37f"
+   "sha256": "6c5779b10656e7529955b2fcd6be8e1863fa689cb839ca7ebfecd7dc676d11bd"
   },
   "static/app/99-main.js": {
-   "blob": "9ba637a4a0a36dc81f5160d97a8287973d9966d3",
-   "bytes": 3047,
+   "blob": "4fe6cb9fa44d3480a79e3a3588041b6cc6118b43",
+   "bytes": 3048,
    "mode": "100644",
-   "sha256": "1d85fe5061a1486bfbdda61e519afc9a40ff5ad410d3a1e43a40a8e3ef36f97d"
+   "sha256": "9e509fcd3fb3b206a4242873c161c73705c78d0256720cfdc52cd11823c2eade"
   },
   "static/archive-map-buffer.mjs": {
    "blob": "79a8c94baa8b149531449d73c75e65fb221a4084",
@@ -505,10 +511,10 @@
    "sha256": "7239ce392bab2ca7fbd82c088ad882678c665d1b9f40aca1bb088b04ce680790"
   },
   "static/css/components.css": {
-   "blob": "a99086e81e17f35d20c8092d926f7b34036da467",
-   "bytes": 26443,
+   "blob": "235898c06d28e6ace2b48ba19cde9029b6b2ac5f",
+   "bytes": 26553,
    "mode": "100644",
-   "sha256": "93ceb479bd6cb0367a48c113e224cb69f550a85428abee2bf4a3e024b8b43ba2"
+   "sha256": "36671feb583d0f075dba1caf7c7e10f54a8c5939e0dfa39b737b8c129e57688e"
   },
   "static/css/frame.css": {
    "blob": "ae546ae34be9b8fe82ac2994a9c478bba5405dcd",
@@ -517,10 +523,10 @@
    "sha256": "86fdb1cbb99f40c1f85dfb5cf877317941f3aa9720cf09bc29d5a3c564cae4ad"
   },
   "static/css/tokens.css": {
-   "blob": "5073e58eff59458ed1e8aa9071bc773f2194790f",
-   "bytes": 13781,
+   "blob": "ee3ab7234614e538216625ee756467ecf2a69d23",
+   "bytes": 13843,
    "mode": "100644",
-   "sha256": "df9ca8192d3e193800a5d3703f880df9d8ce9fea17994d2d562d49b3a11fd467"
+   "sha256": "4e72d21e0fc4640820d8269f634eabe2c4ac83239a5e1fadf2204a159da26b5f"
   },
   "static/favicon.ico": {
    "blob": "ed5c2b43a5f14da9f14d13543b629bbe69df40f3",
@@ -541,10 +547,10 @@
    "sha256": "0ee8a703635abb2eda874ffe159739ce22c6d6745a37588e4fd9a7bff487f1e2"
   },
   "static/gps-map.js": {
-   "blob": "f8f1a151cfad805f1d75a1c158ec3f2a61697c30",
-   "bytes": 19316,
+   "blob": "1f2ef35d22c86e34ff632ddbf6ae8483b5ac0d55",
+   "bytes": 19436,
    "mode": "100644",
-   "sha256": "5db55f298da1dab0df0f7423301aa37875d06aa50944b0798275753e55d2fbab"
+   "sha256": "8b0fab03a1366cf76115fd18c0ee70a5d32bf4d041c03292ffe6cdbd206d9e89"
   },
   "static/gps-style-dark.json": {
    "blob": "ff1a183c0757895f400cbb23df016f1b1acc5974",
@@ -565,10 +571,10 @@
    "sha256": "ec7afaf62937e54e67e1b096151a3769d8c4e14af20c198d23f7a061e3ae4136"
   },
   "static/index.html": {
-   "blob": "cdb4fb227716edb74426bfa0bb6f9c29163809b7",
-   "bytes": 49638,
+   "blob": "3d8789cebf7cd1c1d7587cb99906365887e53c4e",
+   "bytes": 50636,
    "mode": "100644",
-   "sha256": "d6e4650096242b179ebb3e3c1501d0dd292660b70e892c064880c6df2c236dc2"
+   "sha256": "540d279b3c63b0a2500e6fc3543842dc019b0dd834c8ad3cbd3e162de8d41365"
   },
   "static/live-map-delta.mjs": {
    "blob": "58e4f2a8fd54a378d89aa233bf70f230b1d39bcf",
@@ -577,10 +583,10 @@
    "sha256": "5678167c62f0a1899619eebfb960a969aff8ccfb86fa635b4773b40a0a968625"
   },
   "static/live-map.js": {
-   "blob": "4a06e19bc46cc58f6c9c796bd0fedb3929c751a3",
-   "bytes": 31560,
+   "blob": "8ce2ac8fa26120f87188fd4b275c308618664cd4",
+   "bytes": 31776,
    "mode": "100644",
-   "sha256": "8d1730c94ebd60ec7666aec57f91eec971704ad9b5bd7865b3a7de12a34dd4e7"
+   "sha256": "59b89661863deccc5d4e4f28e3fd90e0db9dc6ea05c706ca74bd0aa84ec56547"
   },
   "static/mapping-jobs.mjs": {
    "blob": "27a72b20e5eebefc04c674364ac80b37613a93a3",
@@ -613,16 +619,22 @@
    "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb"
   },
   "static/steer/auto-model.mjs": {
-   "blob": "6b339f9f71ef39662e1aa17d5daf136ba1b8d09e",
-   "bytes": 8578,
+   "blob": "8ac4eb9148d9c8301f3597b5b8d6550249b044b7",
+   "bytes": 11287,
    "mode": "100644",
-   "sha256": "77b4dd0598d76c24ffde89cd0d10e1cce09538c1cfc2c948c74737ec6172745c"
+   "sha256": "f1d8b4fd9139b3bba1d237c3dbad8fdf98120a2575a9370918e8a7b8e00bfcf7"
   },
   "static/steer/auto-panel.mjs": {
-   "blob": "018ca4f55c2c88ef6a8c74e6d97767b45c52904d",
-   "bytes": 5692,
+   "blob": "492cbd44f37387dce8f7f38e95b7b9470ec1086d",
+   "bytes": 6484,
    "mode": "100644",
-   "sha256": "5c5ea41424372a94108780545e813aae55d25ff8248fcfb5279255b2740c79a0"
+   "sha256": "d13bb4aee4f2d72defece72391e23c8dc660a347ffc454f531eda311b4e5f2d0"
+  },
+  "static/steer/local-grid.mjs": {
+   "blob": "1f2cd4f11172b4482e6d9f078d8ad2087304c866",
+   "bytes": 8922,
+   "mode": "100644",
+   "sha256": "7c3b13f9b01644f77ebfea0fbadf82380a08d2aa3d735cc970943ac92628f3bc"
   },
   "static/steer/steer-control-rules.js": {
    "blob": "a647b7d7ca5cc1a4dd3434e89c417401e716de40",
@@ -631,34 +643,40 @@
    "sha256": "a21b9430662f9fe1197550d4f0ba252cde93ca2df4f8f7ed65bc287c84adcd30"
   },
   "static/steer/steer-drive.mjs": {
-   "blob": "72755fdef2c341e569eed2994d9b5e7c9d712ca5",
-   "bytes": 13079,
+   "blob": "8ff35a2b806ef18148b72a297a1e8ec892ee4b81",
+   "bytes": 13192,
    "mode": "100644",
-   "sha256": "ba04b99d1b6264af6715a6f8576ba127aceef807fe6fa24159db5fdcc197e988"
+   "sha256": "87e4aa9082e7e1208e8a0c21315f2828e18c87cb902468db4ff3c41e144eb538"
+  },
+  "static/steer/steer-sensor.mjs": {
+   "blob": "ff3e9e4179877b441ec551a62379e58d5b5ec900",
+   "bytes": 3611,
+   "mode": "100644",
+   "sha256": "95419e7b4b1db3babaa58923db566e6eb4d06e4a78e15d2fd2fccc79322d7414"
   },
   "static/steer/tuning-model.mjs": {
-   "blob": "3ec31a5bd8e75dfd30daf75afedef3991b81e794",
-   "bytes": 4724,
+   "blob": "70041ac6342dbe687b34b8d6b8227a529a0d41e9",
+   "bytes": 8494,
    "mode": "100644",
-   "sha256": "ec64b457c176593578ae30a93571898adddf84a16725d70af5e3c29c95689518"
+   "sha256": "c3a100ce9a8242924c88a3c7caad29059fdd84fa135b1b75280e1db2f867bfb7"
   },
   "static/steer/tuning-page.mjs": {
-   "blob": "6f6c328e6439b7c4ceafe061a4ec901e8e6264bc",
-   "bytes": 7917,
+   "blob": "f28bc955f997a93d1f161edc300dd24294180fb6",
+   "bytes": 9890,
    "mode": "100644",
-   "sha256": "621cd15875c33f10167394963a0edf7f0564074deaf1dcf2b422e5ba07188faa"
+   "sha256": "f3f0e3650421a068283e240ba8a1084e3ab33229d17f13b7d0c7f9d574659a7c"
   },
   "static/styles.css": {
-   "blob": "f3ba3c47e2a58e9c8cf4db34f85eff3803994b87",
-   "bytes": 50593,
+   "blob": "c0de62503dfd69c92dc3b3dba516300a63393f28",
+   "bytes": 49621,
    "mode": "100644",
-   "sha256": "9be260411092f9498b73bf2aa2964e1a930db8077ab4e6aa914d529e03321139"
+   "sha256": "553182f2e91c9afa5355a43ac46c5b4b4cda6f76baceeff1d418d8e353c73087"
   },
   "static/ui-kit.html": {
-   "blob": "679dfc0d3e3935235f3e23471ed6d9f02846298b",
-   "bytes": 24817,
+   "blob": "adb6feb4e5569c6f8187f4ff8e2f270f7ea350ca",
+   "bytes": 24076,
    "mode": "100644",
-   "sha256": "4b5ffb73977f32522507313cb421623f1b9972067b20f0c8fef3d481f39f97ef"
+   "sha256": "823ab8027d0d37224055121c92b6d431b997a70b93a70f6b3ec2e173591969fb"
   },
   "static/vendor/gps-map-vendors.json": {
    "blob": "f6858ca5f5ea84d5354846eaf0f97ccf09ea8e8d",
@@ -757,22 +775,22 @@
    "sha256": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04"
   },
   "static/vendor/ubts-sans/ubts-sans-ko.woff2": {
-   "blob": "e1e7e37e8c37f060503a9e296c640941f26c5514",
-   "bytes": 242384,
+   "blob": "8f2efa7c1ae058e2ea2b9d0a26c8cad36c1a73f0",
+   "bytes": 241920,
    "mode": "100644",
-   "sha256": "328378a3ce1e878d21fa7b703afb2359b550247fe11387f07d25b7d37622be93"
+   "sha256": "a95d7630ffc3243be04880c1f6504ea2ed550ff1a425639386c2dc3bed665519"
   },
   "static/vendor/ubts-sans/ubts-sans-split.json": {
-   "blob": "705653087c015a6120e7c2de3a981306eed456f9",
+   "blob": "e53a46fa90f24ad4a22ccf0a16e5bf02f2bb749e",
    "bytes": 601,
    "mode": "100644",
-   "sha256": "925cfcba87f88f51d48c1681b7c50184317e8099ebe141a2e18d9e7f8bf84943"
+   "sha256": "c598014f3cb36ffd901c409c174d2cf3884627fff3a063a64a8faed65671a979"
   },
   "static/vendor/ubts-sans/ubts-sans-ui.woff2": {
-   "blob": "1fe0f496214ee6c68b8ed96c5c23ac58d88ffe9c",
-   "bytes": 98184,
+   "blob": "78b07fc668e0e7d606ff7552c322095e56bfb580",
+   "bytes": 99400,
    "mode": "100644",
-   "sha256": "c36908386d2f0638a8ac3c4ab24b9f77b738b19aa76203ca6befed9c9a826910"
+   "sha256": "1fa61ac13daba8873d6f4506fe84afbfb29c7ee6b663e411cf5896c28db7d870"
   },
   "static/vendor/ubts-sans/ubts-sans-var.json": {
    "blob": "abbe7c40b973de9fa5765aff9e26954ba96af42d",
@@ -787,7 +805,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "72d4ed16ae3aa776198ef1a4e973a515bc86c5c4a4c9607d597d19d5c63f0ad5",
+ "files_sha256": "e43c49444ae1c639d7509bd20ae2c0692484ed87e65fc2fb62221ef0dfd3dbbc",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

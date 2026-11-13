@@ -1,5 +1,10 @@
 const SIMULATION = document.documentElement.dataset.runtimeMode === "simulation";
-const ROUTES = ["/", "/connection", "/system", "/network", "/docker", "/fan", "/research", "/rover-control", "/tuning", "/docs"];
+const ROUTES = ["/rover-control", "/map", "/sensors", "/records", "/tuning", "/system", "/docs"];
+// Old addresses (docs/SCREENS_KO.md): the page writes the new one in the address bar.
+const ROUTE_ALIASES = { "/": "/rover-control", "/drive": "/rover-control", "/connection": "/sensors", "/network": "/system/network",
+  "/docker": "/system/docker", "/fan": "/system/fan", "/research": "/system" };
+const SYSTEM_TABS = { "/system": "overview", "/system/resources": "resources", "/system/network": "network", "/system/docker": "docker", "/system/fan": "fan" };
+const DRIVE_VIEW_KEY = "ubts-drive-view-v1";
 const HISTORY_KEYS = ["cpu", "memory", "swap", "power", "temp", "rx", "tx", "dockerCpu", "dockerMemory", "fanTemp", "fanPwm"];
 const MAX_POINTS = 90;
 const CHART_BUFFER_POINTS = MAX_POINTS + 1;

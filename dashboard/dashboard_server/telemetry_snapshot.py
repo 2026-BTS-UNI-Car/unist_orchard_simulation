@@ -79,3 +79,37 @@ class SharedTelemetry:
                    "rover": shared["rover"] if shared.get("rover_source") == "external" else rover}
         payload["snapshot_age_s"] = round(age, 3)
         return payload
+
+
+class DriveTelemetry:
+    """The drive screen's part of /api/telemetry (NET-06, ?bundle=drive).
+
+    Only what the drive screen shows: sensors, services and the rover state, read
+    from the bridge status files. The host (/proc, hwmon), network, Docker and fan
+    collection that the system screens need is not done for this bundle. The
+    full /api/telemetry answer is unchanged. Shared through SharedTelemetry like
+    the full snapshot; the rover state is again read for every request.
+    """
+
+    def __init__(self, provider: Any):
+        self.provider = provider
+
+    def telemetry(self, include_rover: bool = True) -> dict[str, Any]:
+        from dashboard_server.telemetry import _load_json
+        p = self.provider
+        external = _load_json(p.telemetry_file) if p.telemetry_file.exists() else {}
+        lidar_bridge = p._lidar_bridge_status()
+        camera_bridge = p._camera_bridge_status()
+        imu_bridge = p._imu_bridge_status()
+        rover_bridge = p._rover_bridge_status()
+        external_rover = "rover" in external
+        return {
+            "meta": {**p._meta(), "bundle": "drive"},
+            "rover": external["rover"] if external_rover else (p.rover_status() if include_rover else None),
+            "rover_source": "external" if external_rover else "rover_bridge",
+            "sensors": p._sensors(external, lidar_bridge, camera_bridge, imu_bridge),
+            "services": p._services(external, lidar_bridge, camera_bridge, imu_bridge, rover_bridge),
+        }
+
+    def rover_status(self) -> dict[str, Any]:
+        return self.provider.rover_status()

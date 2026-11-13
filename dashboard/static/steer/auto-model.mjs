@@ -22,7 +22,13 @@ export const GO_BLOCKER = {
   no_run: 'run 없음: 먼저 준비', already_running: '이미 주행 중', latched: '래치 확인이 먼저',
   arm_first: 'Arm이 먼저', inputs_not_fresh: '센서 입력이 오래됨', steering_feedback: '조향 상태가 없거나 오래됨',
   vehicle_moving: '차가 아직 움직임', corridor_not_acquired: '통로를 아직 못 찾음',
+  lease_lost: '조향 브리지 연결이 끊겨 다시 Arm이 필요함',                  // contract revision 3
 };
+// stop_detail (the executor's own reason string) -> short words; an unknown one is shown as sent.
+export const STOP_DETAIL = {
+  operator_stop: '운영자 STOP', operator_link_lost: '화면 연결 끊김', row_end: '열 끝', lease_lost: '브리지가 권한을 거둠',
+};
+export const LEASE_LOST_TEXT = '브리지가 권한을 거뒀다: Arm을 다시 누른다';
 export const GNSS_STATE = {
   none: '수신 없음', no_fix: '미확정', fix: '확정', rtk: 'RTK', stale: '오래됨', unused: '쓰지 않음',
 };
@@ -51,13 +57,48 @@ export function primaryAction(reply, nowMs = Date.now()) {
   switch (s.run_state) {
     case 'idle': case 'ended': case undefined: case null:
       return { text: s.mode === 'MOTOR' ? '준비 (run 만들기 · Arm)' : '준비 (run 만들기)', action: 'prepare', enabled: true };
-    case 'ready': return { text: 'Arm (모터 권한)', action: 'arm', enabled: true };
+    case 'ready': return leaseLost(s) ? { text: 'Arm 다시 (브리지가 권한을 거둠)', action: 'arm', enabled: true }
+      : { text: 'Arm (모터 권한)', action: 'arm', enabled: true };
     case 'armed': return { text: '자율 주행 시작', action: 'go', enabled: ready };
     case 'running': return { text: '주행 중', action: null, enabled: false };
     case 'paused': return { text: '다시 출발', action: 'go', enabled: ready };
     case 'latched': return { text: '래치 확인', action: 'ack', enabled: true };
     default: return { text: `상태 ${String(s.run_state)}`, action: null, enabled: false };
   }
+}
+
+// "준비" in one press (contract v0): start, then Arm when the executor says the run is ready. The start reply is not
+// enough to decide: the status it carries can come from before the start, and a status poll already in flight when
+// the start was sent can answer with the old state. So: read the status again after the start reply until it says
+// ready (MOTOR: send arm) or armed (SHADOW: start arms by itself), at most waitMs. Only a run state that the start
+// itself makes (ready, armed) counts; idle or ended means "not yet". Returns { ok, step, runState }.
+export const PREPARE_WAIT_MS = 3000;
+export const PREPARE_STEP_MS = 150;
+export async function prepareRun({ send, readStatus, sleep, rowLen = null, waitMs = PREPARE_WAIT_MS, stepMs = PREPARE_STEP_MS,
+                                   now = () => Date.now() }) {
+  const started = await send('start', { row_len_m: rowLen });
+  if (!started.ok) return { ok: false, step: 'start', runState: null };
+  const t0 = now();
+  let status = started.reply && typeof started.reply.status === 'object' ? started.reply.status : null;
+  for (;;) {
+    const runState = status ? status.run_state : null;
+    if (runState === 'armed') return { ok: true, step: 'armed', runState };
+    if (runState === 'ready') {
+      const armed = await send('arm', {});
+      return { ok: armed.ok, step: 'arm', runState };
+    }
+    if (runState === 'latched') return { ok: false, step: 'latched', runState };
+    if (now() - t0 >= waitMs) return { ok: false, step: 'wait', runState };
+    await sleep(stepMs);
+    const fresh = await readStatus();
+    status = fresh && fresh.ok && fresh.status ? fresh.status : null;
+  }
+}
+
+// Contract revision 3: the bridge took the lease back while the run waited for its first go; the run stays open.
+export function leaseLost(s) {
+  return Boolean(s && s.run_state === 'ready' && ((s.lease_lost && typeof s.lease_lost === 'object')
+    || (Array.isArray(s.go_blockers) && s.go_blockers.includes('lease_lost'))));
 }
 
 export function stale(reply, nowMs = Date.now()) {
@@ -98,7 +139,7 @@ export function autoView(reply, nowMs = Date.now()) {
   const stopText = label(STOP_REASON, category);
   const rows = [
     ['모드', s.mode === 'SHADOW' ? 'SHADOW · 차를 몰지 않음' : s.mode === 'MOTOR' ? 'MOTOR · 차를 몬다' : (s.mode || '--')],
-    ['정지 이유', stopText ? (s.stop_detail ? `${stopText} · ${s.stop_detail}` : stopText) : '--'],
+    ['정지 이유', stopText ? (s.stop_detail ? `${stopText} · ${STOP_DETAIL[s.stop_detail] || s.stop_detail}` : stopText) : '--'],
     ['횡 · 방향 오차', `${fixed(sr.lateral_error_m, 2, ' m')} · ${fixed(sr.heading_error_deg, 1, '°')}`],
     ['속도', `${fixed(sr.speed_m_s, 2, '')} / 목표 ${fixed(num(speed.target_mps) ?? num(sr.target_speed_m_s), 2, '')} m/s`],
     ['속도 제한', num(speed.limit_mps) === null ? '--'
@@ -110,6 +151,7 @@ export function autoView(reply, nowMs = Date.now()) {
   ];
   let notice = null;
   if (isStale) notice = ['bad', '실행기 상태가 1.5초 넘게 오지 않는다: 값이 오래됐다. 주행 중이었다면 차는 스스로 선다.'];
+  else if (leaseLost(s)) notice = ['warn', `${LEASE_LOST_TEXT}. ${GO_BLOCKER.lease_lost}.`];
   else if (Array.isArray(s.go_blockers) && s.go_blockers.length && (s.run_state === 'armed' || s.run_state === 'paused')) {
     notice = ['warn', `출발 조건: ${s.go_blockers.map((code) => label(GO_BLOCKER, code)).join(', ')}`];
   } else if (s.run_state === 'running') {

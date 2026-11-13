@@ -1,6 +1,23 @@
 
+// LiDAR preview per transfer quality (NET-07): the bridge profile (its scan rate
+// and point ceiling) and the most points the page asks for. A smaller point
+// setting of the user still wins. The recording and the map input are the raw
+// scans and do not change.
+const LIDAR_STREAM_PLAN = {
+  detail: { profile: "detail", maxPoints: 720 },    // 10 Hz
+  balanced: { profile: "detail", maxPoints: 300 },  // 10 Hz, about 1.7 kB a scan
+  slow: { profile: "balanced", maxPoints: 120 },    // 5 Hz, about 0.8 kB
+  tiny: { profile: "slow", maxPoints: 90 },         // 3 Hz, about 0.6 kB
+};
+function lidarStreamPlan(profile = effectiveLinkProfile()) {
+  return LIDAR_STREAM_PLAN[profile] || LIDAR_STREAM_PLAN.balanced;
+}
+
 function lidarWebSocketUrl() {
-  const params = new URLSearchParams({ max_points: String(state.lidarPoints.value), format: "polar-v1", flow: "ack", profile: liveNetworkProfile() });
+  const plan = lidarStreamPlan();
+  const maxPoints = Math.min(Number(state.lidarPoints.value) || plan.maxPoints, plan.maxPoints);
+  // polar-v2: binary scans, two on the way at a time. A bridge without it answers polar-v1 JSON.
+  const params = new URLSearchParams({ max_points: String(maxPoints), format: "polar-v2", flow: "ack", ack_window: "2", profile: plan.profile });
   if (window.UBTS_LIDAR_WS_URL) {
     const separator = String(window.UBTS_LIDAR_WS_URL).includes("?") ? "&" : "?";
     return `${window.UBTS_LIDAR_WS_URL}${separator}${params.toString()}`;
@@ -9,10 +26,40 @@ function lidarWebSocketUrl() {
   return `${scheme}://${location.host}/ws/lidar?${params.toString()}`;
 }
 
+// polar-v2 (NET-07): "ULS2", version 2, uint32 metadata length (big-endian), the
+// metadata JSON, then N uint16 angles, N uint16 distances (mm) and N uint8
+// qualities (little-endian). The result is the polar-v1 payload of the same scan.
+const LIDAR_BINARY_MAGIC = "ULS2";
+function decodeLidarScanV2(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 9 || String.fromCharCode(...bytes.slice(0, 4)) !== LIDAR_BINARY_MAGIC || bytes[4] !== 2) {
+    throw new Error("LiDAR binary protocol mismatch");
+  }
+  const view = new DataView(buffer);
+  const metaLength = view.getUint32(5, false);
+  const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(9, 9 + metaLength)));
+  const count = Number(meta.point_count) || 0;
+  const base = 9 + metaLength;
+  if (bytes.length !== base + 5 * count) throw new Error("LiDAR binary scan has the wrong length");
+  const byIndex = meta.angle_encoding === "beam_index";
+  const points = new Array(count);
+  for (let k = 0; k < count; k += 1) {
+    const code = view.getUint16(base + 2 * k, true);
+    const distance = view.getUint16(base + 2 * count + 2 * k, true) / 1000;
+    const quality = bytes[base + 4 * count + k];
+    let angle = byIndex ? (meta.angle_min_deg + code * meta.angle_increment_deg) % 360 : code / 100;
+    if (angle < 0) angle += 360;
+    points[k] = [Math.round(angle * 1000) / 1000, distance, quality];
+  }
+  meta.points = points;
+  meta.point_encoding = "polar-v1";
+  return meta;
+}
+
 function handleLidarLiveMessage(raw) {
   let payload = null;
   try {
-    payload = JSON.parse(raw);
+    payload = typeof raw === "string" ? JSON.parse(raw) : decodeLidarScanV2(raw);
   } catch (err) {
     state.lidarLive.error = "잘못된 WebSocket 메시지";
     debugLog("ws", "invalid message", raw);
@@ -38,6 +85,10 @@ function handleLidarLiveMessage(raw) {
     return;
   }
   if (payload.type === "scan") {
+    // Answer first (NET-07): the bridge may send the next scan while this one is drawn.
+    if (state.lidarLive.socket?.readyState === WebSocket.OPEN && Number.isInteger(payload.sequence)) {
+      state.lidarLive.socket.send(JSON.stringify({type: "scan_ack", sequence: payload.sequence}));
+    }
     if (payload.point_encoding === "polar-v1") payload.points = payload.points.map(([angle_deg, distance_m, quality]) => ({angle_deg, distance_m, quality, x_m: Math.sin(angle_deg * Math.PI / 180) * distance_m, y_m: Math.cos(angle_deg * Math.PI / 180) * distance_m}));
     const result = lidarScanFromLive(payload);
     maybeAutoSetLidarRange(result);
@@ -58,13 +109,9 @@ function handleLidarLiveMessage(raw) {
     try {
       renderLidarScan(result, "live_websocket");
     } catch (err) {
-      // A render error must not stop the stream: the bridge waits for this ACK.
+      // A render error must not stop the stream (the answer was already sent).
       state.lidarLive.renderErrors = (state.lidarLive.renderErrors || 0) + 1;
       debugLog("ws", "scan render failed", err);
-    } finally {
-      if (state.lidarLive.socket?.readyState === WebSocket.OPEN && Number.isInteger(payload.sequence)) {
-        state.lidarLive.socket.send(JSON.stringify({type: "scan_ack", sequence: payload.sequence}));
-      }
     }
     renderLidarLiveState();
     renderLiveSensorLinks();
@@ -166,9 +213,6 @@ function renderLidarLiveState(overrideLabel) {
 function renderLiveSensorLinks() {
   if (state.telemetry?.connection?.sensors) {
     renderStatusRows("connectionSensors", sensorRows(state.telemetry.connection.sensors));
-  }
-  if (state.telemetry?.sensors) {
-    renderSensors(state.telemetry.sensors);
   }
 }
 

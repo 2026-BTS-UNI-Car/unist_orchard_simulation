@@ -1,0 +1,69 @@
+// The steering potentiometer card of the sensors screen (UI-11 front-steer part, route /sensors): the measured front
+// wheel angle and the potentiometer reading from GET /api/rover/status (the steering bridge's steering block), with
+// the faults the MCU or the bridge reports. Read only: no request changes anything. Loaded by static/app/14-steer.js on
+// a front-steer dashboard when /sensors opens; it asks every 500 ms only while the screen is visible.
+import { DEVICE_TEXT, faultLabels } from './steer-drive.mjs';
+
+export const STATUS_MS = 500;              // placeholder, same as the drive panel when not armed
+const R = globalThis.UbtsSteerRules;
+const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
+const angle = (mrad) => (num(mrad) === null ? '--' : `${mrad >= 0 ? '' : '−'}${Math.abs(R.mradToDeg(mrad)).toFixed(1)}° (${mrad} mrad)`);
+
+// [chip level, chip text, rows [[name, value], ...]] of one status reply (pure: tested without a page).
+export function potView(reply) {
+  const steering = reply && typeof reply.steering === 'object' && reply.steering ? reply.steering : null;
+  if (!reply) return ['bad', DEVICE_TEXT.unavailable[1], []];
+  if (!steering) return ['warn', DEVICE_TEXT.none[1], []];
+  const faults = faultLabels(steering.faults);
+  const stale = reply.steering_host?.stale === true;
+  const pot = faults.filter((f) => f.code.startsWith('POT_') || f.code === 'NOCAL');
+  const level = stale || pot.length ? 'bad' : faults.length ? 'warn' : 'ok';
+  const text = stale ? '상태 오래됨' : pot.length ? pot[0].label : faults.length ? '결함 있음' : '정상';
+  const permille = num(steering.measured_permille);
+  return [level, text, [
+    ['측정 각도', angle(num(steering.measured_mrad))],
+    ['측정 위치', permille === null ? '--' : `${permille} ‰ (왼쪽 +)`],
+    ['가변저항 원값', num(steering.raw) === null ? '--' : String(steering.raw)],
+    ['보정', steering.calibrated === true ? '있음' : steering.calibrated === false ? '없음' : '--'],
+    ['상태 나이', num(steering.age_ms) === null ? '--' : `${steering.age_ms} ms${stale ? ' · 오래됨' : ''}`],
+    ['결함', faults.length ? faults.map((f) => f.label).join(', ') : '없음'],
+  ]];
+}
+
+export function initSteerSensor(page) {
+  const $ = (id) => document.getElementById(id);
+  const list = $('steerPotDetails');
+  if (!list) return null;
+  let timer = null, busy = false, reply;
+  const active = () => page.currentRoute() === '/sensors' && !document.hidden;
+
+  async function poll() {
+    if (busy) return;
+    busy = true;
+    try { reply = await page.getJson('/api/rover/status'); } catch (_) { reply = null; }
+    finally { busy = false; }
+    draw();
+  }
+  function draw() {
+    const [level, text, rows] = potView(reply);
+    const chip = $('steerPotState');
+    if (chip) { chip.className = `status-chip ${level}`; chip.textContent = text; }
+    const key = JSON.stringify(rows);
+    if (list.dataset.key === key) return;
+    list.dataset.key = key;
+    list.replaceChildren(...rows.map(([name, value]) => {
+      const row = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = name;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      row.append(dt, dd);
+      return row;
+    }));
+  }
+  function routeChanged() {
+    if (active()) { if (!timer) { timer = setInterval(poll, STATUS_MS); poll(); } }
+    else { clearInterval(timer); timer = null; }
+  }
+  document.addEventListener('visibilitychange', () => routeChanged());
+  routeChanged();
+  return { routeChanged, draw };
+}

@@ -3092,50 +3092,20 @@ class TelemetryProvider:
                 "milestones": [{"month": "1단계", "label": "원본 센서 대시보드", "status": "done"}, {"month": "2단계", "label": "Gazebo 2D 센서 및 가상 주행", "status": "planned"}, {"month": "추후", "label": "시연 녹화와 실차 보정", "status": "planned"}]}
 
     def site_map(self) -> dict[str, Any]:
+        """The six screens and the docs (docs/SCREENS_KO.md); old addresses are aliases."""
         return {
             "routes": [
-                {"path": "/", "label": "Overview", "summary": "핵심 상태"},
-                {
-                    "path": "/connection",
-                    "label": "Connection",
-                    "summary": "LiDAR, ROS2 bridge, sensor links",
-                },
-                {
-                    "path": "/system",
-                    "label": "System",
-                    "summary": "CPU, Memory, Swap, Network, Power, Disk",
-                },
-                {
-                    "path": "/network",
-                    "label": "Network",
-                    "summary": "IP, interface, RX/TX throughput",
-                },
-                {
-                    "path": "/docker",
-                    "label": "Docker",
-                    "summary": "Docker engine and containers",
-                },
-                {
-                    "path": "/fan",
-                    "label": "Fan Control",
-                    "summary": "Jetson 온도와 수동 PWM",
-                },
-                {
-                    "path": "/research",
-                    "label": "Research",
-                    "summary": "연구 일정과 ROS2 연결 상태",
-                },
-                {
-                    "path": "/rover-control",
-                    "label": "Rover Control",
-                    "summary": "ESP8266 원본 UI proxy와 ROS bridge 준비 상태",
-                },
-                {
-                    "path": "/docs",
-                    "label": "Docs",
-                    "summary": "운영 문서와 Markdown viewer",
-                },
-            ]
+                {"path": "/rover-control", "label": "주행", "summary": "수동 조종, 자율주행, 큰 보기(카메라 또는 LiDAR)"},
+                {"path": "/map", "label": "지도", "summary": "실시간 점유 격자, 실행기 국소 격자, GPS"},
+                {"path": "/sensors", "label": "센서", "summary": "LiDAR, 카메라, IMU, 연결 상태"},
+                {"path": "/records", "label": "기록", "summary": "녹화, 기록 목록, 동기 재생, 기록 지도"},
+                {"path": "/tuning", "label": "조정", "summary": "자율주행 실행기 값, 변경 기록"},
+                {"path": "/system", "label": "시스템", "summary": "요약, 자원, 네트워크, 컨테이너, 팬"},
+                {"path": "/docs", "label": "문서", "summary": "운영 문서와 Markdown viewer"},
+            ],
+            "aliases": {"/": "/rover-control", "/drive": "/rover-control", "/connection": "/sensors",
+                        "/network": "/system/network", "/docker": "/system/docker", "/fan": "/system/fan",
+                        "/research": "/system"},
         }
 
     def _meta(self) -> dict[str, Any]:

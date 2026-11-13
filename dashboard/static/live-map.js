@@ -8,7 +8,10 @@ const $=id=>document.getElementById(id),text=(id,value)=>{if($(id))$(id).textCon
 // Correct the real-rover front marker as requested, without modifying any
 // retained scan coordinates, localization yaw or simulation body-frame heading.
 const live=new MetricMap('liveMapCanvas',false,Math.PI),archive=new MetricMap('liveArchiveCanvas',false,Math.PI);
-const active=()=>location.pathname.replace(/\/$/,'')==='/rover-control'&&!document.hidden;
+// The live map is on the map screen, the recording map on the records screen (docs/SCREENS_KO.md).
+const screenPath=()=>location.pathname.replace(/\/$/,'');
+const active=()=>screenPath()==='/map'&&!document.hidden;
+const archiveActive=()=>screenPath()==='/records'&&!document.hidden;
 let polling=false,timer=null,selected='',archiveEpoch=0,speedBusy=false,lastAutonomyPoll=0;
 let mapBuffer=null,nextMapBuffer=null,mapWindowPending=null,bufferPaintPending=false,windowSupported=null;
 let archiveTimer=null,archivePending=null,archiveTimeS=0,archivePlaying=false,followGeneration=false,archiveGenerating=false;
@@ -233,7 +236,7 @@ async function loadMapWindow(id,epoch,start,span,next){
   }finally{if(mapWindowPending===pending)mapWindowPending=null;}
 }
 function scheduleArchive(delay=75){
-  if(archiveTimer!==null||!selected||!active())return;
+  if(archiveTimer!==null||!selected||!archiveActive())return;
   const id=selected,epoch=archiveEpoch;
   archiveTimer=setTimeout(()=>{archiveTimer=null;pollArchive(id,epoch).catch(error=>{
     if(epoch===archiveEpoch&&error.name!=='AbortError'){
@@ -447,7 +450,7 @@ async function pollJobs(){
   });
 }
 $('mappingJobsPanel')?.addEventListener('toggle',()=>{if($('mappingJobsPanel').open)pollJobs().catch(error=>text('mappingJobsResources',error.message));});
-function routeChanged(){live.draw();archive.draw();if(active()){poll();if(selected)scheduleArchive();}}
+function routeChanged(){live.draw();archive.draw();if(active())poll();if(archiveActive()&&selected)scheduleArchive();}
 window.LiveMap={selectArchive,archiveTime,archiveReady,routeChanged,waitReason:()=>archiveWaitReason};
 document.addEventListener('visibilitychange',routeChanged);window.addEventListener('popstate',routeChanged);
 // The main application exposes route changes through the GPS hook.

@@ -35,6 +35,7 @@ VERSION_LENGTH = 10
 GZIP_SUFFIXES = (".js", ".mjs", ".css", ".html", ".json", ".svg")
 GZIP_CACHE_BYTES = 8 * 1024 * 1024
 KEEP_BODY_BYTES = 4 * 1024 * 1024  # larger files are hashed but read again when sent
+RESOLVED_PATHS_MAX = 4096  # remembered path resolutions (only paths that are files below the root)
 
 _HTML_REF = re.compile(r'(\b(?:src|href)=")/static/([^"?#]+)(")')
 _JS_REF = re.compile(r'''(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])(\.{1,2}/[^"'?#\s]+)\2''')
@@ -68,6 +69,7 @@ class StaticAssets:
         self.gzip_cache_bytes = gzip_cache_bytes
         self._lock = threading.RLock()
         self._entries: dict[str, _Entry] = {}
+        self._resolved: dict[str, Path] = {}
         self._gzip: OrderedDict[tuple, bytes] = OrderedDict()
         self._gzip_bytes = 0
         self.stats = {"hashed": 0, "gzip_made": 0, "gzip_reused": 0}
@@ -84,18 +86,43 @@ class StaticAssets:
             self._gzip.clear()
             self._gzip_bytes = 0
 
+    def warm(self, page_filter=None) -> str | None:
+        """Version the page and everything it names once, before the first visitor (app.main runs this in a thread).
+
+        Otherwise the first browser after a start waits while the server reads, rewrites and hashes every file the
+        page names (on the bench's freshly written files 0.3-2.5 s, which is most of the spread of the first open on
+        the bad link). Uses the same page filter as the requests will, so their first request finds it done."""
+        self.set_page_filter(page_filter)
+        return self.version("index.html")
+
     # --- paths -------------------------------------------------------------------------------------------------
     def resolve(self, rel: str) -> Path | None:
-        """The file for a path below /static/, or None if it is outside the root or not a file."""
+        """The file for a path below /static/, or None if it is outside the root or not a file.
+
+        A path that resolved to a file is remembered (bounded), because a page request checks every file it names and
+        Path.resolve() is slow on Windows when the PC is busy (2026-11-13: a page took 475 ms instead of 55 ms).
+        _entry() still stats the file on every request and resolves it again when the file changed or went away."""
         rel = rel.lstrip("/")
         if not rel or "\x00" in rel:
             return None
+        with self._lock:
+            known = self._resolved.get(rel)
+        if known is not None:
+            return known
+        return self._resolve_now(rel)
+
+    def _resolve_now(self, rel: str) -> Path | None:
         try:
             path = (self.root / rel).resolve()
         except (OSError, ValueError):
             return None
         if self.root not in path.parents or not path.is_file():
+            with self._lock:
+                self._resolved.pop(rel, None)
             return None
+        with self._lock:
+            if rel in self._resolved or len(self._resolved) < RESOLVED_PATHS_MAX:
+                self._resolved[rel] = path
         return path
 
     def _relative(self, path: Path) -> str:
@@ -107,17 +134,38 @@ class StaticAssets:
         return entry.version if entry else None
 
     def _entry(self, rel: str, stack: tuple) -> _Entry | None:
-        path = self.resolve(rel)
+        asked = rel.lstrip("/")
+        if not asked or "\x00" in asked:
+            return None
+        with self._lock:
+            remembered = self._resolved.get(asked)
+        path = remembered if remembered is not None else self._resolve_now(asked)
         if path is None:
             return None
         rel = self._relative(path)
         try:
             info = path.stat()
         except OSError:
-            return None
-        stat = (info.st_mtime_ns, info.st_size)
+            info = None
         with self._lock:
             cached = self._entries.get(rel)
+        if remembered is not None and (info is None or cached is None or cached.stat != (info.st_mtime_ns, info.st_size)):
+            # A remembered path whose file is new to the cache, changed or gone: resolve it again instead of trusting it
+            # (a path resolved just now is not resolved twice).
+            fresh = self._resolve_now(asked)
+            if fresh is None:
+                return None
+            if fresh != path:
+                path, rel = fresh, self._relative(fresh)
+                with self._lock:
+                    cached = self._entries.get(rel)
+            try:
+                info = path.stat()
+            except OSError:
+                return None
+        if info is None:
+            return None
+        stat = (info.st_mtime_ns, info.st_size)
         if cached is not None and cached.stat == stat and self._deps_current(cached.deps, stack + (rel,)):
             return cached
         try:
@@ -214,9 +262,9 @@ class StaticAssets:
     # --- serving -----------------------------------------------------------------------------------------------
     def serve(self, rel: str, requested_version: str | None, accept_gzip: bool) -> Served | None:
         """The body and headers for /static/<rel> (or index.html), or None when there is no such file."""
-        path = self.resolve(rel)
-        entry = self._entry(rel, ()) if path is not None else None
-        if entry is None:
+        entry = self._entry(rel, ())
+        path = self.resolve(rel) if entry is not None else None   # after _entry, which resolves again when the file changed
+        if entry is None or path is None:
             return None
         body = entry.body
         if body is None:  # a large file: not kept in memory, never rewritten

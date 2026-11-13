@@ -1,10 +1,5 @@
 
 
-async function loadPlan() {
-  state.plan = await getJson("/api/plan");
-  renderPlan(state.plan);
-}
-
 async function loadDocs() {
   const payload = await getJson("/api/docs");
   state.docs = payload.documents || [];
@@ -26,7 +21,9 @@ async function tick() {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 6000);
   try {
-    state.telemetry = await getJson("/api/telemetry", { signal: controller.signal });
+    const path = telemetryPath();
+    state.telemetryPath = path;
+    state.telemetry = await getJson(path, { signal: controller.signal });
     state.telemetryCameraSettingsRevision = cameraSettingsRevision;
     pushHistory(state.telemetry);
     renderTelemetry(state.telemetry);
@@ -43,8 +40,22 @@ async function tick() {
   }
 }
 
+// The drive screen asks only for its own status (NET-06): sensors, services and
+// the rover, about a third of the full answer. The map, records and tuning screens
+// (parts of the old drive page, docs/SCREENS_KO.md) use the same; the sensors and
+// system screens get the full one.
+const DRIVE_BUNDLE_ROUTES = ["/rover-control", "/map", "/records", "/tuning"];
+function telemetryPath(route = currentRoute()) {
+  return DRIVE_BUNDLE_ROUTES.includes(route) ? "/api/telemetry?bundle=drive" : "/api/telemetry";
+}
+
 function telemetryIntervalMs(profile = liveNetworkProfile()) {
-  return profile === "tiny" ? 10000 : ["auto", "slow"].includes(profile) ? 3000 : 1000;
+  // Automatic mode follows the link grade (NET-10): 1 s on a good link, 10 s on a very slow one.
+  if (profile === "auto") {
+    const graded = effectiveLinkProfile();
+    return { detail: 1000, balanced: 2000, slow: 3000, tiny: 10000 }[graded] || 3000;
+  }
+  return profile === "tiny" ? 10000 : profile === "slow" ? 3000 : 1000;
 }
 function chartWindowLabel() {
   return `X 최근 ${Math.round(MAX_POINTS * telemetryIntervalMs() / 1000)}초`;
@@ -111,8 +122,9 @@ function pruneCoreHistory(keys) {
 function setConnection(kind, label) {
   const el = $("connectionState");
   if (!el) return;
-  el.className = `status-chip ${kind}`;
-  el.textContent = label;
+  // The badge shows the link grade (04-link-grade.js) and turns "연결 끊김" when status stops.
+  if (typeof renderLinkBadge === "function") renderLinkBadge();
+  else { el.className = `status-chip ${kind}`; el.textContent = label; }
   // Telemetry stopped: the status bar must not keep an old recorder state.
   if (kind !== "ok") renderRecordingStatus();
 }
@@ -167,14 +179,11 @@ function renderTelemetry(data) {
   text("dockerMemChartValue", fmtPercent(dockerMemPercent));
   text("dockerMemText", `${fmtBytes(docker.summary?.memory_usage)} / ${fmtBytes(docker.summary?.memory_limit)}`);
 
-  text("roverState", data.rover?.state || "연결 전");
-  text("experimentState", data.experiment?.state || "연결 전");
   renderFan(fan);
 
   renderServices(services);
   renderConnection(connection);
   renderRoverControl(data);
-  renderSensors(data.sensors || {});
   renderCores(sys.cpu?.cores || []);
   renderCoreCharts(sys.cpu?.cores || []);
   renderDisks(sys.disks || []);
