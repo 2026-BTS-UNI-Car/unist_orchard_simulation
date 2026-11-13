@@ -40,6 +40,8 @@ W0 = 'gsim_final_20261113/media/gz_views/views_w0/run/stills/'
 W1 = 'gsim_final_20261113/media/gz_views/views_w1/run/stills/'
 FINAL_N3 = 'gsim_final_20261113/sessions/s2a_nominal_3/media/cam_follow/frames'
 FINAL_UI = 'gsim_final_20261113/sessions/s2b_ui2/browser/'
+FINAL3_N3 = 'gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames'
+FINAL3_UI = 'gsim_final_20261113/sessions/s3b_ui2/browser/'
 
 RECIPES = [
     dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png', source=W0 + 'straight_model_oblique.png',
@@ -108,6 +110,23 @@ RECIPES = [
          source=FINAL_UI + 'auto_running.png',
          made_by='같은 세션, 자율 칸에서 준비 -> 자율 주행 시작을 한 번 누른 뒤',
          caption='SIM 대시보드의 자율 칸이 "주행 중"을 보이는 화면(한 번 눌러 시작). 화면을 열어 둔 동안 하트비트를 보낸다'),
+    dict(name='row_follow_wf6_camera_10x', out='docs/assets/video/row_follow_wf6_camera_10x.mp4', op='mp4',
+         source=FINAL3_N3, frames=(130, 3700, 15), frame_s=0.05, width=480, crf=32,
+         label='G-SIM 최종 확인 3단계 · wf6 · SIM 시계 · 한 번 눌러 시작 · 10배속',
+         made_by='최종 확인 3단계(STEER_FOLLOW_GSIM_FINAL_KO.md 3단계 절) run nominal_3(SIM 시계, row_end, e +0.433 m)을 '
+                 'tools/steer_sim/capture_media.py camera로 받은 프레임(29.4 fps). 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장',
+         caption='이미지 wf6, SIM 시계 모드로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 119 s를 10배속, '
+                 '480 폭, 저화질 H.264)'),
+    dict(name='row_end_stop_wf6_3x', out='docs/assets/video/row_end_stop_wf6_3x.gif', op='gif',
+         source=FINAL3_N3, frames=(2700, 3600, 9), frame_s=0.1, width=360, colors=64,
+         label='열 끝 다가가기와 정지 · wf6 · 3배속',
+         made_by='같은 run nominal_3의 마지막 약 30 s(열 끝 정지 뒤 포함), 0.3 s마다 한 장',
+         caption='열 끝에 다가가 서는 차량 카메라 화면(wf6, 약 30 s를 3배속, 360 폭). 마지막 줄기를 지나 열 끝에서 섰다(e +0.433 m)'),
+    dict(name='sim_dashboard_live_map', out='docs/assets/dashboard/sim_dashboard_live_map.png', op='png',
+         source=FINAL3_UI + 'live_map.png',
+         made_by='SIM 대시보드(대시보드 저장소 a92cfec 사본 + SIM 확장, 이미지 wf6, SIM 시계)의 지도 화면을 Chrome(playwright)으로 '
+                 '연 것, 세션 s3b_ui2(3단계 B 시도 2), 그리기 시작 뒤 20 s',
+         caption='SIM 대시보드 지도 화면에 실시간 격자가 쌓인 모습(대시보드 자신의 지도, SIM LiDAR 원본 스캔과 IMU 자세로 만든다)'),
 ]
 
 

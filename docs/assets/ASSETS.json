@@ -472,6 +472,97 @@
      "note": "두 화면 전체를 열어 봄: localhost SIM 대시보드(시각 표시만), 주소 막대 없음. 사람, 사용자 이름, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
     }
    }
+  },
+  {
+   "path": "docs/assets/video/row_follow_wf6_camera_10x.mp4",
+   "kind": "video",
+   "bytes": 536944,
+   "sha256": "4a636a320821f0d13c65bda054c62e8f8a8d855f48870a8b753863d0ce9ad469",
+   "width": 480,
+   "height": 270,
+   "tag": "[SIM · 자리값]",
+   "caption": "이미지 wf6, SIM 시계 모드로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 119 s를 10배속, 480 폭, 저화질 H.264)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames",
+    "made_by": "최종 확인 3단계(STEER_FOLLOW_GSIM_FINAL_KO.md 3단계 절) run nominal_3(SIM 시계, row_end, e +0.433 m)을 tools/steer_sim/capture_media.py camera로 받은 프레임(29.4 fps). 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf6_camera_10x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "238장 (130..3700, 15장마다)",
+    "frames_sha256": "bf0ed462017e4312c8a4136a668ae32baf555b210a8223465246f0a12cab7e03",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "4a636a320821f0d13c65bda054c62e8f8a8d855f48870a8b753863d0ce9ad469",
+     "note": "mp4 처음·가운데·끝, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/video/row_end_stop_wf6_3x.gif",
+   "kind": "animation",
+   "bytes": 1467148,
+   "sha256": "dc3c51b555a5874f72d369ac334fa300f7ff4a58746729f5e4770fa3571e9eca",
+   "width": 360,
+   "height": 202,
+   "tag": "[SIM · 자리값]",
+   "caption": "열 끝에 다가가 서는 차량 카메라 화면(wf6, 약 30 s를 3배속, 360 폭). 마지막 줄기를 지나 열 끝에서 섰다(e +0.433 m)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames",
+    "made_by": "같은 run nominal_3의 마지막 약 30 s(열 끝 정지 뒤 포함), 0.3 s마다 한 장",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_end_stop_wf6_3x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "100장 (2700..3600, 9장마다)",
+    "frames_sha256": "bc6d1f76db86c048c7fbc5b7b216b91e702dd60a2569bb2fe051fb253b1c68b3",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "dc3c51b555a5874f72d369ac334fa300f7ff4a58746729f5e4770fa3571e9eca",
+     "note": "mp4 처음·가운데·끝, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/dashboard/sim_dashboard_live_map.png",
+   "kind": "image",
+   "bytes": 78061,
+   "sha256": "8b2617158011a94ff92b41cb8e0e1e51221a408a7a23646f0508e45454ff6a47",
+   "width": 1440,
+   "height": 1000,
+   "tag": "[SIM · 자리값]",
+   "caption": "SIM 대시보드 지도 화면에 실시간 격자가 쌓인 모습(대시보드 자신의 지도, SIM LiDAR 원본 스캔과 IMU 자세로 만든다)",
+   "origin": {
+    "source": "<runs>/gsim_final_20261113/sessions/s3b_ui2/browser/live_map.png",
+    "made_by": "SIM 대시보드(대시보드 저장소 a92cfec 사본 + SIM 확장, 이미지 wf6, SIM 시계)의 지도 화면을 Chrome(playwright)으로 연 것, 세션 s3b_ui2(3단계 B 시도 2), 그리기 시작 뒤 20 s",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only sim_dashboard_live_map",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "source_sha256": "dcf2ea2f19e02bc6708d5b45f6c235211dae223a9085f53064705fff63f6ab60"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-13",
+     "sha256": "8b2617158011a94ff92b41cb8e0e1e51221a408a7a23646f0508e45454ff6a47",
+     "note": "화면 전체를 열어 봄: localhost SIM 대시보드 지도 화면(SIM 과수원 격자, 시각 표시, GNSS 칸 제목만). 주소 막대 없음. 사람, 이름, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+    }
+   }
   }
  ]
 }
