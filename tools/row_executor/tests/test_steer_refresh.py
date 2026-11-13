@@ -8,6 +8,7 @@ emulated by moving the clock inside Runner.feed_scan:
   * the same delay with the MCU status line itself 0.4 s old (age_ms of the fresh status) still ends steering_feedback_stale;
   * a bridge that does not answer the status request still ends it;
   * a tick that is not late sends no status request (no change of the usual traffic);
+  * a step that begins late (the loop did not run: an executor stall) gets no refresh: steering_feedback_stale as before;
   * a delay beyond the stall guard (0.35 s) still pauses the run (stall_guard), the refresh does not hide the executor's
     own lateness.
 Test numbers only.
@@ -103,7 +104,7 @@ class RefreshTest(unittest.TestCase):
     def test_without_the_refresh_the_same_delay_ends_the_run(self):
         # the reference of the test above: the rule itself is unchanged (0.3 s)
         rig = running()
-        rig.loop._refresh_steering = lambda now: False
+        rig.loop._refresh_steering = lambda step_start, now: False
         rig.delay = .25
         rig.run(.5)
         self.assertEqual((rig.loop.runner.state, rig.loop.runner.end_reason), (ENDED, 'steering_feedback_stale'))
@@ -122,6 +123,15 @@ class RefreshTest(unittest.TestCase):
         rig.run(.5)
         self.assertEqual((rig.loop.runner.state, rig.loop.runner.end_reason), (ENDED, 'steering_feedback_stale'))
         self.assertGreaterEqual(rig.loop.counts['steer_refresh_failures'], 1)
+
+    def test_a_step_that_begins_late_gets_no_refresh(self):
+        # the loop itself did not run for 0.25 s (an executor stall, not this step's processing): the 0.3 s rule as before
+        rig = running()
+        rig.clock.t += .25
+        rig.next_imu, rig.next_scan = rig.clock.t, rig.clock.t + .013
+        rig.run(.3)
+        self.assertEqual((rig.loop.runner.state, rig.loop.runner.end_reason), (ENDED, 'steering_feedback_stale'))
+        self.assertNotIn('steer_refreshes', rig.loop.counts)     # (the STOP confirmation reads statuses afterwards)
 
     def test_a_delay_beyond_the_stall_guard_still_pauses(self):
         rig = running()
