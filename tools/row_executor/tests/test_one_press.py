@@ -144,13 +144,16 @@ class LoopTest(unittest.TestCase):
         self.assertTrue(any(x.left or x.right for x in out))
         self.assertEqual(d.loop.status()['run_state'], 'running')
         d.visible = False                            # the screen is hidden: the heartbeats stop
-        out = d.run(.75)
+        out = d.run(1.25)
         paused = [k for k, x in enumerate(out) if x.state == PAUSED]
         self.assertTrue(paused)
         self.assertEqual(d.loop.runner.reason, 'operator_link_lost')
         k = paused[0]
         self.assertEqual((out[k].left, out[k].right), (0, 0))       # zero output on the pause tick
-        self.assertLessEqual((k + 1) * .05, .5 + .05 + 1e-9)          # within the timeout + one tick
+        timeout = d.loop.config.operator_timeout_s
+        self.assertEqual(timeout, 1.)                                 # decision R60
+        self.assertLessEqual((k + 1) * .05, timeout + .05 + 1e-9)     # within the timeout + one tick
+        self.assertGreater((k + 1) * .05, timeout - .05)              # not before it
         status = d.loop.status()
         self.assertEqual((status['run_state'], status['stop_reason'], status['stop_detail']),
                          ('paused', 'OPERATOR_LINK_LOST', 'operator_link_lost'))
@@ -169,7 +172,7 @@ class LoopTest(unittest.TestCase):
             self.assertTrue(d.go()['ok'])
             d.run(.5)
             d.visible = False
-            d.run(.7)
+            d.run(1.2)                               # operator_timeout_s 1.0 (decision R60) + margin
             d.visible = True
             d.run(1.2)
         self.assertEqual(d.loop.runner.state, ENDED)
@@ -223,7 +226,7 @@ class LoopTest(unittest.TestCase):
         d.run(1.)
         self.assertNotEqual(d.loop._last_sent, (0, 0))
         d.visible = False
-        d.run(.6)
+        d.run(1.1)                                   # operator_timeout_s 1.0 (decision R60)
         self.assertEqual(d.loop.runner.reason, 'operator_link_lost')
         self.assertEqual(d.loop._last_sent, (0, 0))                     # 0/0 sent at once, the lease kept
         self.assertEqual(d.loop.bridge.state, ARMED)

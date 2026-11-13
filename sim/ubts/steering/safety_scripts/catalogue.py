@@ -36,7 +36,7 @@ expect keys (all optional):
   first_rule      True with a tuple mcu_fault: the found code must be the one the spec 6.7 recomputation trips first
                   (the earliest expected tick of the candidate codes, +-1 tick)
   link_lost_at    one_press: the time the operator screen's heartbeats stop; the drive command must be 0 at most
-                  link_timeout_s (the executor's operator_timeout_s, default 0.5) + one tick later (A17 amendment 31)
+                  link_timeout_s (the executor's operator_timeout_s, default 1.0) + one tick later (A17 amendment 31/60)
   other_screen    one_press: the expected replies to a second screen [(op, ok, error)] (heartbeat and go)
   go_refused      one_press: the allowed error(s) of the first refused go of the script
   lease_lost      True: the bridge takes the lease while the armed run waits for its go; the executor keeps the run open
@@ -130,19 +130,20 @@ script('hold_lost', 'safety', 'the operator page stops sending heartbeats (page 
        episode('hold_lost', actions=[action('hold_lost', 5.)], duration_s=10., start_mode='hold_to_run'),
        dict(end_reason=None, pause_reason='hold_released', no_restart=True, a22=True, pause_at=5.))
 # one_press (design v2 V2-2, decision R32, A17 amendment 31; the front_steer default start mode): one go, the screen's
-# heartbeats keep the run going; the link timeout (operator_timeout_s 0.5 s) pauses it, only a new go resumes
+# heartbeats keep the run going; the link timeout (operator_timeout_s 1.0 s since decision R60) pauses it, only a new go
+# resumes
 script('operator_link_lost', 'safety', 'one_press: the operator screen stops its heartbeats while driving (screen hidden): '
        'pause operator_link_lost, zero drive within the timeout + 1 tick, steering held, no restart',
        episode('operator_link_lost', controller=segments(_drive_then(8., 40, 4.)),
                actions=[action('screen_hidden', 5.)], duration_s=10.),
-       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=.5, no_restart=True,
-            a22=True, pause_at=5.5))
-script('operator_link_back_no_restart', 'safety', 'one_press: the heartbeats stop and come back 0.8 s later: the run '
+       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=1., no_restart=True,
+            a22=True, pause_at=6.))
+script('operator_link_back_no_restart', 'safety', 'one_press: the heartbeats stop and come back 1.3 s later: the run '
        'stays paused (no restart without a new go)',
-       episode('operator_link_back_no_restart', actions=[action('screen_hidden', 5.), action('screen_visible', 5.8)],
+       episode('operator_link_back_no_restart', actions=[action('screen_hidden', 5.), action('screen_visible', 6.3)],
                duration_s=10.),
-       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=.5, no_restart=True,
-            pause_at=5.5))
+       dict(end_reason=None, pause_reason='operator_link_lost', link_lost_at=5., link_timeout_s=1., no_restart=True,
+            pause_at=6.))
 script('other_screen_refused', 'safety', 'one_press: a second screen sends a heartbeat and a go while the first one drives: '
        'both refused (session_conflict), the run goes on',
        episode('other_screen_refused', actions=[action('other_screen', 5.)], duration_s=8.),

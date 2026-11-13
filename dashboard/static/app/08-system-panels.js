@@ -203,10 +203,6 @@ function serviceRows(services) {
   }));
 }
 
-function renderSensors(sensors) {
-  renderStatusRows("sensorList", sensorRows(sensors));
-}
-
 function sensorRows(sensors) {
   return Object.entries(sensors).map(([key, item]) => ({
     title: sensorLabel(key),
@@ -442,7 +438,7 @@ function renderContainers(docker) {
     state.containerDetail = null;
     state.containerLogs = null;
   }
-  if (!state.selectedContainerId && currentRoute() === "/docker") state.selectedContainerId = ids[0] || null;
+  if (!state.selectedContainerId && currentRoute() === "/system" && systemTab() === "docker") state.selectedContainerId = ids[0] || null;
   syncItems("containerList", containers, (container) => container.id || container.name, createContainerRow, updateContainerRow);
 }
 
@@ -500,7 +496,7 @@ function selectContainer(containerId) {
 }
 
 function maybeRefreshContainerDetail(force = false) {
-  if (currentRoute() !== "/docker" || !state.selectedContainerId) return;
+  if (currentRoute() !== "/system" || systemTab() !== "docker" || !state.selectedContainerId) return;
   const now = Date.now();
   if (!force && state.containerLogsUpdatedAt && now - state.containerLogsUpdatedAt < 2500) return;
   if (state.containerRequestInFlight || state.containerLogInFlight) return;
@@ -602,10 +598,11 @@ function renderContainerActions(detailPayload) {
   }
   const running = Boolean(detailPayload.state?.Running);
   const id = escapeHtml(detailPayload.id || detailPayload.full_id || "");
+  const name = escapeHtml(String(detailPayload.name || "").replace(/^\//, ""));
   target.innerHTML = `
-    <button type="button" data-container-action="start" data-container-id="${id}" ${running ? "disabled" : ""}>시작</button>
-    <button type="button" data-container-action="stop" data-container-id="${id}" ${running ? "" : "disabled"}>중지</button>
-    <button type="button" data-container-action="restart" data-container-id="${id}" ${running ? "" : "disabled"}>재시작</button>
+    <button type="button" data-container-action="start" data-container-id="${id}" data-container-name="${name}" ${running ? "disabled" : ""}>시작</button>
+    <button type="button" data-container-action="stop" data-container-id="${id}" data-container-name="${name}" ${running ? "" : "disabled"}>중지</button>
+    <button type="button" data-container-action="restart" data-container-id="${id}" data-container-name="${name}" ${running ? "" : "disabled"}>재시작</button>
   `;
 }
 
@@ -659,6 +656,10 @@ function initDockerControls() {
   $("containerActions")?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-container-action]");
     if (!button || button.disabled) return;
+    // UI-13: stopping or restarting a container can stop a sensor, the drive bridge or the recorder; ask first.
+    const verb = { stop: "중지", restart: "재시작" }[button.dataset.containerAction];
+    if (verb && !window.confirm(`컨테이너 ${button.dataset.containerName || button.dataset.containerId}을(를) ${verb}할까요?
+센서·조종·기록 서비스라면 그동안 화면 연결과 조종이 끊긴다.`)) return;
     await postContainerAction(button.dataset.containerId, button.dataset.containerAction);
   });
 }

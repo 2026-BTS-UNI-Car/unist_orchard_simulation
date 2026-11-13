@@ -1,7 +1,7 @@
 // Autonomy section of the drive panel (UI-08): one press to start, STOP, the operator heartbeat while the screen is
 // visible, and the state from GET /api/executor/status (docs/STEERING_SERVER_KO.md 6). Loaded by static/app/14-steer.js
 // on a front-steer dashboard. Requests use the page's postJson/getJson. The page never sees the executor token.
-import { HEARTBEAT_MS, STATUS_MS, autoView, heartbeatWanted, newSession, primaryAction, runActive } from './auto-model.mjs';
+import { HEARTBEAT_MS, STATUS_MS, autoView, heartbeatWanted, newSession, prepareRun, primaryAction, runActive } from './auto-model.mjs';
 
 const HTTP_TEXT = { 403: '대시보드 세션 없음: 화면을 새로 고친다', 409: '실행기가 거절했다', 502: '실행기 연결 안 됨',
                     503: '실행기 설정 없음', 400: '요청 값 오류', 413: '요청이 너무 큼' };
@@ -26,7 +26,7 @@ export function initAutoPanel(page) {
     if (beating || !active() || !heartbeatWanted(reply)) return;
     beating = true;
     try {
-      await page.postJson('/api/executor/heartbeat', { session });
+      await (page.controlRequest || page.postJson)('/api/executor/heartbeat', { session });
       if (lastError.startsWith('연결 신호')) lastError = '';
     } catch (err) {
       lastError = `연결 신호 거절: ${httpText(err)}`;
@@ -46,9 +46,17 @@ export function initAutoPanel(page) {
     clearInterval(beatTimer); beatTimer = null;    // no heartbeat: the executor stops the vehicle by itself
   }
 
-  async function send(action, body = {}) {
-    try { await page.postJson(`/api/executor/${action}`, body); return true; }
-    catch (err) { lastError = `${action}: ${httpText(err)}`; return false; }
+  async function request(action, body = {}) {
+    // Start, STOP and the other actions use the page's control transport (NET-05) where there is one.
+    try { return { ok: true, reply: await (page.controlRequest || page.postJson)(`/api/executor/${action}`, body) }; }
+    catch (err) { lastError = `${action}: ${httpText(err)}`; return { ok: false, reply: null }; }
+  }
+  const send = async (action, body = {}) => (await request(action, body)).ok;
+  // A status read that is not skipped by a poll in flight (the prepare step needs one sent after the start reply).
+  async function readStatus() {
+    try { reply = await page.getJson('/api/executor/status'); } catch (_) { return null; }
+    draw();
+    return reply;
   }
   async function primary() {
     const { action } = primaryAction(reply);
@@ -59,10 +67,9 @@ export function initAutoPanel(page) {
         const raw = $('autoRowLen')?.value.trim();
         const rowLen = raw ? Number(raw) : null;
         if (raw && !(rowLen > 0)) { lastError = '열 길이는 0보다 큰 수이거나 비워 둔다'; return; }
-        if (await send('start', { row_len_m: rowLen }) && reply?.status?.mode === 'MOTOR') {
-          await poll();
-          if (reply?.status?.run_state === 'ready') await send('arm');
-        }
+        const result = await prepareRun({ send: request, readStatus, rowLen, sleep: (ms) => new Promise((done) => setTimeout(done, ms)) });
+        if (!result.ok && result.step === 'wait') lastError = `준비: 실행기가 run을 만들었다고 알리지 않았다(상태 ${result.runState || '모름'})`;
+        if (!result.ok && result.step === 'latched') lastError = '준비: 실행기가 래치 상태다. 래치 확인부터';
       } else if (action === 'go') {
         await beat();                                   // the link is fresh before the go (go_blockers: operator link)
         await send('go', { session });

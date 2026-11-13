@@ -110,11 +110,10 @@
 }
 
 /* Name, value and detail cells in a grid (device probe, container details,
-   GPS read-outs, plan): quiet tiles, not bordered boxes. */
+   GPS read-outs): quiet tiles, not bordered boxes. */
 .probe-card,
 .container-detail-grid article,
-.gps-readouts > div,
-.milestone {
+.gps-readouts > div {
   display: grid;
   align-content: start;
   gap: 2px;
@@ -707,6 +706,12 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   gap: var(--space-2);
 }
 
+/* Drive screen: one big view (docs/SCREENS_KO.md). */
+.rover-layout[data-view="camera"] .rover-lidar-panel,
+.rover-layout[data-view="lidar"] .rover-camera-panel {
+  display: none;
+}
+
 /* Steering row over the throttle row; every finger keeps its own button. */
 .steer-pad > div {
   grid-auto-flow: column;
@@ -1191,8 +1196,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 
 /* A list that was filled with nothing says so, like .empty-state (the page
    script leaves the box empty, so the icon and the line are drawn here). */
-.panel > .status-list[data-render-key]:empty,
-.timeline:empty {
+.panel > .status-list[data-render-key]:empty {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: var(--space-2);
@@ -1201,8 +1205,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   text-align: center;
 }
 
-.panel > .status-list[data-render-key]:empty::before,
-.timeline:empty::before {
+.panel > .status-list[data-render-key]:empty::before {
   width: 28px;
   height: 28px;
   margin: 0;
@@ -1213,8 +1216,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   content: "";
 }
 
-.panel > .status-list[data-render-key]:empty::after,
-.timeline:empty::after {
+.panel > .status-list[data-render-key]:empty::after {
   width: auto;
   height: auto;
   margin: 0;
@@ -1367,41 +1369,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   color: var(--color-text);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-}
-
-/* ---- Plan -------------------------------------------------------------- */
-.timeline {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.milestone p {
-  margin-top: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-/* State of a step, as a badge. */
-.milestone small {
-  justify-self: start;
-  margin-top: var(--space-2);
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-fill-strong);
-  color: var(--color-text-secondary);
-  font-weight: var(--weight-medium);
-}
-
-.milestone small.done {
-  background: var(--color-ok-soft);
-  color: var(--color-ok-text);
-}
-
-.milestone small.in_progress {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-text);
 }
 
 /* ---- Documents --------------------------------------------------------- */
@@ -1953,31 +1920,19 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 
 /* ---- From 900px: three columns on the drive page ----------------------- */
 @media (min-width: 900px) {
-  /* The first row is as tall as the drive panel; the rest of the tall sensor
-     panels goes to the second row, so no gap opens under the drive panel. */
+  /* The big view (camera or LiDAR) over two columns, the drive panel in the third. */
   .rover-layout {
     grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) minmax(220px, 0.78fr);
-    grid-template-rows: auto 1fr;
   }
 
-  .rover-lidar-panel {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-  }
-
+  .rover-lidar-panel,
   .rover-camera-panel {
-    grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-column: 1 / span 2;
+    grid-row: 1;
   }
 
   .rover-drive-panel {
     grid-column: 3;
-    grid-row: 1;
-  }
-
-  .rover-record-panel {
-    grid-column: 3;
-    grid-row: 2;
   }
 
   .rover-lidar-stage {
@@ -2054,7 +2009,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   .rover-layout,
   .resource-grid,
   .docs-layout,
-  .timeline,
   .core-grid,
   .core-chart-grid,
   .probe-grid,

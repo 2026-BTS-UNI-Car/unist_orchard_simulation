@@ -1051,10 +1051,14 @@ def _deadman_measure(ctx, name, step0, before, start, mark, t_wall, pause_reason
         expiry = None
         last_mono = None if not ctx.hold.events else ctx.hold.events[-1].get('last_beat_mono')
         if pause_ticks and last_mono is not None:
-            first_pause_t = pause_ticks[0].get('t')
             # the executor clock: the kernel CLOCK_MONOTONIC (wall clock mode; the same clock in every container) or
             # the SIM time (SIM clock mode: the last beat mapped to SIM time through this node's /clock receipts)
             reference = last_mono if ctx.clock != 'sim' else interpolate_sim(list(ctx.obs.clock_rows), last_mono)
+            # the first pause tick of this loss: the log can still hold paused ticks of an earlier script (ticks have no
+            # wall field for the after_wall filter; gsim-final3 s3_smoke: -43.9 s from an earlier script's pause)
+            later = [r for r in pause_ticks if reference is not None and isinstance(r.get('t'), (int, float))
+                     and r['t'] >= reference - .5]
+            first_pause_t = later[0]['t'] if later else None
             if first_pause_t is not None and reference is not None:
                 expiry = round(first_pause_t - reference, 3)
         criteria.append(criterion(expiry_name, expiry, 'report (<= %.2f: the %s + 1 executor tick; executor clock %s)'
@@ -1589,8 +1593,11 @@ def s_second_screen(ctx):
                 criterion('executor_late_drive_refused', errors[:3], 'a refusal (stop_barrier / control_not_owned)',
                           bool(errors) and any(('stop_barrier' in str(e)) or ('control_not_owned' in str(e)) or
                                                ('not_owned' in str(e)) for e in errors)),
-                criterion('executor_end_reason', end_reason, 'bridge_error or bridge_latched',
-                          str(end_reason).startswith('bridge_')),
+                # acceptance amendment 34: a STOP of another client (here the CLI) that reaches the bridge first also
+                # ends the run as operator_stop (the T1 scripts were changed then; this G-SIM check was not until
+                # gsim-final3, registration steer_follow_gsim_final3_v1 amendment 1)
+                criterion('executor_end_reason', end_reason, 'operator_stop (acceptance amendment 34)',
+                          end_reason == 'operator_stop'),
                 criterion('no_automatic_restart', len(restart), 0, not restart)]
     return _finish(ctx, 'second_screen_and_cli', step0, before, criteria,
                    dict(start=start, mark=mark, end_reason=end_reason, end_note=end_note, client=client.get('state'),
@@ -1718,6 +1725,20 @@ DEFAULT_ORDER = ('operator_stop', 'deadman_release', 'hold_lost', 'c_ttl_link_re
                  'executor_forced_kill')
 
 
+def place_at_start(ctx):
+    """Put the vehicle back at the scene start (w1_force: before the row, the corridor ahead) and wait until it stands
+    (safety --reset-pose, registration steer_follow_gsim_final3_v1 part C: each A17(G) script starts in the corridor;
+    the one-press executor refuses a row run's go until the corridor is acquired)."""
+    from . import exec_run
+    x, y, z, yaw = exec_run.start_pose(SCENE_DIR, 0., 0.)
+    placed = dict(exec_run.set_model_pose(x, y, z, yaw), x=round(x, 4), y=round(y, 4), z=round(z, 4), yaw=yaw)
+    ctx.obs.spin_for(2.)
+    ctx.wait_still(10.)
+    if not placed.get('accepted'):
+        raise SessionError('set_pose to the start not accepted: %s' % placed)
+    return placed
+
+
 def check_safety(ctx, args):
     by_name = {s['name']: s for s in SCRIPTS}
     mode = ensure_start_mode(ctx)
@@ -1731,7 +1752,11 @@ def check_safety(ctx, args):
             if not ctx.executor_alive:
                 break
             started = time.monotonic()
+            placed = None
             try:
+                if getattr(args, 'reset_pose', False):
+                    ensure_idle(ctx)
+                    placed = place_at_start(ctx)
                 result = entry['fn'](ctx, index) if name == 'operator_stop' else entry['fn'](ctx)
             except Exception as exc:
                 import traceback
@@ -1744,7 +1769,7 @@ def check_safety(ctx, args):
                 except Exception:
                     pass
             result.update(script=name, purpose=entry['purpose'], registered=entry['registered'],
-                          wall_s=round(time.monotonic() - started, 2))
+                          wall_s=round(time.monotonic() - started, 2), placed_at_start=placed)
             results.append(result)
             write_json(ctx.out / 'scripts' / ('%s.json' % result['name']), result)
     stops = [r for r in results if r['script'] == 'operator_stop']
@@ -1999,8 +2024,9 @@ def check_imu(ctx, args):
     criteria.append(criterion('imu_rate_within_1_percent', None if rate is None else round(rate, 3),
                               'report (A5(F) used +-1 %% on the T1 clock)', None))
     frames = sorted({r[8] for r in rows})
-    criteria.append(criterion('imu_frame_and_orientation_not_provided', [frames, sorted({r[9] for r in rows})],
-                              [['imu_link'], [-1.0]], frames == ['imu_link'] and {r[9] for r in rows} == {-1.}))
+    criteria.append(criterion('imu_frame_and_orientation_provided', [frames, sorted({r[9] for r in rows})],
+                              [['imu_link'], '> 0 (game rotation vector, gsim-final3)'],
+                              frames == ['imu_link'] and bool(rows) and all(r[9] > 0. for r in rows)))
     out = dict(check='A5_G_imu', samples=len(rows), moving_samples=len(moving), model=model,
                scene=os.environ.get('UBTS_STEER_SCENE'))
     if model and len(data) > 30:
@@ -2195,6 +2221,117 @@ def check_drive(ctx, args):
                                   'controller)')
 
 
+# --- PW-08 on the Gazebo stack (registration steer_follow_gsim_final_v1, part E) ---------------------------------------
+PW08_DUTY_PCT = 50                   # a duty inside the speed table (25 .. 100 %), on the straight part of the W0 floor
+PW08_SCALE = 1.10                    # the speed table scale of the field tuning (basic key speed_scale)
+PW08_DRIVE_M = 8.
+PW08_STEADY_S = (3., 7.)             # the steady window of each drive: seconds after the first moving truth sample
+PW08_STATUS_WAIT_S = 3.              # how long a tuning status read waits for an accepted POST /api/params to show
+
+
+def table_speed(values, duty_pct):
+    """Expected speed [m/s] of the executor's field tuning at a duty: the speed table (piecewise linear through
+    (0, 0), held above its last point) x speed_scale x surface_scale x battery_scale (field_tuning.speed_scale)."""
+    adv, basic = values['advanced'], values['basic']
+    prev_d, prev_v, speed = 0., 0., None
+    for d, v in adv['speed_table']:
+        if duty_pct <= d:
+            speed = prev_v + (v - prev_v) * (duty_pct - prev_d) / (d - prev_d)
+            break
+        prev_d, prev_v = d, v
+    if speed is None:
+        speed = adv['speed_table'][-1][1]
+    return speed * basic['speed_scale'] * adv['surface_scale'] * adv['battery_scale']
+
+
+def _pw08_drive(ctx, label):
+    """One straight drive at PW08_DUTY_PCT (scripted controller through the executor, one go) and the steady truth
+    speed of the plant over PW08_STEADY_S."""
+    ensure_idle(ctx)
+    before, step0 = step_start(ctx, 'pw08_%s' % label)
+    start = start_drive(ctx, dict(kind='straight_hold', drive_pct=PW08_DUTY_PCT, distance_m=PW08_DRIVE_M), moving=True)
+    t0 = ctx.obs.sim_time
+    ctx.wait_exec(lambda s: s['runner']['state'] == STATE_ENDED, 90.)
+    ctx.wait_still(10.)
+    rows = odom_rows(ctx.obs, t0, ctx.obs.sim_time)
+    moving = [r for r in rows if abs(r[4]) > .05]
+    steady = [] if not moving else [r for r in rows if moving[0][0] + PW08_STEADY_S[0] <= r[0] <= moving[0][0] +
+                                    PW08_STEADY_S[1]]
+    speed = statistics.mean(r[4] for r in steady) if steady else None
+    ctx.op.post('/api/end')
+    after = emulator_counters(ctx.hooks)
+    validity = step_validity(ctx, ctx.clock, step0['mono'], time.monotonic(), before, after)
+    return dict(label=label, start=start, steady_samples=len(steady), plant_speed_m_s=None if speed is None else
+                round(speed, 5), validity=validity)
+
+
+def _pw08_tuning(ctx, done, timeout_s=PW08_STATUS_WAIT_S):
+    """The tuning block of the operator status once done(tuning) holds, or the last one read after timeout_s: the
+    status can still show the values from before a POST /api/params that was just accepted (gsim_final 2026-11-13
+    s2e_w1: the restore was read right after the request and still showed 'default*'; the executor's own tuning_change
+    event and end status had the default digest)."""
+    end = time.monotonic() + timeout_s
+    while True:
+        tuning = (ctx.op.status() or {}).get('tuning') or {}
+        if done(tuning) or time.monotonic() >= end:
+            return tuning
+        ctx.obs.spin_for(.2)
+
+
+def check_pw08(ctx, args):
+    """PW-08 on the Gazebo stack: the field tuning's table scale (speed_scale) 1.00 -> 1.10 through POST /api/params at
+    rest. Executor side (judged): the status values and the start event's tuning digest show the new value, the
+    executor's table speed at PW08_DUTY_PCT moves by 1.10 +- 1 %. Plant side (reported): the Gazebo plant's steady
+    speed at the same duty before and after (the Gazebo drive is the physics model of the profile; it does not read
+    the tuning file). The default preset is restored at the end."""
+    ensure_idle(ctx)
+    status0 = (ctx.op.status() or {}).get('tuning') or {}
+    first = _pw08_drive(ctx, 'scale_1_00')
+    ensure_idle(ctx)
+    code, reply, _, _ = ctx.op.post('/api/params', {'speed_scale': PW08_SCALE})
+    status1 = _pw08_tuning(ctx, lambda t: t.get('digest') != status0.get('digest'))
+    second = _pw08_drive(ctx, 'scale_1_10')
+    records = executor_log(ctx.exec_dir, after_wall=time.time() - 600.)
+    starts = [r for r in executor_events(records, ('start',)) if r.get('tuning')]
+    changes = executor_events(records, ('tuning_change',))
+    ensure_idle(ctx)
+    restore = ctx.op.post('/api/params', {'preset': 'default'})
+    status2 = _pw08_tuning(ctx, lambda t: t.get('digest') == status0.get('digest'))
+    v0, v1 = status0.get('values'), status1.get('values')
+    exec0 = None if not v0 else table_speed(v0, PW08_DUTY_PCT)
+    exec1 = None if not v1 else table_speed(v1, PW08_DUTY_PCT)
+    ratio_exec = None if not (exec0 and exec1) else exec1 / exec0
+    p0, p1 = first['plant_speed_m_s'], second['plant_speed_m_s']
+    ratio_plant = None if not (p0 and p1) else p1 / p0
+    start_digest = (starts[-1].get('tuning') or {}).get('digest') if starts else None
+    valid = all((d['validity'] or {}).get('valid', True) for d in (first, second))
+    criteria = [
+        criterion('params_accepted', code, 200, code == 200),
+        criterion('status_speed_scale', None if not v1 else v1['basic']['speed_scale'], PW08_SCALE,
+                  bool(v1) and abs(v1['basic']['speed_scale'] - PW08_SCALE) < 1e-9),
+        criterion('revision_and_digest_change', [status0.get('revision'), status1.get('revision'),
+                                                 status0.get('digest') != status1.get('digest')],
+                  'revision + 1, new digest', status1.get('revision') == (status0.get('revision') or 0) + 1 and
+                  status0.get('digest') != status1.get('digest')),
+        criterion('run_start_uses_the_new_tuning', start_digest, status1.get('digest'),
+                  start_digest is not None and start_digest == status1.get('digest')),
+        criterion('executor_table_speed_ratio', None if ratio_exec is None else round(ratio_exec, 5),
+                  '1.10 +- 1 %', ratio_exec is not None and abs(ratio_exec / PW08_SCALE - 1.) <= .01),
+        criterion('plant_steady_speed_ratio', None if ratio_plant is None else round(ratio_plant, 5),
+                  'report (the Gazebo plant does not read the tuning file)', None),
+        criterion('default_restored', [restore[0], status2.get('preset'), status2.get('digest') == status0.get('digest')],
+                  'preset default, the first digest', restore[0] == 200 and status2.get('digest') == status0.get('digest')),
+    ]
+    if not valid:
+        criteria = invalidate(criteria, dict(valid=False, reason='a drive step was invalid (A10 rule)'))
+    return dict(check='pw08_gazebo', clock=ctx.clock, duty_pct=PW08_DUTY_PCT, scale=PW08_SCALE,
+                executor=dict(before=exec0, after=exec1, ratio=ratio_exec, tuning_before=status0.get('digest'),
+                              tuning_after=status1.get('digest'), file=status0.get('file'),
+                              file_sha256=status0.get('file_sha256'), changes=len(changes)),
+                plant=dict(before=p0, after=p1, ratio=ratio_plant), drives=[first, second], criteria=criteria,
+                passed=verdict(criteria), result_kind=RESULT_KIND)
+
+
 # --- G-SIM row following (steer_follow_gsim_v1) -----------------------------------------------------------------------
 SCENE_DIR = Path(os.environ.get('UBTS_STEER_SCENE_DIR', '/runtime/steer/scene'))
 
@@ -2341,7 +2478,7 @@ def check_follow(ctx, args):
 
 # --- main -----------------------------------------------------------------------------------------------------------------
 CHECKS = dict(graph=check_graph, scan=check_scan, imu=check_imu, display=check_display, chain=check_chain,
-              safety=check_safety, drive=check_drive, follow=check_follow, pose=check_pose)
+              safety=check_safety, drive=check_drive, follow=check_follow, pose=check_pose, pw08=check_pw08)
 
 
 def build_parser():
@@ -2354,6 +2491,11 @@ def build_parser():
     p.add_argument('--keep', type=int, default=200, help='scan: SIM scans kept for the byte comparison')
     p.add_argument('--repeat', type=int, default=5, help='safety: operator STOP repeats')
     p.add_argument('--only', nargs='*', default=None, help='safety: script names')
+    p.add_argument('--still-speed', type=float, default=None,
+                   help='the truth speed below which the vehicle counts as still (default p6a_checks.STILL_SPEED_M_S '
+                        '0.005 m/s; W1 A17(G): 0.05, acceptance amendment 62: the start area slopes and the plant creeps)')
+    p.add_argument('--reset-pose', action='store_true',
+                   help='safety: put the vehicle back at the scene start before each script (w1_force)')
     p.add_argument('--no-executor', action='store_true', help='graph: the executor is not running')
     p.add_argument('--discovery-s', type=float, default=45.)
     p.add_argument('--controller', default=None, help='drive: scripted controller spec JSON')
@@ -2369,12 +2511,18 @@ def build_parser():
 def main(argv=None):
     args = build_parser().parse_args(argv)
     out = Path(args.out)
+    if args.still_speed is not None:
+        # acceptance amendment 62: one threshold for every 'still' rule of this run (this module and p6a_checks)
+        from . import p6a_checks as _p6a
+        global STILL_SPEED_M_S
+        STILL_SPEED_M_S = _p6a.STILL_SPEED_M_S = float(args.still_speed)
     ctx = ExecCtx(out, clock=args.clock, start_mode=args.start_mode)
     started = time.monotonic()
     counters0 = emulator_counters(ctx.hooks)
     report = dict(schema=SCHEMA, result_kind=RESULT_KIND, field_validated=False, check=args.check,
                   started_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                  scene=os.environ.get('UBTS_STEER_SCENE'), clock=args.clock,
+                  scene=os.environ.get('UBTS_STEER_SCENE'), clock=args.clock, still_speed_m_s=STILL_SPEED_M_S,
+                  reset_pose=bool(getattr(args, 'reset_pose', False)),
                   source_commit=os.environ.get('UBTS_STEER_SOURCE_COMMIT'),
                   source_status_sha256=os.environ.get('UBTS_STEER_SOURCE_STATUS_SHA256'), provenance=provenance(),
                   provenance_dirs_note='sim/ubts, dashboard/scripts, firmware of /opt/ubts (tools/row_executor is '
@@ -2400,7 +2548,7 @@ def main(argv=None):
             ctx.close()
     name = dict(graph='A13_G_EXEC.json', scan='A5_G_SCAN.json', imu='A5_G_IMU.json', display='A5_G_DISPLAY.json',
                 chain='W2_CHAIN.json', safety='A17_G_EXEC.json', drive='EXEC_DRIVE.json',
-                follow='GSIM_FOLLOW_RUN.json', pose='POSE.json')[args.check]
+                follow='GSIM_FOLLOW_RUN.json', pose='POSE.json', pw08='PW08_GAZEBO.json')[args.check]
     write_json(out / name, report)
     failed = [c['name'] for c in report.get('criteria', []) if c.get('passed') is False]
     print(json.dumps(dict(check=args.check, passed=report.get('passed'), failed=failed[:40],

@@ -30,7 +30,10 @@ STATIC_ROOT = ROOT / "static"
 DOCS_ROOT = ROOT / "docs"
 # Content-hash addresses, long caching and kept gzip results for /static/ and the page (NET-04).
 STATIC_ASSETS = StaticAssets(STATIC_ROOT)
-APP_ROUTES = {"/", "/connection", "/system", "/network", "/docker", "/fan", "/research", "/rover-control", "/tuning", "/docs"}
+# The six screens and the docs (docs/SCREENS_KO.md), the system tabs, and the old addresses that the page rewrites.
+APP_ROUTES = {"/rover-control", "/map", "/sensors", "/records", "/tuning", "/system", "/docs",
+              "/system/resources", "/system/network", "/system/docker", "/system/fan",
+              "/", "/drive", "/connection", "/network", "/docker", "/fan", "/research"}
 SESSION_COOKIE_NAME = "ubts_session"
 SESSION_TTL_S = int(os.environ.get("DASHBOARD_SESSION_TTL_S", "3600"))
 _SESSION_LOCK = threading.Lock()
@@ -122,12 +125,16 @@ class _TeeWriter:
         self.cache_target.flush()
 
 
-DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'esp-rover-control', 'title': 'ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP USB motor owner, manual lease and ROS status 기준', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
+DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP USB motor owner, manual lease and ROS status 기준', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
     provider: TelemetryProvider
     protocol_version = "HTTP/1.1"
+
+    def version_string(self):
+        # A short Server header (NET-06): every answer carried "BaseHTTP/0.6 Python/3.x.y".
+        return "ubts"
     # D-12 extension points (dashboard_server/extensions.py). create_server() sets them from the environment.
     dashboard_settings = DashboardSettings()
     extension_routes = RouteTable()
@@ -172,6 +179,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(result)
         elif path == "/api/imu/zero":
             self._send_json(self.provider.zero_imu(), status=410)
+        elif path == "/api/link-log":
+            self._link_log()
         elif path == "/api/network/mode":
             payload = self._read_json_body()
             self._send_json(self.provider.set_network_mode(payload))
@@ -194,6 +203,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        if path == "/api/ping":
+            self._send_ping()
+            return
         if path.startswith('/api/live/') or path.startswith('/api/autonomy/native-map/') or path in ('/api/autonomy','/api/autonomy/preflight','/api/autonomy/observe','/api/autonomy/supervisor'):
             self._live_request(parsed)
         elif path.startswith("/occupancy-api"):
@@ -224,6 +236,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_static("index.html")
         elif path == "/api/health":
             self._send_json(self.provider.health())
+        elif path == "/api/telemetry" and parse_qs(parsed.query).get("bundle") == ["drive"]:
+            # NET-06: the drive screen's status only (sensors, services, rover).
+            if isinstance(self.provider, TelemetryProvider):
+                payload = self._shared_telemetry("drive").get()
+            else:
+                payload = self.provider.telemetry()
+            self._send_json(payload)
         elif path == "/api/telemetry":
             payload = self._shared_telemetry().get() if isinstance(self.provider, TelemetryProvider) else self.provider.telemetry()
             payload["connection"]["lidar_websocket"] = lidar_websocket_stats()
@@ -295,7 +314,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         name = parsed.path.removeprefix("/api/executor/")
         if not action:
             if name == "status":
-                self._send_json(client.status() if client is not None else proxy.not_configured_status())
+                grid = parse_qs(parsed.query).get("grid") == ["1"]          # the map screen's local grid layer
+                self._send_json(client.status(grid) if client is not None else proxy.not_configured_status())
             elif name == "tuning":
                 self._send_json(steer_tuning.view(client.status() if client is not None else proxy.not_configured_status()))
             elif name == "tuning/log":
@@ -579,37 +599,98 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if os.environ.get("DASHBOARD_ACCESS_LOG", "0") == "1":
             super().log_message(fmt, *args)
 
+    # Persistent connections (NET-05). JSON and static answers keep the TCP
+    # connection open, so a control command on a slow link no longer pays one
+    # extra round trip for a new connection. Only the wait for the next request
+    # line has a time limit; once a request has started the socket is blocking
+    # as before (WebSocket relays and large bodies are unchanged).
+    KEEP_ALIVE_IDLE_S = 30.0
+
+    def handle_one_request(self):
+        try:
+            self.connection.settimeout(self.KEEP_ALIVE_IDLE_S)
+        except OSError:
+            pass
+        self._body_consumed = False
+        self._session_created = None
+        super().handle_one_request()
+
     def parse_request(self):
         # Start of the server-side time reported in Server-Timing (E0).
         self._request_started = time.perf_counter()
+        try:
+            self.connection.settimeout(None)
+        except OSError:
+            pass
         return super().parse_request()
+
+    def _keep_alive(self) -> bool:
+        """True when this answer may leave the connection open for the next request.
+
+        A request body that was not read would be taken for the next request line,
+        so such a connection is closed (as every answer did before)."""
+        if self.close_connection:
+            return False
+        if "chunked" in self.headers.get("Transfer-Encoding", "").lower():
+            return False
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except ValueError:
+            return False
+        return length <= 0 or bool(getattr(self, "_body_consumed", False))
+
+    def _send_connection_header(self):
+        self.send_header("Connection", "keep-alive" if self._keep_alive() else "close")
 
     def _server_timing_header(self):
         started = getattr(self, "_request_started", None)
         if started is not None:
             self.send_header("Server-Timing", f"app;dur={(time.perf_counter() - started) * 1000:.1f}")
 
-    def _shared_telemetry(self):
-        from dashboard_server.telemetry_snapshot import SharedTelemetry
-        shared = getattr(DashboardHandler, "_telemetry_snapshot", None)
-        if shared is None or shared.provider is not self.provider:
-            shared = SharedTelemetry(self.provider, ttl_s=float(os.environ.get("TELEMETRY_SNAPSHOT_TTL_S", "1.0")))
-            DashboardHandler._telemetry_snapshot = shared
+    def _shared_telemetry(self, bundle: str = "full"):
+        from dashboard_server.telemetry_snapshot import SharedTelemetry, DriveTelemetry
+        attribute = "_telemetry_snapshot" if bundle == "full" else "_telemetry_snapshot_drive"
+        shared = getattr(DashboardHandler, attribute, None)
+        if shared is None or getattr(shared, "owner", shared.provider) is not self.provider:
+            source = self.provider if bundle == "full" else DriveTelemetry(self.provider)
+            shared = SharedTelemetry(source, ttl_s=float(os.environ.get("TELEMETRY_SNAPSHOT_TTL_S", "1.0")))
+            shared.owner = self.provider
+            setattr(DashboardHandler, attribute, shared)
         return shared
+
+    # Conditional GET for JSON (NET-06). A polled status answer that has not
+    # changed is answered "304 Not Modified" without a body when the page names
+    # the ETag of the copy it holds. The body is hashed after it is built, so the
+    # answer is the same JSON either way; large answers are not hashed.
+    JSON_ETAG_MAX_BYTES = 256 * 1024
 
     def _send_json(self, payload, status=200, headers=None):
         session_token = self._ensure_session(create=True)
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        etag = None
+        if status == 200 and self.command in ("GET", "HEAD") and len(body) <= self.JSON_ETAG_MAX_BYTES:
+            etag = '"j' + hashlib.sha1(body).hexdigest()[:20] + '"'
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self._server_timing_header()
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", "no-store")
+                self._send_connection_header()
+                self._send_session_cookie(session_token)
+                self.end_headers()
+                return
         accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
         encoded = gzip.compress(body, compresslevel=1) if accepts_gzip and len(body) >= 1024 else body
         self.send_response(status)
         self._server_timing_header()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "close")
+        self._send_connection_header()
         self.send_header("Vary", "Accept-Encoding")
         if encoded is not body:
             self.send_header("Content-Encoding", "gzip")
+        if etag:
+            self.send_header("ETag", etag)
         for key, value in (headers or {}).items():
             self.send_header(key, value)
         self._send_session_cookie(session_token)
@@ -621,8 +702,79 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError, OSError):
                 self.close_connection = True
                 return
-        self.close_connection = True
         self._log_served_json()
+
+    def _send_ping(self):
+        """Link probe of the page (NET-10): 204 without a body, the smallest answer
+        there is. The page measures the round trip; Server-Timing gives the
+        server's own share so it can be taken off."""
+        self.send_response(204)
+        self._server_timing_header()
+        self.send_header("Cache-Control", "no-store")
+        self._send_connection_header()
+        self.end_headers()
+
+    LINK_LOG_MAX_BODY = 256 * 1024
+    LINK_LOG_MAX_FILE = 20 * 1024 * 1024
+
+    def _link_log(self):
+        """Optional field log of the page's link samples (NET-10 (5)).
+
+        The page sends round trips and grades in batches while the log is turned
+        on; they are kept as one JSONL file a day in runtime/link_log/ (20 MB a
+        day at most). Only numbers and short words are kept."""
+        origin = self.headers.get("Origin")
+        if origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send_error(403, "Origin mismatch")
+            return
+        if not self._ensure_session(create=False):
+            self.send_error(403, "Dashboard session required")
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except ValueError:
+            length = -1
+        if length <= 0 or length > self.LINK_LOG_MAX_BODY:
+            self.send_error(413 if length > 0 else 400, "Link log batch size")
+            return
+        payload = self._read_json_body()
+        samples = payload.get("samples") if isinstance(payload, dict) else None
+        if not isinstance(samples, list) or len(samples) > 2000:
+            self._send_json({"ok": False, "error": "samples_required"}, 400)
+            return
+        recording = payload.get("recording_id")
+        recording = recording if isinstance(recording, str) and len(recording) <= 80 else None
+        profile = payload.get("profile") if payload.get("profile") in ("auto", "tiny", "slow", "balanced", "detail") else None
+        words = {"ping", "control", "good", "normal", "slow", "very_slow", "offline", "unknown"}
+        rows = []
+        for sample in samples:
+            if not isinstance(sample, dict):
+                continue
+            t, rtt = sample.get("t"), sample.get("rtt_ms")
+            rows.append({
+                "t": t if isinstance(t, (int, float)) and not isinstance(t, bool) else None,
+                "kind": sample.get("kind") if sample.get("kind") in words else None,
+                "ok": sample.get("ok") is True,
+                "rtt_ms": rtt if isinstance(rtt, (int, float)) and not isinstance(rtt, bool) and 0 <= rtt < 600000 else None,
+                "grade": sample.get("grade") if sample.get("grade") in words else None,
+                "recording_id": recording,
+                "profile": profile,
+            })
+        folder = Path(os.environ.get("DASHBOARD_LINK_LOG_DIR", str(ROOT / "runtime" / "link_log")))
+        written = 0
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            target = folder / time.strftime("%Y%m%d.jsonl", time.gmtime())
+            size = target.stat().st_size if target.exists() else 0
+            data = "".join(json.dumps(row, separators=(",", ":")) + "\n" for row in rows).encode("utf-8")
+            if size + len(data) <= self.LINK_LOG_MAX_FILE:
+                with open(target, "ab") as stream:
+                    stream.write(data)
+                written = len(rows)
+        except OSError as exc:
+            self._send_json({"ok": False, "error": f"link_log_write_failed: {exc.strerror or exc}"}, 500)
+            return
+        self._send_json({"ok": True, "written": written, "dropped": len(rows) - written})
 
     def _send_bytes(self, body: bytes, content_type: str, filename: str | None = None):
         session_token = self._ensure_session(create=True)
@@ -643,8 +795,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0") or 0)
         if length <= 0:
             return {}
+        raw = self.rfile.read(length)
+        self._body_consumed = len(raw) == length
         try:
-            return json.loads(self.rfile.read(length).decode("utf-8"))
+            return json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
@@ -686,10 +840,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # D-12: read through the class (a function stored on the class would bind to the instance); no work when it is
         # the filter already in use.
         STATIC_ASSETS.set_page_filter(type(self).page_filter)
+        started = time.monotonic()
         try:
             served = STATIC_ASSETS.serve(rel, requested_version, accept_gzip)
         except OSError:
             served = None
+        serve_ms = (time.monotonic() - started) * 1000
         if served is None:
             self.send_error(404, "Not found")
             return
@@ -716,7 +872,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Vary", "Accept-Encoding")
         if served.gzip:
             self.send_header("Content-Encoding", "gzip")
-        self.send_header("Connection", "close")
+        self._send_connection_header()
         self._send_session_cookie(session_token)
         self.send_header("Content-Length", str(len(served.body)))
         self.end_headers()
@@ -724,8 +880,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 self.wfile.write(served.body)
             except (BrokenPipeError, ConnectionResetError, OSError):
-                pass
-        self.close_connection = True
+                self.close_connection = True
+        took_ms = (time.monotonic() - started) * 1000
+        if took_ms > 500:
+            dashboard_log("static.slow", path=rel, ms=round(took_ms), serve_ms=round(serve_ms))
 
     def _send_file(self, path: Path, allowed_root: Path = STATIC_ROOT):
         session_token = self._ensure_session(create=True)
@@ -787,16 +945,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
         with _SESSION_LOCK:
             _prune_sessions(now)
             if token and token in _SESSIONS:
+                # NET-11: a session in use slides. Past half of its lifetime it is
+                # extended and the cookie sent again, so an open page (and its
+                # sensor streams) is not cut off when the first lifetime ends.
+                item = _SESSIONS[token]
+                if item.get("expires_at", 0.0) - now < SESSION_TTL_S / 2:
+                    item["expires_at"] = now + SESSION_TTL_S
+                    self._session_created = token
                 return token
             if not create:
                 return None
             token = secrets.token_urlsafe(24)
             _SESSIONS[token] = {"created_at": now, "expires_at": now + SESSION_TTL_S}
+        self._session_created = token
         dashboard_log("session.created", session=token[:8], remote=self.client_address[0])
         return token
 
     def _send_session_cookie(self, token: str | None):
-        if not token:
+        # The cookie is sent when the session is created (NET-06). The session
+        # does not slide, so sending it again on every answer only added about
+        # 100 bytes to each one.
+        if not token or getattr(self, "_session_created", None) != token:
             return
         self.send_header(
             "Set-Cookie",
@@ -1177,6 +1346,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             connection_id = secrets.token_urlsafe(8)
             registry[connection_id] = {"session": session_token, "connected_at": now, "remote": self.client_address[0]}
 
+        def current_deadline(token=session_token, fallback=session_deadline):
+            # The session's expiry as it is now (it slides while the page uses it).
+            with _SESSION_LOCK:
+                item = _SESSIONS.get(token)
+                return float(item.get("expires_at", fallback)) if item else fallback
+
         accept = base64.b64encode(
             hashlib.sha1((client_key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
         ).decode("ascii")
@@ -1191,7 +1366,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         upstream_url = self._upstream_with_client_query(default_upstream)
         try:
             unavailable_logged = False
-            while time.time() < session_deadline:
+            while time.time() < current_deadline():
                 try:
                     upstream, initial_upstream = self._connect_ws_upstream(upstream_url, label.upper())
                 except OSError as exc:
@@ -1206,10 +1381,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     )
                     if not ok:
                         return
-                    time.sleep(min(2.0, max(0.1, session_deadline - time.time())))
+                    # Wait for the next try, but notice a browser that leaves meanwhile (close frame or EOF):
+                    # otherwise the socket stays CLOSING until the session deadline.
+                    if self._ws_client_left(min(2.0, max(0.1, current_deadline() - time.time()))):
+                        self._ws_send_close(self.connection)
+                        return
                     continue
                 try:
-                    self._relay_websocket(upstream, initial_upstream, session_deadline)
+                    self._relay_websocket(upstream, initial_upstream, current_deadline)
                 finally:
                     try:
                         upstream.close()
@@ -1325,7 +1504,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
         self.close_connection = True
 
-    def _relay_websocket(self, upstream: socket.socket, initial_upstream: bytes = b"", deadline: float | None = None):
+    def _relay_websocket(self, upstream: socket.socket, initial_upstream: bytes = b"", deadline=None):
         # Sensor previews only. A slow reader must not block reverse ACKs or
         # retain this registry entry/upstream after the write/session deadline.
         # Opaque TCP chunks do not establish WS frame boundaries. Injecting an
@@ -1341,6 +1520,67 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def _ws_send_json(self, sock: socket.socket, payload: dict) -> bool:
         return self._ws_send_frame(sock, 0x1, json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+    def _ws_client_left(self, wait_s: float) -> bool:
+        """Wait up to wait_s for the browser while no bridge is connected; True when it sent a close frame or closed.
+
+        Whole frames are read (header, extended length, mask, payload) so a later relay starts on a frame boundary;
+        other frames from the browser during the wait are dropped (there is no bridge to give them to)."""
+        sock = self.connection
+        end = time.monotonic() + max(0.0, wait_s)
+        while True:
+            left = end - time.monotonic()
+            if left <= 0:
+                return False
+            try:
+                readable, _, _ = select.select([sock], [], [], left)
+            except (OSError, ValueError):
+                return True
+            if not readable:
+                return False
+            frame = self._ws_read_client_frame(sock)
+            if frame is None or frame == 0x8:
+                return True
+
+    @staticmethod
+    def _ws_read_client_frame(sock: socket.socket, limit: int = 1 << 20):
+        """Read one client frame and return its opcode; None on EOF, error or an oversized frame."""
+        def exact(n):
+            data = b""
+            while len(data) < n:
+                try:
+                    chunk = sock.recv(n - len(data))
+                except OSError:
+                    return None
+                if not chunk:
+                    return None
+                data += chunk
+            return data
+        previous = sock.gettimeout()
+        sock.settimeout(2.0)
+        try:
+            head = exact(2)
+            if head is None:
+                return None
+            opcode, length = head[0] & 0x0F, head[1] & 0x7F
+            if length == 126:
+                ext = exact(2)
+                length = None if ext is None else int.from_bytes(ext, "big")
+            elif length == 127:
+                ext = exact(8)
+                length = None if ext is None else int.from_bytes(ext, "big")
+            if length is None or length > limit:
+                return None
+            if head[1] & 0x80 and exact(4) is None:
+                return None
+            if length and exact(length) is None:
+                return None
+            return opcode
+        finally:
+            try:
+                sock.settimeout(previous)
+            except OSError:
+                pass
 
     def _ws_send_close(self, sock: socket.socket):
         self._ws_send_frame(sock, 0x8, b"\x03\xe8")
@@ -1466,6 +1706,20 @@ def main():
     parser.add_argument("--config", default=os.environ.get("DASHBOARD_CONFIG"))
     args = parser.parse_args()
     server = create_server(args.host, args.port, args.config)
+    # Prepare the page's versioned files now rather than on the first visitor's request (static_assets.warm).
+    def warm_static():
+        started = time.monotonic()
+        # The first mimetypes lookup builds its table; on Windows it reads the registry (0.6-0.8 s on the bench PC,
+        # seconds when the PC is busy). Do it here, not in the first visitor's page answer.
+        mimetypes.guess_type("index.html")
+        mime_ms = round((time.monotonic() - started) * 1000)
+        try:
+            version = STATIC_ASSETS.warm(DashboardHandler.page_filter)
+        except Exception as exc:  # the first request does the same work
+            dashboard_log("static.warm_failed", error=type(exc).__name__)
+            return
+        dashboard_log("static.warm", ms=round((time.monotonic() - started) * 1000), mime_ms=mime_ms, page_version=version)
+    threading.Thread(target=warm_static, name="static-assets-warm", daemon=True).start()
     dashboard_log("server.listen", url=f"http://{args.host}:{args.port}")
     try:
         server.serve_forever()

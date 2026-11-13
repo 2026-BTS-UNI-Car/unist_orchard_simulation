@@ -26,6 +26,9 @@ class ScanState:
     points: list[dict[str, float | int]] = field(default_factory=list)
     last_scan_at: float | None = None
     error: str | None = None
+    # The original LaserScan fields of the newest scan (profile=mapping: the dashboard's own live map,
+    # dashboard_server/source_live_mapping.py, needs them; same shape as the dashboard repository's bridge).
+    raw_scan: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def update(
@@ -34,12 +37,14 @@ class ScanState:
         stamp: float,
         points: list[dict[str, float | int]],
         source: str,
+        raw_scan: dict | None = None,
     ) -> None:
         with self.lock:
             self.frame_id = frame_id or "laser"
             self.source = source
             self.stamp = stamp
             self.points = points
+            self.raw_scan = raw_scan or {}
             self.last_scan_at = time.time()
             self.error = None
 
@@ -62,6 +67,7 @@ class ScanState:
                 "last_scan_age_sec": age,
                 "point_count": len(self.points),
                 "error": self.error,
+                "raw_scan": self.raw_scan,
             }
 
 
@@ -202,7 +208,7 @@ def ros_thread(
                 + float(msg.header.stamp.nanosec) / 1000000000
             )
             points = scan_to_points(msg, max_points)
-            state.update(msg.header.frame_id or "laser", stamp, points, "ros2")
+            state.update(msg.header.frame_id or "laser", stamp, points, "ros2", raw_scan_of(msg))
             self.scan_count += 1
             now = time.time()
             if self.scan_count == 1 or now - self.last_log_at >= 10:
@@ -231,6 +237,27 @@ def ros_thread(
 
 
 
+
+
+def raw_scan_of(msg) -> dict:
+    """The original LaserScan fields for profile=mapping (the dashboard repository's bridge, ui-20261112 90094fd):
+    header, every range (non-finite -> None), angles, limits, scan and beam times."""
+    return dict(header=dict(stamp=dict(sec=msg.header.stamp.sec, nanosec=msg.header.stamp.nanosec),
+                            frame_id=msg.header.frame_id),
+                ranges=[float(v) if math.isfinite(v) else None for v in msg.ranges],
+                angle_min=float(msg.angle_min), angle_increment=float(msg.angle_increment),
+                range_min=float(msg.range_min), range_max=float(msg.range_max),
+                scan_time=float(msg.scan_time), time_increment=float(msg.time_increment))
+
+
+def mapping_payload(snap, points, sequence) -> dict:
+    """profile=mapping message: the scan header fields, no display points, the original scan in raw_scan
+    (source source_native_LaserScan), as the dashboard repository's bridge sends it."""
+    payload = compact_scan_payload(snap, points, sequence, True, False)
+    payload["raw_scan"] = snap.get("raw_scan") or {}
+    payload["points"] = []
+    payload["source"] = "source_native_LaserScan"
+    return payload
 
 
 def compact_scan_payload(snap, points, sequence, compact=True, overlay=True):
@@ -280,6 +307,7 @@ async def serve_websocket(
         params = parse_qs(urlparse(actual_path).query)
         compact = (params.get("format") or [""])[0] == "polar-v1"
         ack_flow = (params.get("flow") or [""])[0] == "ack"
+        mapping = (params.get("profile") or [""])[0] == "mapping"
         budget = StreamBudget((params.get("profile") or ["auto"])[0])
         requested = client_max_points(
             actual_path, default=900, source_max=source_max_points
@@ -344,10 +372,13 @@ async def serve_websocket(
                     await asyncio.sleep(0.04)
                     continue
                 sequence += 1
-                payload = compact_scan_payload(
-                    snap, points, sequence, compact, budget.values[0] > 320
-                )
-                message = json.dumps(payload, separators=(",", ":"))
+                if mapping:
+                    payload = mapping_payload(snap, points, sequence)
+                else:
+                    payload = compact_scan_payload(
+                        snap, points, sequence, compact, budget.values[0] > 320
+                    )
+                message = json.dumps(payload, allow_nan=False, separators=(",", ":"))
                 await asyncio.wait_for(websocket.send(message), timeout=2)
                 last_stamp = snap["stamp"]
                 if ack_flow:
@@ -364,8 +395,10 @@ async def serve_websocket(
                     if budget.values[0] <= 640
                     else 10,
                 )
+                if mapping:
+                    hz = max_hz          # every scan for the live map (local stream, not the preview budget)
                 delay = max(
-                    1 / max(0.1, hz), len(message) / max(2000, budget.values[4] / 4)
+                    1 / max(0.1, hz), 0 if mapping else len(message) / max(2000, budget.values[4] / 4)
                 ) - (time.monotonic() - started)
                 if delay > 0:
                     await asyncio.sleep(delay)

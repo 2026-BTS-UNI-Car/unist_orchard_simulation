@@ -1,0 +1,1991 @@
+{
+ "schema": "ubts.steer_sim.gsim_final.v1.result",
+ "prereg_id": "steer_follow_gsim_final_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "field_validated": false,
+ "image": {
+  "tag": "ubts-steer-sim:wf5",
+  "id": "sha256:0a2c00c6202bba5633a667eb9591670ff822f0b57296b0c3e34fe23bb533e0a1",
+  "source_commit": "982a99fca0a965d0c156bb9e9802091aedbbde6d",
+  "manifest_files": 663,
+  "manifest_matches_commit": true,
+  "firmware_build_id": "04353B49",
+  "dashboard_copy": "90094fd904e5 (ui-20261112 at the build; its later tip a92cfec is not in wf5)"
+ },
+ "registration": {
+  "prereg": "c139fda",
+  "amendment_1": "8dedccf",
+  "amendment_2": "d1e0eee"
+ },
+ "parts": {
+  "A": {
+   "verdict": "fail",
+   "judged": 4,
+   "passed": 3,
+   "runs": [
+    {
+     "slot": "nominal_1",
+     "session": "s2a_nominal_1",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "row end stop position e"
+     ],
+     "validity": "RTF 0.996, no emulator wall gap above 100 ms",
+     "rtf_min": 0.9651,
+     "end_reason": "speed_cap_below_min",
+     "end_note": "terminal_stop_pending_at_stale_lidar",
+     "metrics": {
+      "lateral_rmse_m": 0.0152,
+      "lateral_p95_m": 0.0332,
+      "lateral_max_m": 0.0361,
+      "heading_rmse_deg": 0.456,
+      "heading_max_deg": 1.484,
+      "speed_mean_m_s": 0.351,
+      "speed_max_m_s": 0.425,
+      "row_end_error_m": -14.136,
+      "min_clearance_m": 1.4344,
+      "rest_speed_m_s": 0.0001,
+      "distance_m": 18.89,
+      "duration_s": 53.83
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ],
+      "waited_s": 305.1,
+      "checked_utc": "2026-11-13T06:55:46Z"
+     }
+    },
+    {
+     "slot": "nominal_2",
+     "session": "s2a_nominal_2",
+     "verdict": "pass",
+     "failed": [],
+     "validity": "RTF 0.997, no emulator wall gap above 100 ms",
+     "rtf_min": 0.9842,
+     "end_reason": "row_end",
+     "end_note": null,
+     "metrics": {
+      "lateral_rmse_m": 0.0256,
+      "lateral_p95_m": 0.0499,
+      "lateral_max_m": 0.0596,
+      "heading_rmse_deg": 0.64,
+      "heading_max_deg": 1.782,
+      "speed_mean_m_s": 0.319,
+      "speed_max_m_s": 0.443,
+      "row_end_error_m": 0.461,
+      "min_clearance_m": 1.4163,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.48,
+      "duration_s": 105.11
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ],
+      "waited_s": 364.6,
+      "checked_utc": "2026-11-13T07:06:41Z"
+     }
+    },
+    {
+     "slot": "nominal_3",
+     "session": "s2a_nominal_3",
+     "verdict": "pass",
+     "failed": [],
+     "validity": "RTF 0.999, no emulator wall gap above 100 ms",
+     "rtf_min": 0.9597,
+     "end_reason": "row_end",
+     "end_note": null,
+     "metrics": {
+      "lateral_rmse_m": 0.0216,
+      "lateral_p95_m": 0.05,
+      "lateral_max_m": 0.054,
+      "heading_rmse_deg": 0.525,
+      "heading_max_deg": 1.577,
+      "speed_mean_m_s": 0.343,
+      "speed_max_m_s": 0.447,
+      "row_end_error_m": 0.429,
+      "min_clearance_m": 1.4082,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.45,
+      "duration_s": 97.43
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ],
+      "waited_s": 359.1,
+      "checked_utc": "2026-11-13T07:17:45Z"
+     }
+    },
+    {
+     "slot": "lateral_p040",
+     "session": "s2a_lateral_p040",
+     "verdict": "pass",
+     "failed": [],
+     "validity": "RTF 0.997, no emulator wall gap above 100 ms",
+     "rtf_min": 0.9825,
+     "end_reason": "row_end",
+     "end_note": null,
+     "metrics": {
+      "lateral_rmse_m": 0.0297,
+      "lateral_p95_m": 0.0581,
+      "lateral_max_m": 0.4017,
+      "heading_rmse_deg": 0.927,
+      "heading_max_deg": 10.959,
+      "speed_mean_m_s": 0.32,
+      "speed_max_m_s": 0.44,
+      "row_end_error_m": 0.458,
+      "min_clearance_m": 1.4171,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 32.91,
+      "duration_s": 102.94
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ],
+      "waited_s": 359.4,
+      "checked_utc": "2026-11-13T07:29:57Z"
+     }
+    }
+   ],
+   "rule": "every judged run passes every criterion and at least three of four slots judged"
+  },
+  "B": {
+   "verdict": "not_judged",
+   "reason": "both attempts invalid by the registered RTF rule (smallest 5 s window inside the page steps below 0.9)",
+   "attempts": [
+    {
+     "session": "s2b_ui",
+     "rtf_min": 0.86289,
+     "valid": false,
+     "checks": [
+      {
+       "name": "page is front_steer",
+       "ok": true
+      },
+      {
+       "name": "page is in simulation mode",
+       "ok": true
+      },
+      {
+       "name": "SIM banner shows the scene (extension script)",
+       "ok": true
+      },
+      {
+       "name": "differential pad hidden",
+       "ok": true
+      },
+      {
+       "name": "steering device connected",
+       "ok": true
+      },
+      {
+       "name": "camera image decoded",
+       "ok": true
+      },
+      {
+       "name": "camera stats",
+       "ok": true
+      },
+      {
+       "name": "LiDAR panel updates (text or drawing)",
+       "ok": false
+      },
+      {
+       "name": "IMU panel updates",
+       "ok": false
+      },
+      {
+       "name": "LiDAR canvas has drawn pixels",
+       "ok": false
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true
+      },
+      {
+       "name": "one press: the car drives while the screen is visible (emulator speed)",
+       "ok": true
+      },
+      {
+       "name": "heartbeat about every",
+       "ok": true
+      },
+      {
+       "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+       "ok": true
+      },
+      {
+       "name": "no heartbeat after hiding",
+       "ok": true
+      },
+      {
+       "name": "link lost: the car stops (emulator speed",
+       "ok": true
+      },
+      {
+       "name": "visible again: '다시 출발', still paused (no automatic restart)",
+       "ok": true
+      },
+      {
+       "name": "Esc STOP: run latched",
+       "ok": true
+      },
+      {
+       "name": "ack (then end when a run is still open): no open run",
+       "ok": true
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": false
+      },
+      {
+       "name": "stop: the car drives before the STOP",
+       "ok": false
+      },
+      {
+       "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+       "ok": true
+      },
+      {
+       "name": "screen STOP: the car stopped within",
+       "ok": true
+      },
+      {
+       "name": "screen STOP: no restart (3 s later)",
+       "ok": true
+      }
+     ],
+     "note": "script stopped at the live map step (the map is on /map in 90094fd); checks rebuilt from the console",
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ],
+      "waited_s": 359.2,
+      "checked_utc": "2026-11-13T07:41:01Z"
+     }
+    },
+    {
+     "session": "s2b_ui2",
+     "rtf_min": 0.89974,
+     "valid": false,
+     "checks": [
+      {
+       "name": "page is front_steer",
+       "ok": true
+      },
+      {
+       "name": "page is in simulation mode",
+       "ok": true
+      },
+      {
+       "name": "SIM banner shows the scene (extension script)",
+       "ok": true
+      },
+      {
+       "name": "differential pad hidden",
+       "ok": true
+      },
+      {
+       "name": "steering device connected",
+       "ok": true
+      },
+      {
+       "name": "camera image decoded",
+       "ok": true
+      },
+      {
+       "name": "camera stats",
+       "ok": true
+      },
+      {
+       "name": "LiDAR panel updates (text or drawing)",
+       "ok": false
+      },
+      {
+       "name": "IMU panel updates",
+       "ok": false
+      },
+      {
+       "name": "LiDAR canvas has drawn pixels",
+       "ok": false
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true
+      },
+      {
+       "name": "one press: the car drives while the screen is visible (emulator speed)",
+       "ok": true
+      },
+      {
+       "name": "heartbeat about every 100 ms while visible",
+       "ok": false
+      },
+      {
+       "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+       "ok": true
+      },
+      {
+       "name": "no heartbeat after hiding",
+       "ok": true
+      },
+      {
+       "name": "link lost: the car stops (emulator speed 4 s after hiding)",
+       "ok": true
+      },
+      {
+       "name": "visible again: '다시 출발', still paused (no automatic restart)",
+       "ok": true
+      },
+      {
+       "name": "Esc STOP: run latched",
+       "ok": true
+      },
+      {
+       "name": "ack (then end when a run is still open): no open run",
+       "ok": true
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": false
+      },
+      {
+       "name": "stop: the car drives before the STOP",
+       "ok": false
+      },
+      {
+       "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+       "ok": true
+      },
+      {
+       "name": "screen STOP: the car stopped within 3 s",
+       "ok": true
+      },
+      {
+       "name": "screen STOP: no restart (3 s later)",
+       "ok": true
+      },
+      {
+       "name": "drive page LiDAR view: LiDAR panel updates and draws (information)",
+       "ok": true
+      },
+      {
+       "name": "/sensors: IMU panel updates (information)",
+       "ok": true
+      },
+      {
+       "name": "live map (dashboard's own map) builds from the SIM scans: scan_count > 0",
+       "ok": false
+      },
+      {
+       "name": "no page or console error",
+       "ok": false
+      }
+     ],
+     "note": "script with the /map step and the information step of amendment 1",
+     "host": {
+      "quiet": true,
+      "failed_checks": [],
+      "waited_s": 100.4,
+      "checked_utc": "2026-11-13T08:27:07Z"
+     }
+    }
+   ]
+  },
+  "C": {
+   "verdict": "not_judged",
+   "reason": "amendment 1: all scripts refused at their go (corridor_not_acquired) on w0_force",
+   "scripts": 25,
+   "refused_at_go": 25,
+   "rtf_min": 0.98,
+   "session": "s2cde_w0"
+  },
+  "D": {
+   "verdict": "pass",
+   "validity": "RTF 1.009, no emulator wall gap above 100 ms",
+   "rtf_min": 0.99987,
+   "criteria": [
+    {
+     "name": "joint_minus_model_same_sim_time_p99_deg",
+     "value": 5.666176453216673e-11,
+     "limit": "<= 0.2",
+     "passed": true,
+     "note": "A25 numbers on the emulator path (amendment 2: measured apart from the lockstep path)"
+    },
+    {
+     "name": "joint_speed_spikes_rad_s",
+     "value": 0.4491630024123244,
+     "limit": "<= 0.785 (1.5 x the largest model rate)",
+     "passed": true
+    },
+    {
+     "name": "matched_samples",
+     "value": 824,
+     "limit": "> 0",
+     "passed": true
+    },
+    {
+     "name": "steering_moved_deg",
+     "value": 7.47235517148922,
+     "limit": ">= 4.30 (half of the largest step target)",
+     "passed": true,
+     "note": "a run without steering motion compares zeros and must not pass"
+    },
+    {
+     "name": "drive_loop_refusals",
+     "value": {},
+     "limit": {},
+     "passed": true
+    },
+    {
+     "name": "best_delay_steps",
+     "value": 0,
+     "limit": "report (steps of 1/120 s)",
+     "passed": null
+    },
+    {
+     "name": "clock_samples_missing",
+     "value": 10,
+     "limit": "report",
+     "passed": null,
+     "note": "skipped /clock samples during the run (emulator counters)"
+    }
+   ],
+   "session": "s2cde_w0"
+  },
+  "E": {
+   "verdict_recorded": "fail",
+   "verdict_amendment_2": "pass",
+   "attempts": [
+    {
+     "session": "s2cde_w0",
+     "scene": "w0_force",
+     "error": "SessionError: go refused: lease_lost ['lease_lost', 'arm_first', 'corridor_not_acquired']",
+     "recorded": "not_judged",
+     "amendment_2": "not_judged",
+     "criteria": null,
+     "executor": null,
+     "plant": null,
+     "rtf_min": null,
+     "drives": []
+    },
+    {
+     "session": "s2e_w1",
+     "scene": "w1_force",
+     "error": null,
+     "recorded": "fail",
+     "amendment_2": "pass",
+     "criteria": [
+      {
+       "name": "params_accepted",
+       "value": 200,
+       "limit": 200,
+       "passed": true
+      },
+      {
+       "name": "status_speed_scale",
+       "value": 1.1,
+       "limit": 1.1,
+       "passed": true
+      },
+      {
+       "name": "revision_and_digest_change",
+       "value": [
+        0,
+        1,
+        true
+       ],
+       "limit": "revision + 1, new digest",
+       "passed": true
+      },
+      {
+       "name": "run_start_uses_the_new_tuning",
+       "value": "4051e4bb525d4078c80fad20bae2f5564c3ac2a36f63518e6c2b324898d630c5",
+       "limit": "4051e4bb525d4078c80fad20bae2f5564c3ac2a36f63518e6c2b324898d630c5",
+       "passed": true
+      },
+      {
+       "name": "executor_table_speed_ratio",
+       "value": 1.1,
+       "limit": "1.10 +- 1 %",
+       "passed": true
+      },
+      {
+       "name": "plant_steady_speed_ratio",
+       "value": 1.1349,
+       "limit": "report (the Gazebo plant does not read the tuning file)",
+       "passed": null
+      },
+      {
+       "name": "default_restored",
+       "value": [
+        200,
+        "default*",
+        false
+       ],
+       "limit": "preset default, the first digest",
+       "passed": false
+      }
+     ],
+     "executor": {
+      "before": 0.4526363636363636,
+      "after": 0.4979,
+      "ratio": 1.1,
+      "tuning_before": "5dfb070ef10638dd8462674dd266ed85a76a4e3f7975450d93a5cbcd6a06b8b9",
+      "tuning_after": "4051e4bb525d4078c80fad20bae2f5564c3ac2a36f63518e6c2b324898d630c5",
+      "file": "/opt/ubts/tools/row_executor/field_tuning.default.json",
+      "file_sha256": "f60e265060312f708092f911c6ac42d624addca127baa72f3e81b2d37a51cede",
+      "changes": 1
+     },
+     "plant": {
+      "before": 0.35679,
+      "after": 0.40492,
+      "ratio": 1.134897278511169
+     },
+     "rtf_min": 0.9587,
+     "drives": [
+      {
+       "label": "scale_1_00",
+       "plant_speed_m_s": 0.35679,
+       "validity": "RTF 1.001, no emulator wall gap above 100 ms"
+      },
+      {
+       "label": "scale_1_10",
+       "plant_speed_m_s": 0.40492,
+       "validity": "RTF 1.005, no emulator wall gap above 100 ms"
+      }
+     ]
+    }
+   ],
+   "note": "duty 50 % in both W1 drives; the plant ratio 1.135 is reported, not judged (the Gazebo drive does not read the tuning file; the second drive ran further down the row)"
+  }
+ },
+ "records": [
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2a_nominal_1/follow/GSIM_FOLLOW_RUN.json",
+   "sha256": "1c840df74f0b2220716be08c2e327a024541045dac4d8cea4c14eb29d9fb1c55",
+   "bytes": 25904
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2a_nominal_2/follow/GSIM_FOLLOW_RUN.json",
+   "sha256": "2b833e946d066e13ad9ddaf69954e882820aae872e9a604ab2320e0321cddcab",
+   "bytes": 27426
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2a_nominal_3/follow/GSIM_FOLLOW_RUN.json",
+   "sha256": "da1ba1d80587528b9bb1530149f9b16ce7e142630564212f96521ff266baa4b8",
+   "bytes": 26291
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2a_lateral_p040/follow/GSIM_FOLLOW_RUN.json",
+   "sha256": "c478cd40c5d91f92a92f2e6c39ebc2ce002d6fa30c2134f644be481a4119ae96",
+   "bytes": 26616
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2b_ui/rtf/rtf.json",
+   "sha256": "f29b7120c7c2d659e479bd0aad90728780984059e854eed135562e318c895644",
+   "bytes": 7518
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2b_ui/browser/result_from_console.json",
+   "sha256": "b922c28e21cc5589f468e081ece445882dfaf76ee5ccbc8cf25d9d693f99902f",
+   "bytes": 4701
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2b_ui2/rtf/rtf.json",
+   "sha256": "b47960171c75b99d53ecd41c1406f1429118e225e38f0d0e706b3e5f2a1d7c91",
+   "bytes": 7517
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2b_ui2/browser/result.json",
+   "sha256": "24a224b630ebce2adeea9b1a3fdac3eaa0f0a8a559ff78cc5f1a686de267a38a",
+   "bytes": 38272
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2cde_w0/safety/A17_G_EXEC.json",
+   "sha256": "9db5b92e702324bf386ca12d92ef66e63c7581e9e3bac38bd76da6838d0ce0a2",
+   "bytes": 32617
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2cde_w0/a25/a25.json",
+   "sha256": "a66b5fdf531463232d1807389046cd41e44bae71aeb7e7cfdc6972109d25b644",
+   "bytes": 8607
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2cde_w0/pw08/PW08_GAZEBO.json",
+   "sha256": "e110f57b44c6ab8734fef676ad15eecd2674a13756020c5df393c08bac935580",
+   "bytes": 22228
+  },
+  {
+   "path": "<runs>/gsim_final_20261113/sessions/s2e_w1/pw08/PW08_GAZEBO.json",
+   "sha256": "cb265c7da70cebd20954eb743993a88b6c32a5f7cd1908813012030a33d3921d",
+   "bytes": 21704
+  }
+ ],
+ "stage3": {
+  "prereg_id": "steer_follow_gsim_final3_v1",
+  "image": {
+   "tag": "ubts-steer-sim:wf6",
+   "id": "sha256:91bd62fa8d1a751da7347cc3bdb2ddd74548e60d5553e94fe19dff8e98663304",
+   "source_commit": "bf1b9ca",
+   "manifest_files": 666,
+   "dashboard_copy": "a92cfec24b64"
+  },
+  "clock": "sim",
+  "parts": {
+   "A": [
+    {
+     "slot": "nominal_1",
+     "session": "s3a_nominal_1",
+     "clock": "sim",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "no pause after the drive started",
+      "row end stop position e"
+     ],
+     "rtf_min": 0.8151,
+     "end_reason": "operator_end",
+     "pauses": [
+      "stale_lidar"
+     ],
+     "metrics": {
+      "lateral_rmse_m": 0.0253,
+      "lateral_p95_m": 0.0486,
+      "lateral_max_m": 0.0503,
+      "heading_rmse_deg": 0.514,
+      "heading_max_deg": 1.349,
+      "speed_mean_m_s": 0.365,
+      "speed_max_m_s": 0.435,
+      "row_end_error_m": -5.957,
+      "min_clearance_m": 1.4115,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 27.02,
+      "duration_s": 74.12
+     },
+     "executor": {
+      "loop_ms_p99": 34.51,
+      "loop_ms_max": 258.03
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory",
+       "big_processes"
+      ]
+     }
+    },
+    {
+     "slot": "nominal_2",
+     "session": "s3a_nominal_2",
+     "clock": "sim",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.9556,
+     "end_reason": "row_end",
+     "pauses": [],
+     "metrics": {
+      "lateral_rmse_m": 0.0218,
+      "lateral_p95_m": 0.0436,
+      "lateral_max_m": 0.0491,
+      "heading_rmse_deg": 0.555,
+      "heading_max_deg": 1.609,
+      "speed_mean_m_s": 0.339,
+      "speed_max_m_s": 0.447,
+      "row_end_error_m": 0.463,
+      "min_clearance_m": 1.4291,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.49,
+      "duration_s": 98.91
+     },
+     "executor": {
+      "loop_ms_p99": 87.46,
+      "loop_ms_max": 242.85
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ]
+     }
+    },
+    {
+     "slot": "nominal_3",
+     "session": "s3a_nominal_3",
+     "clock": "sim",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.8762,
+     "end_reason": "row_end",
+     "pauses": [],
+     "metrics": {
+      "lateral_rmse_m": 0.0263,
+      "lateral_p95_m": 0.0502,
+      "lateral_max_m": 0.0542,
+      "heading_rmse_deg": 0.784,
+      "heading_max_deg": 1.689,
+      "speed_mean_m_s": 0.306,
+      "speed_max_m_s": 0.439,
+      "row_end_error_m": 0.433,
+      "min_clearance_m": 1.4043,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.45,
+      "duration_s": 109.36
+     },
+     "executor": {
+      "loop_ms_p99": 173.95,
+      "loop_ms_max": 313.36
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory"
+      ]
+     }
+    },
+    {
+     "slot": "lateral_p040",
+     "session": "s3a_lateral_p040",
+     "clock": "sim",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.9166,
+     "end_reason": "row_end",
+     "pauses": [],
+     "metrics": {
+      "lateral_rmse_m": 0.0324,
+      "lateral_p95_m": 0.0594,
+      "lateral_max_m": 0.4017,
+      "heading_rmse_deg": 1.029,
+      "heading_max_deg": 10.949,
+      "speed_mean_m_s": 0.343,
+      "speed_max_m_s": 0.437,
+      "row_end_error_m": 0.456,
+      "min_clearance_m": 1.4028,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 32.91,
+      "duration_s": 95.91
+     },
+     "executor": {
+      "loop_ms_p99": 78.35,
+      "loop_ms_max": 252.75
+     },
+     "host": {
+      "quiet": false,
+      "failed_checks": [
+       "available_memory",
+       "wsl_load1"
+      ]
+     }
+    }
+   ],
+   "W": [
+    {
+     "slot": "nominal_1",
+     "session": "s3w_wall",
+     "clock": "wall",
+     "verdict": "pass",
+     "failed": [],
+     "rtf_min": 0.9664,
+     "end_reason": "row_end",
+     "pauses": [],
+     "metrics": {
+      "lateral_rmse_m": 0.0224,
+      "lateral_p95_m": 0.0455,
+      "lateral_max_m": 0.0534,
+      "heading_rmse_deg": 0.521,
+      "heading_max_deg": 1.311,
+      "speed_mean_m_s": 0.332,
+      "speed_max_m_s": 0.441,
+      "row_end_error_m": 0.46,
+      "min_clearance_m": 1.4207,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 33.48,
+      "duration_s": 100.99
+     }
+    },
+    {
+     "slot": "lateral_p040",
+     "session": "s3w_wall",
+     "clock": "wall",
+     "verdict": "fail",
+     "failed": [
+      "ends at the row end",
+      "no pause after the drive started",
+      "lateral RMSE",
+      "lateral p95",
+      "heading RMSE",
+      "row end stop position e"
+     ],
+     "rtf_min": 0.9417,
+     "end_reason": "operator_end",
+     "pauses": [
+      "stale_lidar"
+     ],
+     "metrics": {
+      "lateral_rmse_m": null,
+      "lateral_p95_m": null,
+      "lateral_max_m": 0.4016,
+      "heading_rmse_deg": null,
+      "heading_max_deg": 10.99,
+      "speed_mean_m_s": 0.194,
+      "speed_max_m_s": 0.368,
+      "row_end_error_m": -30.383,
+      "min_clearance_m": 1.4555,
+      "rest_speed_m_s": 0.0,
+      "distance_m": 2.08,
+      "duration_s": 10.7
+     }
+    }
+   ],
+   "B": [
+    {
+     "session": "s3b_ui",
+     "rtf_min": 0.7783,
+     "items": {
+      "prepare": true,
+      "one_press_running": true,
+      "heartbeat": false,
+      "tab_hidden_link_lost": true,
+      "screen_stop_while_running": false,
+      "restart_after_stop": false,
+      "live_map": true
+     },
+     "passed": false,
+     "checks": [
+      {
+       "name": "page is front_steer",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "page is in simulation mode",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "SIM banner shows the scene (extension script)",
+       "ok": true,
+       "detail": "SIMULATION · Gazebo 센서 · 실제 Jetson에 연결되지 않음 · 장면 w1_force · 실시간 대비 0.88×"
+      },
+      {
+       "name": "differential pad hidden",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "steering device connected",
+       "ok": true,
+       "detail": "조향 장치 연결됨"
+      },
+      {
+       "name": "camera image decoded",
+       "ok": true,
+       "detail": {
+        "w": 640,
+        "h": 360,
+        "src": "blob:http://127.0.0.1:18090/1b"
+       }
+      },
+      {
+       "name": "camera stats",
+       "ok": true,
+       "detail": "WebSocketONconnected캡처 설정1280x720목표 60 fps출처640x360camera_link_optical수신 FPS26 fpsROS 29 fps · WS 26 fps · detail · Q70 · 화면 갱신 0.4초 전"
+      },
+      {
+       "name": "LiDAR panel updates (text or drawing)",
+       "ok": false,
+       "detail": [
+        "WebSocketOFFdisconnected출처대기/scan점 수----",
+        "WebSocketOFFdisconnected출처대기/scan점 수----",
+        false
+       ]
+      },
+      {
+       "name": "IMU panel updates",
+       "ok": false,
+       "detail": [
+        "Roll / Pitch--Gazebo FLU /imu/data_raw가속도--x -- · y -- · z --각속도--x -- · y -- · z --자기장--sensor-native",
+        "Roll / Pitch--Gazebo FLU /imu/data_raw가속도--x -- · y -- · z --각속도--x -- · y -- · z --자기장--sensor-native"
+       ]
+      },
+      {
+       "name": "LiDAR canvas has drawn pixels",
+       "ok": false,
+       "detail": 0
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "one press: the car drives while the screen is visible (emulator speed)",
+       "ok": true,
+       "detail": [
+        0.167,
+        0.204
+       ]
+      },
+      {
+       "name": "heartbeat about every 100 ms while visible",
+       "ok": false,
+       "detail": {
+        "count": 44,
+        "max_gap_s": 1.926
+       }
+      },
+      {
+       "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+       "ok": true,
+       "detail": {
+        "run_state": "paused",
+        "stop_reason": "OPERATOR_LINK_LOST",
+        "v_before": 0.14176571279160305,
+        "v_after": -0.009470105341522754
+       }
+      },
+      {
+       "name": "no heartbeat after hiding",
+       "ok": true,
+       "detail": 0
+      },
+      {
+       "name": "link lost: the car stops (emulator speed 4 s after hiding)",
+       "ok": true,
+       "detail": {
+        "v_before": 0.14176571279160305,
+        "v_1_5s": -0.009470105341522754,
+        "v_4s": -0.010071734070565408
+       }
+      },
+      {
+       "name": "visible again: '다시 출발', still paused (no automatic restart)",
+       "ok": true,
+       "detail": "paused"
+      },
+      {
+       "name": "Esc STOP: run latched",
+       "ok": true,
+       "detail": {
+        "run_state": "latched",
+        "stop_reason": "OPERATOR_OR_BACKSTOP",
+        "stop_detail": "operator_stop"
+       }
+      },
+      {
+       "name": "ack (then end when a run is still open): no open run",
+       "ok": true,
+       "detail": {
+        "run_state": "ended",
+        "end_reason": "operator_stop"
+       }
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "stop: the car drives before the STOP",
+       "ok": true,
+       "detail": [
+        0.102,
+        0.152,
+        0.235,
+        0.279,
+        0.322
+       ]
+      },
+      {
+       "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+       "ok": true,
+       "detail": {
+        "run_state": "latched",
+        "stop_reason": "OPERATOR_OR_BACKSTOP",
+        "stop_detail": "operator_stop"
+       }
+      },
+      {
+       "name": "screen STOP: the car stopped within 3 s",
+       "ok": true,
+       "detail": -1.225624053360432e-06
+      },
+      {
+       "name": "screen STOP: no restart (3 s later)",
+       "ok": false,
+       "detail": 0.0
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "restart after the STOP: one press drives again (emulator speed > 0.05 m/s)",
+       "ok": true,
+       "detail": [
+        0.145,
+        0.219,
+        0.246,
+        0.296,
+        0.328
+       ]
+      },
+      {
+       "name": "restart: the STOP stops it again (operator_stop, vehicle < 0.05 m/s 3 s later)",
+       "ok": false,
+       "detail": {
+        "run_state": "latched",
+        "stop_detail": "operator_stop",
+        "v": 0.0
+       }
+      },
+      {
+       "name": "live map (dashboard's own map) builds from the SIM scans: scan_count > 0",
+       "ok": true,
+       "detail": {
+        "canvas_colours": 46,
+        "status": "지도 누적 중",
+        "api": {
+         "state": "drawing",
+         "active": true,
+         "scan_count": 183,
+         "cell_count": 84743,
+         "version": 183,
+         "error": null,
+         "reason": null
+        }
+       }
+      },
+      {
+       "name": "live map: grid cells (cell_count > 0)",
+       "ok": true,
+       "detail": 84743
+      },
+      {
+       "name": "no page or console error",
+       "ok": false,
+       "detail": [
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)"
+       ]
+      }
+     ],
+     "samples": {
+      "stop": {
+       "speeds": [
+        0.10199336672960813,
+        0.1519976148288173,
+        0.23472870129051743,
+        0.2794775633829012,
+        0.32198593053205987
+       ],
+       "after_3s": {
+        "v": -1.225624053360432e-06,
+        "delta": -0.11154148413844427,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 203.508325193
+       },
+       "after_6s": {
+        "v": 0.0,
+        "delta": -0.11154148413844427,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 206.508325073
+       },
+       "stop_wall": 1794564601.409
+      },
+      "restart": {
+       "speeds": [
+        0.14532111008602683,
+        0.21917385589666089,
+        0.24550342811513107,
+        0.29570186956288036,
+        0.3278577754631549
+       ],
+       "after_3s": {
+        "v": 0.0,
+        "delta": -0.35664116452774697,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 219.558324551
+       }
+      }
+     },
+     "amendment_1_rejudged": {
+      "screen STOP: no restart (3 s later)": true,
+      "restart: the STOP stops it again (operator_stop, vehicle < 0.05 m/s 3 s later)": true
+     }
+    },
+    {
+     "session": "s3b_ui2",
+     "rtf_min": 0.736,
+     "items": {
+      "prepare": true,
+      "one_press_running": true,
+      "heartbeat": true,
+      "tab_hidden_link_lost": true,
+      "screen_stop_while_running": true,
+      "restart_after_stop": true,
+      "live_map": true
+     },
+     "passed": true,
+     "checks": [
+      {
+       "name": "page is front_steer",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "page is in simulation mode",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "SIM banner shows the scene (extension script)",
+       "ok": true,
+       "detail": "SIMULATION · Gazebo 센서 · 실제 Jetson에 연결되지 않음 · 장면 w1_force · 실시간 대비 0.86×"
+      },
+      {
+       "name": "differential pad hidden",
+       "ok": true,
+       "detail": null
+      },
+      {
+       "name": "steering device connected",
+       "ok": true,
+       "detail": "조향 장치 연결됨"
+      },
+      {
+       "name": "camera image decoded",
+       "ok": true,
+       "detail": {
+        "w": 640,
+        "h": 360,
+        "src": "blob:http://127.0.0.1:18090/bc"
+       }
+      },
+      {
+       "name": "camera stats",
+       "ok": true,
+       "detail": "WebSocketONconnected캡처 설정1280x720목표 60 fps출처640x360camera_link_optical수신 FPS26 fpsROS 29 fps · WS 26 fps · detail · Q70 · 화면 갱신 0.0초 전"
+      },
+      {
+       "name": "LiDAR panel updates (text or drawing)",
+       "ok": false,
+       "detail": [
+        "WebSocketOFFdisconnected출처대기/scan점 수----",
+        "WebSocketOFFdisconnected출처대기/scan점 수----",
+        false
+       ]
+      },
+      {
+       "name": "IMU panel updates",
+       "ok": false,
+       "detail": [
+        "Roll / Pitch--Gazebo FLU /imu/data_raw가속도--x -- · y -- · z --각속도--x -- · y -- · z --자기장--sensor-native",
+        "Roll / Pitch--Gazebo FLU /imu/data_raw가속도--x -- · y -- · z --각속도--x -- · y -- · z --자기장--sensor-native"
+       ]
+      },
+      {
+       "name": "LiDAR canvas has drawn pixels",
+       "ok": false,
+       "detail": 0
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "one press: the car drives while the screen is visible (emulator speed)",
+       "ok": true,
+       "detail": [
+        0.087,
+        0.175,
+        0.185,
+        0.281,
+        0.295
+       ]
+      },
+      {
+       "name": "heartbeat about every 100 ms while visible",
+       "ok": true,
+       "detail": {
+        "count": 76,
+        "max_gap_s": 0.111,
+        "source": "browser request start times",
+        "handler_max_gap_s": 0.266
+       }
+      },
+      {
+       "name": "tab hidden: heartbeats stop, executor paused (OPERATOR_LINK_LOST)",
+       "ok": true,
+       "detail": {
+        "run_state": "paused",
+        "stop_reason": "OPERATOR_LINK_LOST",
+        "v_before": 0.29513390502738,
+        "v_after": -0.00015435931962611563
+       }
+      },
+      {
+       "name": "no heartbeat after hiding",
+       "ok": true,
+       "detail": 0
+      },
+      {
+       "name": "link lost: the car stops (emulator speed 4 s after hiding)",
+       "ok": true,
+       "detail": {
+        "v_before": 0.29513390502738,
+        "v_1_5s": -0.00015435931962611563,
+        "v_4s": -3.6178708994723845e-06
+       }
+      },
+      {
+       "name": "visible again: '다시 출발', still paused (no automatic restart)",
+       "ok": true,
+       "detail": "paused"
+      },
+      {
+       "name": "Esc STOP: run latched",
+       "ok": true,
+       "detail": {
+        "run_state": "latched",
+        "stop_reason": "OPERATOR_OR_BACKSTOP",
+        "stop_detail": "operator_stop"
+       }
+      },
+      {
+       "name": "ack (then end when a run is still open): no open run",
+       "ok": true,
+       "detail": {
+        "run_state": "ended",
+        "end_reason": "operator_stop"
+       }
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "stop: the car drives before the STOP",
+       "ok": true,
+       "detail": [
+        0.126,
+        0.185,
+        0.25,
+        0.309,
+        0.372
+       ]
+      },
+      {
+       "name": "screen STOP while running: stop_detail operator_stop, OPERATOR_OR_BACKSTOP",
+       "ok": true,
+       "detail": {
+        "run_state": "latched",
+        "stop_reason": "OPERATOR_OR_BACKSTOP",
+        "stop_detail": "operator_stop"
+       }
+      },
+      {
+       "name": "screen STOP: the car stopped within 3 s",
+       "ok": true,
+       "detail": 7.2704845949711e-07
+      },
+      {
+       "name": "screen STOP: no restart (3 s later)",
+       "ok": true,
+       "detail": 0.0
+      },
+      {
+       "name": "auto: '준비' shown",
+       "ok": true,
+       "detail": "준비 (run 만들기 · Arm)"
+      },
+      {
+       "name": "prepare: start + arm -> armed ('자율 주행 시작')",
+       "ok": true,
+       "detail": "출발 대기"
+      },
+      {
+       "name": "go_ready (heartbeat while armed)",
+       "ok": true,
+       "detail": ""
+      },
+      {
+       "name": "one press: running ('주행 중')",
+       "ok": true,
+       "detail": "주행 중"
+      },
+      {
+       "name": "restart after the STOP: one press drives again (emulator speed > 0.05 m/s)",
+       "ok": true,
+       "detail": [
+        0.148,
+        0.178,
+        0.247,
+        0.297,
+        0.333
+       ]
+      },
+      {
+       "name": "restart: the STOP stops it again (operator_stop, vehicle < 0.05 m/s 3 s later)",
+       "ok": true,
+       "detail": {
+        "run_state": "latched",
+        "stop_detail": "operator_stop",
+        "v": -0.001600116139453394
+       }
+      },
+      {
+       "name": "live map (dashboard's own map) builds from the SIM scans: scan_count > 0",
+       "ok": true,
+       "detail": {
+        "canvas_colours": 73,
+        "status": "지도 누적 중",
+        "api": {
+         "state": "drawing",
+         "active": true,
+         "scan_count": 63,
+         "cell_count": 102234,
+         "version": 64,
+         "error": null,
+         "reason": null
+        }
+       }
+      },
+      {
+       "name": "live map: grid cells (cell_count > 0)",
+       "ok": true,
+       "detail": 102234
+      },
+      {
+       "name": "no page or console error",
+       "ok": false,
+       "detail": [
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)",
+        "Failed to load resource: the server responded with a status of 409 (Conflict)"
+       ]
+      }
+     ],
+     "samples": {
+      "stop": {
+       "speeds": [
+        0.12574111872151042,
+        0.18535571454932012,
+        0.24998254511642223,
+        0.3090990154335221,
+        0.3724454514051901
+       ],
+       "after_3s": {
+        "v": 7.2704845949711e-07,
+        "delta": 0.18855068828469998,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 195.099992196
+       },
+       "after_6s": {
+        "v": 0.0,
+        "delta": 0.18855068828469998,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 198.108325409
+       },
+       "stop_wall": 1794566368.477
+      },
+      "restart": {
+       "speeds": [
+        0.14805316726186551,
+        0.17766617838544027,
+        0.24746340119297677,
+        0.2965508758815367,
+        0.3329562886751945
+       ],
+       "after_3s": {
+        "v": -0.001600116139453394,
+        "delta": 0.016109766592394836,
+        "dl": 0.0,
+        "dr": 0.0,
+        "sim": 211.149991554
+       }
+      }
+     }
+    }
+   ],
+   "C": {
+    "passed_recorded": false,
+    "passed_amendment_1": false,
+    "scripts": [
+     {
+      "name": "operator_stop_0",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "operator_stop_1",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "operator_stop_2",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "operator_stop_3",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "operator_stop_4",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "hold_lost",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "c_ttl_link_returns",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "link_ttl_expired",
+      "host_latches": []
+     },
+     {
+      "name": "link_watchdog",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "link_ttl_expired",
+      "host_latches": []
+     },
+     {
+      "name": "fault_stop",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "steering_feedback_invalid",
+      "host_latches": []
+     },
+     {
+      "name": "executor_loop_stall",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "executor_freeze",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "bridge_latched",
+      "host_latches": []
+     },
+     {
+      "name": "steering_status_loss",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "stop_unconfirmed",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "second_screen_and_cli",
+      "passed": false,
+      "passed_amendment_1": true,
+      "failed": [
+       "executor_end_reason"
+      ],
+      "end_reason": "operator_stop",
+      "host_latches": []
+     },
+     {
+      "name": "mcu_reset",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "usb_unplug",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "half_frame",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "crc_one_line",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "crc_burst",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "range_error",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "output_guard",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "guard_violation:steer_rate_above_limit",
+      "host_latches": []
+     },
+     {
+      "name": "system_time_change",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     },
+     {
+      "name": "bridge_stall",
+      "passed": false,
+      "passed_amendment_1": false,
+      "failed": [
+       "ttl_drive_zero_tick_minus_expected",
+       "watchdog_tick_minus_last_input",
+       "watchdog_disarmed",
+       "executor_end_reason"
+      ],
+      "end_reason": "steering_ineffective",
+      "host_latches": [
+       "steering_ineffective"
+      ]
+     },
+     {
+      "name": "bridge_forced_kill",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": "bridge_error",
+      "host_latches": []
+     },
+     {
+      "name": "executor_forced_kill",
+      "passed": true,
+      "passed_amendment_1": true,
+      "failed": [],
+      "end_reason": null,
+      "host_latches": []
+     }
+    ],
+    "rtf_min": 0.8704,
+    "not_run": {
+     "deadman_release": "one_press has no hold to release; the operator screen going away is hold_lost (operator link lost)",
+     "system_time_change_bridge": "the bridge and the emulator clocks are not changed (no CAP_SYS_TIME in the containers); the executor side only"
+    }
+   },
+   "E": {
+    "verdict": "pass",
+    "criteria": [
+     {
+      "name": "params_accepted",
+      "value": 200,
+      "limit": 200,
+      "passed": true
+     },
+     {
+      "name": "status_speed_scale",
+      "value": 1.1,
+      "limit": 1.1,
+      "passed": true
+     },
+     {
+      "name": "revision_and_digest_change",
+      "value": [
+       0,
+       1,
+       true
+      ],
+      "limit": "revision + 1, new digest",
+      "passed": true
+     },
+     {
+      "name": "run_start_uses_the_new_tuning",
+      "value": "6e8dbc5b5055cfa9d715bffa4c37211bf6bdca05a464f2605a2bded3f34b1f81",
+      "limit": "6e8dbc5b5055cfa9d715bffa4c37211bf6bdca05a464f2605a2bded3f34b1f81",
+      "passed": true
+     },
+     {
+      "name": "executor_table_speed_ratio",
+      "value": 1.1,
+      "limit": "1.10 +- 1 %",
+      "passed": true
+     },
+     {
+      "name": "plant_steady_speed_ratio",
+      "value": 1.13283,
+      "limit": "report (the Gazebo plant does not read the tuning file)",
+      "passed": null
+     },
+     {
+      "name": "default_restored",
+      "value": [
+       200,
+       "default",
+       true
+      ],
+      "limit": "preset default, the first digest",
+      "passed": true
+     }
+    ],
+    "executor": {
+     "before": 0.4526363636363636,
+     "after": 0.4979,
+     "ratio": 1.1,
+     "tuning_before": "79b899982dec597a329a65cd38ee2b321e99b44da3a04339054852664daf7b21",
+     "tuning_after": "6e8dbc5b5055cfa9d715bffa4c37211bf6bdca05a464f2605a2bded3f34b1f81",
+     "file": "/opt/ubts/tools/row_executor/field_tuning.default.json",
+     "file_sha256": "712ec61670881de178b4540afc005f4758685c09042ecdcca9ef4f98c4e14f92",
+     "changes": 1
+    },
+    "plant": {
+     "before": 0.35708,
+     "after": 0.40451,
+     "ratio": 1.1328273776184608
+    },
+    "rtf_min": 0.9288
+   },
+   "F": {
+    "judge": {
+     "runs": 3,
+     "end_reasons": [
+      "steering_feedback_stale",
+      "steering_feedback_stale",
+      "steering_feedback_stale"
+     ],
+     "row_end": 0,
+     "passed": false
+    },
+    "runs": [
+     {
+      "end_reason": "steering_feedback_stale",
+      "end_note": null,
+      "distance_m": 2.691,
+      "pauses": 0
+     },
+     {
+      "end_reason": "steering_feedback_stale",
+      "end_note": null,
+      "distance_m": 18.662,
+      "pauses": 0
+     },
+     {
+      "end_reason": "steering_feedback_stale",
+      "end_note": null,
+      "distance_m": 23.741,
+      "pauses": 0
+     }
+    ]
+   },
+   "F_development_cpu3": {
+    "registered": false,
+    "session": "user stack ubts-steer (wf6, SIM clock), docker update --cpus 3 for steer and executor, one sim_auto.py start, then the quotas set back to 1.5",
+    "end_reason": "steering_feedback_stale",
+    "distance_m": 18.677,
+    "executor_loop_ms": {
+     "p50": 17.8,
+     "p99": 31.69,
+     "max": 69.65
+    },
+    "last_tick": {
+     "loop_ms": 172.35,
+     "scan_proc_ms": 152.61,
+     "steering_status_age_s": 0.317
+    },
+    "steer_throttled_periods_during_run": 10
+   },
+   "F_cause": {
+    "steer_container_cpu_quota": 1.5,
+    "steer_throttled_periods": 858,
+    "steer_periods": 5091,
+    "executor_loop_ms_active": {
+     "p50": 18.34,
+     "p99": 209.0,
+     "max": 322.78
+    },
+    "executor_scan_proc_ms": {
+     "p50": 8.92,
+     "p99": 105.63
+    },
+    "steering_status_age_at_end_s": [
+     0.316,
+     0.308,
+     0.367
+    ],
+    "steer_status_max_age_s": 0.3
+   }
+  },
+  "records": [
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3a_nominal_1/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "abfc019838881865ed89cdd878f74ed270bf013be1639bbc6f012ae7603f7344",
+    "bytes": 26478
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3a_nominal_2/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "b44ebd52ec65a4dc1022dd7cb416940def7a6ea2e40b6ef6820338bec4da4369",
+    "bytes": 26413
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3a_nominal_3/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "15f4d157ecac58b0dcc052ec4c67631fdeb9619270e7789412d7a54ee1bd64d0",
+    "bytes": 29272
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3a_lateral_p040/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "2f297d513a21622ebf9f02bf08d8fa507bcf651e17798613c011e265ac1f1029",
+    "bytes": 25687
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3w_wall/follow/GSIM_FOLLOW_RUN.json",
+    "sha256": "4712907d45bc49504035b6f1b487ac19d071282091f1563f795004d2ec512d90",
+    "bytes": 25810
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3w_wall/follow2/GSIM_FOLLOW_RUN.json",
+    "sha256": "dbc6f37a2f02010a3a6680879b4e6c972d65b29a795c082f968e0747b091509f",
+    "bytes": 25757
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3b_ui/browser/result.json",
+    "sha256": "4cead6d66b7c8dda9e61884c1bb1b7ba2f18131e0fbc6850cd4acb5b8cc8988e",
+    "bytes": 7605
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3b_ui/rtf/rtf.json",
+    "sha256": "2248b4316e4f1cf953aafd9a818d48d24d8ef0689a9cacf436f4be71a201c882",
+    "bytes": 7549
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3b_ui2/browser/result.json",
+    "sha256": "f9baa9c70a4ff1a3feacdf0aa51c419720a949fe53021d062d91f12507b75922",
+    "bytes": 8245
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3b_ui2/rtf/rtf.json",
+    "sha256": "bc6bb90b724c71514174de756ad8f0377f55c454203de42884756ca9033a2797",
+    "bytes": 7871
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3c_safety/safety/A17_G_EXEC.json",
+    "sha256": "cbbc3e0ec832cd526a2b02f9cd083c3f94f31f748d261ce5684eb8a30950187c",
+    "bytes": 40935
+   },
+   {
+    "path": "<runs>/gsim_final_20261113/sessions/s3e_pw08/pw08/PW08_GAZEBO.json",
+    "sha256": "595518366c0d0177f09fd9472a632b7a78f0773bb48bfa9ce58ef7d8e40380fc",
+    "bytes": 21853
+   }
+  ],
+  "verdicts": {
+   "A": "fail (3/4)",
+   "B": "pass (attempt 2; attempt 1 heartbeat item not judgeable, amendment 1)",
+   "C": "fail (24/25 after amendment 1; bridge_stall)",
+   "E": "pass",
+   "F": "fail (0/3)",
+   "overall": "not passed"
+  },
+  "registration": {
+   "prereg": "bf1b9ca",
+   "amendment_1": "06607ca"
+  }
+ }
+}

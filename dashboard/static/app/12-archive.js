@@ -386,7 +386,7 @@ async function loadArchiveTimelineSegment(id, startS, durationS, options = {}) {
           camera_frames: payload.timeline.camera?.frames?.length || 0,
         });
         trimArchiveTimelineCache();
-        if (currentRoute() === "/rover-control") renderArchiveFrame();
+        if (currentRoute() === "/records") renderArchiveFrame();
       }
       return payload;
     })

@@ -42,7 +42,7 @@ function invalidateRecordingStatusRead() {
 }
 
 function maybeRefreshRecordingStatus() {
-  if (currentRoute() !== "/rover-control") return;
+  if (currentRoute() !== "/records") return;
   renderRecordingStatus();
   const now = performance.now();
   const last = state.recordings.lastStatusPollSteadyAt;
@@ -178,14 +178,14 @@ function renderRecordingStatus(override) {
   renderFrameRecordState(known, active);
 }
 
-// Recording indicator of the status bar. On the drive page it shows what the
+// Recording indicator of the status bar. On the records screen it shows what the
 // recorder panel shows (ordered status reads with the 5 s freshness gate).
 // The other routes do not poll the recorder: there the newest telemetry row
 // is used, and nothing is claimed once telemetry has stopped.
 function renderFrameRecordState(known, active) {
   const el = $("frameRecordState");
   if (!el) return;
-  if (currentRoute() !== "/rover-control") {
+  if (currentRoute() !== "/records") {
     const service = state.telemetry?.services?.data_recorder;
     known = Boolean(service?.ok) && !(state.telemetryFailures >= 3);
     active = known && service.active === true;

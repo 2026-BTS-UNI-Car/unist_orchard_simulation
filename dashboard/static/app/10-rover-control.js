@@ -266,9 +266,9 @@ async function armEspRover() {
   renderRoverButtons();
   const epoch = c.epoch || 0;
   try {
-    const result = await postJson("/api/rover/arm");
+    const result = await controlRequest("/api/rover/arm");
     if (!result.ok) throw new Error(result.error);
-    if (epoch !== (c.epoch || 0)) { await postJson("/api/rover/stop", {reason: "cancelled_arm"}); return; }
+    if (epoch !== (c.epoch || 0)) { await controlRequest("/api/rover/stop", {reason: "cancelled_arm"}); return; }
     c.lease = result.lease; c.ticket = result.ticket; c.seq = result.seq;
     c.pendingRelease = false;
     setRoverCommandStatus("ok", "조종 활성화 · WASD 이동 · Q/E 속도 −5/+5% · Esc 즉시 정지");
@@ -359,7 +359,7 @@ async function stepRoverMotion() {
   c.inFlight = true;
   const epoch = c.epoch || 0;
   try {
-    const result = await postJson(`/api/rover/${op}`, {lease: c.lease, ticket: c.ticket, seq: c.seq + 1,
+    const result = await controlRequest(`/api/rover/${op}`, {lease: c.lease, ticket: c.ticket, seq: c.seq + 1,
       left: motion.left, right: motion.right, deadman: op === "command"});
     if (epoch !== (c.epoch || 0)) return;
     if (!result.ok) throw new Error(result.error || "control rejected");
@@ -394,7 +394,7 @@ async function stopRoverNow(reason = "operator_stop") {
   clearRoverCommandTimer(); renderRoverButtons(); renderRoverMotionReadout();
   setRoverCommandStatus("testing", "정지 요청 중 · 조종 해제");
   try {
-    const result = await postJson("/api/rover/stop", {reason});
+    const result = await controlRequest("/api/rover/stop", {reason});
     setRoverCommandStatus(result.ok ? "ok" : "bad", result.ok ? "정지 요청 접수 · 다시 조종하려면 활성화하세요." : result.error);
   } catch (_) { setRoverCommandStatus("bad", "응답 없음 · 입력 만료 정지 대기 · 연결 복구 후 상태를 확인하세요."); }
   finally { if (epoch === c.epoch) c.disarming = false; renderRoverButtons(); }

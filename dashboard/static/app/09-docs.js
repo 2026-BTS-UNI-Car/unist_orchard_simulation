@@ -1,16 +1,4 @@
 
-function renderPlan(plan) {
-  const target = $("milestoneList");
-  if (!target) return;
-  target.innerHTML = "";
-  for (const item of plan.milestones || []) {
-    const div = document.createElement("div");
-    div.className = "milestone";
-    div.innerHTML = `<strong>${escapeHtml(item.month)}</strong><p>${escapeHtml(item.label)}</p><small class="${escapeHtml(item.status)}">${statusLabel(item.status)}</small>`;
-    target.append(div);
-  }
-}
-
 function renderDocsIndex(docs) {
   const target = $("docsIndex");
   if (!target) return;

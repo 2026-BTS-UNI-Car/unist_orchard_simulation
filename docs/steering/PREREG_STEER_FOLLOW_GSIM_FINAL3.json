@@ -1,0 +1,131 @@
+{
+ "schema": "ubts.steer_sim.gsim_final3.v1.prereg",
+ "prereg_id": "steer_follow_gsim_final3_v1",
+ "result_kind": "자리값 기반 SIM 결과",
+ "based_on": "steer_follow_gsim_final_v1",
+ "common": {
+  "image": "ubts-steer-sim:wf6",
+  "clock": "sim",
+  "settle_after_healthy_s": 120.0,
+  "validity": "SIM clock mode: the times of the executor, the bridge wrapper and the checks are SIM times, so an RTF below 1 does not make a run invalid (acceptance amendment 61). The RTF of every judged step is reported. A judged step with a 5 s window RTF below 0.5 is a host failure: recorded, not judged, and run once more on a fresh stack; twice is reported as not judged",
+  "host": "the host-load check of STACK_OPERATIONS_KO.md section 2 is recorded before each session (waiting at most 60 s); the stall probe is not run"
+ },
+ "rtf_host_failure": 0.5,
+ "reruns_per_slot": 1,
+ "operator_timeout_s": 1.0,
+ "link_lost_limit_s": 1.05,
+ "heartbeat_gap_max_s": 0.5,
+ "link_check_s": 2.0,
+ "parts": {
+  "A": {
+   "check": "steering.exec_checks follow --run <name> --out /runs/follow (one_press: Start, Arm, heartbeats, one go)",
+   "scene": "w1_force",
+   "controller": {
+    "kind": "row_follow"
+   },
+   "runs": [
+    {
+     "name": "nominal_1",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_2",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "nominal_3",
+     "expect": "row_end",
+     "start": "spawn"
+    },
+    {
+     "name": "lateral_p040",
+     "expect": "row_end",
+     "start": "set_pose",
+     "lateral_offset_m": 0.4,
+     "settle_m": 6.0
+    }
+   ],
+   "criteria": {
+    "lateral_rmse_m": 0.2,
+    "lateral_p95_m": 0.35,
+    "lateral_max_m": 0.5,
+    "heading_rmse_deg": 5.0,
+    "heading_max_deg": 15.0,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "min_clearance_m": 0.0,
+    "after_terminal_window_s": 3.0,
+    "rest_speed_m_s": 0.02
+   },
+   "settle_m": 6.0,
+   "fresh_stack_per_run": true,
+   "clock": "sim",
+   "passed": "every judged run passes every criterion of steer_follow_gsim_v1 and at least three of four slots are judged"
+  },
+  "W": {
+   "check": "the same follow check in the wall clock mode, nominal_1 then lateral_p040 on one stack",
+   "judged": false,
+   "note": "load record of the vehicle code path (acceptance amendment 61); reported with the RTF and the executor loop times"
+  },
+  "B": {
+   "check": "the SIM dashboard in Chrome (playwright) as an operator uses it; services sim, steer, recorder, dashboard, executor; scene w1_force; SIM clock",
+   "items": [
+    {
+     "name": "prepare",
+     "rule": "the auto panel offers 준비; pressing it (and Arm if offered) reaches 자율 주행 시작 within 16 s"
+    },
+    {
+     "name": "one_press_running",
+     "rule": "one press -> 주행 중 within 10 s and the vehicle moves (emulator speed > 0.05 m/s)"
+    },
+    {
+     "name": "heartbeat",
+     "rule": "largest gap of the last 20 heartbeats while visible < 0.50 s"
+    },
+    {
+     "name": "tab_hidden_link_lost",
+     "rule": "tab hidden -> run_state paused, stop_reason OPERATOR_LINK_LOST 2.0 s after hiding, no heartbeat after hiding, the vehicle below 0.05 m/s 4 s after hiding, visible again -> 다시 출발 and still paused"
+    },
+    {
+     "name": "screen_stop_while_running",
+     "rule": "a new run, one press, about 6 s of driving (> 0.05 m/s), the status-bar STOP -> stop_detail operator_stop (OPERATOR_OR_BACKSTOP), below 0.05 m/s 3 s later and 6 s later"
+    },
+    {
+     "name": "restart_after_stop",
+     "rule": "after that STOP: latch acknowledged, a new run prepared, one press -> the vehicle drives again (> 0.05 m/s within 6 s), the STOP stops it again (operator_stop, below 0.05 m/s 3 s later)"
+    },
+    {
+     "name": "live_map",
+     "rule": "on /map, 그리기 시작, 20 s later /api/live/map scan_count > 0 and cell_count > 0"
+    }
+   ],
+   "passed": "every item passes"
+  },
+  "C": {
+   "check": "steering.exec_checks safety --out /runs/safety --reset-pose --still-speed 0.05 (scene w1_force, one_press, SIM clock)",
+   "criteria": "SIM_ACCEPTANCE_KO.md A17 per script as coded in exec_checks, with amendment 60 (operator link lost -> drive 0 <= operator_timeout_s + 1 tick) and amendment 62 (on W1 the vehicle is still below 0.05 m/s truth: the start area slopes about 1.6 deg and the plant creeps 0.016-0.03 m/s with drive 0); deadman_release is not applicable to one_press",
+   "passed": "every script passes; a script that stops with an error (for example a refused go) fails"
+  },
+  "E": {
+   "check": "steering.exec_checks pw08 --out /runs/pw08 (scene w1_force, SIM clock)",
+   "criteria": "the executor criteria of steer_follow_gsim_final_v1 part E (the restore is read after the status shows it, amendment 2 of stage 2 now in the check); the plant speed ratio is reported",
+   "passed": "every executor criterion passes"
+  },
+  "F": {
+   "check": "the user's local commands as they are (the local tool folder tools/local_env outside the repository): python -B sim_stack.py start --no-browser (image wf6, SIM clock by default), 150 s, then 3 times: python -B sim_auto.py start; python -B sim_auto.py reset; 20 s",
+   "criteria": "each run ends at the row end: the executor's run_end of that run has end_reason row_end (the screen line of sim_auto shows the end); distance and duration are reported",
+   "passed": "3 of 3 runs end at the row end"
+  }
+ },
+ "amendments": [
+  {
+   "n": 1,
+   "date": "2026-11-13",
+   "written": "after parts A, W, B, C, E (09:29-10:31 UTC), before B is run again and before F",
+   "B": "evaluation defects of the browser script: (i) a speed check written abs(v or 9) < 0.05 counted an emulator speed of exactly 0.0 as moving (attempt 1: \"screen STOP: no restart (3 s later)\" and \"restart: the STOP stops it again\" with v 0.0); (ii) the heartbeat times were taken when the own event handler of the script ran, and the script blocked that handler with synchronous docker exec calls (attempt 1: gap 1.926 s while the executor saw no link loss). (i) is judged again on the same record from the recorded values; (ii) cannot be judged from the record. B is run once more on a fresh stack with the script fixed (speeds: None only counts as missing; heartbeat times: the request start times of the browser). The verdict of B is attempt 2; attempt 1 is kept",
+   "C": "evaluation defect of second_screen_and_cli: exec_checks still expected the end reason bridge_error or bridge_latched, against acceptance amendment 34 (registered before this registration: a STOP of another client that reaches the bridge first ends the run as operator_stop). The same record is judged again with operator_stop expected; exec_checks is fixed for later runs. Every other script as recorded"
+  }
+ ]
+}

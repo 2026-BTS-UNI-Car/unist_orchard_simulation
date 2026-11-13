@@ -64,7 +64,8 @@ export function initSteerDrive(page) {
   const ctl = new R.SteerController({
     transport: {
       status: () => page.getJson('/api/rover/status'),
-      post: (path, body) => page.postJson(path, body),
+      // Driving requests use the page's control transport (NET-05) where there is one.
+      post: (path, body) => (page.controlRequest || page.postJson)(path, body),
     },
     onChange: () => schedule(),
   });

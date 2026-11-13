@@ -18,7 +18,7 @@
 #     --build-arg BASE_IMAGE_ID=$(docker image inspect --format '{{.Id}}' <base tag>) \
 #     --build-arg SOURCE_COMMIT=$(git rev-parse HEAD) \
 #     --build-arg SOURCE_STATUS_SHA256=<sha256 of `git status --porcelain`> \
-#     --build-arg IMAGE_TAG_HINT=ubts-steer-sim:wf4c -t ubts-steer-sim:wf4c .
+#     --build-arg IMAGE_TAG_HINT=ubts-steer-sim:wf6 -t ubts-steer-sim:wf6 .
 # Images of this branch: ubts-steer-sim:p5 (phase 2, before the firmware was tracked), ubts-steer-sim:wf3 (phase 3,
 # G-SIM update), ubts-steer-sim:p6a (phase 3, the headless stack of compose.ubts-steer.yaml: ESP emulator, sensor
 # contract, supervisor, checks; docs/steering/P6A_HEADLESS_KO.md). WF-4: the row executor package tools/row_executor is
@@ -26,7 +26,10 @@
 # executor service, docs/steering/S2_NODE_EXEC_KO.md) and is part of the manifest file list.
 # ubts-steer-sim:wf4a / wf4b (2026-11-12): the first images with the executor package and the S2 format node; wf4b is
 # the default of compose.ubts-steer.yaml until wf4c. ubts-steer-sim:wf4c (2026-11-12): with the row-following
-# controller (closed_loop/steer_control.py), steering.exec_checks follow and steering.exec_run; the default now.
+# controller (closed_loop/steer_control.py), steering.exec_checks follow and steering.exec_run. ubts-steer-sim:wf5
+# (2026-11-13): the final image of the steering SIM (one-press executor, the dashboard copy, the sidecar in the
+# recorder role, profile=mapping LiDAR scans). ubts-steer-sim:wf6 (2026-11-13, stage 3): operator link timeout 1.0 s,
+# start check 0.08 m/s, the IMU game rotation vector, the dashboard copy a92cfec; the default now.
 # Dashboard (2026-11-13, D-13, docs/steering/SIM_DASHBOARD_KO.md): dashboard/config, dashboard_server and static are the
 # dashboard repository's files at the commit of dashboard/DASHBOARD_SOURCE.json (tools/steer_sim/sync_dashboard.py);
 # the build checks every file against that manifest. dashboard_sim/ (the simulation's provider, extension routes and
@@ -40,7 +43,7 @@ ARG BASE_IMAGE_ID=unknown
 ARG SOURCE_COMMIT=unknown
 ARG SOURCE_STATUS_SHA256=unknown
 ARG UBTS_STEER_REQUIRE_FIRMWARE=1
-ARG IMAGE_TAG_HINT=ubts-steer-sim:wf4c
+ARG IMAGE_TAG_HINT=ubts-steer-sim:wf6
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt/ubts
 RUN rm -rf /opt/ubts/dashboard /opt/ubts/dashboard_sim /opt/ubts/sim/ubts /opt/ubts/ros2_ws/src/orchard_gazebo \

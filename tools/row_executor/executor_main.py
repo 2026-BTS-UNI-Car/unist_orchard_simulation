@@ -118,7 +118,10 @@ EMERGENCY_PREFIXES = ('guard_violation', 'bridge_', 'operator_stop', 'clock_regr
                       'bench_motion', 'bench_front', 'bench_odometry',          # not 'bench_pattern_complete'
                       'calib_yaw_rate', 'calib_overspeed', 'calib_heading_change')
 REQUEST_TIMEOUT_S = 5.
-GO_STILL_SPEED_M_S = .03        # one_press start check: LiDAR speed below this (design v2 V2-2 item 2, V2-5 item 4)
+GO_STILL_SPEED_M_S = .08        # one_press start check: LiDAR speed below this (design v2 V2-2 item 2, V2-5 item 4).
+                                # Placeholder, decision R62 (was .03): a car at rest on a slight slope creeps
+                                # (G-SIM W1 start, 1.6 deg: truth 0.02-0.03 m/s) and the LiDAR speed estimate of a
+                                # creeping car reads up to 0.07 m/s; .08 still refuses a car that rolls on after a stop
 # front_steer: the steering stop reasons that stop at once (op stop + LATCHED); steering_authority_insufficient is a
 # controller-authority end like a terminal hold (zero throttle with the held steering, then op stop)
 STEER_EMERGENCY_REASONS = tuple(r for r in C.STEER_STOP_REASONS if r != 'steering_authority_insufficient') + \

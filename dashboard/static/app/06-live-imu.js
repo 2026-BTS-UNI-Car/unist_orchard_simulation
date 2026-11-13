@@ -7,8 +7,14 @@ function toggleImuLive() {
   startImuLive();
 }
 
+// IMU preview per transfer quality (NET-07): the compact display message with one
+// answer at a time ("display-ack"), so a stall leaves at most one message behind
+// instead of everything sent meanwhile. The bridge's rate per profile: auto 8,
+// slow 5, tiny 2 per second; a slow link gets 2 per second. A bridge without
+// "display-ack" sends its old stream.
+const IMU_STREAM_PROFILE = { detail: "auto", balanced: "auto", slow: "tiny", tiny: "tiny" };
 function imuWebSocketUrl() {
-  const params = new URLSearchParams({profile: liveNetworkProfile(), flow: "latest"});
+  const params = new URLSearchParams({profile: IMU_STREAM_PROFILE[effectiveLinkProfile()] || "auto", flow: "display-ack"});
   if (window.UBTS_IMU_WS_URL) return `${window.UBTS_IMU_WS_URL}${String(window.UBTS_IMU_WS_URL).includes("?") ? "&" : "?"}${params}`;
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   return `${scheme}://${location.host}/ws/imu?${params}`;

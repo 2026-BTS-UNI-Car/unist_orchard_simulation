@@ -37,10 +37,13 @@ def relay_sensor_stream(client, upstream, initial_upstream=b"", *,
     is disconnected instead. Other viewers use separate buffers and threads.
     Socket ownership and closing remain with DashboardHandler.
     """
+    # session_deadline is a wall-clock time, or a function giving the current one
+    # (NET-11: a session that is still used is extended, and its streams with it).
+    deadline_of = session_deadline if callable(session_deadline) else None
     if (type(initial_upstream) is not bytes or len(initial_upstream) > MAX_PENDING_BYTES
             or type(write_stall_s) not in (int, float)
             or not math.isfinite(write_stall_s) or write_stall_s <= 0
-            or (session_deadline is not None and
+            or (session_deadline is not None and deadline_of is None and
                 (type(session_deadline) not in (int, float) or not math.isfinite(session_deadline)))):
         raise ValueError("invalid_bounded_sensor_relay_input")
     now = clock()
@@ -57,7 +60,8 @@ def relay_sensor_stream(client, upstream, initial_upstream=b"", *,
         upstream.setblocking(False)
         while True:
             now = clock()
-            remaining = None if session_deadline is None else session_deadline - wall_clock()
+            current_deadline = deadline_of() if deadline_of is not None else session_deadline
+            remaining = None if current_deadline is None else current_deadline - wall_clock()
             if remaining is not None and remaining <= 0:
                 reason = "session_expired"
                 # No injected status/close bytes: an empty TCP buffer is not
