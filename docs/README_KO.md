@@ -60,6 +60,7 @@
 | [`STEER_FOLLOW_RESULT_KO.md`](steering/STEER_FOLLOW_RESULT_KO.md) | 열 추종, 빠른 SIM 15회 |
 | [`STEER_FOLLOW_GSIM_RESULT_KO.md`](steering/STEER_FOLLOW_GSIM_RESULT_KO.md) | 열 추종, Gazebo 4회 |
 | [`GSIM_GAPS_RESULT_KO.md`](steering/GSIM_GAPS_RESULT_KO.md) | Gazebo 빈틈 정리(A17·A19·A25·A23·A18, 열 끝 e, 빠뜨린 틱) |
+| [`STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/STEER_FOLLOW_GSIM_FINAL_KO.md) | 최종 이미지 wf5 의 Gazebo 확인(열 추종 4 run, 화면, A17(G), A25, PW-08) |
 | [`STEER_HOLD_RESULT_KO.md`](steering/STEER_HOLD_RESULT_KO.md) | 외란 아래 직진 유지 |
 | [`TIMING_BASELINE_KO.md`](steering/TIMING_BASELINE_KO.md), [`REPLAY_BASELINE_KO.md`](steering/REPLAY_BASELINE_KO.md) | 지연·비용 기준선, 10/10 기록 재생 기준선 |
 
