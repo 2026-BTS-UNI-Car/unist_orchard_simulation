@@ -1,7 +1,10 @@
 # Steering G-SIM stack (design 8.3 P6a, docs/steering/P6A_HEADLESS_KO.md). Project ubts-steer, ROS domain 43,
 # GZ partition ubts-steer, dashboard on 127.0.0.1:18090 (the old SIM stack uses 42 / ubts-sim / 18080, the vehicle 0;
 # the dashboard runs in the sim network namespace and the sim service publishes its port).
-# Default image ubts-steer-sim:wf7 (2026-11-13, stage 4: the executor timing work of main b00b666 - a fresh steering
+# Default image ubts-steer-sim:wf8 (2026-11-14, stage 5: the executor container's input diagnostics, the follow check
+# waits for a quiet DDS graph before Start, operator contract revision 5 - the session is released at a run's end and
+# a heartbeat-only session does not refuse another's go; dashboard copy a92cfec as in wf6).
+# wf7 (2026-11-13, stage 4: the executor timing work of main b00b666 - a fresh steering
 # status before a tick that a long scan processing delayed, gc.freeze before the loop; dashboard copy a92cfec as in
 # wf6). wf6 (2026-11-13, stage 3 of the final check: operator link timeout 1.0 s, start check
 # 0.08 m/s, the IMU game rotation vector, the dashboard copy a92cfec; the SIM clock mode is chosen by UBTS_STEER_CLOCK,
@@ -84,7 +87,7 @@ x-environment: &environment
   UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
 services:
   sim:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     init: true
     ipc: shareable
     shm_size: 512mb
@@ -139,7 +142,7 @@ services:
       start_period: 240s
       retries: 6
   steer:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -159,7 +162,7 @@ services:
     stop_grace_period: 20s
     restart: "no"
   recorder:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     init: true
     network_mode: "service:sim"
     ipc: "service:sim"
@@ -185,7 +188,7 @@ services:
   # control volume and never reaches the page). The page port 8080 is published by the sim service (127.0.0.1:18090).
   # An image built before the sync (wf4c and earlier) still runs its own older dashboard: it ignores these settings.
   dashboard:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     init: true
     network_mode: "service:sim"
     working_dir: /opt/ubts/dashboard
@@ -228,7 +231,7 @@ services:
   # memory) and mounts the control volume only: no runtime volume (SIM status files) and no emulator hooks. Clock
   # mode = UBTS_STEER_CLOCK (wall | sim, the same value as the bridge wrapper). Profile executor (not started by "up").
   executor:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     profiles: ["executor"]
     init: true
     network_mode: "service:sim"
@@ -264,7 +267,7 @@ services:
   # Checks and scripted clients (profile check, not started by "up"): docker compose ... run --rm check <command>.
   # It joins the sim network and IPC (ROS graph, FastDDS shared memory), the control socket and the emulator hooks.
   check:
-    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf7}
+    image: ${UBTS_STEER_IMAGE:-ubts-steer-sim:wf8}
     profiles: ["check"]
     init: true
     network_mode: "service:sim"
