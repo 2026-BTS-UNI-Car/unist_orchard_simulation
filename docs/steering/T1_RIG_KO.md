@@ -313,6 +313,7 @@ RF-03 측정(정지, 전폭 ±409 mrad 스윕 3번을 7.5 s에, 호스트 `steer
 - 실행기, S2 형식 변환(`s2_format.py`, p4_import), 추정기는 이 장치에 없다. 센서는 SIM 3200빔 스캔이다.
 - A13(F) 정적 검사(`steering/truth_isolation.py`): 이 장치는 참값을 가진 플랜트 쪽 모듈이다. 역할 표에 `ROLE_PLANT`로 있고 `TRUTH_MODULES`에 `steering.t1_rig`가 있다(p4_exec). 실행기 코드는 이 모듈을 가져오지 않고 `RigClient`를 전송으로 받기만 한다. 검토 RS-05 뒤에는 엄격 역할 코드가 장치 채널 메서드(`RIG_CHANNEL_METHODS`)나 `fw` 손잡이를 부르거나 장치 설정을 읽으면 오류다(`EVALUATE_STEER_KO.md` 5.2절). 최종 검사(fix_wf3a): 178개 파일, 오류 0, 면제 12개 모두 쓰임.
 - 시험하지 않은 것: `pot_stuck`, `pot_slip`, `pot_drift`, `pot_reversed`, `driver_dead`, `adc_set`·`adc_model` 실행 중 고장, `port_open_reset` 실행 중 고장, 긴 열(100 m) 주행, 다른 프로필, 실기·벤치.
+- MCU → 호스트 지연은 UART 줄 시간(115200 baud)뿐이다. USB 지연 타이머, 커널 버퍼, 호스트 부하로 줄이 늦게 읽히는 것은 모형에 없다. 그래서 호스트 TTL 래치 `mcu_ttl_expired`의 50 ms 여유(`TTL_INPUT_LAG_S`)를 넘는 지연은 T1 대본이 만들지 않는다. 그 경우의 동작(정지 TTL 뒤 다시 누를 때 안전 쪽으로 잘못 래치)은 브리지 단위 시험의 가짜 MCU(`MemoryTransport(latency_s=…)`)로 따로 쟀다(`DECISIONS_KO.md` R80). T1에 장치 → 호스트 지연 고장을 더하는 것은 다음 일이다.
 
 ## 12. 시험
 
@@ -348,3 +349,5 @@ Windows 전체 조향 시험(`test_steering_*.py`, 같은 환경 변수): 779 �
 | WSL Ubuntu-22.04, Python 3.10.12, unittest | `test_steering_ident`, `test_steering_truth_isolation`, `test_steering_safety_scripts` 58 통과, 2 건너뜀 |
 
 - 첫 전체 실행은 pytest 임시 폴더의 부모 폴더가 없어 118개가 준비 단계 오류였다. 또 `test_steering_ident.py`의 기록 작성기 엄격 시험 1개가 RS-05의 새 장치 손잡이 규칙에 걸려 실패했다(`bench.py`는 벤치 장치를 직렬 포트로 쥔다). 시험을 고치고(`IDENT_KO.md` 11절) 폴더를 만든 뒤 다시 돌린 결과가 위 표다.
+
+ST-03 다시 확인(2026-11-14, Windows Python 3.13.2, 작업자 2, `cb2f85f`, 기록 저장소 밖 `runs/st03_20261114/measure/`): 실행기를 넣은 P4 점검 대본 72/72 기대대로(09-19 필수 15개 포함), A5·A8·A13·A17·A22 합격, A19 불합격(정상 오검출 POLARITY 1/40). TTL 틈 위상 훑기 320조합 TTL 뒤 구동 증가 0. 고장 `usb_unplug`의 두 대본(`usb_unplug_replug`, `usb_unplug_replug_reset`)도 통과다. 자세한 표는 `EXECUTOR_STEER_KO.md` 16절. 모든 수치는 자리값 기반 SIM 결과다.

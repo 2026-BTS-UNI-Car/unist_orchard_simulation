@@ -217,6 +217,7 @@ MCU 고장 이름(상태 줄 `fl`)과 호스트 래치를 사유로 바꾼다. �
 - 자리값 프로필의 정지 중 조향: 서보 이득 15 %/deg, 정지 부하 3 N·m, 정지 시작 PWM 35 %. 오차 3°의 서보 출력은 약 45 %다. 이때 정지 중 실제 속도는 약 4°/s다. 반전에는 백래시(2°) 때문에 약 0.8 s의 죽은 시간이 있다.
 - 프로필의 정지 조향 속도 상한은 15°/s다. 실행기 한계는 그 0.8배인 12°/s다.
 - 결과: ±10° 정지 반전은 대본 속도(0.75배부터 0.3배까지, 9–3.6°/s) 어디서나 호스트 추종 규칙(3°, 1.5 s)을 걸었다(`finding_standstill_reversal`). 그래서 정상 대본의 정지 단계는 ±5°다.
+- 2026-11-13 개정 43(`7d32154`)부터 호스트는 MCU 서보 램프가 목표에 닿은 상태 줄만 추종 오차로 센다. 그래서 같은 반전은 이제 호스트 래치 없이 끝난다(3° 넘는 지연은 그대로 약 2.2 s 이어진다, 2026-11-14 탐침). 대본 기대도 그렇게 바꿨다(16절). 느린 정지 조향 자체는 남은 문제다.
 - 뜻: SIM의 '측정' 정지 속도를 프로필 상한에서 가져오면 안 된다. B5/F5처럼 장치에서 재야 한다. 정지 중 추종 규칙과 백래시 죽은 시간도 함께 정해야 한다.
 
 ### 7.2 POLARITY 오탐
@@ -406,3 +407,29 @@ cd sim/ubts && python -B -m steering.evaluate_steer executor --run <run 폴더>
   - 루프 시작 직전에 `gc.freeze()`를 한다.
   - SIM 스택의 steer·executor CPU 를 3 으로 올렸다.
 - 빠른 SIM 15 회, 차동 기준 에피소드 10 개, 넓은 평가 3 조건, T1 안전 대본 71 개의 직렬 로그와 trace 가 main 8e767dd 와 같다.
+
+## 16. ST-03 마무리 (2026-11-14, 브랜치 `st03-finish-20261114`)
+
+모든 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. 기준은 측정 전에 등록했다(`SIM_ACCEPTANCE_KO.md` 개정 80~82, `8b434c5`). 결과 원본은 저장소 밖 `runs/st03_20261114/measure/`에 있다.
+
+1. **호스트 TTL 래치 `mcu_ttl_expired` 독립 검토.** 결과와 판단은 `DECISIONS_KO.md` R80. 결정대로 동작한다. 장치 → 호스트 지연이 50 ms(`TTL_INPUT_LAG_S`)를 넘으면 정지 중 예정된 TTL 뒤 다시 누를 때 안전 쪽으로 잘못 래치한다(가짜 MCU 탐침: 55 ms 2/10, 100 ms 10/10). 코드는 바꾸지 않았다. T1은 이 지연을 만들지 않는다(`T1_RIG_KO.md` 11절).
+2. **`usb_unplug_replug` 실패 원인.** 11/09 부분 점검(30개 대본)의 실패 두 항목은 판정 쪽 결함이었다. (가) 'watchdog → 구동 0'을 해당 없음(TTL 제동으로 이미 0)인데 실패로 셌다. (나) 'hardware_fault 래치 상태'가 래치 스텝에 STOP을 요구했다(USB가 빠진 스텝에는 쓸 수 없다). 같은 날 `states.py`·`acceptance.py`에서 고쳤다(12절). 이번 두 번의 점검에서 (가)는 해당 없음, (나)는 통과다.
+3. **P4 점검 1차**(`3848911`, 작업자 2, 441.8 s): 대본 71/72, A8 불합격. 실패를 지우지 않고 둔다.
+   - `finding_standstill_reversal`: 기대(호스트 `steering_not_following`)가 개정 43 전 규칙이었다. 11/13 확인은 safety·fault·mandatory·host·normal 묶음(71개)만 돌려 이 묶음을 놓쳤다. `7d32154` 전 호스트 사본은 같은 대본에서 8.14 s에 래치한다(탐침). 기대를 지금 규칙(대본 끝, 결함 0, 재출발 0)으로 바꿨다(`cb2f85f`).
+   - A8: 같은 seed 두 번의 직렬 로그와 trace는 같고 실행기 기록 digest만 달랐다. `ebc9128`이 실행기 기록에 넣은 벽시계 진단 칸(request 사건 `ms`, 느린 틱 `ph`)을 digest에서 빼지 않았기 때문이다. 그 두 칸만 뺀다(`cb2f85f`, 시험 `CaptureLogDigestTest`).
+4. **P4 점검 2차**(`cb2f85f`, 작업자 2, 417.5 s):
+
+| 점검 | 판정 | 내용 |
+|---|---|---|
+| 대본 | 72/72 기대대로 | 09-19 필수 15개 모두(`usb_unplug_replug`, `usb_unplug_replug_reset` 포함). TTL 대본 8개(`c_line_loss_ttl*`, `executor_stall`, `bridge_stall_ttl` 등) 통과 |
+| A5(F) | 합격 | 주행(40 % 직진 30 s, 표본 934): 자이로 잔차 sd 0.04608 rad/s(모형 0.04453, +3.5 %), 가속도 진동 RMS 1.689 m/s²(모형 1.700, −0.7 %), 주행 진동 1.7 m/s²(below_90), IMU 33.003 Hz, 스캔 0.1 s |
+| A8 | 합격 | 6항목 |
+| A13(F) | 합격 | 263개 파일, 면제 15건 모두 쓰임 |
+| A17(F) | 합격 | 312항목(판정 306, 해당 없음 6, 실패 0) |
+| A19(F) | **불합격** | 결함 코드·호스트 래치 누락 0, 래치 시각·결과 상태 실패 0. 정상 40회 중 오검출 1회(`normal_steps_standstill` 시드 101, POLARITY, 3단계부터 같은 자리값 원인 R18 결정 2). `mcu_ttl_expired` 오검출 0. STALL 0/40, `steering_ineffective` 0/40. RF-03 듀티 0 THERMAL 0/10, 듀티 4 %는 10/10 무응답 예산으로 끝나 재지 못함 |
+| A22(F) | 합격 | 끝 순간 22개, 관찰 3 s 모두, 목표 이동 0°, 실행기 명령 이동 최대 0.172°, 자동 중앙 복귀 0 |
+| A11 | 보고 | 한 걸음 p50 중앙 3.17 ms, p99 중앙 24.8 ms, p99 최악 119.7 ms, 최대 336 ms(작업자 2, 다른 작업과 같은 PC) |
+
+5. **TTL 틈 위상 훑기 전체 격자**(`steering.safety_scripts.ttl_window`, 320조합: 손실 시작 4.95·4.97·5.0·5.03 s, 손실 320·400 ms, 실행기 멈춤 0.1~0.5 s, 멈춤 지연 0·20 ms, 브리지 위상 0·10 ms, 부팅 지연 60·70; `3848911`, 작업자 2, 422.6 s): 320개 모두 MCU TTL, 호스트 래치 320, TTL 뒤 구동 증가 0, 1.5 s 뒤 구동 0, ARM 줄 0, TTL 뒤 MCU에 닿은 C 0. 래치는 F TTL 틱 + 17~18 ms. 실행기 끝 사유 `link_ttl_expired` 248, `steering_feedback_stale` 72.
+6. **A26 호스트 파일 SHA 기록**(새로, 저장소 밖 `runs/st03_20261114/a26/a26_host_files.json`, 트리 `9b94993`): 18개 파일. 11/09 기록 뒤 바뀐 것은 `steer_bridge_core.py`, `steer_rover_bridge.py`와 시험 셋(`test_steer_support.py`, `test_steer_bridge_core.py`, `test_steer_rover_bridge.py`)이다. 대시보드 저장소 main(`3372139`)에는 아직 `steer_*` 파일이 없다(P9 전). 그 저장소의 `ui-20261112`(`a92cfec`) 사본은 `esp_motor_v3.py`, `steer_bridge_core.py`, `steer_control_core.py`가 같고 `steer_rover_bridge.py`가 다르다(이 저장소의 `f235395` SIM 시계 대기 변경). 기반 파일 7개는 main과 같다.
+7. 식별 쪽(F3 brake 정지 거리, A18 정지 거리 행, 권장 경로 길이 A18, B0 CAL POL)은 `IDENT_KO.md` 6.1절과 7절 9.
