@@ -18,7 +18,7 @@
 | (d) 열 끝 정지(가까이) | `assets/video/row_end_stop_wf10_top_3x.gif` | 165,840 B · 11.2 s | (a)와 같은 run `nominal_3` | (a)와 같음, 열 끝 선 8 m 앞부터 정지 4 s 뒤까지 3배속 |
 | 그래프 1 | `figures/steer_follow_gsim/gsim_fig03_lateral_steer_wf10.png` | 152,498 B | `nominal_3`, `lateral_p040` | 횡오차·조향 등가각 대 열 위치 |
 | 그래프 2 | `figures/steer_follow_gsim/gsim_fig04_gnss_dropout_fsim.png` | 175,549 B | F-SIM `..._off`, `..._gnss_log` | 횡오차·조향 등가각·GNSS fix 대 열 위치 |
-| (e) 차량 카메라, 열 끝까지 | `assets/video/row_follow_wf10_user_camera_10x.gif` | 2,679,942 B · 12.0 s(480×270, 초당 5장) | 사용자 스택 매체용 run(판정 아님, 2026-11-14, `ROW_END` 33.5 m) | Gazebo 이미지 wf10, W1(`w1_force`), SIM 시계, 사용자 로컬 명령 `sim_auto.py start` |
+| (e) 차량 카메라, 열 끝까지 | `assets/video/row_follow_wf10_user_camera_10x.gif` | 2,689,507 B · 12.0 s(480×226, 초당 5장) | 사용자 스택 매체용 run(판정 아님, 2026-11-14, `ROW_END` 33.5 m) | Gazebo 이미지 wf10, W1(`w1_force`), SIM 시계, 사용자 로컬 명령 `sim_auto.py start` |
 
 (a)·(b)·(d)의 기록은 `STEER_FOLLOW_GSIM_FINAL_KO.md` 16.4 절의 등록 run 그대로다(새로 돌리지 않았다). 그 run 들에는 카메라
 프레임이 없어서, 위 GIF 는 기록된 참값 자세(약 8 Hz)를 SIM 1 s(10배속)·0.3 s(3배속) 간격으로 보간해 위에서 그린 것이다. 차 외곽은
@@ -84,7 +84,7 @@
 
 [SIM · 자리값] 사용자 SIM 스택(`ubts-steer`, 이미지 wf10, SIM 시계, 장면 `w1_force`)에서 사용자 로컬 명령 그대로(`sim_auto.py reset`
 → `sim_auto.py start` → `sim_auto.py reset`) W1 통로 하나를 열 끝까지 달린 **매체용 run 하나**다(판정 아님, 2026-11-14 16:26~16:29 KST,
-같은 날 사용자 승인). 출발 직전부터 열 끝 정지 뒤 약 4 s 까지 약 118 s 를 10배속(약 2 s 마다 한 장, 초당 5장, 480×270). 차량 카메라
+같은 날 사용자 승인). 출발 직전부터 열 끝 정지 뒤 약 4 s 까지 약 118 s 를 10배속(약 2 s 마다 한 장, 초당 5장, 480×226). 차량 카메라
 (`capture_media.py camera`, 170 s 동안 5,005 장, 29.44 fps)를 갈무리하는 동안 스택은 내리거나 바꾸지 않았고 18090 화면 세션도 건드리지
 않았다. 같은 날 앞선 시도(이 PC 의 실행 권한 확인이 차를 움직이는 명령을 막아 실행 0)의 기록은 `runs/gsim_media_20261114/` 에
 그대로 있다.
@@ -140,3 +140,7 @@ python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf
 - 7단계 최종 확인의 판정(열 추종 3/4, 사용자 명령 0/3 등, `STEER_FOLLOW_GSIM_FINAL_KO.md` 16절)은 그대로 불합격이다. 이 매체는
   통과한 run 을 골라 보인 것이다.
 - (e)는 판정 run 이 아니다. 사용자 명령 run 하나가 열 끝까지 간 것을 보일 뿐, 7단계 F(사용자 명령 0/3)를 다시 잰 것이 아니다.
+
+## 카메라 영상의 아래 띠 잘라내기 (2026-11-15)
+
+차량 카메라(640×360, 차 위 (0.40, 0, 0.48) m, 수평)는 바로 앞 차체 윗면을 그림 아래 58줄(302~359행)에 담는다(`GZ_DEMO_KO.md` 6.5절). README 와 노션에서 이 파란 띠가 영상이 잘린 것처럼 보여서, `tools/steer_sim/make_assets.py`의 카메라 레시피 9개에 `crop_bottom=CAMERA_BODY_CROP`(58/360)를 넣고 다시 만들었다. 480 폭 결과는 480×226, 사진은 640×302 다. 원본 프레임과 카메라 장착(SIM 가정)은 그대로이고, 표시용 매체만 아래를 자른다. 다시 만든 매체는 처음·가운데·끝 프레임을 직접 보고 확인 표시를 남겼다(`ASSETS.json`의 visual_check 2026-11-15).

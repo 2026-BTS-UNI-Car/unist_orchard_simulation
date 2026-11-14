@@ -48,6 +48,11 @@ STAGE8_CAM = 'gsim_stage8_20261114/sessions/cam_run_1/media/cam/frames'
 TOP_VIEW = ('tools/steer_sim/gsim_media.py frames %s (위에서 본 그림, matplotlib; 프레임마다 조건 띠와 상태 줄을 그린다) '
             '<- %s. 참값 경로·조향각은 평가용 그림에만 쓴다')
 
+# The vehicle camera (640x360) sees the top of the rover body in its bottom 58 rows (rows 302..359, the same in
+# every G-SIM camera session of 11/12 ~ 11/14). In a README or Notion clip that blue band reads as a cut-off
+# frame, so the camera recipes cut it before resizing: crop_bottom is a fraction of the source height.
+CAMERA_BODY_CROP = 58 / 360
+
 RECIPES = [
     dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png', source=W0 + 'straight_model_oblique.png',
          made_by=GZ_VIEWS,
@@ -72,11 +77,11 @@ RECIPES = [
     dict(name='orchard_lane_start', out='docs/assets/world/orchard_lane_start.jpg', op='jpeg', quality=85,
          source=W1 + 'straight_orchard_lane.png', made_by=GZ_VIEWS,
          caption='열 사이 통로 출발점을 차 뒤에서 본 모습. 두 나무 열, 콘크리트 기둥과 철선'),
-    dict(name='camera_row_follow', out='docs/assets/sensors/camera_row_follow.jpg', op='jpeg', quality=88,
+    dict(name='camera_row_follow', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/sensors/camera_row_follow.jpg', op='jpeg', quality=88,
          source='gsim_final_20261113/media/rover_camera_row_follow.png',
          made_by='tools/steer_sim/capture_media.py camera → still (G-SIM 스택, 장면 w1_force, 이미지 wf4c, 세션 media_w1b, '
                  '2026-11-13)',
-         caption='통로 안에서 받은 차량 카메라 한 장(640×360, Gazebo 렌더). 카메라는 표시·기록용이고 위치 추정에 쓰지 않는다'),
+         caption='통로 안에서 받은 차량 카메라 한 장(640×360 Gazebo 렌더에서 아래 차체 띠 58줄을 잘라 640×302). 카메라는 표시·기록용이고 위치 추정에 쓰지 않는다'),
     dict(name='lidar_scan_in_row', out='docs/assets/sensors/lidar_scan_in_row.png', op='png',
          source='gsim_final_20261113/media/lidar_scan_w1_in_row.png',
          made_by='G-SIM 스택(w1_force, 이미지 wf4c, 세션 media_w1b)의 /scan 한 장을 차 기준 좌표로 그린 것(matplotlib)',
@@ -85,7 +90,7 @@ RECIPES = [
          source='gsim_final_20261113/media/lidar_scan_w1_start.png',
          made_by='G-SIM 스택(w1_force, 이미지 wf4c, 세션 media_w1)의 /scan 한 장을 차 기준 좌표로 그린 것(matplotlib)',
          caption='출발점(통로 앞)에서 받은 LiDAR /scan 한 장. 앞쪽 3 m부터 두 줄의 줄기가 보인다'),
-    dict(name='row_follow_camera_10x', out='docs/assets/video/row_follow_camera_10x.gif', op='gif',
+    dict(name='row_follow_camera_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_camera_10x.gif', op='gif',
          source='steer_gsim_follow_20261112/sessions/it1_nominal_3/media/cam_follow/frames',
          frames=(290, 3251, 30), frame_s=0.1, width=480, colors=64,
          label='G-SIM 열 추종 · W1 과수원 · 자리값 프로필 · 10배속',
@@ -93,14 +98,14 @@ RECIPES = [
                  'tools/steer_sim/capture_media.py camera로 받은 프레임(29.9 fps). 출발부터 열 끝 정지까지 1 s마다 한 장',
          caption='열 추종 제어기가 G-SIM 과수원(W1) 통로 하나를 처음부터 열 끝까지 달리는 차량 카메라 화면(약 99 s를 10배속, '
                  '480 폭). 실행기 컨테이너가 /scan과 raw IMU만 보고 조향과 구동을 정한다'),
-    dict(name='row_follow_wf5_camera_10x', out='docs/assets/video/row_follow_wf5_camera_10x.mp4', op='mp4',
+    dict(name='row_follow_wf5_camera_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_wf5_camera_10x.mp4', op='mp4',
          source=FINAL_N3, frames=(300, 3420, 15), frame_s=0.05, width=480, crf=32,
          label='G-SIM 최종 이미지 wf5 · W1 과수원 · 한 번 눌러 시작 · 10배속',
          made_by='최종 이미지 확인(STEER_FOLLOW_GSIM_FINAL_KO.md) run nominal_3(row_end, e +0.429 m)을 '
                  'tools/steer_sim/capture_media.py camera로 받은 프레임(29.6 fps). 출발 직전부터 열 끝 정지 뒤 5 s까지 0.5 s마다 한 장',
          caption='최종 이미지 wf5로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 104 s를 10배속, 480 폭, '
                  '저화질 H.264). 실행기가 한 번 눌러 시작으로 출발했다'),
-    dict(name='row_end_stop_wf5_3x', out='docs/assets/video/row_end_stop_wf5_3x.gif', op='gif',
+    dict(name='row_end_stop_wf5_3x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_end_stop_wf5_3x.gif', op='gif',
          source=FINAL_N3, frames=(2550, 3420, 9), frame_s=0.1, width=360, colors=64,
          label='열 끝 다가가기와 정지 · wf5 · 3배속',
          made_by='같은 run nominal_3의 마지막 약 29 s(열 끝 정지 뒤 약 5 s 포함), 0.3 s마다 한 장',
@@ -115,14 +120,14 @@ RECIPES = [
          source=FINAL_UI + 'auto_running.png',
          made_by='같은 세션, 자율 칸에서 준비 -> 자율 주행 시작을 한 번 누른 뒤',
          caption='SIM 대시보드의 자율 칸이 "주행 중"을 보이는 화면(한 번 눌러 시작). 화면을 열어 둔 동안 하트비트를 보낸다'),
-    dict(name='row_follow_wf6_camera_10x', out='docs/assets/video/row_follow_wf6_camera_10x.mp4', op='mp4',
+    dict(name='row_follow_wf6_camera_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_wf6_camera_10x.mp4', op='mp4',
          source=FINAL3_N3, frames=(130, 3700, 15), frame_s=0.05, width=480, crf=32,
          label='G-SIM 최종 확인 3단계 · wf6 · SIM 시계 · 한 번 눌러 시작 · 10배속',
          made_by='최종 확인 3단계(STEER_FOLLOW_GSIM_FINAL_KO.md 3단계 절) run nominal_3(SIM 시계, row_end, e +0.433 m)을 '
                  'tools/steer_sim/capture_media.py camera로 받은 프레임(29.4 fps). 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장',
          caption='이미지 wf6, SIM 시계 모드로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 119 s를 10배속, '
                  '480 폭, 저화질 H.264)'),
-    dict(name='row_end_stop_wf6_3x', out='docs/assets/video/row_end_stop_wf6_3x.gif', op='gif',
+    dict(name='row_end_stop_wf6_3x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_end_stop_wf6_3x.gif', op='gif',
          source=FINAL3_N3, frames=(2700, 3600, 9), frame_s=0.1, width=360, colors=64,
          label='열 끝 다가가기와 정지 · wf6 · 3배속',
          made_by='같은 run nominal_3의 마지막 약 30 s(열 끝 정지 뒤 포함), 0.3 s마다 한 장',
@@ -132,7 +137,7 @@ RECIPES = [
          made_by='SIM 대시보드(대시보드 저장소 a92cfec 사본 + SIM 확장, 이미지 wf6, SIM 시계)의 지도 화면을 Chrome(playwright)으로 '
                  '연 것, 세션 s3b_ui2(3단계 B 시도 2), 그리기 시작 뒤 20 s',
          caption='SIM 대시보드 지도 화면에 실시간 격자가 쌓인 모습(대시보드 자신의 지도, SIM LiDAR 원본 스캔과 IMU 자세로 만든다)'),
-    dict(name='row_follow_wf7_user_10x', out='docs/assets/video/row_follow_wf7_user_10x.gif', op='gif', role='readme_hero',
+    dict(name='row_follow_wf7_user_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_wf7_user_10x.gif', op='gif', role='readme_hero',
          source=FINAL4_F3, frames=(30, 2991, 30), frame_s=0.1, width=480, colors=64,
          label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf7 · SIM 시계 · 10배속',
          made_by='최종 확인 4단계 F(STEER_FOLLOW_GSIM_FINAL_KO.md 13절) run 3(사용자 명령 sim_stack.py start --no-browser 뒤 '
@@ -141,7 +146,7 @@ RECIPES = [
          caption='사용자 로컬 명령 그대로(sim_stack.py start, sim_auto.py start), 이미지 wf7, SIM 시계로 G-SIM 과수원(W1) 통로 '
                  '하나를 열 끝까지 달린 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기가 /scan과 raw IMU만 보고 조향과 '
                  '구동을 정하고 열 끝에서 섰다'),
-    dict(name='row_follow_wf7_user_camera_10x', out='docs/assets/video/row_follow_wf7_user_camera_10x.mp4', op='mp4',
+    dict(name='row_follow_wf7_user_camera_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_wf7_user_camera_10x.mp4', op='mp4',
          source=FINAL4_F3, frames=(30, 2991, 15), frame_s=0.05, width=480, crf=32,
          label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf7 · SIM 시계 · 10배속',
          made_by='같은 F run 3의 프레임, 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장',
@@ -173,7 +178,7 @@ RECIPES = [
                              '(TRACE.npz, EXECUTOR.jsonl), SIM 1 s 마다 한 장'),
          caption='빠른 SIM(F-SIM, W0 평지 기둥 두 줄)에서 가상 GNSS 를 10~70 s 동안 끊은 run 을 위에서 본 그림(약 68 s 를 10배속). '
                  'GNSS 층은 기본 꺼짐이고 이 run 은 기록만(log_only) 해서 조향 입력이 아니다. 차는 LiDAR·IMU 로 열 끝까지 갔다'),
-    dict(name='row_follow_wf10_user_camera_10x', out='docs/assets/video/row_follow_wf10_user_camera_10x.gif', op='gif',
+    dict(name='row_follow_wf10_user_camera_10x', crop_bottom=CAMERA_BODY_CROP, out='docs/assets/video/row_follow_wf10_user_camera_10x.gif', op='gif',
          source=STAGE8_CAM, frames=(180, 3720, 60), frame_s=0.2, width=480, colors=64,
          label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf10 · SIM 시계 · 10배속',
          made_by='사용자 SIM 스택(ubts-steer, 이미지 wf10, SIM 시계, 장면 w1_force)에서 사용자 로컬 명령 그대로(sim_auto.py reset, '
@@ -224,6 +229,14 @@ def save_png(image, out: Path, width=None):
     image.save(out, format='PNG', optimize=True)      # no pnginfo: no text chunks
 
 
+def crop_bottom(image, recipe):
+    """Cut the recipe's crop_bottom fraction of the height off the bottom (the rover body in camera frames)."""
+    frac = recipe.get('crop_bottom')
+    if not frac:
+        return image
+    return image.crop((0, 0, image.width, image.height - round(image.height * frac)))
+
+
 def save_jpeg(image, out: Path, quality, width=None):
     from PIL import Image
     if width and image.width > width:
@@ -253,6 +266,7 @@ def _frames(recipe, src: Path, tmp: Path, font_path: Path):
     for k, name in enumerate(names):
         digest.update(name.encode() + b'\0' + bytes.fromhex(sha256_file(src / name)))
         image = Image.open(src / name).convert('RGB')
+        image = crop_bottom(image, recipe)
         width = recipe['width']
         height = round(image.height * width / image.width)
         if recipe['op'] == 'mp4':
@@ -368,6 +382,7 @@ def make(recipes, runs: Path, font_arg):
             origin['source_sha256'] = sha256_file(src)
             with Image.open(src) as image:
                 image.load()
+                image = crop_bottom(image, recipe)
                 if recipe['op'] == 'png':
                     save_png(image, out, recipe.get('width'))
                 else:

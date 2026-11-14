@@ -113,7 +113,7 @@ flowchart LR
 | 차량 카메라 | LiDAR `/scan`, 통로 안 | LiDAR `/scan`, 출발점 |
 |---|---|---|
 | ![차량 카메라](docs/assets/sensors/camera_row_follow.jpg) | ![LiDAR 통로 안](docs/assets/sensors/lidar_scan_in_row.png) | ![LiDAR 출발점](docs/assets/sensors/lidar_scan_start.png) |
-| [SIM · 자리값] 640×360 Gazebo 렌더. 표시·기록용, 위치 추정에 쓰지 않음 | [SIM · 자리값] S2 형식 3240빔, 차 기준 좌표, 빨간 사각형이 차 외곽 | [SIM · 자리값] 앞 3 m부터 두 줄의 줄기 |
+| [SIM · 자리값] 640×360 Gazebo 렌더에서 아래 차체 윗면 띠(58줄)를 잘라 낸 것. 표시·기록용, 위치 추정에 쓰지 않음 | [SIM · 자리값] S2 형식 3240빔, 차 기준 좌표, 빨간 사각형이 차 외곽 | [SIM · 자리값] 앞 3 m부터 두 줄의 줄기 |
 
 ![SIM 대시보드 조향 화면](docs/steering/figures/sim_dashboard_steer_w1.png)
 
