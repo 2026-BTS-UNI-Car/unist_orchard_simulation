@@ -43,6 +43,9 @@ FINAL_UI = 'gsim_final_20261113/sessions/s2b_ui2/browser/'
 FINAL3_N3 = 'gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames'
 FINAL3_UI = 'gsim_final_20261113/sessions/s3b_ui2/browser/'
 FINAL4_F3 = 'gsim_final_20261113/sessions/s4f_simauto/media/cam_run3/frames'
+MEDIA = 'gsim_media_20261114/frames/'
+TOP_VIEW = ('tools/steer_sim/gsim_media.py frames %s (위에서 본 그림, matplotlib; 프레임마다 조건 띠와 상태 줄을 그린다) '
+            '<- %s. 참값 경로·조향각은 평가용 그림에만 쓴다')
 
 RECIPES = [
     dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png', source=W0 + 'straight_model_oblique.png',
@@ -142,6 +145,33 @@ RECIPES = [
          label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf7 · SIM 시계 · 10배속',
          made_by='같은 F run 3의 프레임, 출발 직전부터 열 끝 정지 뒤까지 0.5 s마다 한 장',
          caption='같은 run(사용자 로컬 명령, wf7, SIM 시계)의 차량 카메라를 480 폭 저화질 H.264로 줄인 것(약 99 s를 10배속)'),
+    dict(name='row_follow_wf10_top_10x', out='docs/assets/video/row_follow_wf10_top_10x.gif', op='gif', ext='png',
+         label=None, source=MEDIA + 'row_follow_wf10_top_10x', frames=(0, 110, 1), frame_s=0.1, width=480, colors=64,
+         made_by=TOP_VIEW % ('row_follow_wf10_top_10x', '최종 확인 7단계 A 등록 run nominal_3(이미지 wf10, SIM 시계, '
+                             'row_end, e +0.454 m)의 GSIM_FOLLOW_TRACE.json, 기록 처음(출발 1.2 s 전)부터 정지 3 s 뒤까지 '
+                             'SIM 1 s 마다 한 장'),
+         caption='이미지 wf10 으로 W1 과수원 통로 하나를 한 번 눌러 시작해 열 끝까지 달린 것을 위에서 본 그림(약 109 s 를 10배속, '
+                 '480 폭). 위는 열 전체, 아래는 차를 따라가는 10 m 창(가로세로 같은 비율)'),
+    dict(name='recover_side040_wf10_top_10x', out='docs/assets/video/recover_side040_wf10_top_10x.gif', op='gif',
+         ext='png', label=None, source=MEDIA + 'recover_side040_wf10_top_10x', frames=(0, 104, 1), frame_s=0.1, width=480,
+         colors=64,
+         made_by=TOP_VIEW % ('recover_side040_wf10_top_10x', '최종 확인 7단계 A 등록 run lateral_p040(이미지 wf10, SIM 시계, '
+                             '중심선 왼쪽 0.40 m 에 놓고 출발, row_end)의 GSIM_FOLLOW_TRACE.json, SIM 1 s 마다 한 장'),
+         caption='중심선에서 옆으로 0.40 m 떨어진 자리에서 출발해 중심선으로 돌아오는 차를 위에서 본 그림(이미지 wf10, 약 103 s 를 '
+                 '10배속). 외력을 건 것이 아니라 등록된 출발 어긋남이다'),
+    dict(name='row_end_stop_wf10_top_3x', out='docs/assets/video/row_end_stop_wf10_top_3x.gif', op='gif', ext='png',
+         label=None, source=MEDIA + 'row_end_stop_wf10_top_3x', frames=(0, 112, 1), frame_s=0.1, width=480, colors=64,
+         made_by=TOP_VIEW % ('row_end_stop_wf10_top_3x', '같은 run nominal_3, 열 끝 선 8 m 앞부터 정지 4 s 뒤까지 SIM 0.3 s '
+                             '마다 한 장'),
+         caption='열 끝에 다가가 서는 차를 가까이 위에서 본 그림(이미지 wf10, 약 33 s 를 3배속). 빨간 선이 마지막 줄기 선, 앞 범퍼가 '
+                 '그 선을 0.45 m 지나 섰다(등록 한도 ±1.0 m)'),
+    dict(name='gnss_dropout_fsim_top_10x', out='docs/assets/video/gnss_dropout_fsim_top_10x.gif', op='gif', ext='png',
+         label=None, source=MEDIA + 'gnss_dropout_fsim_top_10x', frames=(0, 69, 1), frame_s=0.1, width=480, colors=64,
+         made_by=TOP_VIEW % ('gnss_dropout_fsim_top_10x', '빠른 SIM(F-SIM) perception_compare --variants off gnss_log '
+                             '--only gnss_dropout_60s --gnss-seeds 0 의 run follow_gnss_dropout_60s_s0__gnss_log '
+                             '(TRACE.npz, EXECUTOR.jsonl), SIM 1 s 마다 한 장'),
+         caption='빠른 SIM(F-SIM, W0 평지 기둥 두 줄)에서 가상 GNSS 를 10~70 s 동안 끊은 run 을 위에서 본 그림(약 68 s 를 10배속). '
+                 'GNSS 층은 기본 꺼짐이고 이 run 은 기록만(log_only) 해서 조향 입력이 아니다. 차는 LiDAR·IMU 로 열 끝까지 갔다'),
 ]
 
 
@@ -199,12 +229,15 @@ def _frames(recipe, src: Path, tmp: Path, font_path: Path):
     from PIL import Image, ImageDraw, ImageFont
     first, stop, step = recipe['frames']
     indices = list(range(first, stop, step))
-    names = ['%06d.jpg' % i for i in indices]
+    names = ['%06d.%s' % (i, recipe.get('ext', 'jpg')) for i in indices]
     missing = [n for n in names if not (src / n).is_file()]
     if missing:
         raise SystemExit('missing frames in %s: %s ...' % (src, missing[:3]))
     digest = hashlib.sha256()
     font = ImageFont.truetype(str(font_path), 15)
+    label = recipe.get('label')              # one line (the band of 22 px), several lines, or None: frames with their own
+    texts = [] if label is None else [label] if isinstance(label, str) else list(label)    # conditions overlay
+    small = ImageFont.truetype(str(font_path), 13)
     lines = []
     size = None
     for k, name in enumerate(names):
@@ -217,8 +250,13 @@ def _frames(recipe, src: Path, tmp: Path, font_path: Path):
         image = image.resize((width, height), Image.LANCZOS)
         size = image.size
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, image.width, 22), fill=(20, 28, 36))
-        draw.text((6, 2), recipe['label'], font=font, fill=(255, 255, 255))
+        if len(texts) == 1:
+            draw.rectangle((0, 0, image.width, 22), fill=(20, 28, 36))
+            draw.text((6, 2), texts[0], font=font, fill=(255, 255, 255))
+        elif texts:
+            draw.rectangle((0, 0, image.width, 4 + 17 * len(texts)), fill=(20, 28, 36))
+            for row, text in enumerate(texts):
+                draw.text((6, 2 + 17 * row), text, font=small, fill=(255, 255, 255))
         frame = tmp / ('f%04d.png' % k)
         image.save(frame, format='PNG')
         lines.append("file '%s'\nduration %.4f\n" % (frame.as_posix(), recipe['frame_s']))
