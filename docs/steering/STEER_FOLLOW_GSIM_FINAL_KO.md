@@ -6,11 +6,12 @@
   펌웨어 빌드 `04353B49`. 대시보드 사본은 대시보드 저장소 `ui-20261112`의 `90094fd`(빌드 때의 끝). 그 뒤의 끝 `a92cfec`(조용한 PC
   측정 반영, mimetypes 수정 `a1331b6`)는 wf5 에 들어 있지 않다.
 - 기계가 읽는 결과: `STEER_FOLLOW_GSIM_FINAL.json`(run·항목별 값, 판정, 유효성, 기록 파일의 SHA-256). 3단계는 그 안의 `stage3`,
-  4단계는 `stage4`, 5단계는 `stage5`, 6단계는 `stage6`, 7단계는 `stage7`.
+  4단계는 `stage4`, 5단계는 `stage5`, 6단계는 `stage6`, 7단계는 `stage7`, 하지 않은 8단계의 확인 기록은 `stage8`.
 - **3단계(이미지 wf6, SIM 시계, 등록 `steer_follow_gsim_final3_v1`)는 12절, 4단계(이미지 wf7, SIM 시계, 등록
   `steer_follow_gsim_final4_v1`)는 13절, 5단계(이미지 wf8, SIM 시계, 등록 `steer_follow_gsim_final5_v1`)는 14절, 6단계(이미지
   wf9, SIM 시계, 등록 `steer_follow_gsim_final6_v1`)는 15절, 7단계(이미지 wf10, SIM 시계, 등록 `steer_follow_gsim_final7_v1`)는
-  16절이다.** 1~11절은 2단계(wf5) 기록 그대로 둔다.
+  16절이다.** 1~11절은 2단계(wf5) 기록 그대로 둔다. 8단계(전원 구성 '최고 성능'으로 7단계 등록을 다시 재기)는 이 PC 에 그 구성이
+  없어 **하지 않았다**(18절).
 - 실차 시계 모드(`wall`), 세션마다 새 스택, healthy 뒤 120 s 기다림. 모든 수치는 **자리값 기반 SIM 결과**다. 실차 성능이 아니다.
 
 ## 1. 상태
@@ -820,4 +821,26 @@ Windows 프로세스별 표본기(1 s, 기록 폴더 `scripts/host_proc_sampler.
 
 16.4 절의 등록 run `nominal_3`·`lateral_p040`의 참값 기록으로 위에서 본 영상(정상 주행, 옆 0.40 m 에서 출발해 복귀, 열 끝 정지)과
 횡오차·조향각 그래프를 만들었다. GNSS 끊김은 G-SIM 에 끊는 hook 이 없어 빠른 SIM 으로 만들었다. 목록·조건·다시 만드는 명령은
-[`GSIM_MEDIA_KO.md`](GSIM_MEDIA_KO.md). 새 판정이 아니고 16절의 판정(불합격)은 그대로다.
+[`GSIM_MEDIA_KO.md`](GSIM_MEDIA_KO.md). 새 판정이 아니고 16절의 판정(불합격)은 그대로다. 2026-11-14 사용자 승인 뒤 사용자 스택
+(`ubts-steer`, wf10, SIM 시계)에서 사용자 로컬 명령 그대로 한 열을 달린 매체용 run 하나로 wf10 차량 카메라 영상도 만들었다(`ROW_END`
+33.5 m, 판정 아님, `GSIM_MEDIA_KO.md` 7절).
+
+## 18. 8단계: 전원 구성 '최고 성능'으로 다시 재기 — 하지 않음
+
+- 계획(2026-11-14 16시 사용자 승인): 16.8 절 제안 1 의 첫 갈래. Windows 전원 구성을 `powercfg /setactive SCHEME_MIN`(최고 성능)으로
+  바꾼 채 7단계 등록(`steer_follow_gsim_final7_v1`)의 기준·run 구성·무효 규칙·호스트 고장 규칙을 그대로 써서 다시 재고, 끝나면 원래
+  구성으로 되돌린다. 바꾸는 것은 전원 구성 하나뿐이다.
+- 측정 전 확인(2026-11-14 16:08 KST, 읽기만):
+  - `powercfg /getactivescheme`: `381b4222-f694-41f0-9685-ff5bb260df2e`(균형 조정).
+  - `powercfg /list`: 균형 조정 하나뿐. 최고 성능(`SCHEME_MIN` = `8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c`)이 목록에 없다.
+  - `powercfg /a`: 이 PC 는 대기 모드 S0 저 전원 유휴(Modern Standby)를 쓴다. 이런 PC 에서 Windows 는 전원 구성으로 균형 조정만 보인다.
+  - Windows 11 전원 모드(전원 구성 위에 얹는 덮어쓰기, 16:15 KST, 읽기만): `powrprof.dll` 의 `PowerGetEffectiveOverlayScheme` 와
+    `PowerGetActualOverlayScheme` 가 모두 `ded574b5-45a0-4f42-8737-46345c09c238`(최고 성능)을 돌려줬다. 전원 연결(AC) 상태. 곧 전원
+    모드는 **이미 최고 성능**이라 올릴 전원 설정이 남아 있지 않다. 7단계 측정 때(05:05~06:05 KST)의 전원 모드는 읽지 않아 기록이 없다.
+- 그래서 하지 않았다. 전원 구성을 새로 만들거나(숨은 구성 복제) 가져오지 않았고 `powercfg /setactive` 도 부르지 않았다. 전원 구성은
+  균형 조정 그대로다(`powercfg /getactivescheme` 를 16:08, 16:11 KST 에 읽음, 기록 폴더
+  `runs/gsim_stage8_20261114/logs/powercfg_check.txt`).
+  잴 것이 없어 사전등록 8 은 만들지 않았다. 등록 run 은 0 번이고, **7단계 판정(16.1, 불합격)은 그대로다.**
+- 남은 길: 전원 쪽은 더 올릴 것이 없다(전원 모드가 이미 최고 성능). 호스트 쪽은 WSL VM 스레드가 E 코어에 몰리지 않게 하는 것(16.8 절
+  1, 사용자 결정, 이번 승인 밖), SIM 쪽은 모의 MCU 를 Gazebo 걸음에 묶는 재설계(16.8 절 3, 제안만)다. 어느 쪽이든 측정 전에 '7단계 등록
+  그대로, 바꾼 것은 이것 하나'라는 사전등록을 먼저 커밋한다. 이 확인 뒤에도 어떤 전원 설정도 바꾸지 않았다.

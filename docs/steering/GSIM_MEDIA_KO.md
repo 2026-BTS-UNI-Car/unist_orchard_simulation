@@ -18,6 +18,7 @@
 | (d) 열 끝 정지(가까이) | `assets/video/row_end_stop_wf10_top_3x.gif` | 165,840 B · 11.2 s | (a)와 같은 run `nominal_3` | (a)와 같음, 열 끝 선 8 m 앞부터 정지 4 s 뒤까지 3배속 |
 | 그래프 1 | `figures/steer_follow_gsim/gsim_fig03_lateral_steer_wf10.png` | 152,498 B | `nominal_3`, `lateral_p040` | 횡오차·조향 등가각 대 열 위치 |
 | 그래프 2 | `figures/steer_follow_gsim/gsim_fig04_gnss_dropout_fsim.png` | 175,549 B | F-SIM `..._off`, `..._gnss_log` | 횡오차·조향 등가각·GNSS fix 대 열 위치 |
+| (e) 차량 카메라, 열 끝까지 | `assets/video/row_follow_wf10_user_camera_10x.gif` | 2,679,942 B · 12.0 s(480×270, 초당 5장) | 사용자 스택 매체용 run(판정 아님, 2026-11-14, `ROW_END` 33.5 m) | Gazebo 이미지 wf10, W1(`w1_force`), SIM 시계, 사용자 로컬 명령 `sim_auto.py start` |
 
 (a)·(b)·(d)의 기록은 `STEER_FOLLOW_GSIM_FINAL_KO.md` 16.4 절의 등록 run 그대로다(새로 돌리지 않았다). 그 run 들에는 카메라
 프레임이 없어서, 위 GIF 는 기록된 참값 자세(약 8 Hz)를 SIM 1 s(10배속)·0.3 s(3배속) 간격으로 보간해 위에서 그린 것이다. 차 외곽은
@@ -77,14 +78,29 @@
 [SIM · 자리값] 그래프 1. 위 영상과 같은 두 기록(`nominal_3`, `lateral_p040`)의 횡오차와 조향 등가각(참값), 주행 구간. 빨간 점선은
 횡 최대 한도 ±0.50 m, 주황 점선은 p95 한도 0.35 m 다(등록 `steer_follow_gsim_v1`; `lateral_p040` 의 RMSE·p95 는 6 m 뒤부터).
 
-## 7. 차량 카메라 영상
+## 7. (e) 차량 카메라 영상 — wf10, 사용자 로컬 명령 그대로
 
-wf10 의 차량 카메라 영상은 **만들지 못했다.** 위 기록(7단계 등록 run)에는 카메라 프레임이 없다. 사용자 스택(`ubts-steer`, wf10,
-SIM 시계)에서 사용자 명령 그대로 한 열을 달리며 카메라를 갈무리하는 매체용 run(판정 아님)을 준비했지만, 이 PC 의 실행 권한 확인이
-돌고 있는 사용자 스택의 차를 움직이는 명령(`sim_auto.py reset`, `start`)을 막아 실행하지 않았다. 사용자 스택은 건드리지 않았다.
+![wf10 사용자 명령 run 의 차량 카메라](../assets/video/row_follow_wf10_user_camera_10x.gif)
 
-지금 있는 차량 카메라 영상은 앞 이미지의 것이다: wf7 사용자 명령 run([README 첫 화면](../assets/video/row_follow_wf7_user_10x.gif),
-`STEER_FOLLOW_GSIM_FINAL_KO.md` 13.5 절), wf6 의 열 끝 정지(`STEER_FOLLOW_GSIM_FINAL_KO.md` 12절). wf10 카메라 영상은 남은 일이다.
+[SIM · 자리값] 사용자 SIM 스택(`ubts-steer`, 이미지 wf10, SIM 시계, 장면 `w1_force`)에서 사용자 로컬 명령 그대로(`sim_auto.py reset`
+→ `sim_auto.py start` → `sim_auto.py reset`) W1 통로 하나를 열 끝까지 달린 **매체용 run 하나**다(판정 아님, 2026-11-14 16:26~16:29 KST,
+같은 날 사용자 승인). 출발 직전부터 열 끝 정지 뒤 약 4 s 까지 약 118 s 를 10배속(약 2 s 마다 한 장, 초당 5장, 480×270). 차량 카메라
+(`capture_media.py camera`, 170 s 동안 5,005 장, 29.44 fps)를 갈무리하는 동안 스택은 내리거나 바꾸지 않았고 18090 화면 세션도 건드리지
+않았다. 같은 날 앞선 시도(이 PC 의 실행 권한 확인이 차를 움직이는 명령을 막아 실행 0)의 기록은 `runs/gsim_media_20261114/` 에
+그대로 있다.
+
+- 잰 것(실행기 사건 기록): `go` 에서 `run_end` 까지 SIM 112.6 s, 벽시계 120.6 s(평균 RTF 약 0.93), 끝 이유 `row_end`(`ROW_END`), 거리
+  33.457 m, 일시정지 0, stale 사건 0, `stall_guard` 0, 정지 확인 0.05 s. sim_auto 의 1 s 상태 줄(실행기 추정값, 참값 아님) 116 줄에서
+  횡 −4~+6 cm, 방향 −1.6~+1.5°, 마지막 약 11 s 는 열 끝 속도 상한 0.20 m/s.
+- 호스트(이 run 의 `go`~`run_end`, Windows 프로세스 표본기 1 s, 121 표본; 카메라 갈무리 부하가 들어 있다): 전체 CPU 평균 49.5 %, 최대
+  80.8 %; E 코어(효율 등급 0) 평균 53.2 %, 최대 80.2 %, 5 s 평균 최대 79.9 %, 78 % 이상 표본 31 개; P 코어 평균 46.5 %. 전원 구성
+  균형 조정, Windows 11 전원 모드 최고 성능(바꾸지 않음). E 코어가 찬 구간을 지나고도 이 run 은 멈추지 않았지만 run 하나라
+  `STEER_FOLLOW_GSIM_FINAL_KO.md` 16절의 판정(불합격)을 바꾸지 않는다.
+- 없는 것: 사용자 스택이 11 시간 넘게 돌아 실행기 기록이 프로세스당 총량 한도에 닿았다. 그 뒤로는 틱 줄을 쓰지 않고 사건만 쓰므로
+  (`JsonlLog`, `max_total_mb`) 이 run 의 틱(스캔 처리 시간, 조향 명령)은 기록에 없다. 참값 경로도 받지 않았다.
+
+다른 차량 카메라 영상: wf7 사용자 명령 run([README 첫 화면](../assets/video/row_follow_wf7_user_10x.gif),
+`STEER_FOLLOW_GSIM_FINAL_KO.md` 13.5 절), wf6 의 열 끝 정지(`STEER_FOLLOW_GSIM_FINAL_KO.md` 12절).
 
 ## 8. 다시 만드는 법
 
@@ -102,9 +118,18 @@ python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf
     row_end_stop_wf10_top_3x gnss_dropout_fsim_top_10x
 ```
 
-wf10 카메라 영상을 만들 때(아직 하지 않음): 돌고 있는 스택에서 `python -I tools/steer_sim/capture_media.py camera --project <p>
---seconds 170 --out <runs>/<기록>/media/cam` 을 켜 둔 채 한 열을 달리고(사용자 스택이면 `sim_auto.py start`, 끝나면 `sim_auto.py
-reset`), `make_assets.py` 에 카메라 프레임 recipe(여러 줄 `label` 에 위 조건)를 더한다. 사용자 스택을 움직이려면 사용자 승인이 먼저다.
+(e) 차량 카메라 영상(사용자 스택이 떠 있을 때, 사용자 승인 뒤; 기록 폴더의 `runs/gsim_stage8_20261114/scripts/cam_run.sh` 가 아래를
+차례로 한다). `<local_env>` 는 저장소 밖 로컬 도구 폴더(`sim_auto.py`)다.
+
+```
+(cd <local_env> && python -B sim_auto.py status)   # ended·latched·idle 일 때만 다음으로
+(cd <local_env> && python -B sim_auto.py reset)    # 출발점으로
+python -I tools/steer_sim/capture_media.py camera --project ubts-steer --seconds 170 \
+    --out <runs>/gsim_stage8_20261114/sessions/cam_run_1/media/cam &    # 갈무리를 켜 둔 채
+(cd <local_env> && python -B sim_auto.py start)    # 한 번 눌러 시작, 열 끝에서 스스로 끝남
+(cd <local_env> && python -B sim_auto.py reset)
+python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf10_user_camera_10x
+```
 
 ## 9. 이 매체가 보이지 않는 것
 
@@ -114,3 +139,4 @@ reset`), `make_assets.py` 에 카메라 프레임 recipe(여러 줄 `label` 에 
 - (c)는 Gazebo 가 아니다. GNSS 가 조향 입력이 아니므로 끊겨도 주행이 같다는 것을 보일 뿐, GNSS 층의 품질을 판정하지 않는다.
 - 7단계 최종 확인의 판정(열 추종 3/4, 사용자 명령 0/3 등, `STEER_FOLLOW_GSIM_FINAL_KO.md` 16절)은 그대로 불합격이다. 이 매체는
   통과한 run 을 골라 보인 것이다.
+- (e)는 판정 run 이 아니다. 사용자 명령 run 하나가 열 끝까지 간 것을 보일 뿐, 7단계 F(사용자 명령 0/3)를 다시 잰 것이 아니다.

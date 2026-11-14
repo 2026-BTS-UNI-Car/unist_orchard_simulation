@@ -6394,5 +6394,46 @@
     "bytes": 1042
    }
   ]
+ },
+ "stage8": {
+  "status": "not_run",
+  "result_kind": "자리값 기반 SIM 결과",
+  "plan": {
+   "change": "Windows power plan High performance (powercfg /setactive SCHEME_MIN) during the stage 7 registration steer_follow_gsim_final7_v1, everything else unchanged, then restore the original plan",
+   "approved": "user decision 2026-11-14 16:00 KST (proposal 1 of section 16.8)"
+  },
+  "host_check": {
+   "times_kst": [
+    "2026-11-14T16:08:29+09:00",
+    "2026-11-14T16:11+09:00"
+   ],
+   "active_scheme_guid": "381b4222-f694-41f0-9685-ff5bb260df2e",
+   "active_scheme_name": "Balanced",
+   "listed_scheme_guids": [
+    "381b4222-f694-41f0-9685-ff5bb260df2e"
+   ],
+   "scheme_min_guid": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+   "scheme_min_listed": false,
+   "standby": "S0 low power idle (Modern Standby)",
+   "power_mode_overlay": {
+    "time_kst": "2026-11-14T16:15:25+09:00",
+    "source": "powrprof.dll PowerGetEffectiveOverlayScheme / PowerGetActualOverlayScheme",
+    "effective_guid": "ded574b5-45a0-4f42-8737-46345c09c238",
+    "actual_guid": "ded574b5-45a0-4f42-8737-46345c09c238",
+    "name": "Best performance",
+    "power_line": "AC",
+    "stage7_overlay": "not recorded"
+   }
+  },
+  "actions": {
+   "setactive_called": false,
+   "scheme_created_or_imported": false,
+   "power_plan_changed": false,
+   "prereg_committed": false,
+   "registered_runs": 0
+  },
+  "stage7_verdicts_unchanged": true,
+  "record": "runs/gsim_stage8_20261114/logs/powercfg_check.txt (record folder, outside the repository)",
+  "no_power_setting_left_to_raise": true
  }
 }

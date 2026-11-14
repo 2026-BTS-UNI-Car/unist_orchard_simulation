@@ -749,6 +749,37 @@
      "note": "GIF 프레임을 열어 봄(각 3장: 처음·가운데·끝): 위에서 본 SIM 장면(줄기·기둥·차 외곽·참값 경로)과 조건 띠·상태 줄뿐. 사용자 이름·주소·좌표(GNSS)·토큰·사람 없음. 숫자는 SIM 국소 미터"
     }
    }
+  },
+  {
+   "path": "docs/assets/video/row_follow_wf10_user_camera_10x.gif",
+   "kind": "animation",
+   "bytes": 2679942,
+   "sha256": "0bbe80c6983a6130a51bb5d67e57e9a7c4c35ff5dd8a7456a7a18f67235979f4",
+   "width": 480,
+   "height": 270,
+   "tag": "[SIM · 자리값]",
+   "caption": "사용자 로컬 명령 그대로(sim_auto.py start), 이미지 wf10, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 118 s를 10배속, 480×270, 초당 5장). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 열 끝에서 섰다",
+   "origin": {
+    "source": "<runs>/gsim_stage8_20261114/sessions/cam_run_1/media/cam/frames",
+    "made_by": "사용자 SIM 스택(ubts-steer, 이미지 wf10, SIM 시계, 장면 w1_force)에서 사용자 로컬 명령 그대로(sim_auto.py reset, start, reset) 한 열을 달린 매체용 run(판정 아님, 2026-11-14, ROW_END 33.5 m)을 tools/steer_sim/capture_media.py camera로 받은 프레임(29.44 fps). 출발 직전부터 열 끝 정지 뒤 약 4 s까지 약 2 s마다 한 장, 초당 5장으로 재생",
+    "command": "python -B tools/steer_sim/make_assets.py --runs-root <runs> --only row_follow_wf10_user_camera_10x",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "59장 (180..3720, 60장마다)",
+    "frames_sha256": "dbee29b424c9335e2b672c6c98f529e48b612a0d3c4ce9bc9e5d33bc37321476",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-14",
+     "sha256": "0bbe80c6983a6130a51bb5d67e57e9a7c4c35ff5dd8a7456a7a18f67235979f4",
+     "note": "60장 중 0,1,15,30,45,56,58,59 번을 직접 봄: Gazebo 과수원 통로와 열 끝 공터, 차체 앞 파란 띠, 위 조건 띠 한 줄. 사람 이름·주소·좌표·토큰·사람 없음"
+    }
+   }
   }
  ]
 }
