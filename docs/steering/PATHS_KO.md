@@ -32,8 +32,8 @@
 {
  "schema": "ubts.steer_sim.paths.v1",
  "note": "자유 설명",
- "maps_1010_root": {"nt": "D:/Develop/UBTS/maps-1010-20261022", "posix": "/mnt/d/Develop/UBTS/maps-1010-20261022"},
- "corridor_catalogue": "D:/Develop/UBTS/single-row-20261102/corridors/CATALOGUE.json",
+ "maps_1010_root": {"nt": "D:/Develop/UBTS/data/maps/maps-1010-20261022", "posix": "/mnt/d/Develop/UBTS/data/maps/maps-1010-20261022"},
+ "corridor_catalogue": "D:/Develop/UBTS/data/prereg/single-row-20261102/corridors/CATALOGUE.json",
  "rows_root": "data/rows"
 }
 ```
@@ -46,10 +46,10 @@
 ## 4. 이 PC의 설정
 
 - 파일: `D:/Develop/UBTS/steering-sim-20261108/config/paths.json` (저장소 밖).
-- 값: 정리 전 코드가 쓰던 경로 그대로다. `nt`는 Windows 경로(`D:/...`), `posix`는 WSL 경로(`/mnt/d/...`)다.
-  - `maps_1010_root`: `D:/Develop/UBTS/maps-1010-20261022`
-  - `corridor_catalogue`: `D:/Develop/UBTS/single-row-20261102/corridors/CATALOGUE.json`
-  - `rows_root`: `D:/Develop/UBTS/maps-1010-20261022/quality/rows`
+- 값: 2026-11-14에 현장 자료를 작업 폴더의 `data/` 아래(`recordings/`, `maps/`, `prereg/`)로 옮기고 이 파일과 실행기·구동 응답 설정의 경로만 고쳤다(폴더 이름과 안의 파일은 그대로). `nt`는 Windows 경로(`D:/...`), `posix`는 WSL 경로(`/mnt/d/...`)다. 코드와 문서의 주석에 남은 옛 폴더 이름(`maps-1010-20261022/...`, `single-row-20261102/...`, `orchard-realdata-audit/...`)은 출처를 가리키는 이름이고 위치는 이 설정이 정한다.
+  - `maps_1010_root`: `D:/Develop/UBTS/data/maps/maps-1010-20261022`
+  - `corridor_catalogue`: `D:/Develop/UBTS/data/prereg/single-row-20261102/corridors/CATALOGUE.json`
+  - `rows_root`: `D:/Develop/UBTS/data/maps/maps-1010-20261022/quality/rows`
   - `hold_dir`: `D:/Develop/UBTS`
   - `baseline_546fa8c_traces`: `D:/Develop/UBTS/steering-sim-20261108/baseline_546fa8c/traces`
 - 켜는 방법:
