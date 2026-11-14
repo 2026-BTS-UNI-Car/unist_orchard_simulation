@@ -146,8 +146,10 @@ terminal decisions never lost, corridor lost, geometry guard, N9 no-response bud
                 pivot); steer_measured_mrad / steer_status_age_s / steer_command_mrad are added.
   refused       bench runs and calibration runs (left / right duty tables).
 
-Actuator priors (config prior_enabled, design v2 V2-1 item 2, docs/steering/ACTUATOR_PRIOR_KO.md; front_steer only,
-default OFF and then nothing below runs): every steering status fed to the Runner also gives the estimator the APPLIED
+Actuator priors (config prior_enabled, design v2 V2-1 item 2, docs/steering/ACTUATOR_PRIOR_KO.md; front_steer only;
+prior_active: on by default for front_steer with weight 0 = record and online-scale monitor (PW-10) only, the same
+decisions; off for the differential profile and with prior_enabled false, and then nothing below runs): every steering
+status fed to the Runner also gives the estimator the APPLIED
 drive duty (steering_host drive_l / drive_r, -255..255 -> percent) and the calibrated measured steering angle, stamped
 at the status line (receipt - age_ms). The vendored estimator records and monitors them (weight 0) or also seeds its scan
 match and predicts across a failed match / a scan gap (prior_weight > 0), bounded by prior_predict_max_s / _max_m.
@@ -180,7 +182,7 @@ import numpy as np
 
 from . import calib_runs as CR
 from . import perception_settings as PS
-from .config import FRONT_STEER, SINGLE_ROW_MODE, single_row_time_cap_speed, steer_fault_reason
+from .config import FRONT_STEER, SINGLE_ROW_MODE, prior_active, single_row_time_cap_speed, steer_fault_reason
 from .guard import Backstop, MotionOdometer, OutputGuard, SteerOutputGuard, sensor_reports_motion
 
 VENDOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vendor')
@@ -1179,7 +1181,7 @@ class Runner:
         if self.steer_monitor is None:
             return False
         ok = self.steer_monitor.feed(t, block, host)
-        if ok and self.config.prior_enabled and self._run_open():
+        if ok and prior_active(self.config) and self._run_open():
             self._feed_actuator(t)
         if ok and self._held_steer is None:
             measured = self.steer_monitor.measured_mrad()
@@ -1190,7 +1192,7 @@ class Runner:
         return ok
 
     def _feed_actuator(self, t):
-        """prior_enabled: the steering status just fed -> the estimator's actuator input (module docstring). The applied
+        """prior_active: the steering status just fed -> the estimator's actuator input (module docstring). The applied
         drive duty is the MCU's own report (steering_host drive_l / drive_r, signed -255..255), never the request; the
         steering angle is the calibrated measurement (None when the status is not calibrated or has no finite angle).
         A status without drive values, with an unknown age or flagged stale by the host is not fed (counted)."""
@@ -1208,7 +1210,7 @@ class Runner:
 
     @staticmethod
     def _prior_limit(s):
-        """True when the estimator reports the actuator prior bound (no block while prior_enabled is off)."""
+        """True when the estimator reports the actuator prior bound (no block while the prior is not active)."""
         block = s.get('actuator_prior')
         return block is not None and block.get('limit') is True
 

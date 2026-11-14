@@ -106,10 +106,26 @@ class ConfigBlockTest(unittest.TestCase):
 
     def test_rules(self):
         self.assertEqual(problems(**PRIOR), [])
-        self.assertTrue(any('prior_weight' in p and 'prior_enabled' in p for p in problems(prior_weight=.5)))
+        self.assertTrue(any('prior_weight' in p and 'prior_enabled' in p
+                            for p in problems(prior_weight=.5, prior_enabled=False)))
+        self.assertEqual(problems(prior_weight=.5), [])          # PW-10: front_steer default = the prior is active
         differential = dict(vehicle_profile='differential', steer_allow_sim=False, steer_cal_id=None,
                             socket_path='/run/ubts-rover/control.sock')
         self.assertTrue(any('front_steer' in p for p in problems(prior_enabled=True, **differential)))
+        self.assertEqual([p for p in problems(**differential) if 'prior' in p], [])   # None, differential: off
+        self.assertTrue(any('prior_weight' in p for p in problems(prior_weight=.5, **differential)))
+
+    def test_profile_default_of_the_prior(self):
+        """PW-10: prior_enabled None (the default) = on for front_steer (weight 0: record and online-scale monitor),
+        off for the differential profile; true / false are explicit. The untouched block keeps the digests."""
+        self.assertIsNone(ExecutorConfig().prior_enabled)
+        self.assertFalse(C.prior_active(ExecutorConfig()))                       # the differential default
+        self.assertTrue(C.prior_active(motor_config()))
+        self.assertFalse(C.prior_active(motor_config(prior_enabled=False)))
+        self.assertEqual(motor_config().actuator_prior_settings()['weight'], 0.)
+        self.assertIsNone(motor_config(prior_enabled=False).actuator_prior_settings())
+        self.assertIsNone(ExecutorConfig().actuator_prior_settings())
+        self.assertEqual(motor_config(prior_enabled=False).to_dict()['prior_enabled'], False)
         for bad in (dict(prior_weight=1.5), dict(prior_speed_scale=1.4), dict(prior_speed_scale=.4),
                     dict(prior_wheelbase_m=0.), dict(prior_predict_max_s=5.), dict(prior_predict_max_m=0.),
                     dict(prior_mismatch_fraction=1.), dict(prior_enabled=1), dict(corridor_quality='yes'),
@@ -128,8 +144,21 @@ class RunnerPriorTest(unittest.TestCase):
         self.assertTrue(module.__name__.endswith('vendor.closed_loop_copy.actuator_prior'))
         self.assertIn(core.VENDOR_SOURCES['actuator_prior'], {e['source_path'] for e in core.vendor_manifest()['files']})
 
-    def test_default_runner_feeds_nothing(self):
+    def test_default_front_steer_runner_monitors_with_weight_zero(self):
+        """PW-10: the default front_steer Runner feeds the applied duty to a weight-0 prior (record and online-scale
+        monitor only; test_weight_zero_gives_the_same_decisions shows the decisions do not change)."""
         d = Drive(motor_config())
+        out = d.run(3.)
+        prior = d.runner.estimator_config.actuator_prior
+        self.assertIsNotNone(prior)
+        self.assertEqual(prior.weight, 0.)
+        self.assertGreater(d.runner.estimator.prior.accepted, 0)
+        block = out[-1][1].summary['actuator_prior']
+        self.assertEqual((block['weight'], block['limit'], block['predicting']), (0., False, False))
+        self.assertIn('online_scale_hold', block)
+
+    def test_prior_off_runner_feeds_nothing(self):
+        d = Drive(motor_config(prior_enabled=False))
         out = d.run(3.)
         self.assertIsNone(d.runner.estimator_config.actuator_prior)
         self.assertFalse(d.runner.estimator_config.corridor_quality)

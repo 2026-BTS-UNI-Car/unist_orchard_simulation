@@ -390,7 +390,10 @@ class SteerRunnerTest(unittest.TestCase):
         # snapshots stay the same
         estimator_module, _ = core.load_vendor()
         cfg = steer_config()
-        base = estimator_module.EstimatorConfig(**cfg.estimator_overrides())
+        overrides = cfg.estimator_overrides()
+        if cfg.actuator_prior_settings() is not None:          # PW-10: the front_steer default weight-0 monitor
+            overrides['actuator_prior'] = estimator_module.ActuatorPriorConfig(**cfg.actuator_prior_settings())
+        base = estimator_module.EstimatorConfig(**overrides)
         other = replace(base, pivot_icr_behind_lidar_m=base.pivot_icr_behind_lidar_m + .5,
                         pivot_icr_uncertainty_m=base.pivot_icr_uncertainty_m + .4)
         a, b = StubSteer(), StubSteer()

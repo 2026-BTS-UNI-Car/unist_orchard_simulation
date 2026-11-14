@@ -94,7 +94,8 @@ MAX_REPRESSES = 20
 OWNER = 'row-executor:sim'
 SIM_SOCKET = '/run/ubts-steer/control.sock'   # the SIM control socket (T1 talks to the rig, the path binds the role)
 STATE_CODES = {XCORE.IDLE: 0, XCORE.PAUSED: 1, XCORE.ACTIVE: 2, XCORE.ENDED: 3}
-# Estimator columns, written only when the executor config has prior_enabled (the default trace is unchanged): the
+# Estimator columns, written only when the executor config has an explicit prior_enabled true (the default trace is
+# unchanged; the front_steer default weight-0 monitor of PW-10, prior_enabled None, adds no column): the
 # estimator's latency-compensated base pose in its own odometry frame, the time it has run on the actuator prior since
 # the last scan-matched pose and the scan-match flag (evaluation of the prediction; never fed back).
 EST_COLUMNS = ('ctrl_est_x_m', 'ctrl_est_y_m', 'ctrl_est_yaw_rad', 'ctrl_est_predict_s', 'ctrl_est_odom_valid')
