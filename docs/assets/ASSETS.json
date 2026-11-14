@@ -237,12 +237,12 @@
   {
    "path": "docs/assets/sensors/camera_row_follow.jpg",
    "kind": "image",
-   "bytes": 57737,
-   "sha256": "6ed71b65eb18783de0d449efbcb4424b17faefe37557f0648c6da41befc5bb1b",
+   "bytes": 57363,
+   "sha256": "0890574dee0fc0e65abfff48aea70458142fa1b0d9d66b5bf89ab129860fce7b",
    "width": 640,
-   "height": 360,
+   "height": 302,
    "tag": "[SIM · 자리값]",
-   "caption": "통로 안에서 받은 차량 카메라 한 장(640×360, Gazebo 렌더). 카메라는 표시·기록용이고 위치 추정에 쓰지 않는다",
+   "caption": "통로 안에서 받은 차량 카메라 한 장(640×360 Gazebo 렌더에서 아래 차체 띠 58줄을 잘라 640×302). 카메라는 표시·기록용이고 위치 추정에 쓰지 않는다",
    "origin": {
     "source": "<runs>/gsim_final_20261113/media/rover_camera_row_follow.png",
     "made_by": "tools/steer_sim/capture_media.py camera → still (G-SIM 스택, 장면 w1_force, 이미지 wf4c, 세션 media_w1b, 2026-11-13)",
@@ -257,9 +257,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "6ed71b65eb18783de0d449efbcb4424b17faefe37557f0648c6da41befc5bb1b",
-     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "0890574dee0fc0e65abfff48aea70458142fa1b0d9d66b5bf89ab129860fce7b",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
@@ -324,10 +324,10 @@
   {
    "path": "docs/assets/video/row_follow_camera_10x.gif",
    "kind": "animation",
-   "bytes": 4391718,
-   "sha256": "c8efb7ba7b784ff7bc785ff244284642bceb017ff6ce935ddee519498691444e",
+   "bytes": 4480501,
+   "sha256": "979f43b32c944e271c83c755bc20e5b0d72933a3507a30f4252e45b93bbb7943",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "열 추종 제어기가 G-SIM 과수원(W1) 통로 하나를 처음부터 열 끝까지 달리는 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기 컨테이너가 /scan과 raw IMU만 보고 조향과 구동을 정한다",
    "origin": {
@@ -346,19 +346,19 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "c8efb7ba7b784ff7bc785ff244284642bceb017ff6ce935ddee519498691444e",
-     "note": "파일을 열어 봄(GIF는 0·30·60·98번째 프레임): Gazebo 렌더·SIM 그림뿐. 사람, 사용자 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "979f43b32c944e271c83c755bc20e5b0d72933a3507a30f4252e45b93bbb7943",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
   {
    "path": "docs/assets/video/row_follow_wf5_camera_10x.mp4",
    "kind": "video",
-   "bytes": 492181,
-   "sha256": "7526d9f4228ae84dc09fd9a8312f8ca7ee0b9c643aa2081d942d3e7656b5ff11",
+   "bytes": 503342,
+   "sha256": "c29e13fd7b9d21ea86c9685fa0bbabb42ece0de6d609ec38414e78c36555828b",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "최종 이미지 wf5로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 104 s를 10배속, 480 폭, 저화질 H.264). 실행기가 한 번 눌러 시작으로 출발했다",
    "origin": {
@@ -377,19 +377,19 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "7526d9f4228ae84dc09fd9a8312f8ca7ee0b9c643aa2081d942d3e7656b5ff11",
-     "note": "mp4 처음·가운데·끝 프레임, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "c29e13fd7b9d21ea86c9685fa0bbabb42ece0de6d609ec38414e78c36555828b",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
   {
    "path": "docs/assets/video/row_end_stop_wf5_3x.gif",
    "kind": "animation",
-   "bytes": 1326108,
-   "sha256": "a11e36fbeb9610a1d94c61e059b54a754efd6ca3b6c979e4ecb9ea65ee371175",
+   "bytes": 1342084,
+   "sha256": "f4319a54186f726837c3b4d8933bed83cf398e535fb50a37e1867bf33ec1a7d8",
    "width": 360,
-   "height": 202,
+   "height": 170,
    "tag": "[SIM · 자리값]",
    "caption": "열 끝에 다가가 서는 차량 카메라 화면(약 29 s를 3배속, 360 폭). 마지막 줄기를 지나 열 끝에서 섰다(e +0.429 m)",
    "origin": {
@@ -408,9 +408,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "a11e36fbeb9610a1d94c61e059b54a754efd6ca3b6c979e4ecb9ea65ee371175",
-     "note": "mp4 처음·가운데·끝 프레임, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "f4319a54186f726837c3b4d8933bed83cf398e535fb50a37e1867bf33ec1a7d8",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
@@ -475,10 +475,10 @@
   {
    "path": "docs/assets/video/row_follow_wf6_camera_10x.mp4",
    "kind": "video",
-   "bytes": 536944,
-   "sha256": "4a636a320821f0d13c65bda054c62e8f8a8d855f48870a8b753863d0ce9ad469",
+   "bytes": 551804,
+   "sha256": "07e5e0039d503a848e8af971992c98b6d53330c80610c26665dfac2101f0d044",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "이미지 wf6, SIM 시계 모드로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 119 s를 10배속, 480 폭, 저화질 H.264)",
    "origin": {
@@ -497,19 +497,19 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "4a636a320821f0d13c65bda054c62e8f8a8d855f48870a8b753863d0ce9ad469",
-     "note": "mp4 처음·가운데·끝, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "07e5e0039d503a848e8af971992c98b6d53330c80610c26665dfac2101f0d044",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
   {
    "path": "docs/assets/video/row_end_stop_wf6_3x.gif",
    "kind": "animation",
-   "bytes": 1467148,
-   "sha256": "dc3c51b555a5874f72d369ac334fa300f7ff4a58746729f5e4770fa3571e9eca",
+   "bytes": 1474764,
+   "sha256": "df80d5c6dc689487bb8def44de983d964dc7b9f024c2ad6562757c7a50d4fffe",
    "width": 360,
-   "height": 202,
+   "height": 170,
    "tag": "[SIM · 자리값]",
    "caption": "열 끝에 다가가 서는 차량 카메라 화면(wf6, 약 30 s를 3배속, 360 폭). 마지막 줄기를 지나 열 끝에서 섰다(e +0.433 m)",
    "origin": {
@@ -528,9 +528,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-13",
-     "sha256": "dc3c51b555a5874f72d369ac334fa300f7ff4a58746729f5e4770fa3571e9eca",
-     "note": "mp4 처음·가운데·끝, GIF 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 한국어 띠만 있음. 사람, 이름, 주소, 도메인, 토큰, GNSS 좌표, 실제 밭 지도 없음"
+     "date": "2026-11-15",
+     "sha256": "df80d5c6dc689487bb8def44de983d964dc7b9f024c2ad6562757c7a50d4fffe",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
@@ -566,10 +566,10 @@
   {
    "path": "docs/assets/video/row_follow_wf7_user_10x.gif",
    "kind": "animation",
-   "bytes": 4415757,
-   "sha256": "79aaaa628e82262cbfa4fc7ea2a9044317d57cc7b9da1c2ee3cf12137174d968",
+   "bytes": 4454185,
+   "sha256": "6a8e489bd67cefa1d9b012c491730e2b0b7583149f1e39fbf7ddffdb4b3c2e2e",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "사용자 로컬 명령 그대로(sim_stack.py start, sim_auto.py start), 이미지 wf7, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 99 s를 10배속, 480 폭). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 열 끝에서 섰다",
    "origin": {
@@ -588,9 +588,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-14",
-     "sha256": "79aaaa628e82262cbfa4fc7ea2a9044317d57cc7b9da1c2ee3cf12137174d968",
-     "note": "GIF 처음·1/4·가운데·3/4·끝 프레임과 mp4 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 위 띠의 조건 표시뿐, 사람·사용자 이름·주소·도메인·토큰·GNSS 좌표·실제 밭 지도 없음. 열 끝에서 섬(reset 앞에서 끊김)"
+     "date": "2026-11-15",
+     "sha256": "6a8e489bd67cefa1d9b012c491730e2b0b7583149f1e39fbf7ddffdb4b3c2e2e",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    },
    "role": "readme_hero"
@@ -598,10 +598,10 @@
   {
    "path": "docs/assets/video/row_follow_wf7_user_camera_10x.mp4",
    "kind": "video",
-   "bytes": 489551,
-   "sha256": "2931449b07eb56952dbd2a90828a7c83fb10334c18e06d3211a77e34f9c8f740",
+   "bytes": 500736,
+   "sha256": "3669e87c766d1d4209411d3bffca3cb2c4a7c6630c7b36a83aa49b4ad5e3119f",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "같은 run(사용자 로컬 명령, wf7, SIM 시계)의 차량 카메라를 480 폭 저화질 H.264로 줄인 것(약 99 s를 10배속)",
    "origin": {
@@ -620,9 +620,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-14",
-     "sha256": "2931449b07eb56952dbd2a90828a7c83fb10334c18e06d3211a77e34f9c8f740",
-     "note": "GIF 처음·1/4·가운데·3/4·끝 프레임과 mp4 처음·가운데·끝 프레임을 열어 봄: Gazebo 과수원 렌더와 위 띠의 조건 표시뿐, 사람·사용자 이름·주소·도메인·토큰·GNSS 좌표·실제 밭 지도 없음. 열 끝에서 섬(reset 앞에서 끊김)"
+     "date": "2026-11-15",
+     "sha256": "3669e87c766d1d4209411d3bffca3cb2c4a7c6630c7b36a83aa49b4ad5e3119f",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   },
@@ -753,10 +753,10 @@
   {
    "path": "docs/assets/video/row_follow_wf10_user_camera_10x.gif",
    "kind": "animation",
-   "bytes": 2679942,
-   "sha256": "0bbe80c6983a6130a51bb5d67e57e9a7c4c35ff5dd8a7456a7a18f67235979f4",
+   "bytes": 2689507,
+   "sha256": "454ad424e290aa4862b96eeea3c12930f02170b0afdd62a724e9b4675d1f04d4",
    "width": 480,
-   "height": 270,
+   "height": 226,
    "tag": "[SIM · 자리값]",
    "caption": "사용자 로컬 명령 그대로(sim_auto.py start), 이미지 wf10, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(약 118 s를 10배속, 480×270, 초당 5장). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 열 끝에서 섰다",
    "origin": {
@@ -775,9 +775,9 @@
    "privacy": {
     "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
     "visual_check": {
-     "date": "2026-11-14",
-     "sha256": "0bbe80c6983a6130a51bb5d67e57e9a7c4c35ff5dd8a7456a7a18f67235979f4",
-     "note": "60장 중 0,1,15,30,45,56,58,59 번을 직접 봄: Gazebo 과수원 통로와 열 끝 공터, 차체 앞 파란 띠, 위 조건 띠 한 줄. 사람 이름·주소·좌표·토큰·사람 없음"
+     "date": "2026-11-15",
+     "sha256": "454ad424e290aa4862b96eeea3c12930f02170b0afdd62a724e9b4675d1f04d4",
+     "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
    }
   }
