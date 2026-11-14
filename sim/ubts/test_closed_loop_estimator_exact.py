@@ -71,8 +71,10 @@ CURVE_FIELDS = (('row_end_curve_fit', False), ('row_end_curve_reach_m', (4., 6.,
                 ('row_end_curve_edge_m', 1.5), ('row_end_curve_max_gap_m', 3.))
 # Added by the row-end agreement (S1c round 2, 2026-11-13). Never read while OFF (None); no state then.
 AGREE_FIELDS = (('row_end_agree_m', None),)
+# Added by the one-sided widening refusal (fail-investigation 2026-11-14, decision R90). Never read while OFF (None).
+WIDEN_FIELDS = (('band_widen_side_gate_m', None),)
 OPT_IN_FIELDS = (DISTANCE_FIELDS + ROW_END_POSITION_FIELDS + CONTINUATION_FIELDS + SINGLE_ROW_FIELDS + V2_FIELDS
-                 + CURVE_FIELDS + AGREE_FIELDS)
+                 + CURVE_FIELDS + AGREE_FIELDS + WIDEN_FIELDS)
 
 
 def test_frozen_estimator_uses_the_frozen_scan_corridor():
@@ -98,7 +100,7 @@ def main_config(config, variant=False):
                        and added['row_end_stagger_gap_m'] is None and added['row_end_last_trunk'] is False
                        and added['actuator_prior'] is None and added['corridor_quality'] is False
                        and added['external_corridor_gain'] == 0. and added['row_end_curve_fit'] is False
-                       and added['row_end_agree_m'] is None), \
+                       and added['row_end_agree_m'] is None and added['band_widen_side_gate_m'] is None), \
         'reference comparison needs the variants OFF'
     return ref_estimator.EstimatorConfig(**values)
 
