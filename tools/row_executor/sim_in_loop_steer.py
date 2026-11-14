@@ -102,6 +102,9 @@ CTRL_COLUMNS = ('ctrl_throttle_pct', 'ctrl_steer_mrad', 'ctrl_state', 'ctrl_hold
                 'ctrl_steer_age_s')
 # executor JSONL fields that hold wall-clock (perf_counter) values: dropped from the deterministic log digest
 WALL_FIELDS = ('loop_ms', 'proc_ms', 'max_scan_proc_s', 'last_scan_proc_s')
+# record-level wall-clock diagnostics (executor_main, 2026-11-14): the handling time 'ms' of a request event and the
+# phase times 'ph' of a slow tick (only these records: 'ph' inside other dicts is a phase name)
+WALL_RECORD_FIELDS = {('event', 'request'): ('ms',), ('tick', None): ('ph',)}
 ACTIONS = ('stop', 'release', 'hold_lost', 'press', 'end', 'ack', 'arm', 'start', 'executor_stall', 'client2_arm',
            'client2_drive', 'client2_stop', 'late_drive', 'foreign_arm', 'go', 'screen_hidden', 'screen_visible',
            'other_screen')
@@ -200,8 +203,14 @@ class CaptureLog:
             return [CaptureLog._strip(v) for v in value]
         return value
 
+    @staticmethod
+    def _strip_record(record):
+        kind = record.get('k')
+        drop = WALL_RECORD_FIELDS.get((kind, record.get('event') if kind == 'event' else None), ())
+        return CaptureLog._strip({k: v for k, v in record.items() if k not in drop})
+
     def canonical_bytes(self):
-        lines = [json.dumps(self._strip(r), sort_keys=True, separators=(',', ':'), allow_nan=False, default=str)
+        lines = [json.dumps(self._strip_record(r), sort_keys=True, separators=(',', ':'), allow_nan=False, default=str)
                  for r in self.records]
         return ('\n'.join(lines) + '\n').encode('utf-8')
 

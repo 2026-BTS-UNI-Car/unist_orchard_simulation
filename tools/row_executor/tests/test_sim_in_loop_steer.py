@@ -215,5 +215,27 @@ class DeterminismTest(unittest.TestCase):
         self.assertNotEqual(a['trace_content_sha256'], c['trace_content_sha256'])
 
 
+class CaptureLogDigestTest(unittest.TestCase):
+    """A8: the executor log digest leaves out the wall-clock fields; since 2026-11-14 also the request handling time
+    'ms' of a request event and the slow-step phase times 'ph' of a tick (ST-03: A8 failed on them)."""
+
+    def test_wall_clock_diagnostics_do_not_change_the_digest(self):
+        if IMPORT_PROBLEM:
+            raise unittest.SkipTest(IMPORT_PROBLEM)
+
+        def log(ms, ph, loop_ms):
+            out = S.CaptureLog()
+            out.put(dict(k='event', event='request', t=1.0, wall=1.7e9, kind='go', result=dict(ok=True), ms=ms))
+            out.put(dict(k='tick', t=1.05, state='ACTIVE', loop_ms=loop_ms, ph=ph, sr=dict(ph='follow')))
+            return out.canonical_bytes()
+        a = log(.41, [3.1, 40.2], 12.)
+        self.assertEqual(a, log(7.9, [1.0, 2.0], 3.))
+        self.assertNotIn(b'"ms"', a)
+        self.assertIn(b'"sr":{"ph":"follow"}', a)            # a phase name inside another dict stays
+        other = S.CaptureLog()
+        other.put(dict(k='event', event='arm', t=1.0, ms=5))   # only the request event drops 'ms'
+        self.assertIn(b'"ms":5', other.canonical_bytes())
+
+
 if __name__ == '__main__':
     unittest.main()

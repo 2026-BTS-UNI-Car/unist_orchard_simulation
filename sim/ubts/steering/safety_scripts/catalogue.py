@@ -473,12 +473,15 @@ script('normal_steps_standstill', 'normal', 'standstill steering steps +-5 deg (
        dict(end_reason='script_complete', a22=True, no_fault=True, rate_counts='normal'))
 script('finding_standstill_reversal', 'finding', 'standstill reversal +10 -> -10 deg at the executor standstill slew: '
        'with the placeholder profile the actuator at standstill (servo 15 %/deg, standstill load 3 N m, start PWM 35 %) '
-       'moves at about 4 deg/s after a backlash dead time, so the measured angle lags more than 3 deg for 1.5 s and '
-       'the host steering_not_following latch trips (a true detection: the command is faster than the actuator)',
+       'moves at about 4 deg/s after a backlash dead time, so the measured angle lags more than 3 deg for over 1.5 s. '
+       'Until 2026-11-13 the host steering_not_following latch tripped here; since SIM_ACCEPTANCE amendment 43 '
+       '(7d32154) the host counts the follow error only after the MCU servo ramp reached its goal, so the reversal '
+       'completes without a host latch and the MCU TRACK rule (progress-aware) watches the slew (ST-03, 2026-11-14: the '
+       'host copy before 7d32154 still latches at 8.14 s in this script)',
        episode('finding_standstill_reversal', controller=dict(kind='segments', end='hold_end', segments=[
            _seg(1., 0, 0., 'settle'), _seg(4., 0, 10., 'left'), _seg(5., 0, -10., 'right'), _seg(4., 0, 0., 'centre')]),
                duration_s=18.),
-       dict(end_reason='steering_not_following', host_latch='steering_not_following', no_restart=True))
+       dict(end_reason='script_complete', no_fault=True, no_restart=True))
 RF03_SWEEP_S = 30.            # the THERMAL window (thw 30 s): sweeps as long as the proxy looks back
 for _duty in (0, 4):
     script('rf03_sweeps_duty%d' % _duty, 'rf03', 'standstill full-range sweeps +-20 deg (triangle, 2.5 s period, slewed '
