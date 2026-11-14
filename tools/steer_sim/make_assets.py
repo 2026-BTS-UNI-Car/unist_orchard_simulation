@@ -44,6 +44,7 @@ FINAL3_N3 = 'gsim_final_20261113/sessions/s3a_nominal_3/media/cam_follow/frames'
 FINAL3_UI = 'gsim_final_20261113/sessions/s3b_ui2/browser/'
 FINAL4_F3 = 'gsim_final_20261113/sessions/s4f_simauto/media/cam_run3/frames'
 MEDIA = 'gsim_media_20261114/frames/'
+STAGE8_CAM = 'gsim_stage8_20261114/sessions/cam_run_1/media/cam/frames'
 TOP_VIEW = ('tools/steer_sim/gsim_media.py frames %s (위에서 본 그림, matplotlib; 프레임마다 조건 띠와 상태 줄을 그린다) '
             '<- %s. 참값 경로·조향각은 평가용 그림에만 쓴다')
 
@@ -172,6 +173,15 @@ RECIPES = [
                              '(TRACE.npz, EXECUTOR.jsonl), SIM 1 s 마다 한 장'),
          caption='빠른 SIM(F-SIM, W0 평지 기둥 두 줄)에서 가상 GNSS 를 10~70 s 동안 끊은 run 을 위에서 본 그림(약 68 s 를 10배속). '
                  'GNSS 층은 기본 꺼짐이고 이 run 은 기록만(log_only) 해서 조향 입력이 아니다. 차는 LiDAR·IMU 로 열 끝까지 갔다'),
+    dict(name='row_follow_wf10_user_camera_10x', out='docs/assets/video/row_follow_wf10_user_camera_10x.gif', op='gif',
+         source=STAGE8_CAM, frames=(180, 3720, 60), frame_s=0.2, width=480, colors=64,
+         label='G-SIM · 사용자 로컬 명령 그대로 · 이미지 wf10 · SIM 시계 · 10배속',
+         made_by='사용자 SIM 스택(ubts-steer, 이미지 wf10, SIM 시계, 장면 w1_force)에서 사용자 로컬 명령 그대로(sim_auto.py reset, '
+                 'start, reset) 한 열을 달린 매체용 run(판정 아님, 2026-11-14, ROW_END 33.5 m)을 tools/steer_sim/capture_media.py '
+                 'camera로 받은 프레임(29.44 fps). 출발 직전부터 열 끝 정지 뒤 약 4 s까지 약 2 s마다 한 장, 초당 5장으로 재생',
+         caption='사용자 로컬 명령 그대로(sim_auto.py start), 이미지 wf10, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 '
+                 '차량 카메라 화면(약 118 s를 10배속, 480×270, 초당 5장). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 '
+                 '열 끝에서 섰다'),
 ]
 
 

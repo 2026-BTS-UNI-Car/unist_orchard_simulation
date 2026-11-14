@@ -129,4 +129,4 @@ G(Gazebo) 결과가 다르면 줄을 나눴다. 같은 검사를 다시 쟀으�
 | 빠른 SIM | 플랜트·세계·센서 모형과 자리값 | [`FAST_SIM_KO.md`](steering/FAST_SIM_KO.md) |
 | Gazebo 모델 | 조향 차량 SDF, 바퀴 충돌, 관절 제어 | [`GZ_MODEL_KO.md`](steering/GZ_MODEL_KO.md) |
 | 월드 | W0 평지, W1 원본 과수원, W2 10/10 재구성 열, W3 절차 과수원 | [`WORLDS_KO.md`](steering/WORLDS_KO.md) |
-| G-SIM 매체(DOC-15) | wf10 정상 주행·복귀·열 끝 정지(7단계 등록 run 의 참값 경로), F-SIM GNSS 끊김, 횡오차·조향각 그래프 | [`GSIM_MEDIA_KO.md`](steering/GSIM_MEDIA_KO.md) |
+| G-SIM 매체(DOC-15) | wf10 정상 주행·복귀·열 끝 정지(7단계 등록 run 의 참값 경로), F-SIM GNSS 끊김, 횡오차·조향각 그래프, wf10 차량 카메라(사용자 스택에서 사용자 로컬 명령 그대로 한 열, 매체용 run, `ROW_END` 33.5 m) | [`GSIM_MEDIA_KO.md`](steering/GSIM_MEDIA_KO.md) |

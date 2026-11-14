@@ -821,7 +821,9 @@ Windows 프로세스별 표본기(1 s, 기록 폴더 `scripts/host_proc_sampler.
 
 16.4 절의 등록 run `nominal_3`·`lateral_p040`의 참값 기록으로 위에서 본 영상(정상 주행, 옆 0.40 m 에서 출발해 복귀, 열 끝 정지)과
 횡오차·조향각 그래프를 만들었다. GNSS 끊김은 G-SIM 에 끊는 hook 이 없어 빠른 SIM 으로 만들었다. 목록·조건·다시 만드는 명령은
-[`GSIM_MEDIA_KO.md`](GSIM_MEDIA_KO.md). 새 판정이 아니고 16절의 판정(불합격)은 그대로다.
+[`GSIM_MEDIA_KO.md`](GSIM_MEDIA_KO.md). 새 판정이 아니고 16절의 판정(불합격)은 그대로다. 2026-11-14 사용자 승인 뒤 사용자 스택
+(`ubts-steer`, wf10, SIM 시계)에서 사용자 로컬 명령 그대로 한 열을 달린 매체용 run 하나로 wf10 차량 카메라 영상도 만들었다(`ROW_END`
+33.5 m, 판정 아님, `GSIM_MEDIA_KO.md` 7절).
 
 ## 18. 8단계: 전원 구성 '최고 성능'으로 다시 재기 — 하지 않음
 
