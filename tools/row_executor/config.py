@@ -353,11 +353,6 @@ class ExecutorConfig:
     steer_row_end_agree_m: object = 1.0          # front_steer estimator: a row end needs two consecutive full updates
                                                  # whose reported ends agree within this (EstimatorConfig
                                                  # row_end_agree_m; None = the original streak). S1c round 2, R53
-    steer_band_widen_side_gate_m: object = None  # front_steer estimator: a full update in which one line jumps outward
-                                                 # by more than this while the other line stays is the one-sided update
-                                                 # of the line that stayed (EstimatorConfig band_widen_side_gate_m;
-                                                 # None = the original gates, the default). Candidate 0.3 m =
-                                                 # band_side_gate_m, decision R90
 
     # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
     # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
@@ -544,9 +539,6 @@ class ExecutorConfig:
         if is_front_steer(self) and self.steer_row_end_agree_m is not None:
             # front_steer: the two confirming full updates must agree on the end (S1c round 2, decision R53)
             overrides['row_end_agree_m'] = float(self.steer_row_end_agree_m)
-        if is_front_steer(self) and self.steer_band_widen_side_gate_m is not None:
-            # front_steer: one line may not jump outward onto a structure behind the row in a full update (R90)
-            overrides['band_widen_side_gate_m'] = float(self.steer_band_widen_side_gate_m)
         overrides.update(PS.estimator_fields(self))   # local grid fusion (empty while the gain is 0)
         return overrides
 
@@ -728,7 +720,6 @@ _SPEC.update({
     'steer_status_max_age_s': (_REAL, .05, 1.),
     'steer_row_end_curve_fit': (bool,),
     'steer_row_end_agree_m': (_REAL, .1, 5., 'nullable'),
-    'steer_band_widen_side_gate_m': (_REAL, .05, 2., 'nullable'),
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
 })

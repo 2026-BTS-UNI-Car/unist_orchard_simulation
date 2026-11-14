@@ -327,27 +327,8 @@ class EstimatorConfig:
     # curve_r30 3001, e -1.7 to -2.1 m). 1.0 m = the e band of the row-end stop: two updates that differ by more than
     # it cannot both be within the band.
     row_end_agree_m: float | None = None
-    # Opt-in nearer-line hold (None = OFF = original gates, bit-identical). With a distance g [m]: a full (two-sided)
-    # update in which ONE line moved outward (away from the band centre) by more than g from its predicted line, while
-    # the OTHER line stayed within band_side_gate_m of its prediction and the predicted (nearer) line of the moved side
-    # still has returns AHEAD of the LiDAR (>= line_min_points within line_gate_m, along 0 .. acquire_along_range_m), is
-    # not a full update: the moved line is dropped and the update is the one-sided update of the line that stayed (the
-    # learnt width is kept). The passage is bounded by the nearer structure while it continues ahead; once nothing is
-    # ahead on the nearer line (the near trees ended), the original gates decide again. The original gates (centre
-    # band_offset_gate_m, width band_width_gate_m) let one line jump outward by up to 0.5 m in one update onto a
-    # structure behind the row line (a tree behind a gap, the next row), and the guided fit near the moved prediction
-    # then held it there: the band widened step by step and its centre moved toward that structure (S1c round 2
-    # judgement, W2 045553 c03 seeds 4000 and 4003: the right line went from the near trees at d -1.3 m to the
-    # structures at d -1.9 to -2.3 m, width 2.9-3.1 -> 3.9 m, centre about 0.5 m right; fail-investigation
-    # 2026-11-14, decision R90). An inward move (a nearer structure) and a common shift of both lines (a curve, a
-    # lateral error) are not changed.
-    band_widen_side_gate_m: float | None = None
 
     def __post_init__(self):
-        if self.band_widen_side_gate_m is not None and not (
-                isinstance(self.band_widen_side_gate_m, (int, float)) and not isinstance(self.band_widen_side_gate_m, bool)
-                and math.isfinite(self.band_widen_side_gate_m) and self.band_widen_side_gate_m > 0.):
-            raise ValueError('band_widen_side_gate_invalid: None or a finite distance > 0')
         if self.row_end_agree_m is not None and not (
                 isinstance(self.row_end_agree_m, (int, float)) and not isinstance(self.row_end_agree_m, bool)
                 and math.isfinite(self.row_end_agree_m) and self.row_end_agree_m > 0.):
@@ -753,8 +734,6 @@ class SensorEstimator:
             self.row_end_curve = 0.      # opt-in row_end_curve_fit only: c of the last full update (evaluation)
         if config.row_end_agree_m is not None:
             self.end_disagreements = 0   # opt-in row_end_agree_m only: streaks restarted by a moved end (evaluation)
-        if config.band_widen_side_gate_m is not None:
-            self.widen_refusals = 0      # opt-in band_widen_side_gate_m only: full updates refused (evaluation)
 
     # --- opt-in actuator status (never stored while OFF) -------------------------------------------------
     def on_actuator(self, stamp, duty_left_pct, duty_right_pct, steer_rad=None):
@@ -1451,26 +1430,6 @@ class SensorEstimator:
         return [0 if offset is None else int(np.count_nonzero((np.abs(cross - offset) < gate) & near))
                 for offset in (left, right)]
 
-    def _widened_side(self, points, axis, left, right, pred_left, pred_right):
-        """Opt-in band_widen_side_gate_m: 0 (left) / 1 (right) when that observed line lies more than the gate outward
-        of its predicted line (away from the band centre) while the other observed line is within band_side_gate_m of
-        its prediction and the predicted line of the moved side still has returns ahead of the LiDAR (at least
-        line_min_points within line_gate_m, along 0 .. acquire_along_range_m on the laser-frame axis); None otherwise.
-        Laser-frame offsets, left > right."""
-        cfg = self.config
-        gate, side = cfg.band_widen_side_gate_m, cfg.band_side_gate_m
-        if left - pred_left > gate and abs(right - pred_right) < side:
-            moved, nearer = 0, pred_left
-        elif pred_right - right > gate and abs(left - pred_left) < side:
-            moved, nearer = 1, pred_right
-        else:
-            return None
-        c, s = math.cos(axis), math.sin(axis)
-        along = points @ np.array((c, s))
-        cross = points @ np.array((-s, c))
-        ahead = (along >= 0.) & (along <= cfg.acquire_along_range_m) & (np.abs(cross - nearer) < cfg.line_gate_m)
-        return moved if int(np.count_nonzero(ahead)) >= cfg.line_min_points else None
-
     def _apply(self, stamp, heading, axis, left, right, points, source):
         """Gated full (both sides) or one-sided update of the tracked band."""
         cfg, band = self.config, self.band
@@ -1487,19 +1446,9 @@ class SensorEstimator:
             width = left - right
             offset_pred = -(pred_left + pred_right) / 2
             offset_obs = -(left + right) / 2
-            gated = (abs(offset_obs - offset_pred) < cfg.band_offset_gate_m
-                     and abs(width - band.width) < cfg.band_width_gate_m
-                     and cfg.band_min_width_m <= width <= cfg.band_max_width_m)   # no slow drift to 0
-            jumped = (None if cfg.band_widen_side_gate_m is None
-                      else self._widened_side(points, axis, left, right, pred_left, pred_right))
-            if jumped is not None:
-                # opt-in: one line jumped outward while the other stayed and its nearer line goes on ahead - not a full
-                # update; drop the jumped line
-                if gated:
-                    self.widen_refusals += 1
-                gated = False
-                left, right = (None, right) if jumped == 0 else (left, None)
-            if gated:
+            if (abs(offset_obs - offset_pred) < cfg.band_offset_gate_m
+                    and abs(width - band.width) < cfg.band_width_gate_m
+                    and cfg.band_min_width_m <= width <= cfg.band_max_width_m):   # no slow drift to 0
                 if self.quality is not None:
                     self.quality.accepted(stamp, 'both', source, self._support_counts(points, axis, left, right),
                                           lateral=offset_obs - offset_pred, heading=wrap(heading - band.heading),
