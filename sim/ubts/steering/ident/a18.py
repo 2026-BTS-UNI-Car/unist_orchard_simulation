@@ -23,11 +23,19 @@ table +-5 % (every row), minimum PWM +-3 %p, tau +-20 %, duty -> speed +-5 % (ev
   kappa(delta)       per F2 row (commanded angle): kappa_steer over the row window + kappa_pull; the random wander
                      adds about 3.8 / sqrt(path m) deg/m. Reported as well: the realised path curvature.
   duty -> speed      per F3 duty: forward_curve(applied duty x battery) x speed_run_scale (procedures.session_truth)
+  brake stop         per F3 hard stop (SIM_ACCEPTANCE amendment 80, bound +-0.03 m): the C7 hard_stop distance of the
+                     records (command time from the steering sidecar status lines) against the plant's travel from the
+                     start of its brake event to standstill, projected on the heading (eval/truth.json f3_stop_events,
+                     procedures.StopEventLog); paired by time (|command - event| <= 0.3 s). Reported as well: the speed
+                     at the command and the plant's travel against the stop model v onset + v^2 / (2 a)
 Reported without a bound: B3 marks against the mechanical limits, B3 Ackermann ratio, B0 polarity, B7 noise, B5
-full-PWM speeds, F3 stop distances, F4 / F5 slew and faults.
+full-PWM speeds, F3 release stop distances, F4 / F5 slew and faults.
+Plans: the default A18 plan (procedures.Plan), --quick (smoke) and --plan recommended (amendment 81: the IDENT_KO.md
+section 8 path lengths; longer F2 circles, F1 as in the default plan).
 
 CLI (from sim/ubts):
-  python -B -m steering.ident.a18 --out <runs folder> [--variants default,A,B] [--seeds 11,12,13] [--jobs 3] [--quick]
+  python -B -m steering.ident.a18 --out <runs folder> [--variants default,A,B] [--seeds 11,12,13] [--jobs 3]
+                                  [--quick | --plan default|recommended]
 writes <out>/<variant>_s<seed>/ (records, eval, session.json, analysis.json, compare.json) and <out>/A18_RESULTS.json.
 The output folder must lie outside the repository. Placeholder-based SIM results (자리값 기반 SIM 결과), not field
 validation.
@@ -49,7 +57,8 @@ import numpy as np
 SCHEMA = 'ubts.steer_ident.a18.v1'
 RESULT_KIND = '자리값 기반 SIM 결과'
 BOUNDS = dict(rate_rel=.10, backlash_deg=.3, zero_offset_deg=.2, kappa_rel=.05, min_pwm_pct_points=3., tau_rel=.20,
-              speed_rel=.05)
+              speed_rel=.05, brake_stop_m=.03)
+BRAKE_PAIR_S = .3               # amendment 80: a C7 hard stop pairs with a plant brake event this close in time (s)
 # Profile variants inside the sweep ranges and away from the v0.1 placeholder (VehicleProfile.with_overrides).
 # A is a fast motor with a short lag, B a slow motor with a long lag: the default servo (kp 245) stays damped with
 # both (lag / servo loop time about the default's). Two first choices are kept as findings (IDENT_KO.md): tau 0.14 s
@@ -79,6 +88,20 @@ def quick_plan():
                 b5_moving_levels_pct=(100, 60, 40), b5_standstill_levels_pct=(100,), f4_leg_s=8., f1_leg_m=6.,
                 f1_round_trips=1, f2_circles=((13., 1.), (-13., 1.)), f3_duties_pct=(40, 60),
                 f3_runs=('release', 'brake'))
+
+
+# amendment 81: IDENT_KO.md section 8 path lengths. Per sign: 8 deg four times 2 laps (about 300 m, the 95 % side),
+# 13 deg and 18 deg twice 3 laps (over 70 m and 50 m); every circle starts from the mark as before. F1 stays 480 m.
+RECOMMENDED_F2_CIRCLES = (((8., 2.), (-8., 2.)) * 4 + ((13., 3.), (-13., 3.)) * 2 + ((18., 3.), (-18., 3.)) * 2)
+
+
+def recommended_plan():
+    """The default plan with the IDENT_KO.md section 8 path lengths (SIM_ACCEPTANCE amendment 81)."""
+    from .procedures import Plan
+    return Plan(f2_circles=RECOMMENDED_F2_CIRCLES)
+
+
+PLANS = dict(default=lambda: None, quick=quick_plan, recommended=recommended_plan)
 
 
 # --- truth from the evaluation trace -----------------------------------------------------------------------------------
@@ -205,6 +228,7 @@ def compare(case_dir, result):
         est = row.get('v_p50_m_s')
         rows.append(_row('duty_speed %s %%' % pct, 'F3', est, _f(known, 4), _f(_rel(est, known)), b['speed_rel'],
                          'm/s', 'relative', 'C3 steady speed p50 (field_calib drive tools)'))
+    rows.extend(brake_rows(truth, f3))
     # reported without a bound: the B2/B3 host calibration seen in the drive phase (measured against the true
     # motor-side angle: gain per side should be 1; the offset is the calibration's zero against the motor side)
     b3 = result.get('B3') or {}
@@ -224,6 +248,54 @@ def compare(case_dir, result):
     return rows
 
 
+def brake_rows(truth, f3):
+    """Amendment 80: one row per plant brake event of F3 (the C7 hard stop paired by time), plus two report rows."""
+    rows = []
+    events = [e for e in truth.get('f3_stop_events') or [] if e.get('mode') == 'brake']
+    if not events:
+        return rows
+    offset = float(truth.get('wall_minus_sim_s', 0.))
+    estimates = (((f3.get('c7') or {}).get('hard_stop') or {}).get('events')) or []
+    used = set()
+    for e in events:
+        duty = e.get('duty')
+        label = '%s %%' % duty if duty is not None else 't %.1f s' % e['since_s']
+        best = None
+        for k, est in enumerate(estimates):
+            t_cmd = est.get('t_cmd_wall_s')
+            if t_cmd is None or k in used:
+                continue
+            dt = abs(float(t_cmd) - offset - e['since_s'])
+            if dt <= BRAKE_PAIR_S and (best is None or dt < best[1]):
+                best = (k, dt)
+        est = None if best is None else estimates[best[0]]
+        if best is not None:
+            used.add(best[0])
+        known = e.get('travel_along_m')
+        value = None if est is None or not est.get('clean') else est.get('distance_m')
+        if est is None:
+            note = 'no C7 hard stop within %.1f s of the brake event' % BRAKE_PAIR_S
+        else:
+            note = ('C7 command %+.3f s from the plant event; %s; raw distance %s' %
+                    (float(est['t_cmd_wall_s']) - offset - e['since_s'], 'clean' if est.get('clean') else 'not clean',
+                     est.get('distance_m')))
+        if known is None:
+            note += '; the plant did not reach standstill in the log'
+        error = None if value is None or known is None else _f(value - known, 4)
+        rows.append(_row('brake_stop_distance %s' % label, 'F3', value, _f(known, 4), error, BOUNDS['brake_stop_m'],
+                         'm', 'absolute', note))
+        speed = None if est is None else est.get('speed_at_command_m_s')
+        rows.append(_row('brake_stop_speed %s' % label, 'F3', speed, _f(e['speed_m_s'], 4),
+                         _f(None if speed is None else speed - e['speed_m_s'], 4), None, 'm/s', 'absolute',
+                         'report: C7 speed at the command against the plant speed at the brake event'))
+        model = e['speed_m_s'] * e['onset_s'] + e['speed_m_s'] ** 2 / (2. * e['decel_m_s2'])
+        rows.append(_row('brake_stop_distance_model %s' % label, 'F3', _f(known, 4), _f(model, 4),
+                         _f(None if known is None else known - model, 4), None, 'm', 'absolute',
+                         'report: plant travel against v onset + v^2 / (2 a) (onset %.2f s, a %.2f m/s2)'
+                         % (e['onset_s'], e['decel_m_s2'])))
+    return rows
+
+
 # --- one case --------------------------------------------------------------------------------------------------------
 def run_case(spec):
     """spec: dict(variant, seed, out, quick, native, workers). Runs, analyses and compares one case in this process."""
@@ -238,7 +310,8 @@ def run_case(spec):
     t0 = time.time()
     try:
         profile = variant_profile(variant)
-        plan = quick_plan() if spec.get('quick') else None
+        plan_name = spec.get('plan') or ('quick' if spec.get('quick') else 'default')
+        plan = PLANS[plan_name]()
         session = procedures.run_session(case_dir, profile, seed, plan=plan, label='a18_%s_s%d' % (variant, seed),
                                          native_executable=spec.get('native'), log=log)
         t1 = time.time()
@@ -246,7 +319,7 @@ def run_case(spec):
         t2 = time.time()
         rows = compare(case_dir, result)
         _write(case_dir / 'analysis.json', result)
-        out = dict(schema=SCHEMA, variant=variant, seed=seed, overrides=VARIANTS[variant], rows=rows,
+        out = dict(schema=SCHEMA, variant=variant, seed=seed, overrides=VARIANTS[variant], plan=plan_name, rows=rows,
                    timing=dict(session_wall_s=round(t1 - t0, 1), analysis_wall_s=round(t2 - t1, 1),
                                sim_s=session['timing'].get('sim_s')),
                    log=log_lines, result_kind=RESULT_KIND, field_validated=False, error=None)
@@ -291,7 +364,7 @@ def summarize(cases):
             g['rows'] += 1
             if r['passed']:
                 g['passed'] += 1
-            elif r['passed'] is False or r['estimate'] is None:
+            else:                       # out of bound, no estimate or no known value: listed, never hidden
                 g['failed'].append(dict(case='%s_s%d' % (case['variant'], case['seed']), quantity=r['quantity'],
                                         estimate=r['estimate'], truth=r['truth'], error=r['error']))
             if r['error'] is not None and (g['worst_error'] is None or abs(r['error']) > abs(g['worst_error'])):
@@ -309,7 +382,12 @@ def main(argv=None):
     ap.add_argument('--jobs', type=int, default=3, help='cases in parallel (one process each)')
     ap.add_argument('--workers', type=int, default=2, help='odometry workers inside a case')
     ap.add_argument('--quick', action='store_true', help='short plan (smoke run; not the A18 numbers)')
+    ap.add_argument('--plan', choices=sorted(PLANS), default=None,
+                    help='default (the A18 plan), quick (= --quick) or recommended (amendment 81)')
     args = ap.parse_args(argv)
+    if args.quick and args.plan not in (None, 'quick'):
+        raise SystemExit('--quick and --plan %s exclude each other' % args.plan)
+    plan_name = args.plan or ('quick' if args.quick else 'default')
     from .. import t1_rig as tr
     from ..scene_spec import inside_repository
     out = Path(args.out)
@@ -317,7 +395,8 @@ def main(argv=None):
         raise SystemExit('the output folder %s lies inside the repository; use a runs folder' % out)
     out.mkdir(parents=True, exist_ok=True)
     native = tr.resolve_native()                     # build once here (the cases run in their own processes)
-    specs = [dict(variant=v, seed=int(s), out=str(out), quick=args.quick, native=native, workers=args.workers)
+    specs = [dict(variant=v, seed=int(s), out=str(out), quick=plan_name == 'quick', plan=plan_name, native=native,
+                  workers=args.workers)
              for v in args.variants.split(',') for s in args.seeds.split(',')]
     t0 = time.time()
     if args.jobs <= 1:
@@ -327,7 +406,8 @@ def main(argv=None):
             cases = list(pool.map(run_case, specs))
     summary = summarize(cases)
     report = dict(schema=SCHEMA, bounds=BOUNDS, variants={k: VARIANTS[k] for k in args.variants.split(',')},
-                  seeds=[int(s) for s in args.seeds.split(',')], quick=args.quick, wall_s=round(time.time() - t0, 1),
+                  seeds=[int(s) for s in args.seeds.split(',')], quick=plan_name == 'quick', plan=plan_name,
+                  wall_s=round(time.time() - t0, 1),
                   summary=summary, cases=[{k: c[k] for k in ('variant', 'seed', 'rows', 'timing', 'error')}
                                           for c in cases],
                   result_kind=RESULT_KIND, field_validated=False)

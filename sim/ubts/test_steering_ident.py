@@ -298,5 +298,138 @@ class A18Compare(unittest.TestCase):
                     self.assertEqual(float(profile.value(key)), float(value))
 
 
+WALL = 1.7e9
+
+
+def _brake(since, speed, travel, duty, onset=.1, decel=2.):
+    return dict(mode='brake', duty=duty, run='brake', part='stop', since_s=since, speed_m_s=speed, decel_m_s2=decel,
+                onset_s=onset, travel_along_m=travel, stop_s=None if travel is None else since + .3)
+
+
+def _c7(t_sim, distance, speed=.4, clean=True):
+    return dict(t_cmd_wall_s=WALL + t_sim, distance_m=distance, speed_at_command_m_s=speed, time_s=.3, clean=clean,
+                basis='hard stop: MCU status lines (steering sidecar)')
+
+
+class A18BrakeRows(unittest.TestCase):
+    """SIM_ACCEPTANCE amendment 80: C7 hard stop distance against the plant's travel, +-0.03 m, paired by time."""
+
+    def rows(self, events, estimates):
+        truth = dict(f3_stop_events=events, wall_minus_sim_s=WALL)
+        f3 = dict(c7=dict(hard_stop=dict(events=estimates)))
+        return {r['quantity']: r for r in a18.brake_rows(truth, f3)}
+
+    def test_inside_and_outside_the_bound(self):
+        events = [dict(mode='release', duty=30, since_s=90., speed_m_s=.3, decel_m_s2=1.3, onset_s=.25,
+                       travel_along_m=.5), _brake(100., .4, .12, 30), _brake(200., .5, .15, 40)]
+        rows = self.rows(events, [_c7(100.02, .135), _c7(199.97, .19, speed=.48)])
+        ok, bad = rows['brake_stop_distance 30 %'], rows['brake_stop_distance 40 %']
+        self.assertEqual((ok['bound'], ok['unit'], ok['error_kind']), (.03, 'm', 'absolute'))
+        self.assertAlmostEqual(ok['error'], .015, places=6)
+        self.assertTrue(ok['passed'])
+        self.assertAlmostEqual(bad['error'], .04, places=6)
+        self.assertFalse(bad['passed'])
+        self.assertNotIn('brake_stop_distance 30 %% (release)', rows)          # release events get no row
+        self.assertEqual(sum(1 for q in rows if q.startswith('brake_stop_distance ')), 2)
+        self.assertIsNone(rows['brake_stop_speed 40 %']['passed'])               # report rows
+        self.assertAlmostEqual(rows['brake_stop_speed 40 %']['error'], -.02, places=6)
+        model = rows['brake_stop_distance_model 30 %']
+        self.assertAlmostEqual(model['truth'], .4 * .1 + .4 ** 2 / 4., places=4)
+        self.assertIsNone(model['passed'])
+        summary = a18.summarize([dict(variant='default', seed=1, error=None, rows=list(rows.values()))])
+        g = summary['quantities']['brake_stop_distance']
+        self.assertEqual((g['rows'], g['passed']), (2, 1))
+        self.assertFalse(summary['all_passed'])
+
+    def test_unpaired_unclean_or_unstopped_is_not_a_pass(self):
+        events = [_brake(100., .4, .12, 30), _brake(200., .5, .15, 40), _brake(300., .5, None, 50)]
+        rows = self.rows(events, [_c7(100.5, .12), _c7(200., .15, clean=False), _c7(300., .15)])
+        far, unclean, moving = (rows['brake_stop_distance %d %%' % d] for d in (30, 40, 50))
+        self.assertIsNone(far['estimate'])                       # 0.5 s away: beyond the 0.3 s pairing
+        self.assertIn('no C7 hard stop', far['note'])
+        self.assertIsNone(unclean['estimate'])
+        self.assertIn('not clean', unclean['note'])
+        self.assertIsNone(moving['truth'])
+        for row in (far, unclean, moving):
+            self.assertIsNone(row['passed'])
+        summary = a18.summarize([dict(variant='default', seed=1, error=None, rows=list(rows.values()))])
+        g = summary['quantities']['brake_stop_distance']
+        self.assertEqual((g['rows'], g['passed'], len(g['failed'])), (3, 0, 3))
+
+    def test_an_estimate_pairs_once(self):
+        rows = self.rows([_brake(100., .4, .12, 30), _brake(100.2, .4, .12, 40)], [_c7(100.1, .12)])
+        self.assertEqual(sum(1 for q, r in rows.items() if q.startswith('brake_stop_distance ')
+                             and r['estimate'] is not None), 1)
+
+    def test_compare_includes_the_brake_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            case = _case(tmp, dict(f3_stop_events=[_brake(10., .4, .12, 40)], wall_minus_sim_s=WALL))
+            res = A18Compare().result(F3=dict(duty_speed={'40': dict(v_p50_m_s=.31)},
+                                              c7=dict(hard_stop=dict(events=[_c7(10.01, .125)]))))
+            rows = {r['quantity']: r for r in a18.compare(case, res)}
+        self.assertTrue(rows['brake_stop_distance 40 %']['passed'])
+
+    def test_recommended_plan_path_lengths(self):
+        default, rec = a18.PLANS['default'](), a18.recommended_plan()
+        self.assertIsNone(default)
+        from steering.ident.procedures import Plan
+        base = Plan()
+
+        def laps(circles, angle):
+            return sum(n for a, n in circles if a == angle)
+        for angle in (8., -8., 13., -13., 18., -18.):
+            self.assertEqual(laps(rec.f2_circles, angle), 2 * laps(base.f2_circles, angle), angle)
+        self.assertEqual((rec.f1_leg_m, rec.f1_round_trips), (base.f1_leg_m, base.f1_round_trips))
+        self.assertEqual(rec.f3_duties_pct, base.f3_duties_pct)
+        self.assertEqual(rec.f3_runs, base.f3_runs)
+
+
+class _Plant:
+    """Just what StopEventLog reads: pose, speed, the slow-down event counter and the current event."""
+
+    def __init__(self):
+        self.x = self.y = self.yaw = self.time_s = 0.
+        self.v = .5
+        self._decel_events = 0
+        self._decel_event = None
+        self.brake_at = None
+
+    def step(self, dt):
+        self.time_s += dt
+        if self.brake_at is not None and self.time_s >= self.brake_at - 1e-9 and self._decel_event is None:
+            self._decel_events += 1
+            self._decel_event = dict(mode='brake', index=self._decel_events, since=self.time_s, onset_s=.1,
+                                     decel_m_s2=2., speed_m_s=self.v)
+        if self._decel_event is not None and self.time_s - self._decel_event['since'] >= .1 - 1e-9:
+            self.v = max(0., self.v - 2. * dt)
+        self.x += self.v * dt
+        self.y += .001          # a lateral creep that the projection drops
+        return 'out'
+
+
+class StopEventLogTest(unittest.TestCase):
+    def test_logs_the_brake_and_the_travel_along_the_heading(self):
+        from steering.ident.procedures import StopEventLog
+        plant = _Plant()
+        log = StopEventLog(plant)
+        log.install()
+        log.tag(duty=40, run='brake', part='stop')
+        plant.brake_at = .2
+        x_before = None
+        for _ in range(100):
+            if x_before is None and plant.time_s + .01 >= plant.brake_at - 1e-9:
+                x_before = plant.x
+            self.assertEqual(plant.step(.01), 'out')
+        log.remove()
+        self.assertNotIn('step', plant.__dict__)
+        self.assertEqual(len(log.events), 1)
+        e = log.events[0]
+        self.assertEqual((e['mode'], e['duty'], e['run'], e['part'], e['index']), ('brake', 40, 'brake', 'stop', 1))
+        self.assertAlmostEqual(e['x0'], x_before, places=9)
+        self.assertAlmostEqual(e['travel_along_m'], plant.x - x_before, places=9)
+        self.assertAlmostEqual(e['travel_along_m'], .5 * .1 + .5 ** 2 / 4., delta=.5 * .01 + 1e-6)
+        self.assertIsNotNone(e['stop_s'])
+
+
 if __name__ == '__main__':
     unittest.main()
