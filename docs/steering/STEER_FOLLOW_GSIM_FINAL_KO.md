@@ -815,3 +815,9 @@ Windows 프로세스별 표본기(1 s, 기록 폴더 `scripts/host_proc_sampler.
 4. 실행기: 스캔 처리(통로 갱신) 꼬리 줄이기, 운영자 HTTP 처리를 주 루프와 떼어 GIL 경쟁에서 빼기, rclpy `EventsExecutor` 시험. 모두 출력
    같음 회귀가 먼저다.
 5. 카메라 경로(ros_gz_bridge 의 원 영상, 카메라 WebSocket 브리지)와 녹화기는 고정 파일이라 보지 않았다. 바꾸려면 고정 목록 개정이 먼저다.
+
+## 17. 매체: wf10 주행·복귀·열 끝 정지, GNSS 끊김 (DOC-15, 판정 아님)
+
+16.4 절의 등록 run `nominal_3`·`lateral_p040`의 참값 기록으로 위에서 본 영상(정상 주행, 옆 0.40 m 에서 출발해 복귀, 열 끝 정지)과
+횡오차·조향각 그래프를 만들었다. GNSS 끊김은 G-SIM 에 끊는 hook 이 없어 빠른 SIM 으로 만들었다. 목록·조건·다시 만드는 명령은
+[`GSIM_MEDIA_KO.md`](GSIM_MEDIA_KO.md). 새 판정이 아니고 16절의 판정(불합격)은 그대로다.

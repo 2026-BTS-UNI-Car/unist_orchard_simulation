@@ -145,6 +145,9 @@ flowchart LR
 
 [SIM · 자리값] Gazebo 과수원 한 통로의 열 추종(참값 경로, `nominal_1`). 아래 칸은 횡 위치를 세로로 확대한 것이다.
 
+이미지 wf10 의 정상 주행·옆 0.40 m 에서 출발해 복귀·열 끝 정지(위에서 본 참값 경로), 빠른 SIM 의 GNSS 끊김 영상과 횡오차·조향각
+그래프: [`docs/steering/GSIM_MEDIA_KO.md`](docs/steering/GSIM_MEDIA_KO.md)(판정 아님, 자리값 기반 SIM 결과).
+
 ## 빠른 시작
 
 저장소 맨 위에서 실행합니다. Gazebo 스택은 Windows Docker Desktop + WSL2(GPU 렌더) 기준입니다.
