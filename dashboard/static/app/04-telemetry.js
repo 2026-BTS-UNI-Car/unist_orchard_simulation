@@ -40,13 +40,10 @@ async function tick() {
   }
 }
 
-// The drive screen asks only for its own status (NET-06): sensors, services and
-// the rover, about a third of the full answer. The map, records and tuning screens
-// (parts of the old drive page, docs/SCREENS_KO.md) use the same; the sensors and
-// system screens get the full one.
-const DRIVE_BUNDLE_ROUTES = ["/rover-control", "/map", "/records", "/tuning"];
+// Rover Control asks only for its own status (NET-06): sensors, services and
+// the rover, about a third of the full answer. Every other page gets the full one.
 function telemetryPath(route = currentRoute()) {
-  return DRIVE_BUNDLE_ROUTES.includes(route) ? "/api/telemetry?bundle=drive" : "/api/telemetry";
+  return route === "/rover-control" ? "/api/telemetry?bundle=drive" : "/api/telemetry";
 }
 
 function telemetryIntervalMs(profile = liveNetworkProfile()) {

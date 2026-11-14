@@ -1,4 +1,5 @@
-// Six screens and the docs (docs/SCREENS_KO.md). Old addresses are aliases; the system screen has one address per tab.
+// The eight pages of the menu, as before the redesign (UI-16, docs/SCREENS_KO.md). The addresses of the
+// six-screen layout are aliases (ROUTE_ALIASES); the page writes the menu address in the address bar.
 function canonicalPath(pathname = location.pathname) {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   return ROUTE_ALIASES[path] || path;
@@ -7,96 +8,80 @@ function canonicalPath(pathname = location.pathname) {
 function currentRoute() {
   const path = canonicalPath();
   if (path === "/docs" || path.startsWith("/docs/")) return "/docs";
-  if (SYSTEM_TABS[path]) return "/system";
-  return ROUTES.includes(path) ? path : "/rover-control";
+  return ROUTES.includes(path) ? path : "/";
 }
 
-function systemTab() {
-  return SYSTEM_TABS[canonicalPath()] || "overview";
-}
-
-// The drive screen shows one big view, the camera or the LiDAR; only that stream is open there.
-function driveView() {
-  return state.driveView === "lidar" ? "lidar" : "camera";
-}
-
-function setDriveView(view, persist) {
-  state.driveView = view === "lidar" ? "lidar" : "camera";
-  if (persist) {
-    try { localStorage.setItem(DRIVE_VIEW_KEY, state.driveView); } catch (_) { /* this session only */ }
-  }
-  $("roverLayout")?.setAttribute("data-view", state.driveView);
-  document.querySelectorAll("[data-drive-view]").forEach((button) => button.classList.toggle("active", button.dataset.driveView === state.driveView));
-}
-
-function initDriveView() {
-  let stored = null;
-  try { stored = localStorage.getItem(DRIVE_VIEW_KEY); } catch (_) { stored = null; }
-  setDriveView(stored, false);
-  document.querySelectorAll("[data-drive-view]").forEach((button) => button.addEventListener("click", () => {
-    setDriveView(button.dataset.driveView, true);
-    renderRoute();
-  }));
-}
-
+// The LiDAR and the camera are on Connection and Rover Control, the IMU picture only on Rover Control.
+// On those pages a stream is open only while its picture is on screen (NET-08, watchCameraPanel and
+// watchSensorPanel in 05-live-lidar-camera.js).
 function routeSupportsLidarLive(route = currentRoute()) {
-  return route === "/sensors" || (route === "/rover-control" && driveView() === "lidar");
+  return route === "/connection" || route === "/rover-control";
 }
 
 function routeSupportsCameraLive(route = currentRoute()) {
-  return route === "/sensors" || (route === "/rover-control" && driveView() === "camera");
+  return route === "/connection" || route === "/rover-control";
 }
 
 function routeSupportsImuLive(route = currentRoute()) {
-  return route === "/sensors";
+  return route === "/rover-control";
+}
+
+// After an alias of a part of Rover Control (/map, /records, /tuning): show that part once.
+function focusRoutePart(id) {
+  const element = $(id);
+  if (!element) return;
+  if (id === "tuningPanel" && $("tuningDetails")) $("tuningDetails").open = true;
+  window.requestAnimationFrame(() => element.scrollIntoView({ block: "start" }));
 }
 
 function renderRoute() {
+  const path = location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
+  const focus = ROUTE_FOCUS[path] || null;
   const canonical = canonicalPath();
   if (canonical !== location.pathname && !canonical.startsWith("/docs")) history.replaceState(history.state, "", canonical + location.search + location.hash);
   const route = currentRoute();
-  const tab = systemTab();
   document.querySelectorAll("[data-page]").forEach((page) => {
     page.classList.toggle("active", page.dataset.page === route);
   });
   document.querySelectorAll("[data-route]").forEach((link) => {
-    const active = link.dataset.systemTab ? route === "/system" && link.dataset.systemTab === tab : link.dataset.route === route;
-    link.classList.toggle("active", active);
+    link.classList.toggle("active", link.dataset.route === route);
   });
-  document.querySelectorAll("[data-system-panel]").forEach((panel) => { panel.hidden = panel.dataset.systemPanel !== tab; });
   if (route === "/docs") renderDocsRoute();
-  if (route === "/system" && tab === "docker" && state.telemetry?.docker) {
+  if (route === "/docker" && state.telemetry?.docker) {
     renderContainers(state.telemetry.docker);
     maybeRefreshContainerDetail(true);
   }
-  if (route === "/rover-control" || route === "/sensors") renderActiveLidarMap();
-  if (route === "/rover-control") renderRoverControl(state.telemetry || {});
-  if (route === "/records") {
+  if (route === "/connection" || route === "/rover-control") renderActiveLidarMap();
+  if (route === "/rover-control") {
+    renderRoverControl(state.telemetry || {});
     renderRecordingStatus();
     maybeRefreshRecordingStatus();
     if (!state.recordings.items.length && !state.recordings.loading) loadRecordings().catch(console.error);
   }
   if (routeSupportsLidarLive(route)) {
+    watchSensorPanel("lidar");
     if (!state.lidarLive.socket && !state.lidarLive.userStopped) startLidarLive();
   } else if (state.lidarLive.socket || state.lidarLive.enabled) {
     closeLidarLive("이 화면에서는 LiDAR WebSocket을 닫습니다.", { userStopped: false });
   }
   if (routeSupportsCameraLive(route)) {
+    watchCameraPanel();
     if (!state.cameraLive.socket && !state.cameraLive.userStopped) startCameraLive();
   } else if (state.cameraLive.socket || state.cameraLive.enabled) {
     closeCameraLive("이 화면에서는 Camera WebSocket을 닫습니다.", { userStopped: false });
   }
   if (routeSupportsImuLive(route)) {
+    watchSensorPanel("imu");
     if (!state.imuLive.socket && !state.imuLive.userStopped) startImuLive();
   } else if (state.imuLive.socket || state.imuLive.enabled) {
     closeImuLive("이 화면에서는 IMU WebSocket을 닫습니다.", { userStopped: false });
   }
-  if (route !== "/records" && state.archivePlayback.playing) {
+  if (route !== "/rover-control" && state.archivePlayback.playing) {
     stopArchivePlayback(false);
   }
-  // The recording indicator of the status bar has a different source off the records screen.
-  if (route !== "/records") renderRecordingStatus();
-  // A screen that needs a different part of the status asks for it now (NET-06).
+  // The recording indicator of the status bar has a different source off Rover Control.
+  if (route !== "/rover-control") renderRecordingStatus();
+  // A page that needs a different part of the status asks for it now (NET-06).
   if (state.telemetryPath && state.telemetryPath !== telemetryPath(route)) {
     state.lastTelemetryPoll = 0;
     tick();
@@ -105,6 +90,7 @@ function renderRoute() {
   window.LiveMap?.routeChanged();
   requestChartAnimation();
   window.dispatchEvent(new CustomEvent("ubts:route", { detail: { route } }));
+  if (focus && route === "/rover-control") focusRoutePart(focus);
 }
 
 function initMobileNav() {

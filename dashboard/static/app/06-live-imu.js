@@ -26,6 +26,7 @@ function startImuLive() {
     window.clearTimeout(state.imuLive.reconnectTimer);
     state.imuLive.reconnectTimer = null;
   }
+  if (sensorPanelDefersStart("imu")) return;   // off screen: opens when the picture is visible (UI-16)
   state.imuLive.enabled = true;
   state.imuLive.userStopped = false;
   state.imuLive.error = "";

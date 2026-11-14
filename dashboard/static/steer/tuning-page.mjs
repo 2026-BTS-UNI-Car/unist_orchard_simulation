@@ -1,4 +1,4 @@
-// Tuning screen (UI-12, route /tuning): the executor's field tuning bundle (docs/STEERING_SERVER_KO.md 7). The basic
+// Field tuning values (UI-12), a collapsed part of Rover Control (UI-16): the executor's field tuning bundle (docs/STEERING_SERVER_KO.md 7). The basic
 // group with the executor's names, values, ranges and units; preset load and save; the advanced and locked groups as
 // values (the file changes them); the change log. A change is checked here, then by the dashboard, then by the
 // executor; it is applied only while the executor says it may change. Loaded by static/app/14-steer.js when the route
@@ -23,7 +23,9 @@ export function initTuningPage(page) {
   if (!$('tuneBasic')) return null;
   let view = null, timer = null, signature = '', busy = false, message = null, logEntries = [], logAll = false;
   const LOG_FIRST = 10;                 // rows shown before "전체 보기" (the dashboard keeps the last 50)
-  const active = () => page.currentRoute() === '/tuning' && !document.hidden;
+  // Asked for only while the collapsed part (#tuningDetails) is open on a visible Rover Control.
+  const details = $('tuningDetails');
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden && (!details || details.open);
 
   async function load() {
     try { view = await page.getJson('/api/executor/tuning'); } catch (_) { view = view ? { ...view, reachable: false } : null; }
@@ -169,6 +171,7 @@ export function initTuningPage(page) {
     message = null; draw();
   });
   document.addEventListener('visibilitychange', () => routeChanged());
+  details?.addEventListener('toggle', () => routeChanged());
 
   function routeChanged() {
     if (active()) {

@@ -8,10 +8,12 @@ const $=id=>document.getElementById(id),text=(id,value)=>{if($(id))$(id).textCon
 // Correct the real-rover front marker as requested, without modifying any
 // retained scan coordinates, localization yaw or simulation body-frame heading.
 const live=new MetricMap('liveMapCanvas',false,Math.PI),archive=new MetricMap('liveArchiveCanvas',false,Math.PI);
-// The live map is on the map screen, the recording map on the records screen (docs/SCREENS_KO.md).
-const screenPath=()=>location.pathname.replace(/\/$/,'');
-const active=()=>screenPath()==='/map'&&!document.hidden;
-const archiveActive=()=>screenPath()==='/records'&&!document.hidden;
+// Rover Control holds the live and the recording map again (UI-16). The live map is asked for only while its box
+// is on screen (without IntersectionObserver: while the page is open); the recording map follows its player.
+const routeOn=()=>location.pathname.replace(/\/$/,'')==='/rover-control'&&!document.hidden;
+let liveMapOnScreen=null;
+const active=()=>routeOn()&&(liveMapOnScreen===true||(liveMapOnScreen===null&&typeof IntersectionObserver!=='function'));
+const archiveActive=routeOn;
 let polling=false,timer=null,selected='',archiveEpoch=0,speedBusy=false,lastAutonomyPoll=0;
 let mapBuffer=null,nextMapBuffer=null,mapWindowPending=null,bufferPaintPending=false,windowSupported=null;
 let archiveTimer=null,archivePending=null,archiveTimeS=0,archivePlaying=false,followGeneration=false,archiveGenerating=false;
@@ -455,5 +457,11 @@ window.LiveMap={selectArchive,archiveTime,archiveReady,routeChanged,waitReason:(
 document.addEventListener('visibilitychange',routeChanged);window.addEventListener('popstate',routeChanged);
 // The main application exposes route changes through the GPS hook.
 const gps=window.RoverGps;if(gps){const original=gps.routeChanged;gps.routeChanged=(...args)=>{original?.(...args);routeChanged();};}
-setInterval(()=>{if(active()&&!polling)poll();},3000);
+if(typeof IntersectionObserver==='function'&&$('liveMapPanel'))new IntersectionObserver(entries=>{
+  const was=liveMapOnScreen;liveMapOnScreen=Boolean(entries[entries.length-1].isIntersecting);
+  if(liveMapOnScreen&&was!==true)routeChanged();
+}).observe($('liveMapPanel'));
+// The drive panel's autonomy speed and field preparation rows are refreshed with the map poll, or on their own
+// while the map is off screen.
+setInterval(()=>{if(routeOn())refreshAutonomyStatus();if(active()&&!polling)poll();},3000);
 routeChanged();

@@ -16,8 +16,14 @@ export const ERROR_TEXT = {
   unknown_parameter: '모르는 값', locked_parameter: '잠긴 값', unknown_preset: '모르는 프리셋', bad_preset_name: '프리셋 이름이 맞지 않음',
   bad_note: '메모가 너무 김', no_change: '바뀐 값이 없다', executor_unreachable: '실행기 연결 안 됨',
   executor_not_configured: '실행기 설정 없음', executor_token_rejected: '실행기 토큰이 맞지 않음',
+  // PW-10: the answer to the online-scale offer after a run (contract revision 6)
+  no_online_scale_offer: '저장할 온라인 배율이 없다', online_scale_offer_changed: '그 사이 다른 run의 배율로 바뀌었다',
+  online_scale_basis_changed: '그 사이 배율 값이 바뀌었다', online_scale_form: '온라인 배율 요청 형식이 맞지 않음',
+  no_scale: '배율이 아직 없다(주행 10초 미만)', no_forward_motion: 'LiDAR가 앞으로 가는 것을 못 봤다',
+  scale_set_in_config: '실행기 설정이 배율을 따로 정했다', online_scale_not_offered: '저장할 수 없는 배율',
 };
-const ACTION_TEXT = { set: '값 바꿈', load_preset: '프리셋 불러옴', save: '파일에 저장', save_preset: '프리셋으로 저장' };
+const ACTION_TEXT = { set: '값 바꿈', load_preset: '프리셋 불러옴', save: '파일에 저장', save_preset: '프리셋으로 저장',
+                      online_scale: '온라인 배율을 전체 배율로', online_scale_dismiss: '온라인 배율 저장 안 함' };
 
 const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
 const decimals = (step) => (num(step) === null || step >= 1 ? 2 : Math.min(3, String(step).split('.')[1]?.length || 0));

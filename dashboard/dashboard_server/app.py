@@ -30,10 +30,11 @@ STATIC_ROOT = ROOT / "static"
 DOCS_ROOT = ROOT / "docs"
 # Content-hash addresses, long caching and kept gzip results for /static/ and the page (NET-04).
 STATIC_ASSETS = StaticAssets(STATIC_ROOT)
-# The six screens and the docs (docs/SCREENS_KO.md), the system tabs, and the old addresses that the page rewrites.
-APP_ROUTES = {"/rover-control", "/map", "/sensors", "/records", "/tuning", "/system", "/docs",
-              "/system/resources", "/system/network", "/system/docker", "/system/fan",
-              "/", "/drive", "/connection", "/network", "/docker", "/fan", "/research"}
+# The eight menu pages (docs/SCREENS_KO.md, UI-16) and the addresses of the six-screen layout and of the removed
+# research page, which the page rewrites to the menu page that holds those panels.
+APP_ROUTES = {"/", "/connection", "/system", "/network", "/docker", "/fan", "/rover-control", "/docs",
+              "/drive", "/map", "/sensors", "/records", "/tuning",
+              "/system/resources", "/system/network", "/system/docker", "/system/fan", "/research"}
 SESSION_COOKIE_NAME = "ubts_session"
 SESSION_TTL_S = int(os.environ.get("DASHBOARD_SESSION_TTL_S", "3600"))
 _SESSION_LOCK = threading.Lock()

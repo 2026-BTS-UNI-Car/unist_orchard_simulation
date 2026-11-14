@@ -706,12 +706,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   gap: var(--space-2);
 }
 
-/* Drive screen: one big view (docs/SCREENS_KO.md). */
-.rover-layout[data-view="camera"] .rover-lidar-panel,
-.rover-layout[data-view="lidar"] .rover-camera-panel {
-  display: none;
-}
-
 /* Steering row over the throttle row; every finger keeps its own button. */
 .steer-pad > div {
   grid-auto-flow: column;
@@ -743,6 +737,32 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   background: var(--color-text);
 }
 
+/* Field tuning values (UI-12): a collapsed part of Rover Control (UI-16), a full row below 900px.
+   Its groups go as many across as fit; the change log takes a row of its own. */
+.rover-tuning-panel {
+  grid-column: 1 / -1;
+}
+
+.tune-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: start;
+  gap: var(--space-4) var(--page-gutter);
+  margin-top: var(--space-3);
+}
+
+.tune-grid > .tune-log {
+  grid-column: 1 / -1;
+}
+
+/* The executor's local grid under the live occupancy grid map (UI-09, UI-16). */
+.local-grid-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
 /* Tuning fields (UI-12): as many columns as fit, one on a phone. */
 .tune-fields {
   display: grid;
@@ -753,6 +773,17 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 /* Autonomy status (UI-08): values older than 1.5 s are dimmed. */
 .detail-list.stale dd {
   color: var(--color-text-disabled);
+}
+
+/* Online-scale question after a run (PW-10): the question over its two buttons. */
+.scale-offer {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.scale-offer > p {
+  margin: 0;
 }
 
 /* ---- IMU --------------------------------------------------------------- */
@@ -1918,21 +1949,38 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   gap: var(--space-2);
 }
 
-/* ---- From 900px: three columns on the drive page ----------------------- */
+/* ---- From 900px: three columns on Rover Control ------------------------ */
 @media (min-width: 900px) {
-  /* The big view (camera or LiDAR) over two columns, the drive panel in the third. */
+  /* The first row is as tall as the drive panel; the rest of the tall sensor
+     panels goes to the second row, so no gap opens under the drive panel. */
   .rover-layout {
     grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) minmax(220px, 0.78fr);
+    grid-template-rows: auto 1fr;
   }
 
-  .rover-lidar-panel,
+  .rover-lidar-panel {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
   .rover-camera-panel {
-    grid-column: 1 / span 2;
-    grid-row: 1;
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .rover-drive-panel {
     grid-column: 3;
+    grid-row: 1;
+  }
+
+  .rover-record-panel {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  /* Next to the IMU panel, so that row has no empty half. */
+  .rover-tuning-panel {
+    grid-column: 2 / span 2;
   }
 
   .rover-lidar-stage {

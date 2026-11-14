@@ -71,18 +71,19 @@ function resumeSensorStreamsForVisiblePage() {
   if (hiddenStreams.timer) { window.clearTimeout(hiddenStreams.timer); hiddenStreams.timer = null; }
   const closed = hiddenStreams.closed || {};
   hiddenStreams.closed = null;
-  if (closed.lidar && routeSupportsLidarLive() && !state.lidarLive.socket && !state.lidarLive.userStopped) {
+  // A stream closed (or not yet opened) for an off-screen picture is asked again too: it opens if its picture is on screen.
+  if ((closed.lidar || sensorPanels.lidar.closed) && routeSupportsLidarLive() && !state.lidarLive.socket && !state.lidarLive.userStopped) {
     state.lidarLive.reconnectAttempt = 0; startLidarLive();
   }
   const cameraPausedByAck = state.cameraLive.ackExhausted === true;
-  if ((closed.camera || cameraPausedByAck) && routeSupportsCameraLive() && !state.cameraLive.socket &&
+  if ((closed.camera || cameraPausedByAck || cameraPanel.closed) && routeSupportsCameraLive() && !state.cameraLive.socket &&
       (cameraPausedByAck || !state.cameraLive.userStopped)) {
     state.cameraLive.reconnectAttempt = 0;
     // An off-screen camera panel stays closed until it is scrolled back (NET-08).
     if (cameraPanel.visible === false) cameraPanel.closed = true;
     else startCameraLive();
   }
-  if (closed.imu && routeSupportsImuLive() && !state.imuLive.socket && !state.imuLive.userStopped) {
+  if ((closed.imu || sensorPanels.imu.closed) && routeSupportsImuLive() && !state.imuLive.socket && !state.imuLive.userStopped) {
     state.imuLive.reconnectAttempt = 0; startImuLive();
   }
 }
@@ -121,9 +122,10 @@ function onCameraPanelIntersection(entries) {
   cameraPanel.visible = Boolean(entry.isIntersecting);
   if (cameraPanel.visible) {
     if (cameraPanel.timer) { window.clearTimeout(cameraPanel.timer); cameraPanel.timer = null; }
-    if (cameraPanel.closed) {
+    // In a hidden tab it stays closed; resumeSensorStreamsForVisiblePage opens it when the tab is back (UI-16).
+    if (cameraPanel.closed && !document.hidden) {
       cameraPanel.closed = false;
-      if (!document.hidden && routeSupportsCameraLive() && !state.cameraLive.socket && !state.cameraLive.userStopped) {
+      if (routeSupportsCameraLive() && !state.cameraLive.socket && !state.cameraLive.userStopped) {
         state.cameraLive.reconnectAttempt = 0;
         startCameraLive();
       }
@@ -138,6 +140,75 @@ function closeCameraForHiddenPanel() {
   if ((state.cameraLive.socket || state.cameraLive.enabled) && !state.cameraLive.userStopped) {
     cameraPanel.closed = true;
     closeCameraLive("카메라 화면이 보이지 않아 수신을 쉽니다.", { userStopped: false });
+  }
+}
+
+// Hidden LiDAR and IMU pictures (UI-16): Rover Control holds the LiDAR, camera and IMU panels together
+// again, so each of these sockets follows its own picture like the camera above: off screen for 1 s
+// closes it (not a user stop), back on screen opens it again; a start waits for the observer's first
+// report. Without IntersectionObserver the sockets open as before.
+const sensorPanels = {
+  lidar: { observer: null, element: null, visible: null, timer: null, closed: false },
+  imu: { observer: null, element: null, visible: null, timer: null, closed: false },
+};
+function sensorPanelElement(name) {
+  const onRover = currentRoute() === "/rover-control";
+  const canvas = $(name === "imu" ? (onRover ? "roverImuCanvas" : "") : (onRover ? "roverLidarCanvas" : "lidarScanCanvas"));
+  return canvas?.parentElement || canvas || null;
+}
+function sensorPanelLive(name) {
+  return name === "imu" ? state.imuLive : state.lidarLive;
+}
+function watchSensorPanel(name) {
+  if (typeof IntersectionObserver !== "function") return;
+  const panel = sensorPanels[name];
+  const element = sensorPanelElement(name);
+  if (element === panel.element) return;
+  if (!panel.observer) panel.observer = new IntersectionObserver((entries) => onSensorPanelIntersection(name, entries));
+  if (panel.element) panel.observer.unobserve(panel.element);
+  panel.element = element;
+  panel.visible = null;
+  if (element) panel.observer.observe(element);
+}
+// True when a start has to wait for the picture to be on screen.
+function sensorPanelDefersStart(name) {
+  watchSensorPanel(name);
+  const panel = sensorPanels[name];
+  if (!panel.observer || !panel.element || panel.visible === true) return false;
+  sensorPanelLive(name).userStopped = false;
+  panel.closed = true;
+  return true;
+}
+function onSensorPanelIntersection(name, entries) {
+  const panel = sensorPanels[name];
+  const entry = [...entries].reverse().find((item) => item.target === panel.element);
+  if (!entry) return;
+  panel.visible = Boolean(entry.isIntersecting);
+  if (panel.visible) {
+    if (panel.timer) { window.clearTimeout(panel.timer); panel.timer = null; }
+    // In a hidden tab the stream stays closed; resumeSensorStreamsForVisiblePage opens it when the tab is back.
+    if (panel.closed && !document.hidden) {
+      panel.closed = false;
+      const live = sensorPanelLive(name);
+      const supported = name === "imu" ? routeSupportsImuLive() : routeSupportsLidarLive();
+      if (supported && !live.socket && !live.userStopped) {
+        live.reconnectAttempt = 0;
+        if (name === "imu") startImuLive(); else startLidarLive();
+      }
+    }
+  } else if (!panel.timer) {
+    panel.timer = window.setTimeout(() => closeSensorForHiddenPanel(name), CAMERA_PANEL_HIDDEN_MS);
+  }
+}
+function closeSensorForHiddenPanel(name) {
+  const panel = sensorPanels[name];
+  panel.timer = null;
+  if (panel.visible !== false) return;
+  const live = sensorPanelLive(name);
+  if ((live.socket || live.enabled) && !live.userStopped) {
+    panel.closed = true;
+    if (name === "imu") closeImuLive("IMU 화면이 보이지 않아 수신을 쉽니다.", { userStopped: false });
+    else closeLidarLive("LiDAR 화면이 보이지 않아 수신을 쉽니다.", { userStopped: false });
   }
 }
 
@@ -156,6 +227,7 @@ function startLidarLive() {
   }
   if (state.lidarLive.socket) return;
   clearLidarReconnectTimer();
+  if (sensorPanelDefersStart("lidar")) return;   // off screen: opens when the picture is visible (UI-16)
   const url = lidarWebSocketUrl();
   state.lidarLive.enabled = true;
   state.lidarLive.userStopped = false;
@@ -411,8 +483,9 @@ function startCameraLive() {
   if (state.cameraLive.socket) return;
   clearCameraReconnectTimer();
   watchCameraPanel();
-  if (cameraPanel.visible === false) {
-    // Off screen: open when the picture box is visible again (NET-08).
+  if (cameraPanel.visible === false || (cameraPanel.observer && cameraPanel.element && cameraPanel.visible === null)) {
+    // Off screen, or not reported yet (the observer's first report follows within a frame): open when the
+    // picture box is visible (NET-08). Rover Control holds many panels; the camera may be below the fold.
     state.cameraLive.userStopped = false;
     cameraPanel.closed = true;
     return;

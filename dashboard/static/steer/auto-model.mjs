@@ -36,6 +36,16 @@ export const LIMIT_REASON = {
   target: '목표 속도', corridor: '통로 신뢰도', lateral_error: '횡 오차', heading_error: '방향 오차',
   row_end: '열 끝 감속', steering: '조향 권한', obstacle: '앞 장애물', approach: '열 끝 감속',
 };
+// PW-10 (contract revision 6): why the online scale is held, and why its offer can not be taken.
+export const SCALE_HOLD = {
+  lidar_stale: 'LiDAR 스캔 없음', lidar_unmatched: 'LiDAR 속도 품질 미달(스캔 정합 실패)', not_driving: '주행 중 아님',
+  no_status: '구동 상태 없음', monitor_off: '감시 꺼짐',
+};
+export const SCALE_WHY_NOT = {
+  no_scale: '배율이 아직 없다(주행 10초 미만)', no_forward_motion: 'LiDAR가 앞으로 가는 것을 못 봤다',
+  scale_set_in_config: '실행기 설정이 배율을 따로 정했다', out_of_range: '제안 값이 범위 밖', no_change: '지금 값과 같다',
+  no_field_tuning: '현장 조정 묶음 없음',
+};
 
 const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
 const fixed = (value, digits, unit) => (num(value) === null ? '--' : `${value.toFixed(digits)}${unit}`);
@@ -161,6 +171,51 @@ export function autoView(reply, nowMs = Date.now()) {
     notice = ['warn', '화면 연결이 끊겨 멈췄다. 다시 가려면 다시 출발을 누른다(자동 재출발 없음).'];
   }
   return { chip: isStale ? ['bad', '끊김'] : [level, text], notice, rows, stale: isStale };
+}
+
+// PW-10: "LiDAR 속도 ÷ 표 속도" of the last ~20 s of driving, or why there is none / why it does not change. The line
+// of the autonomy section (shown only when the executor sends the block: a front-steer executor with its monitor).
+export function scaleLine(reply, nowMs = Date.now()) {
+  const s = reply && reply.ok && reply.status ? reply.status : null;
+  if (!s || !s.online_scale || typeof s.online_scale !== 'object' || stale(reply, nowMs)) return null;
+  return scaleText(s.online_scale);
+}
+
+export function scaleText(scale) {
+  if (!scale || scale.enabled === false) return '꺼짐';
+  const win = num(scale.window_s);
+  const minimum = num(scale.min_s);
+  const target = num(scale.target_s);
+  let text;
+  if (num(scale.value) === null) {
+    text = `모으는 중 ${win === null ? '--' : win.toFixed(0)}/${minimum === null ? '10' : minimum.toFixed(0)} s`;
+  } else {
+    text = `${scale.value.toFixed(3)} (최근 ${win === null ? '--' : win.toFixed(0)}${target === null ? '' : `/${target.toFixed(0)}`} s)`;
+  }
+  if (scale.frozen === true || (num(scale.value) === null && scale.hold && scale.hold !== 'not_driving')) {
+    text += ` · 멈춤: ${label(SCALE_HOLD, scale.hold) || '이유 모름'}`;
+  }
+  if (scale.mismatch === true) text += ' · 표 어긋남';
+  return text;
+}
+
+// PW-10: the question after a run ended (null when there is nothing to ask). accept: the executor sets k_field.
+export function scaleOffer(reply) {
+  const s = reply && reply.ok && reply.status ? reply.status : null;
+  const scale = s && s.online_scale;
+  const offer = scale && typeof scale.offer === 'object' ? scale.offer : null;
+  if (!offer || !Number.isInteger(offer.run_id) || HEARTBEAT_STATES.has(s.run_state)) return null;
+  const value = num(offer.value);
+  const win = num(offer.window_s);
+  const measured = value === null ? '온라인 배율 없음' : `온라인 배율 ${value.toFixed(3)} (최근 ${win === null ? '--' : win.toFixed(0)} s)`;
+  if (offer.ok !== true) {
+    return { runId: offer.run_id, canAccept: false,
+             text: `run ${offer.run_id} 끝: ${measured}. 전체 배율로 저장할 수 없다: ${label(SCALE_WHY_NOT, offer.why_not) || '이유 모름'}.` };
+  }
+  const now = num(offer.speed_scale_now);
+  const next = num(offer.speed_scale_new);
+  return { runId: offer.run_id, canAccept: true, from: now, to: next,
+           text: `run ${offer.run_id} 끝: ${measured}. 전체 배율(k_field)을 ${fixed(now, 3, '')} → ${fixed(next, 3, '')}로 저장할까요?` };
 }
 
 // A random session id of the operator link (contract: 4 to 64 characters).

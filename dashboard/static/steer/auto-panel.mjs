@@ -1,7 +1,8 @@
 // Autonomy section of the drive panel (UI-08): one press to start, STOP, the operator heartbeat while the screen is
 // visible, and the state from GET /api/executor/status (docs/STEERING_SERVER_KO.md 6). Loaded by static/app/14-steer.js
 // on a front-steer dashboard. Requests use the page's postJson/getJson. The page never sees the executor token.
-import { HEARTBEAT_MS, STATUS_MS, autoView, heartbeatWanted, newSession, prepareRun, primaryAction, runActive } from './auto-model.mjs';
+import { HEARTBEAT_MS, STATUS_MS, autoView, heartbeatWanted, newSession, prepareRun, primaryAction, runActive, scaleLine, scaleOffer } from './auto-model.mjs';
+import { ERROR_TEXT } from './tuning-model.mjs';
 
 const HTTP_TEXT = { 403: '대시보드 세션 없음: 화면을 새로 고친다', 409: '실행기가 거절했다', 502: '실행기 연결 안 됨',
                     503: '실행기 설정 없음', 400: '요청 값 오류', 413: '요청이 너무 큼' };
@@ -86,6 +87,28 @@ export function initAutoPanel(page) {
     if (!reply || reply.configured === false) return;
     if (runActive(reply) || !reply.ok) send('stop').then(poll);   // a run, or a state not known: the executor latches
   }
+  // PW-10: the answer to the online-scale offer after a run (POST /api/executor/params; the reply body is kept on a
+  // refusal so the executor's reason shows). The status poll above carries the offer: no polling of its own.
+  async function answerScale(answer) {
+    const offer = scaleOffer(reply);
+    if (!offer || busy) return;
+    if (answer === 'accept' && !window.confirm(`${offer.text}\n적용하면 실행기의 조정 값이 바뀐다(조정 화면의 기록에 남는다). 파일 저장은 조정 화면에서.`)) return;
+    busy = true; lastError = ''; draw();
+    try {
+      const res = await fetch('/api/executor/params', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ online_scale: answer, run_id: offer.runId }) });
+      let body = null;
+      try { body = await res.json(); } catch (_) { body = null; }
+      if (!res.ok || !body?.ok) lastError = `배율 ${answer === 'accept' ? '저장' : '닫기'} 거절: ${ERROR_TEXT[body?.error] || body?.error || `HTTP ${res.status}`}`;
+    } catch (_) {
+      lastError = `배율 ${answer === 'accept' ? '저장' : '닫기'}: ${ERROR_TEXT.executor_unreachable}`;
+    } finally {
+      busy = false;
+      await poll();
+    }
+  }
+  $('autoScaleAccept')?.addEventListener('click', () => answerScale('accept'));
+  $('autoScaleDismiss')?.addEventListener('click', () => answerScale('dismiss'));
   $('autoPrimary')?.addEventListener('click', primary);
   $('autoEnd')?.addEventListener('click', () => { if (!busy) send('end').then(poll); });
   for (const id of ['frameStopButton', 'roverStopButton']) $(id)?.addEventListener('click', stopRun);
@@ -103,6 +126,26 @@ export function initAutoPanel(page) {
     if (button) { button.textContent = busy ? '보내는 중…' : action.text; button.disabled = busy || !action.enabled; }
     const end = $('autoEnd');
     if (end) end.disabled = busy || !runActive(reply) || reply.status.run_state === 'running';
+    const line = $('autoScale');
+    if (line) {
+      const text = scaleLine(reply);
+      line.hidden = text === null;
+      const value = $('autoScaleValue');
+      if (value && text !== null && value.textContent !== text) value.textContent = text;
+    }
+    const box = $('autoScaleOffer');
+    if (box) {
+      const offer = view.stale ? null : scaleOffer(reply);
+      box.hidden = !offer;
+      if (offer) {
+        const text = $('autoScaleText');
+        if (text && text.textContent !== offer.text) text.textContent = offer.text;
+        const accept = $('autoScaleAccept');
+        if (accept) { accept.hidden = !offer.canAccept; accept.disabled = busy; }
+        const dismiss = $('autoScaleDismiss');
+        if (dismiss) { dismiss.disabled = busy; dismiss.textContent = offer.canAccept ? '저장 안 함' : '닫기'; }
+      }
+    }
     const notice = $('autoNotice');
     const [kind, text] = lastError ? ['bad', lastError] : (view.notice || ['', '']);
     if (notice) { notice.hidden = !text; notice.className = `test-result ${kind}`; notice.textContent = text; }

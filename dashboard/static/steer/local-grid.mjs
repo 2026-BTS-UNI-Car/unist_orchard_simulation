@@ -1,9 +1,10 @@
-// The executor's local grid on the map screen (UI-09, route /map): the occupied cells of the row executor's local
+// The executor's local grid on Rover Control's live occupancy grid map (UI-09, UI-16): the occupied cells of the row executor's local
 // grid, its last row-line fit (left and right row lines, centre line) and the vehicle, from GET
 // /api/executor/status?grid=1 (status.local_grid_map, schema ubts.row_executor.local_grid.v1, simulation repository
 // docs/steering/LOCAL_GRID_KO.md). The frame is the run's odometry (not a map, not GNSS). The grid axis (the row
 // direction) points right on the screen, the left of the row up. When the executor sends no grid the panel stays
-// hidden; without an executor the module stops asking. Loaded by static/app/14-steer.js when /map opens.
+// hidden; without an executor the module stops asking. It asks only while the live map part (#liveMapPanel) is on
+// screen. Loaded by static/app/14-steer.js when Rover Control opens.
 
 export const POLL_MS = 1000;              // placeholder: the executor makes a new export at most every 0.5 s
 export const STALE_S = 2.0;               // an export older than this is shown as old
@@ -88,7 +89,14 @@ export function initLocalGrid(page) {
   const panel = $('localGridPanel'), canvas = $('localGridCanvas');
   if (!panel || !canvas) return null;
   let timer = null, busy = false, off = false, grid = null, cells = null, drawnKey = '';
-  const active = () => page.currentRoute() === '/map' && !document.hidden;
+  // The block sits on the live map part of the LiDAR panel; it is hidden until a grid arrives, so the map part is watched.
+  const mapPart = $('liveMapPanel');
+  let onScreen = null;
+  if (mapPart && typeof IntersectionObserver === 'function') {
+    new IntersectionObserver((entries) => { onScreen = Boolean(entries[entries.length - 1].isIntersecting); routeChanged(); }).observe(mapPart);
+  }
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden
+    && (onScreen === true || (onScreen === null && !(mapPart && typeof IntersectionObserver === 'function')));
 
   function show(on) {
     if (panel.hidden === !on) return;

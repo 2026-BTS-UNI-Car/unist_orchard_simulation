@@ -48,7 +48,6 @@ initFanControls();
 initDockerControls();
 initNetworkControls();
 initRoverControl();
-initDriveView();
 initCanvasResize();
 initRangeFill();
 initLinkGrade();

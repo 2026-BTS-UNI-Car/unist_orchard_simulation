@@ -1,10 +1,12 @@
-// The steering potentiometer card of the sensors screen (UI-11 front-steer part, route /sensors): the measured front
+// The steering potentiometer rows of Rover Control's drive panel (UI-11 front-steer part, UI-16): the measured front
 // wheel angle and the potentiometer reading from GET /api/rover/status (the steering bridge's steering block), with
 // the faults the MCU or the bridge reports. Read only: no request changes anything. Loaded by static/app/14-steer.js on
-// a front-steer dashboard when /sensors opens; it asks every 500 ms only while the screen is visible.
+// a front-steer dashboard when Rover Control opens. Every 500 ms while the page is visible it shows the steering
+// panel's latest status reply (page.driveStatus) and asks itself only when that reply is older than 1 s.
 import { DEVICE_TEXT, faultLabels } from './steer-drive.mjs';
 
 export const STATUS_MS = 500;              // placeholder, same as the drive panel when not armed
+export const SHARED_MAX_AGE_MS = 1000;     // a steering panel reply younger than this is shown without a request
 const R = globalThis.UbtsSteerRules;
 const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
 const angle = (mrad) => (num(mrad) === null ? '--' : `${mrad >= 0 ? '' : '−'}${Math.abs(R.mradToDeg(mrad)).toFixed(1)}° (${mrad} mrad)`);
@@ -35,10 +37,12 @@ export function initSteerSensor(page) {
   const list = $('steerPotDetails');
   if (!list) return null;
   let timer = null, busy = false, reply;
-  const active = () => page.currentRoute() === '/sensors' && !document.hidden;
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden;
 
   async function poll() {
     if (busy) return;
+    const shared = page.driveStatus?.();
+    if (shared && Date.now() - shared.at <= SHARED_MAX_AGE_MS) { reply = shared.reply; draw(); return; }
     busy = true;
     try { reply = await page.getJson('/api/rover/status'); } catch (_) { reply = null; }
     finally { busy = false; }

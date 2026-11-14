@@ -42,17 +42,17 @@ function stepLidarMapRange() {
 }
 
 function drawCharts({ redrawLidar = true } = {}) {
-  // Only the tabs of the system screen have history plots. Avoid constructing every
-  // tab's series and reading CSS on each history-animation frame elsewhere.
-  const tab = currentRoute() === "/system" ? systemTab() : null;
-  if (!tab) {
+  const route = currentRoute();
+  // Live sensor/docs pages have no history plots. Avoid constructing every
+  // route's series and reading CSS on each history-animation frame there.
+  if (route !== "/" && route !== "/system" && route !== "/network" && route !== "/docker" && route !== "/fan") {
     if (redrawLidar && routeSupportsLidarLive()) renderActiveLidarMap();
     return;
   }
   const colors = chartColors();
   const powerMax = Math.max(10, ...state.history.power.filter((v) => v !== null));
   const groups = {
-    overview: [
+    "/": [
       ["chartOverviewSystem", [
         { values: state.visualHistory.cpu, color: colors.good, max: 100 },
         { values: state.visualHistory.memory, color: colors.cyan, max: 100 },
@@ -62,7 +62,8 @@ function drawCharts({ redrawLidar = true } = {}) {
         { values: normalizeBps(state.visualHistory.tx, "tx"), color: colors.rose, max: 100 },
       ]],
     ],
-    resources: [
+    "/connection": [],
+    "/system": [
       ...(state.cpuMode === "combined" ? [["chartCpu", [{ values: state.visualHistory.cpu, color: colors.good, max: 100 }]]] : []),
       ["chartMemory", [{ values: state.visualHistory.memory, color: colors.cyan, max: 100 }]],
       ["chartSwap", [{ values: state.visualHistory.swap, color: colors.rose, max: 100 }]],
@@ -72,22 +73,23 @@ function drawCharts({ redrawLidar = true } = {}) {
       ]],
       ["chartPower", [{ values: state.visualHistory.power, color: colors.amber, max: powerMax }]],
     ],
-    network: [
+    "/network": [
       ["chartNetwork", [
         { values: normalizeBps(state.visualHistory.rx, "rx"), color: colors.blue, max: 100 },
         { values: normalizeBps(state.visualHistory.tx, "tx"), color: colors.rose, max: 100 },
       ]],
     ],
-    docker: [
+    "/docker": [
       ["chartDockerCpu", [{ values: state.visualHistory.dockerCpu, color: colors.good, max: 100 }]],
       ["chartDockerMem", [{ values: state.visualHistory.dockerMemory, color: colors.cyan, max: 100 }]],
     ],
-    fan: [
+    "/fan": [
       ["chartFanTemp", [{ values: state.visualHistory.fanTemp, color: colors.amber, max: Math.max(90, ...state.history.fanTemp.filter((v) => v !== null)) }]],
     ],
+    "/rover-control": [],
   };
-  for (const [id, series] of groups[tab] || []) drawMultiLine(id, series);
-  if (tab === "resources" && state.cpuMode === "separate") drawCoreCharts();
+  for (const [id, series] of groups[route] || []) drawMultiLine(id, series);
+  if (route === "/system" && state.cpuMode === "separate") drawCoreCharts();
   if (redrawLidar && routeSupportsLidarLive()) renderActiveLidarMap();
 }
 

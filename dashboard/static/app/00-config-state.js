@@ -1,10 +1,13 @@
 const SIMULATION = document.documentElement.dataset.runtimeMode === "simulation";
-const ROUTES = ["/rover-control", "/map", "/sensors", "/records", "/tuning", "/system", "/docs"];
-// Old addresses (docs/SCREENS_KO.md): the page writes the new one in the address bar.
-const ROUTE_ALIASES = { "/": "/rover-control", "/drive": "/rover-control", "/connection": "/sensors", "/network": "/system/network",
-  "/docker": "/system/docker", "/fan": "/system/fan", "/research": "/system" };
-const SYSTEM_TABS = { "/system": "overview", "/system/resources": "resources", "/system/network": "network", "/system/docker": "docker", "/system/fan": "fan" };
-const DRIVE_VIEW_KEY = "ubts-drive-view-v1";
+// The eight pages of the menu, as before the redesign (UI-16, docs/SCREENS_KO.md).
+const ROUTES = ["/", "/connection", "/system", "/network", "/docker", "/fan", "/rover-control", "/docs"];
+// Addresses of the six-screen layout (2026-11-13) and of the removed research page: the page that holds
+// those panels now. The page writes the menu address in the address bar; ROUTE_FOCUS names the part of
+// Rover Control that such an address showed, and the page scrolls there once.
+const ROUTE_ALIASES = { "/drive": "/rover-control", "/map": "/rover-control", "/records": "/rover-control",
+  "/tuning": "/rover-control", "/sensors": "/connection", "/system/resources": "/system", "/system/network": "/network",
+  "/system/docker": "/docker", "/system/fan": "/fan", "/research": "/" };
+const ROUTE_FOCUS = { "/map": "liveMapPanel", "/records": "roverRecordPanel", "/tuning": "tuningPanel" };
 const HISTORY_KEYS = ["cpu", "memory", "swap", "power", "temp", "rx", "tx", "dockerCpu", "dockerMemory", "fanTemp", "fanPwm"];
 const MAX_POINTS = 90;
 const CHART_BUFFER_POINTS = MAX_POINTS + 1;
