@@ -1,0 +1,59 @@
+{
+ "criteria": {
+  "frozen_flag_s": 0.6,
+  "full_window_margin_s": 0.2,
+  "min_judged_samples": 10,
+  "series_min_fraction": 1.0,
+  "settle_s": 0.3,
+  "target": 0.85,
+  "tolerance": 0.03,
+  "track_tolerance": 0.03
+ },
+ "cut": {
+  "at_s": 30.0,
+  "duration_s": 1.0,
+  "watch_to_s": 60.0
+ },
+ "executor": "default front_steer configuration (prior_enabled None = weight-0 monitor), field tuning package default, follow_wide controller and one-press start",
+ "id": "pw10_online_scale_v1",
+ "judged": [
+  "exact.converged",
+  "exact.series",
+  "cut.frozen",
+  "wide.tracking"
+ ],
+ "pass_rule": "every judged item passes on every seed",
+ "plant": {
+  "drive_table_factor": 0.85,
+  "exact_overrides": {
+   "scrub_speed_loss_per_deg": 0.0,
+   "speed_fluctuation_sd": 0.0
+  },
+  "profile": "front_steer_v0_1_2_placeholder"
+ },
+ "reported": [
+  "wide last value and offer minus target",
+  "offer proposals",
+  "end reasons"
+ ],
+ "result_kind": "placeholder-based SIM result",
+ "runs": [
+  "exact",
+  "cut",
+  "wide"
+ ],
+ "schema": "ubts.steer_sim.prereg_online_scale.v1",
+ "screen": {
+  "read_every_s": 0.5,
+  "source": "executor status online_scale (relayed unchanged by the dashboard)"
+ },
+ "seeds": [
+  100,
+  101,
+  102,
+  103,
+  104
+ ],
+ "simulator": "F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)",
+ "task": "PW-10"
+}

@@ -6,6 +6,7 @@
   합격 기준: `SIM_ACCEPTANCE_KO.md` 개정 31(A17 자율 시작·정지), 개정 32(A11 보고).
 - 코드: `tools/row_executor/operator_http.py`(경로), `executor_main.py`(`OperatorLink`, `ExecutorLoop`), `field_tuning.py`.
 - 개정 5(2026-11-14, G-SIM 5단계): 세션 묶임·풀림 규칙(3.1절). 같은 글을 `runs/_locks/AUTONOMY_API_CONTRACT_20261113.txt` 끝에 적었다.
+- 개정 6(2026-11-14, PW-10): 상태 `online_scale`과 `/api/params`의 온라인 배율 답 형식(6.1절). 같은 글을 규약 파일 끝에 적었다.
 - 수치는 자리값이다. SIM에서 잰 값은 자리값 기반 SIM 결과이며 현장 성능이 아니다.
 
 ## 1. 접근 규칙(바뀌지 않음)
@@ -149,6 +150,7 @@
 | `speed` | `{target_mps, limit_mps, limit_reason, caps}`(5절) |
 | `tuning` | `{preset, revision, editable, ...}`(6절) |
 | `lease_lost` | 3.4절 상태일 때 `{t, where, error, bridge_reason, bridge_latches, steering_fault, run_id, client_latch}`, 아니면 null |
+| `online_scale` | front_steer: 온라인 배율과 run 뒤 제안(6.1절, 개정 6). 차동 실행기에는 없다 |
 
 - `stop_reason` 분류표: 새 이유의 분류는 `operator_link_lost` → `OPERATOR_LINK_LOST`, `speed_cap_below_min`·`prediction_limit` →
   `PERCEPTION_OR_LOCALISATION`(센서 쪽), `overspeed` → `CONTROL_AUTHORITY`(구동 쪽). 제안이며 조향 사전등록(PC-14)에서 정한다.
@@ -192,6 +194,27 @@
   "config_digest"}`.
 - 상태 `tuning`: `preset`(바꾸면 끝에 `*`), `revision`, `editable`, `not_editable_because`, `digest`, `file`, `file_sha256`,
   `modified`, `presets`, `writable`, `unsaved`, `basic`(이름·값·범위·단위), `values`(묶음별 모든 값).
+
+### 6.1 온라인 배율(PW-10, 개정 6, 2026-11-14)
+
+자세한 것은 `ACTUATOR_PRIOR_KO.md` 4절.
+
+- 상태 `online_scale`: `enabled`(감시 켜짐: front_steer 기본), `run_id`, `value`(LiDAR 속도 ÷ 표 속도, 최근 주행 20 s, 주행 10 s 전에는
+  null), `window_s`, `target_s`(20), `min_s`(10), `frozen`(값이 있고 0.5 s 넘게 갱신 안 됨), `hold`(갱신 안 되는 까닭: `lidar_stale`,
+  `lidar_unmatched`, `not_driving`, `no_status`, 감시가 꺼졌으면 `monitor_off`), `age_s`, `mismatch`(표 어긋남 ±20 %), `speed_scale`
+  (지금 k_field), `prior_scale`(k_field × 지면 × 배터리), `offer`.
+- `offer`(run 이 끝난 뒤, 답하거나 새 run 이 시작될 때까지): `{run_id, value, window_s, end_reason, prior_scale, speed_scale_now,
+  surface_scale, battery_scale, speed_scale_new, ok, why_not}`. `why_not`: `no_scale`, `no_forward_motion`, `scale_set_in_config`,
+  `out_of_range`, `no_change`.
+- 답: `POST /api/params {"online_scale": "accept" | "dismiss", "run_id": N}`.
+  - accept: 정지 상태에서만(409 `tuning_locked_while_running` 등, 6절과 같음). 409 `no_online_scale_offer`, `online_scale_offer_changed`
+    (`run_id` 가 다름, 응답에 지금 제안의 `run_id`), `online_scale_basis_changed`(run 뒤 k_field·지면·배터리 배율이 바뀜), 또는 제안의
+    `why_not`. 성공 응답은 6절의 값 변경과 같고 `action` 이 `online_scale`, `run_id` 가 붙는다. 실행기 기록: `tuning_change`(action
+    `online_scale`, `source_run_id`, `online_scale`, `window_s`)와 `online_scale_answer`(answer accept).
+  - dismiss: 언제나. `{ok, action: "online_scale_dismiss", run_id}`, 기록 `online_scale_answer`(answer dismiss).
+  - 형식 오류(다른 키, 모르는 답, 정수가 아닌 run_id): 400 `invalid_params`.
+- 화면은 2 Hz 상태 읽기로 값을 보이고, `offer` 가 있고 주행 중이 아닐 때 '전체 배율로 저장할까요?'를 묻는다(대시보드 화면 자리는
+  메뉴를 되돌린 뒤 정한다).
 
 ## 7. 화면이 할 일(요약)
 

@@ -372,8 +372,12 @@ class ExecutorConfig:
     # defaults nothing is fed and nothing changes; an untouched block is left out of to_dict()/digest() (existing
     # configs keep their digest). PWM is not an encoder: the prior is bounded and LiDAR + raw IMU stay the main input.
     # Every value is a placeholder until the steered vehicle is measured (the field tuning file replaces the table).
-    prior_enabled: bool = False                  # feed the applied drive duty and the measured steering angle of the
-                                                 # steering status to the estimator; snapshot / log block 'actuator_prior'
+    prior_enabled: object = None                 # feed the applied drive duty and the measured steering angle of the
+                                                 # steering status to the estimator; snapshot / log block 'actuator_prior'.
+                                                 # None = the profile default (prior_active): on for front_steer (with
+                                                 # weight 0 only the record and the online-scale monitor of PW-10, the
+                                                 # decisions are unchanged), off for the differential profile; or
+                                                 # explicitly true / false
     prior_weight: float = 0.                     # 0 = record and monitor only; (0, 1] = scan-match seed blend and the
                                                  # share of the bounded prediction (a failed match, a scan gap)
     prior_speed_table: tuple = ()                # ((duty_pct, speed_m_s), ...) rising; () = the vendored placeholder table
@@ -540,8 +544,8 @@ class ExecutorConfig:
 
     def actuator_prior_settings(self):
         """Keyword arguments of the vendored ActuatorPriorConfig (closed_loop/actuator_prior.py), or None while
-        prior_enabled is False. The status age limit is the steering status one (design v2 V2-1)."""
-        if not self.prior_enabled:
+        the prior is not active (prior_active). The status age limit is the steering status one (design v2 V2-1)."""
+        if not prior_active(self):
             return None
         settings = dict(speed_scale=float(self.prior_speed_scale),
                         wheelbase_m=None if self.prior_wheelbase_m is None else float(self.prior_wheelbase_m),
@@ -726,7 +730,7 @@ _SPEC.update({
 })
 # Actuator priors and estimator outputs (design v2 V2-1): separate block for the same reason.
 _SPEC.update({
-    'prior_enabled': (bool,), 'prior_weight': (_REAL, 0., 1.), 'prior_speed_table': ('speed_table',),
+    'prior_enabled': (bool, None, None, 'nullable'), 'prior_weight': (_REAL, 0., 1.), 'prior_speed_table': ('speed_table',),
     'prior_speed_scale': (_REAL, .5, 1.3), 'prior_wheelbase_m': (_REAL, .2, 3., 'nullable'),
     'prior_predict_max_s': (_REAL, .1, 3.), 'prior_predict_max_m': (_REAL, .05, 2.),
     'prior_mismatch_fraction': (_REAL, .05, .9), 'corridor_quality': (bool,),
@@ -1963,14 +1967,24 @@ def steer_rule_problems(cfg):
     return p
 
 
+def prior_active(cfg):
+    """Whether the actuator prior layer runs (design v2 V2-1, PW-10): prior_enabled true / false, or with None (the
+    default) the profile default: on for front_steer (weight 0 = record and online-scale monitor only, the same
+    decisions), off for the differential profile (it has no steering status)."""
+    enabled = getattr(cfg, 'prior_enabled', None)
+    if enabled is None:
+        return is_front_steer(cfg)
+    return bool(enabled)
+
+
 def prior_rule_problems(cfg):
     """Static rules of the design v2 block: the priors need the steering status (front_steer) and a weight needs
-    prior_enabled."""
+    an active prior."""
     p = []
-    if cfg.prior_enabled and cfg.vehicle_profile != FRONT_STEER:
+    if cfg.prior_enabled is True and cfg.vehicle_profile != FRONT_STEER:
         p.append('prior_enabled: needs vehicle_profile front_steer (the applied duty and the steering angle come from '
                  'the steering status)')
-    if cfg.prior_weight > 0 and not cfg.prior_enabled:
+    if cfg.prior_weight > 0 and not prior_active(cfg):
         p.append('prior_weight %r: needs prior_enabled' % (cfg.prior_weight,))
     return p
 

@@ -157,8 +157,8 @@ flowchart TB
   L3 --> LOGG["기록 · 지오펜스 (기본 꺼짐)"]
 ```
 
-[도식] 구현 상태: L0 **구현됨**(주 입력). L1·L2·L3 **구현됨, 기본 꺼짐**: L1 `prior_enabled` false·가중 0
-([`ACTUATOR_PRIOR_KO.md`](steering/ACTUATOR_PRIOR_KO.md)), L2 `local_grid_enabled` false·융합 이득 0
+[도식] 구현 상태: L0 **구현됨**(주 입력). L1·L2·L3 **구현됨, 기본 꺼짐**: L1 가중 0(front_steer 는 2026-11-14부터 가중 0 감시가
+기본으로 켜져 온라인 배율만 낸다, PW-10; [`ACTUATOR_PRIOR_KO.md`](steering/ACTUATOR_PRIOR_KO.md) 4절), L2 `local_grid_enabled` false·융합 이득 0
 ([`LOCAL_GRID_KO.md`](steering/LOCAL_GRID_KO.md)), L3 `gnss_mode` off([`GNSS_LAYER_KO.md`](steering/GNSS_LAYER_KO.md)).
 조향 명령과 열 끝 판정은 L0에서만 나온다. 일반 GNSS 오차(10/10 기록 수평 정확도 p50 5.3~10.0 m)가 열 간격(3.6~4.1 m)보다 커서
 GNSS는 횡 위치에 쓰지 않는다. PWM은 엔코더가 아니다.

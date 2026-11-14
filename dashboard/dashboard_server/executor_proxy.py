@@ -41,8 +41,13 @@ STATUS_FIELDS = {
     "bridge_detail": ("state", "latch_reason"),
     # contract revision 3: the bridge took the lease back before the first go (the run stays open, run_state ready)
     "lease_lost": ("where", "error", "bridge_reason", "bridge_latches", "steering_fault"),
+    # contract revision 6 (PW-10): the online scale LiDAR speed / table speed of the run and the offer after it ended
+    "online_scale": ("enabled", "run_id", "value", "window_s", "target_s", "min_s", "frozen", "hold", "age_s", "mismatch",
+                     "speed_scale", "prior_scale", "offer"),
 }
-NESTED = {("single_row", "confidence"): ("level",)}
+NESTED = {("single_row", "confidence"): ("level",),
+          ("online_scale", "offer"): ("run_id", "value", "window_s", "end_reason", "speed_scale_now", "speed_scale_new",
+                                      "ok", "why_not")}
 # tools/row_executor/field_tuning.py State.status() (OPERATOR_API_KO.md 6). The file path and digests stay here.
 TUNING_SCALARS = ("preset", "revision", "editable", "not_editable_because", "modified", "writable", "unsaved")
 TUNING_GROUPS = ("basic", "advanced", "locked")

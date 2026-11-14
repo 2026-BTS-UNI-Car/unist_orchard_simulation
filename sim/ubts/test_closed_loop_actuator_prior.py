@@ -9,8 +9,8 @@ import math
 import numpy as np
 import pytest
 
-from closed_loop.actuator_prior import (DEFAULT_SPEED_TABLE, KEEP_S, PREDICTING_AFTER_S, ActuatorPrior,
-                                        ActuatorPriorConfig, SpeedTable)
+from closed_loop.actuator_prior import (DEFAULT_SPEED_TABLE, FROZEN_AFTER_S, HOLD_REASONS, KEEP_S, PREDICTING_AFTER_S,
+                                        ActuatorPrior, ActuatorPriorConfig, SpeedTable)
 from closed_loop.estimator import EstimatorConfig, SensorEstimator
 from orchard_perception.scenarios import Circle, OrchardScene, Pose2D, raycast_scan
 
@@ -243,6 +243,59 @@ def test_monitor_ignores_standstill_and_intervals_without_a_status():
     assert prior.window_s == 0.
 
 
+def test_held_scale_reports_why_it_does_not_change():
+    """PW-10: the online scale changes only with a scan-matched driving interval; otherwise it is held and the snapshot
+    says why (failed match, no new scan, not driving, no status line)."""
+    prior = monitored(1. / .85)                                  # the vehicle drives at 0.85 x the table speed
+    scale = prior.online_scale()
+    assert scale == pytest.approx(.85, abs=1e-9)
+    block = prior.snapshot(25.05, 25., .4)
+    assert not block['online_scale_frozen'] and block['online_scale_hold'] is None
+    assert block['online_scale_age_s'] == pytest.approx(.05) and block['monitor_window_s'] == 20.
+    assert block['monitor_min_s'] == 10. and block['unmatched_scans'] == 0
+    t = 25.
+    for k in range(10):                                          # 1 s of scans that do not match (driving on)
+        prior.update(round(t, 6), 40., 40.)
+        prior.update(round(t + .05, 6), 40., 40.)
+        prior.predict(round(t, 6), round(t + .1, 6))             # weight 0: nothing predicted, only counted
+        t += .1
+    assert prior.online_scale() == scale and prior.predicted_scans == 0
+    block = prior.snapshot(round(t + .05, 6), round(t, 6), .4)
+    assert block['online_scale'] == scale and block['online_scale_frozen'] is True
+    assert block['online_scale_hold'] == 'lidar_unmatched' and block['unmatched_scans'] == 10
+    # no new scan for more than FROZEN_AFTER_S (a LiDAR blackout): lidar_stale
+    block = prior.snapshot(round(t + FROZEN_AFTER_S + .1, 6), round(t, 6), .4)
+    assert block['online_scale_hold'] == 'lidar_stale' and block['online_scale'] == scale
+    assert prior.snapshot(t, None, 0.)['online_scale_hold'] == 'lidar_stale'
+    # matched scans again while the vehicle stands (duty 0): not_driving, the scale still held
+    for k in range(10):
+        prior.update(round(t, 6), 0., 0.)
+        prior.update(round(t + .05, 6), 0., 0.)
+        prior.observe(round(t, 6), round(t + .1, 6), 0.)
+        t += .1
+    block = prior.snapshot(round(t + .05, 6), round(t, 6), 0.)
+    assert block['online_scale_hold'] == 'not_driving' and block['online_scale'] == scale
+    # a matched interval without a status line: no_status
+    prior.observe(round(t + 10., 6), round(t + 10.1, 6), .04)
+    assert prior.snapshot(round(t + 10.15, 6), round(t + 10.1, 6), .4)['online_scale_hold'] == 'no_status'
+    # a matched driving interval updates it again
+    t += 10.2
+    prior.update(round(t, 6), 40., 40.)
+    prior.update(round(t + .05, 6), 40., 40.)
+    prior.observe(round(t, 6), round(t + .1, 6), .06)                # faster than 0.85 x: the scale moves
+    block = prior.snapshot(round(t + .15, 6), round(t + .1, 6), .4)
+    assert not block['online_scale_frozen'] and block['online_scale_hold'] is None
+    assert block['online_scale'] != scale
+    assert set(HOLD_REASONS) == {'lidar_stale', 'lidar_unmatched', 'not_driving', 'no_status'}
+
+
+def test_no_scale_yet_is_not_frozen_but_says_why():
+    prior = ActuatorPrior(prior_config())
+    block = prior.snapshot(1., None, 0.)
+    assert block['online_scale'] is None and block['online_scale_frozen'] is False
+    assert block['online_scale_hold'] == 'lidar_stale' and block['online_scale_age_s'] is None
+
+
 # --- the estimator --------------------------------------------------------------------------------------------------
 
 def scan_at(x, y=0., yaw=0., scene=SCENE):
@@ -376,6 +429,28 @@ def test_table_error_shows_in_the_online_scale_of_a_drive():
     assert blocks[1]['online_scale'] == pytest.approx(1 / 1.3, abs=.08) and blocks[1]['table_mismatch']
     assert blocks[2]['online_scale'] == pytest.approx(1 / .7, abs=.1) and blocks[2]['table_mismatch']
     assert all(b['monitor_s'] >= 10. for b in blocks)
+
+
+def test_estimator_holds_the_scale_through_failed_matches_and_a_scan_blackout():
+    """PW-10: the estimator feeds the monitor only after a scan match; featureless scans (fresh, no match) and a scan
+    gap leave the online scale unchanged and the snapshot reports the hold."""
+    est = estimator(0., speed_scale=1. / .85)                   # driven at 0.85 x the table speed
+    seen = []
+
+    def watch(t, estimators):
+        block = estimators[0].snapshot(t)['actuator_prior']
+        seen.append((t, block['online_scale'], block['online_scale_frozen'], block['online_scale_hold']))
+    drive([est], 30., blind=((16., 19.),), gaps=((23., 26.),), snapshots=watch)
+    at = {round(t, 2): (k, frozen, hold) for t, k, frozen, hold in seen}
+    k_blind = at[16.0][0]
+    assert k_blind == pytest.approx(.85, abs=.05)
+    assert all(at[round(16. + .05 * i, 2)][0] == k_blind for i in range(61))          # 16.0 .. 19.0 s: held
+    assert at[17.0][1] and at[17.0][2] == 'lidar_unmatched'
+    assert not at[21.0][1] and at[21.0][0] != k_blind                                  # matched again: updating
+    k_gap = at[23.0][0]
+    assert all(at[round(23. + .05 * i, 2)][0] == k_gap for i in range(61))            # 23.0 .. 26.0 s: held
+    assert at[24.0][1] and at[24.0][2] == 'lidar_stale'
+    assert est.prior.predicted_scans == 0                                              # weight 0: monitor only
 
 
 def test_snapshot_block_reports_the_yaw_rate_prior():

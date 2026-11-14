@@ -20,6 +20,13 @@ Uses (applied by the estimator; weight 0 = monitor and record only, the estimate
   (c) monitor      online scale = LiDAR step / prior displacement over the last monitor_window_s of driving. The table
                    is flagged (table_mismatch) when the table error |prior / LiDAR - 1| exceeds mismatch_fraction with
                    at least monitor_min_s of samples in the window. The flag alone never stops anything.
+                   Only a scan-matched interval enters (the LiDAR speed's quality check: the estimator calls observe()
+                   after a match with fitness >= 0.5 over a scan gap < 0.5 s); a failed match, a scan gap, no status
+                   line or a prior below monitor_min_speed_m_s leaves the window as it is. The scale is then HELD
+                   (PW-10): the snapshot reports online_scale_frozen and the reason online_scale_hold when the newest
+                   window entry is older than FROZEN_AFTER_S (lidar_stale: no new scan; lidar_unmatched: the newest
+                   scan did not match; not_driving: the prior is below the monitor speed; no_status: no status line
+                   over the interval).
   (e) distance     cumulative prior displacement over the scan intervals, reported next to the LiDAR distance.
 Never: steering on the prior alone beyond the bound, a row end from the prior, a position accumulated without LiDAR.
 
@@ -36,6 +43,10 @@ import math
 DEFAULT_SPEED_TABLE = ((25., .239), (80., .709), (90., .715), (100., .899))
 KEEP_S = 4.                         # status samples older than this are dropped (longest interval ever integrated)
 PREDICTING_AFTER_S = .25            # newest scan older than this (2.5 scan periods): the pose is a prediction
+FROZEN_AFTER_S = .5                 # (c) newest window entry older than this: the online scale is held (5 scan periods,
+                                    # the scan gap the estimator no longer matches on the LiDAR speed alone; a shorter
+                                    # value flickers when a slow host skips scans)
+HOLD_REASONS = ('lidar_stale', 'lidar_unmatched', 'not_driving', 'no_status')
 
 
 def _finite(*values):
@@ -135,6 +146,9 @@ class ActuatorPrior:
         self.distance = 0.               # (e) cumulative |prior displacement| over scan-matched intervals
         self.window = deque()            # (c) (stamp, dt, LiDAR step, prior step) of driving samples
         self.window_s = 0.               # driving time in the window
+        self.last_entry = None           # (c) end stamp of the newest window entry (PW-10: the scale's update time)
+        self.last_skip = None            # (c) (end stamp, reason in HOLD_REASONS) of the newest interval left out
+        self.unmatched = 0               # failed scan matches seen by predict() (whole run; also with weight 0)
 
     # --- input ------------------------------------------------------------------------------------------------
     def update(self, stamp, duty_left_pct, duty_right_pct, steer_rad=None):
@@ -204,6 +218,8 @@ class ActuatorPrior:
     def predict(self, t0, t1):
         """Translation [m] to add for a FAILED scan match over (t0, t1] (0 while weight 0, without a complete prior or
         beyond the bound). Counts the interval against the bound."""
+        self.unmatched += 1
+        self.last_skip = (float(t1), 'lidar_unmatched')     # (c) the monitor sees no LiDAR speed for this interval
         weight = self.config.weight
         if not weight > 0.:
             return 0.
@@ -256,13 +272,18 @@ class ActuatorPrior:
         """A scan-matched interval (t0, t1] with the LiDAR forward step [m]."""
         step, complete = self.displacement(t0, t1)
         dt = t1 - t0
-        if not complete or not dt > 0.:
+        if not dt > 0.:
+            return
+        if not complete:
+            self.last_skip = (float(t1), 'no_status')
             return
         self.distance += abs(step)
         if abs(step) < self.config.monitor_min_speed_m_s * dt:
+            self.last_skip = (float(t1), 'not_driving')
             return
         self.window.append((t1, dt, float(lidar_step), step))
         self.window_s += dt
+        self.last_entry = float(t1)
         popped = False
         while self.window and self.window_s - self.window[0][1] >= self.config.monitor_window_s:
             self.window_s -= self.window.popleft()[1]
@@ -278,6 +299,20 @@ class ActuatorPrior:
         if not abs(prior) > 1e-6:
             return None
         return math.fsum(entry[2] for entry in self.window) / prior
+
+    def scale_hold(self, now, scan_stamp):
+        """(updating, hold reason | None) of the online scale at `now` (PW-10). updating: the newest window entry is at
+        most FROZEN_AFTER_S old. Otherwise the reason is lidar_stale when the newest scan is older than FROZEN_AFTER_S
+        (or there is none), else the reason of the newest interval left out (lidar_unmatched, not_driving, no_status),
+        else lidar_stale (no interval since the newest entry)."""
+        if self.last_entry is not None and 0. <= now - self.last_entry <= FROZEN_AFTER_S:
+            return True, None
+        if scan_stamp is None or now - scan_stamp > FROZEN_AFTER_S:
+            return False, 'lidar_stale'
+        skip = self.last_skip
+        if skip is not None and (self.last_entry is None or skip[0] > self.last_entry):
+            return False, skip[1]
+        return False, 'lidar_stale'
 
     def table_mismatch(self):
         scale = self.online_scale()
@@ -297,6 +332,8 @@ class ActuatorPrior:
         ahead = None if scan_stamp is None else self.extrapolate(scan_stamp, now, lidar_speed)
         predict_s = self.predict_s + horizon if cfg.weight > 0. else 0.
         predict_m = self.predict_m + (abs(ahead[0]) if ahead is not None else 0.) if cfg.weight > 0. else 0.
+        scale = self.online_scale()
+        updating, hold = self.scale_hold(now, scan_stamp)
         return dict(
             fresh=sample is not None, age_s=None if newest is None else now - newest[0],
             duty_pct=None if sample is None else sample[3], steer_rad=None if sample is None else sample[4],
@@ -304,7 +341,11 @@ class ActuatorPrior:
             weight=cfg.weight, predict_s=predict_s, predict_m=predict_m,
             predicting=bool(cfg.weight > 0. and (self.predict_s > 0. or horizon > PREDICTING_AFTER_S)),
             limit=bool(self.limit or (ahead is not None and ahead[1])),
-            predicted_scans=self.predicted_scans, distance_m=self.distance, online_scale=self.online_scale(),
+            predicted_scans=self.predicted_scans, distance_m=self.distance, online_scale=scale,
             monitor_s=self.window_s, table_mismatch=self.table_mismatch(), samples=self.accepted,
-            rejected=self.rejected)
+            rejected=self.rejected,
+            # PW-10: the scale's update state. frozen = a scale exists and it was not updated for FROZEN_AFTER_S.
+            online_scale_age_s=None if self.last_entry is None else now - self.last_entry,
+            online_scale_frozen=bool(scale is not None and not updating), online_scale_hold=hold,
+            monitor_window_s=cfg.monitor_window_s, monitor_min_s=cfg.monitor_min_s, unmatched_scans=self.unmatched)
 

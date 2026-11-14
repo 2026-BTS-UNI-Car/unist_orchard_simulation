@@ -7,7 +7,9 @@ dashboard draws what the executor sends (it keeps no ranges of its own), adds Ko
 the executor's own ranges so the page can say why first, relays it to POST /api/params and keeps a change log.
 
 What the screen may send (the executor's forms): basic keys only {name: number}; {"preset": name} alone;
-{"save": true}; {"save_preset": name, "note": text}. Advanced and locked keys change in the file only.
+{"save": true}; {"save_preset": name, "note": text}; the answer to the online-scale offer after a run (PW-10,
+contract revision 6) {"online_scale": "accept" | "dismiss", "run_id": N}. Advanced and locked keys change in the file
+only.
 """
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ LOG_SHOW = 50
 PRESET_NAME = re.compile(r"[A-Za-z0-9_.-]{1,40}")       # field_tuning._name_ok
 DEFAULT_PRESET = "default"
 NOTE_MAX = 200
+SCALE_ANSWERS = ("accept", "dismiss")                    # PW-10: the online-scale offer (OPERATOR_API_KO.md 6.1)
 
 # Korean labels of the executor's keys (field_tuning.KEYS). A key the executor adds later is shown by its name.
 LABELS = {
@@ -120,11 +123,13 @@ def view(executor_status: dict) -> dict:
     if available:
         brief = {key: tuning.get(key) for key in ("preset", "revision", "modified", "presets", "writable", "unsaved")
                  if key in tuning}
+    scale = status.get("online_scale") if reachable and isinstance(status.get("online_scale"), dict) else None
+    offer = scale.get("offer") if scale is not None and isinstance(scale.get("offer"), dict) else None
     return {"ok": True, "schema": SCHEMA,
             "configured": executor_status.get("configured", False) if isinstance(executor_status, dict) else False,
             "reachable": reachable, "error": None if reachable else (executor_status or {}).get("error"),
             "run_state": run_state, "available": available, "applicable": applicable, "why_not": why_not,
-            "tuning": brief, "params": params}
+            "tuning": brief, "params": params, "online_scale_offer": offer}
 
 
 def validate(body, tuning_view: dict) -> dict:
@@ -135,6 +140,8 @@ def validate(body, tuning_view: dict) -> dict:
         raise ExecutorError(502, tuning_view.get("error") or "executor_unreachable")
     if not tuning_view["available"]:
         raise ExecutorError(409, "no_field_tuning")
+    if "online_scale" in body:
+        return _scale_answer(body, tuning_view)
     if not tuning_view["applicable"]:
         raise ExecutorError(409, tuning_view.get("why_not") or "tuning_locked", run_state=tuning_view.get("run_state"))
     brief = tuning_view["tuning"]
@@ -173,6 +180,28 @@ def validate(body, tuning_view: dict) -> dict:
             raise ExecutorError(400, "out_of_range", field=name, min=param["min"], max=param["max"])
         out[name] = number
     return out
+
+
+def _scale_answer(body: dict, tuning_view: dict) -> dict:
+    """The answer to the executor's online-scale offer (PW-10): {"online_scale": "accept" | "dismiss", "run_id": N}.
+    The offer of the status must be there and be for that run; accept also needs an offer that can be taken and a
+    tuning that may change now (the executor checks both again)."""
+    answer, run = body.get("online_scale"), body.get("run_id")
+    if set(body) - {"online_scale", "run_id"}:
+        raise ExecutorError(400, "online_scale_form")
+    if answer not in SCALE_ANSWERS or isinstance(run, bool) or not isinstance(run, int):
+        raise ExecutorError(400, "online_scale_form")
+    offer = tuning_view.get("online_scale_offer")
+    if not isinstance(offer, dict):
+        raise ExecutorError(409, "no_online_scale_offer")
+    if offer.get("run_id") != run:
+        raise ExecutorError(409, "online_scale_offer_changed", run_id=offer.get("run_id"))
+    if answer == "accept":
+        if offer.get("ok") is not True:
+            raise ExecutorError(409, offer.get("why_not") or "online_scale_not_offered")
+        if not tuning_view["applicable"]:
+            raise ExecutorError(409, tuning_view.get("why_not") or "tuning_locked", run_state=tuning_view.get("run_state"))
+    return {"online_scale": answer, "run_id": run}
 
 
 def page_reply(reply: dict) -> dict:
@@ -231,6 +260,8 @@ class TuningLog:
 def _action_of(body) -> str:
     if not isinstance(body, dict):
         return "set"
+    if "online_scale" in body:
+        return "online_scale_dismiss" if body.get("online_scale") == "dismiss" else "online_scale"
     if "preset" in body:
         return "load_preset"
     if "save_preset" in body:
@@ -248,6 +279,9 @@ def apply(client, body, log: TuningLog, who: str) -> tuple[int, dict]:
     if isinstance(body, dict) and action in ("load_preset", "save_preset"):
         target = body.get("preset" if action == "load_preset" else "save_preset")
         target = target[:40] if isinstance(target, str) else None
+    if isinstance(body, dict) and action.startswith("online_scale"):
+        run = body.get("run_id")
+        target = f"run {run}" if isinstance(run, int) and not isinstance(run, bool) else None
     try:
         sent = validate(body, before)
     except ExecutorError as exc:

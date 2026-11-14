@@ -45,6 +45,9 @@ Gazebo 실행기 컨테이너가 같은 파일을 읽는다. 셋 다 실행기 �
 
 - `{"target_speed_m_s": 0.3, "k_d": 1.2}` 기본 묶음 키만. 고급·잠금 키는 400.
 - `{"preset": "slow_030"}` 프리셋 불러오기(혼자만). `default`는 기본값이다. 기본 프리셋으로 되돌리면 digest가 기본값의 digest와 같다.
+- `{"online_scale": "accept", "run_id": N}`(PW-10): run 뒤 실행기가 제안한 k_field(지금 `prior_speed_scale` × 온라인 배율 ÷
+  (지면 × 배터리))로 `speed_scale`을 바꾼다. 화면 변경과 같은 잠금·기록(`tuning_change` action `online_scale`), `dismiss`는 바꾸지 않는다
+  (`ACTUATOR_PRIOR_KO.md` 4절, `OPERATOR_API_KO.md` 6.1).
 - `{"save": true}`, `{"save_preset": "이름", "note": "메모"}` 지금 값을 파일에 쓴다(임시 파일 뒤 이름 바꾸기). 패키지 기본 파일에는
   쓰지 않는다(400): 실차에서는 `tuning_file`을 패키지 밖 경로로 둔다.
 - 정지 상태에서만: run이 열려 있으면 409 `tuning_locked_while_running`, lease를 쥐고 있으면 `tuning_locked_while_armed`,

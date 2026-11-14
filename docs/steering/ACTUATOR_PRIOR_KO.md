@@ -9,7 +9,7 @@
 
 | 설정 키 | 기본 | 뜻 |
 |---|---|---|
-| `prior_enabled` | false | 조향 상태마다 MCU가 보고한 적용 duty(상태의 핀 값 D8−D5, D3−D0, −255..255 → %)와 보정 조향각을 추정기에 넣는다 |
+| `prior_enabled` | null(프로필 기본) | 조향 상태마다 MCU가 보고한 적용 duty(상태의 핀 값 D8−D5, D3−D0, −255..255 → %)와 보정 조향각을 추정기에 넣는다. null 이면 front_steer 에서 켜지고(가중 0 = 기록·온라인 배율 감시만, PW-10, 4절) 차동에서 꺼진다. true/false 로 정할 수 있다. 2026-11-14 전까지 기본은 false 였다 |
 | `prior_weight` | 0 | 0 = 기록·감시만. (0, 1] = 스캔 정합 시드와 정합 실패·스캔 틈의 한정된 예측 |
 | `prior_speed_table`, `prior_speed_scale` | () = vendor 표, 1.0 | duty→속도 표와 k_field. 현장 조정 파일이 넣는다(실행기 설정에 따로 적으면 설정이 앞섬) |
 | `prior_wheelbase_m` | null | 요레이트 사전값 v·tan δ / L |
@@ -51,3 +51,109 @@ straight_hold 40 %, 10 m, 60 s, seed 0~4, seed마다 run 7종.
 - 표는 조향 장치를 달기 전 차의 값이다. T1의 '실측' 표는 프로필 공칭값(SIM_ASSUMED)이다.
 - 예측 확인은 W0 평지의 직진 40 %에서 1.0 s 끊김 하나다. 굽은 열, 경사, 미끄러짐은 묶음 S1c의 조건 행렬에서 본다.
 - 가중 > 0은 기본이 아니다. 켜는 결정은 개정 33 통과와 넓은 행렬 뒤에 한다.
+
+## 4. 온라인 배율 표시와 기록(PW-10)
+
+- 작성: 2026-11-14 (브랜치 `pw10-online-scale-20261114`). todo PW-10: 달리는 동안 약 20 초 평균 배율(LiDAR 속도 ÷ 표 속도)을
+  화면에 보이고 기록한다. 주행 뒤 전체 배율로 저장할지 묻는다. LiDAR 속도가 품질 기준을 못 넘으면 갱신하지 않는다.
+- 모든 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. 배율은 배터리와 지면이 합쳐진 값이라 원인을 나누지 못한다.
+
+### 4.1 무엇을 바꿨나
+
+- 감시는 원래 있었다(1절의 `(c) monitor`): 스캔 정합이 된 구간만, 사전값 속도 0.1 m/s 이상인 주행 구간만 창에 넣고,
+  온라인 배율 = 창(주행 시간 20 s) 안의 LiDAR 이동 ÷ 사전값 이동, 주행 10 s 뒤부터 값이 있다. 사전값 속도 = 표(적용 duty) ×
+  `prior_speed_scale`(= `speed_scale` × `surface_scale` × `battery_scale`). 그래서 배율이 0.85 면 차가 표가 말하는 속도의 0.85 로 간다.
+- 기본 켜짐(결정 필요, 조정 쪽 확인): 2026-11-14 전에는 `prior_enabled` 기본이 false 라 현장 실행기에서 배율이 나오지 않았다.
+  이제 기본 null = 프로필 기본(`config.prior_active`)이고 front_steer 에서 가중 0 으로 켜진다. 가중 0 은 추정 결과를 바꾸지 않는다
+  (1절, 개정 33의 동일성 판정과 같은 성질). 출력이 같은지는 회귀로 다시 본다(4.4). 설정 digest: 손대지 않은 묶음은 그대로
+  빠진다(`ExecutorConfig()` digest 그대로). front_steer 설정은 조정 파일이 표를 넣어 묶음이 이미 들어가므로 digest 가 바뀐다
+  (`prior_enabled` false → null). 끄려면 실행기 설정에 `prior_enabled: false`. `prior_checks`의 off run 은 false 를 적었다.
+- 품질 기준을 못 넘으면 멈춤: 창은 스캔 정합(맞춤 비율 0.5 이상, 스캔 틈 0.5 s 미만)이 된 구간에서만 바뀐다. 새 칸
+  (추정기 스냅샷 `actuator_prior`): `online_scale_frozen`(값이 있고 마지막 갱신이 `FROZEN_AFTER_S` 0.5 s 보다 오래됨),
+  `online_scale_hold`(`lidar_stale` 새 스캔 없음, `lidar_unmatched` 가장 새 스캔이 정합 실패, `not_driving` 사전값이 감시 속도 아래,
+  `no_status` 상태 줄 없음), `online_scale_age_s`, `monitor_window_s`, `monitor_min_s`, `unmatched_scans`. 0.5 s 는 느린 호스트가
+  스캔을 건너뛸 때 깜박이지 않게 고른 값이다(자리값).
+- 기록: 실행기 틱 기록 `prior` 에 `k`(배율), `mon`(창 길이), `fz`(멈춤), `hold`(이유)가 매 틱(20 Hz) 남는다 = 시간열.
+  run 이 끝나면 사건 `online_scale_offer`(run, 배율, 창 길이, 끝 이유, 지금 k_field, 제안 k_field, 받을 수 있는지와 까닭).
+- 상태 `online_scale`(운영자 HTTP, `OPERATOR_API_KO.md` 6.1): `enabled, run_id, value, window_s, target_s, min_s, frozen, hold,
+  age_s, mismatch, speed_scale, prior_scale, offer`.
+- 저장 묻기: 제안 k_field = `prior_speed_scale` × 배율 ÷ (`surface_scale` × `battery_scale`), 소수 3 자리(지형·배터리 배율은 그대로
+  두고 k_field 만 고친다). 받지 못하는 까닭: `no_scale`(주행 10 s 미만), `no_forward_motion`, `scale_set_in_config`(실행기
+  설정이 `prior_speed_scale`을 따로 정함), `out_of_range`(k_field 0.5~1.3, 곱 0.5~1.3), `no_change`. 답은
+  `POST /api/params {"online_scale": "accept"|"dismiss", "run_id": N}`. accept 는 정지 상태에서만(다른 조정 값과 같은 잠금),
+  그 run 의 제안일 때만, run 뒤 배율 값이 바뀌지 않았을 때만 받고 `speed_scale` 을 화면 변경과 같은 길로 바꾼다(`tuning_change`
+  사건 action `online_scale`, `source_run_id`, `online_scale`, `window_s`; revision +1; 파일 저장은 따로 `{"save": true}`).
+  dismiss 는 바꾸지 않고 `online_scale_answer` 사건만. 새 run 이 시작되면 답하지 않은 제안은 `superseded` 로 기록하고 지운다.
+- 코드: `sim/ubts/closed_loop/actuator_prior.py`(vendor 사본 같음), `tools/row_executor/online_scale.py`, `executor_main.py`
+  (`_track_online_scale`, `_req_online_scale`), `config.py`(`prior_active`). 대시보드 서버 중계: 대시보드 레포
+  `dashboard_server/executor_proxy.py`(상태 칸), `steer_tuning.py`(답 형식과 기록). 화면 표시와 저장 묻기 화면은 대시보드 메뉴를
+  되돌린 뒤 자리를 정해 따로 한다(2026-11-14 조정 쪽 지시).
+
+### 4.2 사전등록(측정 전, 이 절과 `PREREG_PW10_ONLINE_SCALE.json`이 등록 run 보다 앞선 커밋)
+
+- 장치: T1 빠른 SIM, 실행기 포함(`steering.safety_scripts.online_scale_checks`). 실행기는 기본 설정(위의 기본 감시), 조정 파일
+  패키지 기본, 넓은 평가의 열 추종 제어기와 한 번 눌러 시작(`follow_wide.spec`의 nominal 열). 플랜트 구동 표 = 조정 파일 표 × 0.85
+  (넓은 평가의 `table_x085`와 같은 장치). seed 100~104.
+- 화면 값: 실행기 상태 `online_scale`(대시보드가 그대로 넘기는 칸)을 SIM 시간 0.5 s 마다 읽는다.
+- run 3 종:
+  - exact: 프로필 v0.1.2 에서 속도 흔들림(`speed_fluctuation_sd`)과 조향 scrub 손실을 0 으로(플랜트 정상 속도가 표 × 0.85 와 같다). 열 끝까지.
+  - cut: exact + LiDAR 끊김 1.0 s(30.0 s, 리그 결함 sensor_blackout). 실행기는 stale_lidar 로 일시정지하고 새 go 가 없어 다시
+    가지 않는다. 60 s 까지 본다.
+  - wide: 등록된 `table_x085` 그대로(기본 플랜트, 흔들림 5 %, 2 s).
+- 판정(모두, 모든 seed):
+  1. exact.converged: 창이 찬 뒤(창 ≥ 20 − 0.2 s)부터 run 끝까지 읽은 화면 값 모두와 run 뒤 제안의 배율이 0.85 ± 0.03, 읽은 값 10 개 이상.
+  2. exact.series: 첫 값 뒤 run 끝까지 모든 실행기 틱에 `prior.k` 가 있다(시간열).
+  3. cut.frozen: 30.3 s(끊기기 전 마지막 스캔이 처리된 뒤)부터 끝까지 모든 틱의 `k` 가 30.3 s 의 값과 같고(None 아님), 30.6 s 부터
+     읽은 화면 값이 모두 frozen 이며 값이 같고, 끊긴 동안의 틱 하나 이상이 hold `lidar_stale` 이다.
+  4. wide.tracking: 창이 찬 뒤 읽은 화면 값마다 |값 − SIM 참값 비| ≤ 0.03. 참값 비 = 같은 길이의 마지막 주행 창에서 Σ(참 속도·dt) ÷
+     Σ(MCU duty 의 표 속도 × 사전값 배율 · dt)(표 속도 0.1 m/s 이상인 trace 표본). 평가만(A13 역할 evaluator).
+- 보고만(판정 아님): wide 의 마지막 값·제안과 0.85 의 차이(플랜트 자체가 20 s 창마다 흔들린다), 제안 값, 끝 이유.
+- 까닭(측정 전 개발 확인, 등록 밖 seed 7 과 고치기 전 코드의 seed 100~103): 온라인 배율은 SIM 참값 비를 0.01 안에서 따라가지만,
+  기본 플랜트의 참값 비가 20 s 창마다 0.80~0.91 로 흔들렸다(seed 100 마지막 값 0.895). 그래서 '0.85 로 수렴'은 흔들림을 끈
+  플랜트로 판정하고, 기본 플랜트는 참값 추종으로 판정한다. 기준 0.85 ± 0.03 은 todo 그대로다.
+- 시험: `sim/ubts/test_steering_online_scale.py`(개발 seed 7, 짧은 run), `tools/row_executor/tests/test_online_scale.py`.
+
+### 4.3 등록 실행 결과(2026-11-14, 사전등록 커밋 d8e2349 의 export 트리, 일꾼 2, 142 s)
+
+**15/15 합격**(판정 4 항목 × seed 5). 자리값 기반 SIM 결과이며 현장 성능이 아니다. 결과 원본은 기록 폴더
+`runs/pw10_20261114/measure/registered_v1/ONLINE_SCALE_CHECKS.json`(레포 밖).
+
+| seed | exact: 창이 찬 뒤 화면 값(읽은 수) | exact: 제안 배율 → 새 k_field | cut: 30.3 s 값, 그 뒤 바뀐 틱 | wide: 참값 추종 최대 오차 | wide: 제안 − 0.85(보고만) |
+|---|---|---|---|---|---|
+| 100 | 0.8375~0.8516 (92) | 0.8477 → 0.848 | 0.8487, 0 | 0.0035 | −0.004 |
+| 101 | 0.8444~0.8534 (92) | 0.8495 → 0.850 | 0.8500, 0 | 0.0057 | −0.008 |
+| 102 | 0.8420~0.8513 (93) | 0.8492 → 0.849 | 0.8505, 0 | 0.0052 | +0.009 |
+| 103 | 0.8407~0.8536 (93) | 0.8508 → 0.851 | 0.8492, 0 | 0.0041 | +0.017 |
+| 104 | 0.8426~0.8531 (92) | 0.8477 → 0.848 | 0.8471, 0 | 0.0044 | −0.026 |
+
+- exact: 열 끝(67.2~67.6 s)까지 모든 틱에 `prior.k` 가 있다(시간열). 값은 0.85 보다 조금 낮게(0.84~0.85) 시작해 0.85 로 간다. 가속 구간에서
+  플랜트가 duty 를 늦게 따라가는 몫으로 본다(해석, 따로 재지 않음).
+- cut: 끊긴 뒤 화면 값은 모두 frozen, 값은 같다. 이유는 끊긴 동안 `lidar_stale`, 끊김이 끝난 첫 스캔(틈 1.1 s, 시드 없이 정합하지
+  않음) `lidar_unmatched`, 그 뒤 일시정지로 `not_driving`.
+- wide: 기본 플랜트의 창이 찬 뒤 값은 seed 마다 0.806~0.886 으로 움직였고 화면 값은 SIM 참값 비를 0.006 안에서 따라갔다. 이
+  플랜트에서 '0.85 ± 0.03' 을 매 순간 기대할 수는 없다(플랜트의 20 s 평균 속도 비가 그만큼 흔들린다). 제안은 run 마지막 20 s 의
+  값이라 seed 104 처럼 0.85 에서 0.026 벗어날 수 있다. 현장에서는 여러 run 의 제안을 보고 저장하는 편이 낫다(제안, 판정 아님).
+
+![PW-10 온라인 배율, seed 100](figures/pw10/online_scale_s100.png)
+
+그림: 등록 실행 seed 100 의 실행기 기록(틱 20 Hz). 위 exact, 아래 cut(빗금 = LiDAR 끊김, 붉은 띠 = 멈춤). 회색 띠 = 판정 띠
+0.85 ± 0.03. 자리값 기반 SIM 결과. 그린 도구는 기록 폴더 `scripts/plot_scale.py`.
+
+### 4.4 운영자가 아무것도 하지 않을 때 출력이 같은가(회귀, 2026-11-14, 잠금 아래)
+
+main acd1a08 과 사전등록 커밋 d8e2349 를 내보낸 두 트리에서 같은 묶음을 돌려 비교했다(일꾼 2, 13:44~14:00, 원본은 기록 폴더
+`runs/pw10_20261114/measure/reg_*`, `scripts/compare_regression.py`).
+
+| 묶음 | 결과 |
+|---|---|
+| 차동 기준 에피소드 E1~E6, R1~R4 | 산출물 8 개 모두 같다(다른 칸은 트리 경로뿐) |
+| 빠른 SIM 행렬 `steer_follow_v1` 15 회 | 직렬 로그·trace 15/15 같음, 둘 다 15/15 기대대로 |
+| 넓은 평가 nominal, curve_l30, w2_042301_c03(seed 100) | 직렬 로그·trace 3/3 같음, 둘 다 3/3 합격 |
+| T1 안전 대본 71 개 | 직렬 로그·trace 71/71 같음, 둘 다 71/71 기대대로, 끝 이유 바뀐 것 0 |
+
+- 실행기 기록 digest 는 모두 다르다(틱마다 `prior` 블록이 더해지고 사건 `online_scale_offer` 가 생김). 그 둘과 벽시계 칸(요청
+  `ms`, 느린 걸음의 단계 시간 `ph`), vendor commit 이름, 설정 digest 를 빼면 follow nominal s0(1,428 줄), stale_steering_status(179 줄),
+  wide W2(2,396 줄)의 기록이 줄마다 같다(`scripts/execlog_equal.py`).
+- 결론: front_steer 의 기본 감시(가중 0)는 구동·조향 출력과 결정을 바꾸지 않는다(이 SIM 묶음 안에서). 자리값 기반 SIM 결과.
+- 고치기 전부터 있던 실패: `tools/row_executor/tests/test_sim_in_loop_steer.py` DeterminismTest(같은 seed 두 번의 실행기 기록 digest 가
+  다름)는 main acd1a08 에서도 실패한다. 이 작업과 상관없다.

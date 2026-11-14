@@ -105,6 +105,7 @@ import numpy as np
 from . import calib_runs as CR
 from . import config as C
 from . import field_tuning as T
+from . import online_scale as OS
 from .bridge_client import (ARMED, LATCHED, LEASE_GONE_ERRORS, BridgeClient, BridgeError, SteerBridgeClient,
                             UnixSocketTransport, idle_latch_only, recovery_hint)
 from .core import (ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, SINGLE_ROW_NOT_STOPS, Runner, ScanStamper,
@@ -919,6 +920,7 @@ class ExecutorLoop:
         self._calib_logged = (None, 0, False)   # (run id, results logged, result event logged)
         self._calib_options = (None, None)      # (config digest, calib_runs.plan_options)
         self._run_end_logged = None             # run id of the last 'run_end' event (R6)
+        self.online_scale = OS.OnlineScale()    # front_steer PW-10: the run's online scale and the offer after it
         self._calib_stop_logged = None          # run id of the last 'calib_stop' event (C7)
         self._event('config', config=cfg.to_dict(), config_digest=cfg.digest(), motor_allowed=self.motor_allowed,
                     shadow_auto=self.shadow_auto, feasibility=cfg.feasibility(), source_digest=source_digest,
@@ -1561,6 +1563,8 @@ class ExecutorLoop:
     def _req_tuning(self, now, params):
         """front_steer POST /api/params (docs/steering/OPERATOR_API_KO.md 'field tuning'): basic keys, a preset, or a
         save; at rest only; the change log is one 'tuning_change' event per key with the digests."""
+        if isinstance(params, dict) and 'online_scale' in params:
+            return self._req_online_scale(now, params)
         lock = self._tuning_lock()
         if lock is not None:
             return dict(ok=False, error=lock, http=409)
@@ -1581,6 +1585,11 @@ class ExecutorLoop:
             self._event('tuning_save', file=self.tuning.file.path, file_sha256=sha, preset=self.tuning.preset,
                         revision=self.tuning.revision, digest=self.tuning.digest)
             return dict(ok=True, action=action, tuning=self.tuning.brief())
+        return self._commit_tuning(values, preset, changes, action, new, runner, before)
+
+    def _commit_tuning(self, values, preset, changes, action, new, runner, before, **extra):
+        """Apply checked tuning values: the new config and Runner, one 'tuning_change' event per key (extra: more
+        fields of those events, e.g. the online-scale source of PW-10)."""
         self.tuning.commit(values, preset)
         run_id = self.runner.run_id
         self.runner = runner
@@ -1590,11 +1599,60 @@ class ExecutorLoop:
         for change in changes:
             self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
                         digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest,
-                        **change)
+                        **change, **extra)
         if not changes:
             self._event('tuning_change', action=action, preset=preset, revision=self.tuning.revision,
-                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest)
+                        digest_before=before, digest_after=self.tuning.digest, config_digest=self._config_digest,
+                        **extra)
         return dict(ok=True, action=action, changes=changes, tuning=self.tuning.brief(), config_digest=self._config_digest)
+
+    def _req_online_scale(self, now, params):
+        """PW-10 POST /api/params {"online_scale": "accept" | "dismiss", "run_id": N} (OPERATOR_API_KO.md 6.1): the
+        operator's answer to the offer of the run that ended. accept = speed_scale (k_field) := the offer's proposal,
+        only at rest and only while the tuning's scale factors are the ones the offer came from, logged like a screen
+        change ('tuning_change' action online_scale) plus 'online_scale_answer'. dismiss = no change, logged."""
+        answer, run = params.get('online_scale'), params.get('run_id')
+        problems = ['%s: not a parameter of the online_scale answer' % k
+                    for k in sorted(set(params) - {'online_scale', 'run_id'})]
+        if answer not in OS.ANSWERS:
+            problems.append('online_scale: one of %s' % (OS.ANSWERS,))
+        if type(run) is not int:
+            problems.append('run_id: the integer run id of the offer')
+        if problems:
+            return dict(ok=False, error='invalid_params', problems=problems, http=400)
+        tracker = self.online_scale
+        offer = tracker.offer
+        if offer is None:
+            return dict(ok=False, error='no_online_scale_offer', http=409)
+        if offer['run_id'] != run:
+            return dict(ok=False, error='online_scale_offer_changed', run_id=offer['run_id'], http=409)
+        if answer == 'dismiss':
+            self._event('online_scale_answer', answer='dismiss', **tracker.answer_fields())
+            tracker.offer = None
+            return dict(ok=True, action='online_scale_dismiss', run_id=run)
+        if not offer['ok']:
+            return dict(ok=False, error=offer['why_not'], http=409)
+        lock = self._tuning_lock()
+        if lock is not None:
+            return dict(ok=False, error=lock, http=409)
+        if tracker.basis_changed(self.tuning.values):
+            return dict(ok=False, error='online_scale_basis_changed', http=409)
+        before = self.tuning.digest
+        try:
+            values, preset, changes, _ = self.tuning.change({'speed_scale': offer['speed_scale_new']})
+            new = C.with_tuning(self._base_config(), values)
+            runner = self._runner_factory(new)
+        except (T.TuningError, C.ConfigError) as exc:
+            return dict(ok=False, error='invalid_params', problems=exc.problems, http=400)
+        except ValueError as exc:           # the steering controller refused the values (SteerFollowConfig rules)
+            return dict(ok=False, error='invalid_params', problems=[str(exc)], http=400)
+        fields = tracker.answer_fields()
+        reply = self._commit_tuning(values, preset, changes, 'online_scale', new, runner, before,
+                                    source_run_id=run, online_scale=offer['value'], window_s=offer['window_s'])
+        self._event('online_scale_answer', answer='accept', revision=self.tuning.revision, **fields)
+        tracker.offer = None
+        reply['run_id'] = run
+        return reply
 
     def _base_config(self):
         """The executor config before the field tuning (the file config of this process)."""
@@ -2030,7 +2088,8 @@ class ExecutorLoop:
                                    w=prior.get('yaw_rate_rad_s'), k=prior.get('online_scale'),
                                    mon=prior.get('monitor_s'), mismatch=prior.get('table_mismatch'),
                                    pred=prior.get('predicting'), ps=prior.get('predict_s'), pm=prior.get('predict_m'),
-                                   lim=prior.get('limit'), d=prior.get('distance_m'))
+                                   lim=prior.get('limit'), d=prior.get('distance_m'),
+                                   fz=prior.get('online_scale_frozen'), hold=prior.get('online_scale_hold'))
         quality = s.get('corridor_quality')
         if quality is not None:                                 # estimator corridor quality (config corridor_quality)
             record['cq'] = dict(sides=quality.get('sides'), src=quality.get('source'),
@@ -2040,6 +2099,7 @@ class ExecutorLoop:
                                 sd=[quality.get('lateral_sd_m'), quality.get('heading_sd_rad')])
         self.log.put(_clean(record), tick=True)
         self._run_end_event(d)
+        self._track_online_scale(d, prior)
         status = dict(record)
         armed = bridge is not None and bridge['state'] == ARMED
         status.update(t_wall=round(self.wall(), 3), mode='MOTOR' if self.motor_allowed else 'SHADOW',
@@ -2074,6 +2134,9 @@ class ExecutorLoop:
                       stop_reason=category, stop_detail=detail, speed=self._speed_status(d),
                       tuning=self._tuning_status(),
                       lease_lost=dict(self._lease_lost) if self._lease_lost_open() else None)
+        if self.tuning is not None:                 # front_steer PW-10: the online scale and the offer after a run
+            status['online_scale'] = self.online_scale.status(C.prior_active(self.config), self.tuning.values,
+                                                              self.config.prior_speed_scale)
         if self.config.mode == C.SINGLE_ROW_MODE:
             # operator page single-row panel: telemetry of this tick (or the last run) + the estimator-frame canvas
             status['single_row'] = sr
@@ -2106,6 +2169,21 @@ class ExecutorLoop:
                         limit_reason=sr.get('speed_cap') or 'controller', caps=sr.get('speed_caps'))
         return dict(target_mps=target, limit_mps=None, limit_reason='not_running' if d.state != ACTIVE else 'no_estimate',
                     caps=None)
+
+    def _track_online_scale(self, d, prior):
+        """PW-10: feed the online-scale tracker with this tick's estimator block of a row run and log its events
+        (online_scale_offer when the run ended, online_scale_answer 'superseded' when a new run starts first)."""
+        if self.tuning is None:
+            return
+        s = d.summary
+        if s.get('run_kind', self.runner.run_kind) != 'row':
+            return
+        run = s.get('run_id', self.runner.run_id) or None
+        events = self.online_scale.track(run, d.state == ENDED, prior, d.reason if d.state == ENDED else None,
+                                         self.tuning.values, self.config.prior_speed_scale,
+                                         (T.BY_NAME['speed_scale'].low, T.BY_NAME['speed_scale'].high), T.SCALE_RANGE)
+        for name, fields in events:
+            self._event(name, **fields)
 
     def _tuning_status(self):
         """The tuning block of the contract (preset, revision, editable) and the values for the screen; the

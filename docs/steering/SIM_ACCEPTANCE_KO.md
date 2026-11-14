@@ -384,6 +384,15 @@
 - 까닭: Gazebo 가 실시간보다 느릴 때(RTF < 1) 벽시계 신선도 검사가 거짓으로 걸린다(2단계 `nominal_1`, 사용자 스택 sim_auto 1회차).
   실차에는 이 문제가 없다(센서가 벽시계로 온다).
 
+### 개정 70 — 온라인 배율 표시·기록(PW-10) 확인 기준 (2026-11-14, `steering.safety_scripts.online_scale_checks`의 등록 실행 전. PW-10은 70번대를 쓴다)
+
+- 이 개정과 같은 커밋이 첫 등록 실행보다 앞선다. 그 전에는 등록 밖 seed 7 의 짧은 개발 run 뿐이었다.
+- 장치·run·판정은 `ACTUATOR_PRIOR_KO.md` 4.2 와 `PREREG_PW10_ONLINE_SCALE.json`(모듈의 `prereg()`): seed 100~104, run exact·cut·wide,
+  판정 exact.converged(0.85 ± 0.03), exact.series, cut.frozen, wide.tracking(참값 비 ± 0.03). 모두 맞아야 합격.
+- 출력이 같은지(조작이 없을 때 구동 출력이 그대로)는 판정이 아니라 회귀로 본다: 빠른 SIM `steer_follow_v1` 15 회, 넓은 평가 3 조건,
+  T1 안전 대본 71 개, 차동 기준 에피소드의 직렬 로그와 trace 가 main 과 같아야 한다(실행기 기록은 틱마다 `prior` 블록이 더해져 다르다).
+- 참값은 평가 코드만 읽는다. 결과는 자리값 기반 SIM 결과다.
+
 ### 개정 62 — W1 의 A17(G)에서 '차 정지' 문턱 0.05 m/s (2026-11-13, 결정 R62, 최종 확인 3단계 등록 전)
 
 - W1(`w1_force`)의 출발점 둘레는 약 1.6° 기울었다. 플랜트는 구동 0 에서 DC 선 단락 제동과 측정 데드밴드의 쿨롱 마찰만 있어(마찰이

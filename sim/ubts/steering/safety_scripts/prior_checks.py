@@ -3,7 +3,8 @@ docs/steering/ACTUATOR_PRIOR_KO.md).
 
 The executor runs in the loop (tools/row_executor/sim_in_loop_steer.py) with the straight-hold script at 40 % on the W0
 floor (two lines of posts). Per seed, with one plant stream for every run of the seed:
-  off            the default executor (prior_enabled False)
+  off            the executor without the prior (prior_enabled False; until PW-10 this was the default, since then
+                 the front_steer default is the weight-0 monitor and 'off' sets false explicitly)
   monitor        prior_enabled, weight 0, the profile's nominal table: the same decisions as 'off' (T1 identity) and
                  the calibration run - its online scale (LiDAR / table, the executor's own value) becomes speed_scale
                  of the runs below, as an operator would store it after a drive
@@ -57,7 +58,7 @@ EST_COLUMNS = ('ctrl_est_x_m', 'ctrl_est_y_m', 'ctrl_est_yaw_rad', 'ctrl_est_pre
 
 def spec(run, seed, scale=1., table=None):
     """The episode spec of one run (module docstring). table: explicit prior table (None = the profile's nominal one)."""
-    config = {}
+    config = dict(prior_enabled=False)
     if run != 'off':
         weight = 1. if run == 'blackout' else 0.
         config = dict(prior_enabled=True, prior_weight=weight, prior_speed_scale=float(scale))
