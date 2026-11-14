@@ -6414,7 +6414,16 @@
    ],
    "scheme_min_guid": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
    "scheme_min_listed": false,
-   "standby": "S0 low power idle (Modern Standby)"
+   "standby": "S0 low power idle (Modern Standby)",
+   "power_mode_overlay": {
+    "time_kst": "2026-11-14T16:15:25+09:00",
+    "source": "powrprof.dll PowerGetEffectiveOverlayScheme / PowerGetActualOverlayScheme",
+    "effective_guid": "ded574b5-45a0-4f42-8737-46345c09c238",
+    "actual_guid": "ded574b5-45a0-4f42-8737-46345c09c238",
+    "name": "Best performance",
+    "power_line": "AC",
+    "stage7_overlay": "not recorded"
+   }
   },
   "actions": {
    "setactive_called": false,
@@ -6424,6 +6433,7 @@
    "registered_runs": 0
   },
   "stage7_verdicts_unchanged": true,
-  "record": "runs/gsim_stage8_20261114/logs/powercfg_check.txt (record folder, outside the repository)"
+  "record": "runs/gsim_stage8_20261114/logs/powercfg_check.txt (record folder, outside the repository)",
+  "no_power_setting_left_to_raise": true
  }
 }
