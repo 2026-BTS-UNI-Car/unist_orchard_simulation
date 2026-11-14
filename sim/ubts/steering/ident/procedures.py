@@ -109,6 +109,56 @@ class SessionError(RuntimeError):
     pass
 
 
+class StopEventLog:
+    """Evaluation only (eval/truth.json, never a record or an analysis input; SIM_ACCEPTANCE amendment 80): the plant's
+    slow-down events during F3. Wraps plant.step (an instance attribute over the method; nothing in the plant changes,
+    no random draw). For each new event (plant._decel_event with a new index): mode, the event's own values (since,
+    speed, deceleration, onset) and the plant pose at the start of the plant step that started it; then the pose at the
+    end of the first later step with v == 0 (the stop). travel_along_m = the travel between the two poses projected on
+    the heading at the start (the lateral slip drops out). tag(): what the operator was doing (duty, run kind)."""
+
+    def __init__(self, plant):
+        self.plant = plant
+        self.events = []
+        self.current = {}
+
+    def tag(self, **what):
+        self.current = dict(what)
+
+    def install(self):
+        plant = self.plant
+        original = plant.step
+
+        def step(dt, _original=original, _plant=plant):
+            before = (_plant.x, _plant.y, _plant.yaw, _plant.time_s, _plant._decel_events)
+            out = _original(dt)
+            self._after_step(before)
+            return out
+        plant.step = step
+
+    def remove(self):
+        self.plant.__dict__.pop('step', None)
+
+    def _after_step(self, before):
+        plant = self.plant
+        x0, y0, yaw0, t0, count = before
+        event = plant._decel_event
+        if plant._decel_events != count and event is not None:
+            if self.events and self.events[-1].get('stop_s') is None:
+                self.events[-1]['superseded'] = True
+            self.events.append(dict(self.current, mode=event['mode'], index=int(event['index']),
+                                    since_s=float(event['since']), speed_m_s=float(event['speed_m_s']),
+                                    decel_m_s2=float(event['decel_m_s2']), onset_s=float(event['onset_s']),
+                                    step_start_s=float(t0), x0=float(x0), y0=float(y0), yaw0=float(yaw0),
+                                    stop_s=None, travel_along_m=None))
+            return
+        last = self.events[-1] if self.events else None
+        if last is not None and last['stop_s'] is None and not last.get('superseded') and plant.v == 0.:
+            dx, dy = plant.x - last['x0'], plant.y - last['y0']
+            last.update(stop_s=float(plant.time_s), x1=float(plant.x), y1=float(plant.y),
+                        travel_along_m=float(dx * math.cos(last['yaw0']) + dy * math.sin(last['yaw0'])))
+
+
 def _deg(rad):
     return math.degrees(rad)
 
@@ -575,6 +625,7 @@ class DriveSession:
         self.records = {}
         self.steer_mrad = 0
         self.events = []
+        self.f3_stop_events = []        # evaluation only (StopEventLog, SIM_ACCEPTANCE amendment 80)
 
     def ready(self):
         rig = self.rig
@@ -828,22 +879,31 @@ class DriveSession:
         rec = self.start('F3', lidar=True)
         p = self.plan
         self.reposition(F3_START)
-        self.arm()
-        self.hold(1., 0, 0.)
-        for duty in p.f3_duties_pct:
-            for mode in p.f3_runs:
-                self.event('run', duty=duty, stop=mode)
-                self.hold(2., 0, 0.)
-                self.hold(p.f3_drive_s, duty, 0.)
-                if mode == 'brake':
-                    self.stop(3.)
-                    self.arm()
-                else:
-                    self.release(3.)
-                if p.f3_reverse:
-                    self.event('reverse', duty=duty)
-                    self.hold(p.f3_drive_s / .8, -duty, 0.)
-                    self.release(2.)
+        log = StopEventLog(self.rig.plant)       # evaluation only: the plant's slow-down events (A18 brake rows)
+        log.install()
+        try:
+            self.arm()
+            self.hold(1., 0, 0.)
+            for duty in p.f3_duties_pct:
+                for mode in p.f3_runs:
+                    self.event('run', duty=duty, stop=mode)
+                    log.tag(duty=duty, run=mode, part='start')
+                    self.hold(2., 0, 0.)
+                    self.hold(p.f3_drive_s, duty, 0.)
+                    log.tag(duty=duty, run=mode, part='stop')
+                    if mode == 'brake':
+                        self.stop(3.)
+                        self.arm()
+                    else:
+                        self.release(3.)
+                    if p.f3_reverse:
+                        self.event('reverse', duty=duty)
+                        log.tag(duty=duty, run=mode, part='reverse')
+                        self.hold(p.f3_drive_s / .8, -duty, 0.)
+                        self.release(2.)
+        finally:
+            log.remove()
+            self.f3_stop_events = log.events
         self.finish('F3', rec)
 
 
@@ -907,6 +967,8 @@ def run_session(out_dir, profile, seed, *, stream_key='ident', native_executable
         timing['drive_wall_s'] = round(time.time() - t1, 2)
         timing['sim_s'] = round(rig.now, 2)
         truth = session_truth(rig, plan)
+        truth['f3_stop_events'] = drive.f3_stop_events
+        truth['wall_minus_sim_s'] = float(rig.wall_clock() - rig.clock())
         arrays = rig.trace_arrays()
         tr.write_npz(eval_dir / 'trace.npz', arrays)
         rc.write_json(eval_dir / 'truth.json', truth)
