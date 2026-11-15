@@ -120,7 +120,11 @@ SIM 실행기 설정(`sim_in_loop_steer.steer_executor_config`, G-SIM `exec_cont
 - Gazebo의 조향 관절은 위치 제어라 자기 잠금 가정이다(`GZ_MODEL_KO.md`). 펄스 사이의 되밀림은 빠른 SIM에서만 있다.
 - 이 작업에서 Gazebo 측정은 하지 않았다.
 
-## 7. 다시 만드는 법
+## 7. 열 추종 다시 재기
+
+사전등록 `steer_follow_realdims_v1`의 결과: 15회 15/15 합격, 넓은 조건 51/60 불합격(조향 외란 6, 운영자 연결 기준 3). V3 동일성(기본 프로필 15회·T1 71개의 trace가 main과 같음)도 거기 적었다. [`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](STEER_FOLLOW_REALDIMS_RESULT_KO.md).
+
+## 8. 다시 만드는 법
 
 ```
 python -B tools/steer_sim/apply_spec.py --spec sim/ubts/steering/profiles/steer_spec_input_20261116.yaml --out <저장소 밖>

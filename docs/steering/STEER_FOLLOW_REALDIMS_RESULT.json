@@ -1,0 +1,3393 @@
+{
+ "by_part": {
+  "gate_as_is": {
+   "failed_checks": {
+    "executor configuration refused": 1
+   },
+   "passed": 0,
+   "runs": 1
+  },
+  "geometry_only": {
+   "failed_checks": {},
+   "passed": 15,
+   "runs": 15
+  },
+  "matrix": {
+   "failed_checks": {},
+   "passed": 15,
+   "runs": 15
+  },
+  "wide": {
+   "failed_checks": {
+    "drive command 0 after the last heartbeat": 3,
+    "ends at the row end": 6,
+    "no host bridge latch": 6,
+    "no steering fault line of the MCU": 6,
+    "row end stop position e (last structure)": 6
+   },
+   "passed": 51,
+   "runs": 60
+  }
+ },
+ "complete": true,
+ "field_validated": false,
+ "measured_at_commit": "d0b941c",
+ "post_hoc_not_registered": {
+  "note": "the two failing disturbance conditions on the same profile with steer_fw_mode v3_servo (comparison, run after the judgement; not a judgement)",
+  "v3_servo_disturbance": [
+   {
+    "condition": "dist_step_p2p5",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 4.165,
+    "lateral_max_m": 0.138,
+    "ok": true,
+    "row_end_error_m": 0.046,
+    "seed": 4000,
+    "steer_fault_lines": []
+   },
+   {
+    "condition": "dist_step_p2p5",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 3.665,
+    "lateral_max_m": 0.1023,
+    "ok": true,
+    "row_end_error_m": 0.067,
+    "seed": 4001,
+    "steer_fault_lines": []
+   },
+   {
+    "condition": "dist_step_p2p5",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 5.037,
+    "lateral_max_m": 0.1003,
+    "ok": true,
+    "row_end_error_m": 0.072,
+    "seed": 4002,
+    "steer_fault_lines": []
+   },
+   {
+    "condition": "dist_terrain",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 2.389,
+    "lateral_max_m": 0.0842,
+    "ok": true,
+    "row_end_error_m": 0.052,
+    "seed": 4000,
+    "steer_fault_lines": []
+   },
+   {
+    "condition": "dist_terrain",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 2.945,
+    "lateral_max_m": 0.0949,
+    "ok": true,
+    "row_end_error_m": 0.056,
+    "seed": 4001,
+    "steer_fault_lines": []
+   },
+   {
+    "condition": "dist_terrain",
+    "end_reason": "row_end",
+    "failed": [],
+    "heading_max_deg": 3.166,
+    "lateral_max_m": 0.0978,
+    "ok": true,
+    "row_end_error_m": 0.078,
+    "seed": 4002,
+    "steer_fault_lines": []
+   }
+  ]
+ },
+ "prereg": "steer_follow_realdims_v1",
+ "profile_id": "front_steer_v1_spec_20261116",
+ "result_kind": "자리값 기반 SIM 결과",
+ "rows": [
+  {
+   "condition": "nominal",
+   "digests": null,
+   "expect": "row_end",
+   "failed": [
+    "executor configuration refused"
+   ],
+   "metrics": {},
+   "ok": false,
+   "part": "gate_as_is",
+   "refused": "measured steering rate 5.09 deg/s below 8.0 deg/s (steering GO rule for the lookahead; placeholder, P8 fixes it)",
+   "seed": 0
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "d9c08fd571eae752c21ef3f76a016fc8a09e0a608325fd5e87efdab4979f7f35",
+    "serial_log_sha256": "99453e902dbb7b882476c60cf6e419bbfa175285a359698bd8a97fa1bcff01f7",
+    "trace_content_sha256": "b7d9b00676d300e953d6d1067cfe0414e74e9bd08a881412269eda2b1b7ec1b8"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.86,
+    "end_reason": "row_end",
+    "ended_at_s": 68.1,
+    "first_pause": null,
+    "heading_max_deg": 5.092,
+    "heading_rmse_deg": 2.236,
+    "lateral_max_m": 0.1308,
+    "lateral_p95_m": 0.1157,
+    "lateral_rmse_m": 0.0745,
+    "min_clearance_m": 1.1376,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.044,
+    "speed_max_m_s": 0.446,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "e3edb4be5d523fd288c708f468a618497e46487b95e80bda1d92bb028c8340e5",
+    "serial_log_sha256": "975fe09d93024f95bf032cec4ac328c38a46c4333b0826c8306c083ac143258c",
+    "trace_content_sha256": "f5df0b14b0dfc64ec3cbd8b1d738cd26bf7c5ebad2d559f7009f816ad5799759"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.16,
+    "end_reason": "row_end",
+    "ended_at_s": 69.5,
+    "first_pause": null,
+    "heading_max_deg": 3.044,
+    "heading_rmse_deg": 1.311,
+    "lateral_max_m": 0.0787,
+    "lateral_p95_m": 0.0715,
+    "lateral_rmse_m": 0.0362,
+    "min_clearance_m": 1.1947,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.053,
+    "speed_max_m_s": 0.425,
+    "speed_mean_m_s": 0.349,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 1
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "1932faeceb1324a32be2988c94bd247bba3cc99efcd5dbbd648bf928aa2ef8a2",
+    "serial_log_sha256": "d078b25c540a3c006e23e4d2695fd56a3747553181b53ab2efae49373ff9a18b",
+    "trace_content_sha256": "f3361b6ea36bd774f212558b7f6e2dc4afa99469a81eb1e967d20f31cf057172"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.44,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 75.3,
+    "end_reason": "row_end",
+    "ended_at_s": 76.8,
+    "first_pause": null,
+    "heading_max_deg": 4.501,
+    "heading_rmse_deg": 2.237,
+    "lateral_max_m": 0.1373,
+    "lateral_p95_m": 0.1113,
+    "lateral_rmse_m": 0.0623,
+    "min_clearance_m": 1.1507,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.082,
+    "speed_max_m_s": 0.393,
+    "speed_mean_m_s": 0.316,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 2
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "978c05a08d5f2b0558197cf2feb4e4ce272c99b6ff043e91e8c59d8954acc5fd",
+    "serial_log_sha256": "8ea224ba75ba741d72dbe378f7735ddec67e23dab9589b91dfed9e4b477a97b6",
+    "trace_content_sha256": "e7a85a3b390aea99dbf40fed89cd58f70f7802b1e080f795c88937730475f90f"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.36,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.9,
+    "end_reason": "row_end",
+    "ended_at_s": 70.2,
+    "first_pause": null,
+    "heading_max_deg": 3.164,
+    "heading_rmse_deg": 1.766,
+    "lateral_max_m": 0.0896,
+    "lateral_p95_m": 0.0817,
+    "lateral_rmse_m": 0.0479,
+    "min_clearance_m": 1.1786,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.019,
+    "speed_max_m_s": 0.434,
+    "speed_mean_m_s": 0.345,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 3
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "c329abb2623e82465ddb69c3ac1739c4370c3045291c38c58dd4ccf8c020dbdd",
+    "serial_log_sha256": "58bec29b27dfe9c8bbcbb17f7e597eefc8877d0f991720e542d51baa98dbb9d9",
+    "trace_content_sha256": "1317b892a53379fb799397b39fed4b8f7cda0b35f3e789491f0825e1c9cb0ed8"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.1,
+    "end_reason": "row_end",
+    "ended_at_s": 68.5,
+    "first_pause": null,
+    "heading_max_deg": 3.494,
+    "heading_rmse_deg": 2.091,
+    "lateral_max_m": 0.118,
+    "lateral_p95_m": 0.1052,
+    "lateral_rmse_m": 0.06,
+    "min_clearance_m": 1.1617,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.054,
+    "speed_max_m_s": 0.436,
+    "speed_mean_m_s": 0.355,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 4
+  },
+  {
+   "condition": "lateral_p040",
+   "digests": {
+    "executor_log_sha256": "8d9294fc749001db1618a114fef718a5db83065b4cbf6e91a704599974d949a7",
+    "serial_log_sha256": "73e90099bbb8a46504083ccc329b02e4b3aa8a0d500d132234e9efb3fb194c81",
+    "trace_content_sha256": "226b07b2d435279696fc3db6e60b2a1873ac544d833adf728a3ccf0291f4918b"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 4.41,
+    "drive_stop_s": 77.66,
+    "end_reason": "row_end",
+    "ended_at_s": 78.9,
+    "first_pause": null,
+    "heading_max_deg": 11.37,
+    "heading_rmse_deg": 2.302,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.135,
+    "lateral_rmse_m": 0.0674,
+    "min_clearance_m": 0.8739,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.046,
+    "speed_max_m_s": 0.418,
+    "speed_mean_m_s": 0.32,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lateral_n040",
+   "digests": {
+    "executor_log_sha256": "1eeede08bee5ec88a0bc6fceb86ce819ae18eae4dad8190f501f011608a369d2",
+    "serial_log_sha256": "15a767cb3d929eb7ee52aad2afc2d5c574934d12e076f1cc79dec2bad0524933",
+    "trace_content_sha256": "713aea9ecbd047c4e163eea1d5954699b9a4374b76597c549e2d73474ec48d09"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.48,
+    "drive_start_s": 4.51,
+    "drive_stop_s": 72.2,
+    "end_reason": "row_end",
+    "ended_at_s": 73.5,
+    "first_pause": null,
+    "heading_max_deg": 11.495,
+    "heading_rmse_deg": 2.034,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0872,
+    "lateral_rmse_m": 0.0528,
+    "min_clearance_m": 0.8704,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.077,
+    "speed_max_m_s": 0.448,
+    "speed_mean_m_s": 0.346,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "heading_p8",
+   "digests": {
+    "executor_log_sha256": "c0ba8072d6bfd66a876af498b2495287970285333fa1b96f101d7a332c502d5c",
+    "serial_log_sha256": "c349fc454ad7c6ecd007983bfd1ed4b9fb38861bb29e6239eedae0676fbc470d",
+    "trace_content_sha256": "57e775748173571630d62eed9b90070933ad3e73ddfb1c644093bfe0748006c6"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 3.61,
+    "drive_stop_s": 76.7,
+    "end_reason": "row_end",
+    "ended_at_s": 78.0,
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.982,
+    "lateral_max_m": 0.1211,
+    "lateral_p95_m": 0.1066,
+    "lateral_rmse_m": 0.0596,
+    "min_clearance_m": 1.1545,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.077,
+    "speed_max_m_s": 0.387,
+    "speed_mean_m_s": 0.32,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "heading_n8",
+   "digests": {
+    "executor_log_sha256": "ab520bf3a9f6d3b94b790fee925dc24209e417113022c10bc1c58e034129b3ca",
+    "serial_log_sha256": "306757344a9f2a953bc8f1c16eb86168550dfc5b7e9eac713a3aed926301904f",
+    "trace_content_sha256": "d2d4aa47ca7dae6f9d8be9409abe14fa357928bf733e753b65cae27890fadc81"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 3.51,
+    "drive_stop_s": 69.1,
+    "end_reason": "row_end",
+    "ended_at_s": 70.3,
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.626,
+    "lateral_max_m": 0.1678,
+    "lateral_p95_m": 0.0715,
+    "lateral_rmse_m": 0.0384,
+    "min_clearance_m": 1.0964,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.036,
+    "speed_max_m_s": 0.455,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_p2",
+   "digests": {
+    "executor_log_sha256": "6857764e38dac8865b94f81c5d5056654a759f6ac04c97723880818389a6a012",
+    "serial_log_sha256": "f469b7da2ee307f68c4d823d8854af786652f798e92e5df809b516a97398938c",
+    "trace_content_sha256": "b4b16aba53c7851c7331e9754ed4d4924ae3ce7655043fbfab7d51e73ad744bd"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.4,
+    "end_reason": "row_end",
+    "ended_at_s": 67.7,
+    "first_pause": null,
+    "heading_max_deg": 4.3,
+    "heading_rmse_deg": 1.989,
+    "lateral_max_m": 0.1159,
+    "lateral_p95_m": 0.1086,
+    "lateral_rmse_m": 0.0541,
+    "min_clearance_m": 1.1515,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.071,
+    "speed_max_m_s": 0.432,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_n2",
+   "digests": {
+    "executor_log_sha256": "93f8d8c8a7888b743026e69570e0dbd3e050821dc1a36a37a80274a02850ea0e",
+    "serial_log_sha256": "d0c2fe96367c8b8412775d443422341cffb5e34894db3e782f997b07252da355",
+    "trace_content_sha256": "7f0266497ba1756c7ea3c952da6b3dec7ee6bcd250f84236aa56467da8fe0b9f"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.56,
+    "end_reason": "row_end",
+    "ended_at_s": 69.8,
+    "first_pause": null,
+    "heading_max_deg": 4.35,
+    "heading_rmse_deg": 1.897,
+    "lateral_max_m": 0.1127,
+    "lateral_p95_m": 0.093,
+    "lateral_rmse_m": 0.0486,
+    "min_clearance_m": 1.157,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.069,
+    "speed_max_m_s": 0.438,
+    "speed_mean_m_s": 0.348,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "side_pull",
+   "digests": {
+    "executor_log_sha256": "45e8882c243d4707f914f292cc8dec4a4177d2ad66fc91dfe76853bbb845a2dd",
+    "serial_log_sha256": "ab4ff0c71a6d6d8ddafda0bb7772d17f68758d52c6f82707a7cd844cb585ce70",
+    "trace_content_sha256": "84d8ade1123ad9fd69942e7feee3f3103f5f67eeefd88c1ed7c006af1510c9f4"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.06,
+    "end_reason": "row_end",
+    "ended_at_s": 67.3,
+    "first_pause": null,
+    "heading_max_deg": 4.061,
+    "heading_rmse_deg": 1.68,
+    "lateral_max_m": 0.1234,
+    "lateral_p95_m": 0.1074,
+    "lateral_rmse_m": 0.0545,
+    "min_clearance_m": 1.1478,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.056,
+    "speed_max_m_s": 0.449,
+    "speed_mean_m_s": 0.361,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lidar_dropout_0p2",
+   "digests": {
+    "executor_log_sha256": "ff535c40d2dd9b72f95d6db8aad364cdd0ecbe5c8eb9f49f7d68f35e3c8c7261",
+    "serial_log_sha256": "a6b004d883b7325c4da61fa312a71d778a821a048a5d2deb39c0ed96fb42344f",
+    "trace_content_sha256": "f428cf2a68f0dcf1190def3f0e2f011901d444dd8a2b20a652bd374f6698f32f"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 70.96,
+    "end_reason": "row_end",
+    "ended_at_s": 72.2,
+    "first_pause": null,
+    "heading_max_deg": 2.792,
+    "heading_rmse_deg": 1.48,
+    "lateral_max_m": 0.0829,
+    "lateral_p95_m": 0.0694,
+    "lateral_rmse_m": 0.0429,
+    "min_clearance_m": 1.1945,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.057,
+    "speed_max_m_s": 0.412,
+    "speed_mean_m_s": 0.335,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lidar_stale_1p0",
+   "digests": {
+    "executor_log_sha256": "218c186609653647ba02851667af5f8ad211822ba5e14dd0bba3caeb547cd93e",
+    "serial_log_sha256": "52b8b658ef2c0f3b7571d332086afa93e22880e548b5aa841308d955466d9af0",
+    "trace_content_sha256": "ab0bedc8e342c226cf47ec93b3625a13c27a4d2760b7bbea4b4a763b5c42f2d5"
+   },
+   "expect": "stale_lidar",
+   "failed": [],
+   "metrics": {
+    "distance_m": 7.11,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.3,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     20.3,
+     "stale_lidar"
+    ],
+    "heading_max_deg": 0.837,
+    "heading_rmse_deg": 0.406,
+    "lateral_max_m": 0.0788,
+    "lateral_p95_m": 0.0755,
+    "lateral_rmse_m": 0.0459,
+    "min_clearance_m": 1.1979,
+    "pauses_after_start": [
+     "stale_lidar"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.112,
+    "speed_max_m_s": 0.439,
+    "speed_mean_m_s": 0.373,
+    "stale_drive_zero_s": 0.0,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "obstacle",
+   "digests": {
+    "executor_log_sha256": "c286a640ccdb693b7fe2627297b838300b2ed911c903de68af917c578302a1ad",
+    "serial_log_sha256": "ece6077786df3b84495dfaffde026c41a7ac3d1fe76514369d92b475196fd377",
+    "trace_content_sha256": "41f0469391aeb4aa4b29ef63703330c49b0bfced0ce1169e853e0197ca3be316"
+   },
+   "expect": "obstacle_ahead",
+   "failed": [],
+   "metrics": {
+    "distance_m": 10.74,
+    "drive_start_s": 1.46,
+    "drive_stop_s": 31.7,
+    "end_reason": "obstacle_ahead",
+    "ended_at_s": 33.0,
+    "first_pause": null,
+    "heading_max_deg": 2.797,
+    "heading_rmse_deg": 1.475,
+    "lateral_max_m": 0.0893,
+    "lateral_p95_m": 0.0859,
+    "lateral_rmse_m": 0.053,
+    "min_clearance_m": 0.4419,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -12.56,
+    "speed_max_m_s": 0.406,
+    "speed_mean_m_s": 0.355,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "curve_l30",
+   "digests": {
+    "executor_log_sha256": "2cc49e1400b435bf5bd7df790d99f47def57846c2971b6d294f509705f9dcd52",
+    "serial_log_sha256": "9ef94002201eff5f98309c6d5aac223a24dedd99fba8983ce805bc10b24ce0ae",
+    "trace_content_sha256": "702d91a9b6916b173a6dd61f04cb440f76dddd79d60dd3558d27b370d6f10f51"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.58,
+    "drive_start_s": 2.26,
+    "drive_stop_s": 68.0,
+    "end_reason": "row_end",
+    "ended_at_s": 69.4,
+    "first_pause": null,
+    "heading_max_deg": 6.13,
+    "heading_rmse_deg": 2.635,
+    "host_latches": [],
+    "lateral_max_m": 0.2119,
+    "lateral_p95_m": 0.1794,
+    "lateral_rmse_m": 0.1057,
+    "min_clearance_m": 1.0751,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.244,
+    "speed_max_m_s": 0.452,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "curve_l30",
+   "digests": {
+    "executor_log_sha256": "c269fbf969b434cffd009071bba95d71564830f9737236419be7156530572f59",
+    "serial_log_sha256": "809cda5677f9580679d2c0391b815b29117c311074c70bc766d1824be00595d9",
+    "trace_content_sha256": "e98f5c8f573a7d10788a56951a03257c1419fb4258dc45482d7a3ca50f52affd"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.57,
+    "drive_start_s": 2.16,
+    "drive_stop_s": 68.0,
+    "end_reason": "row_end",
+    "ended_at_s": 69.3,
+    "first_pause": null,
+    "heading_max_deg": 5.605,
+    "heading_rmse_deg": 2.447,
+    "host_latches": [],
+    "lateral_max_m": 0.1309,
+    "lateral_p95_m": 0.1144,
+    "lateral_rmse_m": 0.0701,
+    "min_clearance_m": 1.1305,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.227,
+    "speed_max_m_s": 0.437,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "curve_l30",
+   "digests": {
+    "executor_log_sha256": "dc1abadfaf7f9650277f2db2a6524337dfc08821adb56b8afbc9fe49279b556b",
+    "serial_log_sha256": "60ae8fe74575dae8ac872322e7217d302249b1f485de29263e832a453f025d45",
+    "trace_content_sha256": "84823d37facf492f1f3fc26b016c51df3984f8db8bfb3802c3170c707fda9c55"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.52,
+    "drive_start_s": 2.26,
+    "drive_stop_s": 67.9,
+    "end_reason": "row_end",
+    "ended_at_s": 69.1,
+    "first_pause": null,
+    "heading_max_deg": 7.508,
+    "heading_rmse_deg": 3.727,
+    "host_latches": [],
+    "lateral_max_m": 0.2013,
+    "lateral_p95_m": 0.1866,
+    "lateral_rmse_m": 0.0891,
+    "min_clearance_m": 1.0699,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.182,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "curve_r30",
+   "digests": {
+    "executor_log_sha256": "3b3dc26f914460478f3f2fd3277fb7a6f9fb01b54b0eb58dd5c6c8a634b60e7f",
+    "serial_log_sha256": "5d24096089c0cf1d074a3355abcea7f8937d4f8cfb1990c04641240dcc01fe69",
+    "trace_content_sha256": "460a553d83b446d58b4e00b2b03702b4451c5ae6b7eaf9aac58c470c82ff5385"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.53,
+    "drive_start_s": 2.31,
+    "drive_stop_s": 69.3,
+    "end_reason": "row_end",
+    "ended_at_s": 70.6,
+    "first_pause": null,
+    "heading_max_deg": 4.981,
+    "heading_rmse_deg": 2.304,
+    "host_latches": [],
+    "lateral_max_m": 0.253,
+    "lateral_p95_m": 0.2178,
+    "lateral_rmse_m": 0.1021,
+    "min_clearance_m": 1.0198,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.226,
+    "speed_max_m_s": 0.447,
+    "speed_mean_m_s": 0.351,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "curve_r30",
+   "digests": {
+    "executor_log_sha256": "d1c9b5703cf4a3f742028094ae6eece7f5c67fd69cd7bf76473654fca12deeca",
+    "serial_log_sha256": "8b2d61079a049e233e69e5954c190c9246f6eb97fd13df01198bcad5c1631b7d",
+    "trace_content_sha256": "8201b142f5764c743014de89aad014b4212a9ad394ba6537cc8da3f235883c6a"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.5,
+    "drive_start_s": 2.91,
+    "drive_stop_s": 71.5,
+    "end_reason": "row_end",
+    "ended_at_s": 72.8,
+    "first_pause": null,
+    "heading_max_deg": 7.148,
+    "heading_rmse_deg": 2.763,
+    "host_latches": [],
+    "lateral_max_m": 0.2385,
+    "lateral_p95_m": 0.2182,
+    "lateral_rmse_m": 0.1148,
+    "min_clearance_m": 1.0318,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.155,
+    "speed_max_m_s": 0.419,
+    "speed_mean_m_s": 0.342,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "curve_r30",
+   "digests": {
+    "executor_log_sha256": "1e035ca0a57e9cdb0211037c5eb915dc600f9044e153884117bae4965599754e",
+    "serial_log_sha256": "c1354e57d8921866866b1f9576453bf12eff2e8074f07c2c06925cfbfddaacce",
+    "trace_content_sha256": "5df1a77293169d3b9164286218aeac5da519b1a802b8ed29096f13d7035587d1"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.1,
+    "drive_start_s": 2.81,
+    "drive_stop_s": 69.3,
+    "end_reason": "row_end",
+    "ended_at_s": 70.6,
+    "first_pause": null,
+    "heading_max_deg": 7.392,
+    "heading_rmse_deg": 3.261,
+    "host_latches": [],
+    "lateral_max_m": 0.2373,
+    "lateral_p95_m": 0.2183,
+    "lateral_rmse_m": 0.1137,
+    "min_clearance_m": 1.0403,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -0.223,
+    "speed_max_m_s": 0.431,
+    "speed_mean_m_s": 0.347,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "gap3_both",
+   "digests": {
+    "executor_log_sha256": "ec0500e760c205d7849002da69dc8fc6904f01d50a4b63dfc24bb67740e6bb28",
+    "serial_log_sha256": "664a30f87d64614eca75fa032b4639fddb8d1e878d61167a778054ad41832b54",
+    "trace_content_sha256": "cf5a00d29fb6d219ac6df3c5df323a9275ba4ebfee42939cfa905a29a65449f0"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.44,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.0,
+    "end_reason": "row_end",
+    "ended_at_s": 68.3,
+    "first_pause": null,
+    "heading_max_deg": 5.971,
+    "heading_rmse_deg": 2.899,
+    "host_latches": [],
+    "lateral_max_m": 0.1557,
+    "lateral_p95_m": 0.1237,
+    "lateral_rmse_m": 0.0702,
+    "min_clearance_m": 1.119,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.068,
+    "speed_max_m_s": 0.439,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "gap3_both",
+   "digests": {
+    "executor_log_sha256": "3218ab2b9a3ce3b595572c472b74a1486162ac6dcdf61b249ad9be0e7485d349",
+    "serial_log_sha256": "5e889e6143be646b50c11df8f782b94400126a9fc2f9132edfa6e02b57a2849d",
+    "trace_content_sha256": "3e26c3bf23723d2ecc5f1b9bd8a12efb3cd7785bb25cfdfa8af020d541657631"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.8,
+    "end_reason": "row_end",
+    "ended_at_s": 67.1,
+    "first_pause": null,
+    "heading_max_deg": 4.587,
+    "heading_rmse_deg": 1.758,
+    "host_latches": [],
+    "lateral_max_m": 0.0984,
+    "lateral_p95_m": 0.0887,
+    "lateral_rmse_m": 0.0506,
+    "min_clearance_m": 1.174,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.429,
+    "speed_mean_m_s": 0.363,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "gap3_both",
+   "digests": {
+    "executor_log_sha256": "c7e12e28ca41eab19aa45124a392b3b0be87e5c819fa8c1250169cab54292b25",
+    "serial_log_sha256": "e1722b480df170000f6f34340079f1ab83d19551358682524e087869dacf1921",
+    "trace_content_sha256": "9d2f698297aa7418b1a93068357cc984bf5cfe24df45f4e633bcc604ba357a53"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.9,
+    "end_reason": "row_end",
+    "ended_at_s": 69.3,
+    "first_pause": null,
+    "heading_max_deg": 3.354,
+    "heading_rmse_deg": 1.599,
+    "host_latches": [],
+    "lateral_max_m": 0.1266,
+    "lateral_p95_m": 0.1162,
+    "lateral_rmse_m": 0.0622,
+    "min_clearance_m": 1.1524,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.069,
+    "speed_max_m_s": 0.423,
+    "speed_mean_m_s": 0.351,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "endpost_2p0",
+   "digests": {
+    "executor_log_sha256": "7392cec46103a64dc89d309bd2bd3caef10e035c6c4d4e87f261cfefcee73373",
+    "serial_log_sha256": "1d26388decc6409f293e5bdb41a95b287ffc3498dc511102e5b717f94b16b37c",
+    "trace_content_sha256": "91e249a4493c000eb6e8c6741a29c232270e14ae2c29fc8313f6a0b177f2a11e"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 25.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 71.7,
+    "end_reason": "row_end",
+    "ended_at_s": 73.1,
+    "first_pause": null,
+    "heading_max_deg": 3.495,
+    "heading_rmse_deg": 1.796,
+    "host_latches": [],
+    "lateral_max_m": 0.1133,
+    "lateral_p95_m": 0.105,
+    "lateral_rmse_m": 0.0589,
+    "min_clearance_m": 1.1661,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.036,
+    "speed_max_m_s": 0.436,
+    "speed_mean_m_s": 0.36,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "endpost_2p0",
+   "digests": {
+    "executor_log_sha256": "e5010c78311f4123c1b84ee9375d7e2a9d418ccd4c378ac775a78c992871c937",
+    "serial_log_sha256": "eebba151fa67ec0b8891bcacb2c32f18151eb92fa6f00c00e517b8137c263c6b",
+    "trace_content_sha256": "5069a41ba4de701306fa1d0ff8dd12d9d5d3f889b3305b7bb3e524adc594f10e"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 25.37,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 86.6,
+    "end_reason": "row_end",
+    "ended_at_s": 88.0,
+    "first_pause": null,
+    "heading_max_deg": 3.995,
+    "heading_rmse_deg": 1.916,
+    "host_latches": [],
+    "lateral_max_m": 0.0931,
+    "lateral_p95_m": 0.0786,
+    "lateral_rmse_m": 0.0473,
+    "min_clearance_m": 1.1814,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.026,
+    "speed_max_m_s": 0.355,
+    "speed_mean_m_s": 0.297,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "endpost_2p0",
+   "digests": {
+    "executor_log_sha256": "df26c2d97b99afc85369da62d9fc9ea9b0a32cfa62c70f5b67af528ddde7a249",
+    "serial_log_sha256": "4ca50fa61318fd671b1cfcbc61f607bc851e3b21db31485a4cd782ff28362c29",
+    "trace_content_sha256": "ce335262821ed5c63489d8045516f9316ef45d731645e0c9851f7e0c2938329d"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 25.38,
+    "drive_start_s": 1.46,
+    "drive_stop_s": 72.7,
+    "end_reason": "row_end",
+    "ended_at_s": 74.0,
+    "first_pause": null,
+    "heading_max_deg": 4.263,
+    "heading_rmse_deg": 1.781,
+    "host_latches": [],
+    "lateral_max_m": 0.122,
+    "lateral_p95_m": 0.0925,
+    "lateral_rmse_m": 0.05,
+    "min_clearance_m": 1.149,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.031,
+    "speed_max_m_s": 0.432,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "width_3p0",
+   "digests": {
+    "executor_log_sha256": "48ee68a3b396bb52b5997378240e201ab5d69da7bd7c156c39f7c598152beb9f",
+    "serial_log_sha256": "2bede6bf71ea9a3e8822e98b82d694c94fd53b454ddb18780b68713bb9c34404",
+    "trace_content_sha256": "28ea1967550887f3eb71a081b1f72df5513960e99ee881487abe0b7ae3d6bfd5"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.6,
+    "end_reason": "row_end",
+    "ended_at_s": 68.9,
+    "first_pause": null,
+    "heading_max_deg": 4.848,
+    "heading_rmse_deg": 1.901,
+    "host_latches": [],
+    "lateral_max_m": 0.0909,
+    "lateral_p95_m": 0.086,
+    "lateral_rmse_m": 0.0479,
+    "min_clearance_m": 0.924,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.064,
+    "speed_max_m_s": 0.431,
+    "speed_mean_m_s": 0.352,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "width_3p0",
+   "digests": {
+    "executor_log_sha256": "e2d8b376f5533efb5a5e883d6e25001664ef2e8fae2860e6ec7b5ee1137aec86",
+    "serial_log_sha256": "c541a7ba5b2f221b56e35d5a31e4fddd0eb617492c2388123914367ac8031c3c",
+    "trace_content_sha256": "bd11ae025b96a48366574406cdc854f3282cfc317b6b01b18f4bcad15d613625"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.16,
+    "end_reason": "row_end",
+    "ended_at_s": 68.5,
+    "first_pause": null,
+    "heading_max_deg": 4.6,
+    "heading_rmse_deg": 1.57,
+    "host_latches": [],
+    "lateral_max_m": 0.1165,
+    "lateral_p95_m": 0.0879,
+    "lateral_rmse_m": 0.0436,
+    "min_clearance_m": 0.9056,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.073,
+    "speed_max_m_s": 0.446,
+    "speed_mean_m_s": 0.355,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "width_3p0",
+   "digests": {
+    "executor_log_sha256": "07073b67e81c16d67cd1957fdd137f66e766ecf73fed75412698173a9e2143cc",
+    "serial_log_sha256": "7d07179ee41a7c014797e8d5010280d849cb674f2da2712cbd42a74579762eac",
+    "trace_content_sha256": "0f3b9350312c46faa4259247d06b1833b3b68fd8145132e9ef66027e0bc8d1ab"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.96,
+    "end_reason": "row_end",
+    "ended_at_s": 68.2,
+    "first_pause": null,
+    "heading_max_deg": 4.211,
+    "heading_rmse_deg": 2.242,
+    "host_latches": [],
+    "lateral_max_m": 0.1202,
+    "lateral_p95_m": 0.113,
+    "lateral_rmse_m": 0.0621,
+    "min_clearance_m": 0.8953,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.042,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "w2_042301_c03",
+   "digests": {
+    "executor_log_sha256": "d818ff21c91c096b91548d998e3cf0fe3bf3059389475fec50ecf55526df171d",
+    "serial_log_sha256": "5f476bd042a35dcf2c59c1a7348c4e4b63426e873299c0b55223ee4e4e907ac5",
+    "trace_content_sha256": "0735c2306b2d1948c7891f1e0abefc6325878f3f980c524cdd41ef22717d8e3a"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 42.04,
+    "drive_start_s": 1.71,
+    "drive_stop_s": 111.96,
+    "end_reason": "row_end",
+    "ended_at_s": 113.3,
+    "first_pause": null,
+    "heading_max_deg": 3.781,
+    "heading_rmse_deg": 1.921,
+    "host_latches": [],
+    "lateral_max_m": 0.3847,
+    "lateral_p95_m": 0.156,
+    "lateral_rmse_m": 0.0783,
+    "min_clearance_m": 0.6656,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.045,
+    "speed_max_m_s": 0.451,
+    "speed_mean_m_s": 0.381,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "w2_042301_c03",
+   "digests": {
+    "executor_log_sha256": "1b29284baf003aab38e619cfa42b8f0b40bc9e84206f42d010cf7686877eeb9e",
+    "serial_log_sha256": "44f5b2239d5b3f31b5697c332bcdc75a54f1490241751f34a8e97a63daa26d6b",
+    "trace_content_sha256": "f79ad31215088882b9ef75560393092b4ce28028caba5ca5dc1b139c0a6552fa"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 42.05,
+    "drive_start_s": 1.66,
+    "drive_stop_s": 113.66,
+    "end_reason": "row_end",
+    "ended_at_s": 114.9,
+    "first_pause": null,
+    "heading_max_deg": 4.713,
+    "heading_rmse_deg": 2.072,
+    "host_latches": [],
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.1676,
+    "lateral_rmse_m": 0.0797,
+    "min_clearance_m": 0.6666,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.058,
+    "speed_max_m_s": 0.442,
+    "speed_mean_m_s": 0.375,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "w2_042301_c03",
+   "digests": {
+    "executor_log_sha256": "4dda4aa63540e34b9df162eb463ded2777709109222755b0b1798fc5a65571c8",
+    "serial_log_sha256": "c92858b843d931f64a0b5b08563ceef75bd88cf3780c7714578b866e12bd5ab1",
+    "trace_content_sha256": "2deaa5eade1af1875b7eb34100b8a73715837d066bca61400872af0760afb403"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 42.06,
+    "drive_start_s": 1.81,
+    "drive_stop_s": 115.26,
+    "end_reason": "row_end",
+    "ended_at_s": 116.6,
+    "first_pause": null,
+    "heading_max_deg": 3.881,
+    "heading_rmse_deg": 1.515,
+    "host_latches": [],
+    "lateral_max_m": 0.3341,
+    "lateral_p95_m": 0.1527,
+    "lateral_rmse_m": 0.0781,
+    "min_clearance_m": 0.7595,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.067,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.37,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "w2_040927_c06",
+   "digests": {
+    "executor_log_sha256": "a3918e769aef9b004602fa7f6769472bffff3847791ba81f33a03dbf63abd9d4",
+    "serial_log_sha256": "272f6a8ef6e5f860fb71aeae18cb06b477be1bb9d335d877be6bd704bf702842",
+    "trace_content_sha256": "5dfd8d15063f6490969ba55ad7ac210d489e32bb31de5e9a7a57db7e8ac5d3ab"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 28.9,
+    "drive_start_s": 1.51,
+    "drive_stop_s": 79.5,
+    "end_reason": "row_end",
+    "ended_at_s": 80.8,
+    "first_pause": null,
+    "heading_max_deg": 4.043,
+    "heading_rmse_deg": 2.291,
+    "host_latches": [],
+    "lateral_max_m": 0.1467,
+    "lateral_p95_m": 0.1128,
+    "lateral_rmse_m": 0.062,
+    "min_clearance_m": 1.3077,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.042,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.37,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "w2_040927_c06",
+   "digests": {
+    "executor_log_sha256": "134d7908a8f9e2e4755690a3fab6fe8b461327f313c346a4fce89455f5eb1f9e",
+    "serial_log_sha256": "d6efbc4191d22c2b720f054777e4833c979f3b890741b9c3c3ccb096b5dca9a3",
+    "trace_content_sha256": "656ce0667c2159d628c517d367b13a71c4a50337d224a024be93af7ef5dd3fc1"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 28.91,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 79.0,
+    "end_reason": "row_end",
+    "ended_at_s": 80.3,
+    "first_pause": null,
+    "heading_max_deg": 5.08,
+    "heading_rmse_deg": 1.705,
+    "host_latches": [],
+    "lateral_max_m": 0.1462,
+    "lateral_p95_m": 0.1363,
+    "lateral_rmse_m": 0.0602,
+    "min_clearance_m": 1.3513,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.067,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.372,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "w2_040927_c06",
+   "digests": {
+    "executor_log_sha256": "f1e7a1a8d969c7ee0b13ba4a574b3a6be52495bb213ae3ea8a97190c3cd73bb4",
+    "serial_log_sha256": "7b3fa7fa52e2f94a32d03d7de48c68e58ba7a57b04a2f06c056ba2d35e090af4",
+    "trace_content_sha256": "07a3504fecaf3b2e41e82e3852cdffa01b9d0ffc0d23d6bf5c310c96fabd649b"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 28.92,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 81.7,
+    "end_reason": "row_end",
+    "ended_at_s": 83.0,
+    "first_pause": null,
+    "heading_max_deg": 5.417,
+    "heading_rmse_deg": 2.432,
+    "host_latches": [],
+    "lateral_max_m": 0.1013,
+    "lateral_p95_m": 0.09,
+    "lateral_rmse_m": 0.0609,
+    "min_clearance_m": 1.3859,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.069,
+    "speed_max_m_s": 0.435,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "heading_p10",
+   "digests": {
+    "executor_log_sha256": "106ca43f61420b5d19d0adf4720c99f7e6683ee3add8e3236cabc68523b9ef44",
+    "serial_log_sha256": "327b057bad222c71cf77b8ebcf77751d5c4b02eed303a10bad2bd474a74dcba3",
+    "trace_content_sha256": "580a30bcc84a229cf0e0537bcdaa4c53327ac37151aa7d93d363c244bcb58eec"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 4.21,
+    "drive_stop_s": 69.9,
+    "end_reason": "row_end",
+    "ended_at_s": 71.3,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.215,
+    "host_latches": [],
+    "lateral_max_m": 0.1423,
+    "lateral_p95_m": 0.099,
+    "lateral_rmse_m": 0.0499,
+    "min_clearance_m": 1.1221,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.063,
+    "speed_max_m_s": 0.432,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "heading_p10",
+   "digests": {
+    "executor_log_sha256": "10179cc272c92531d47c0f8404adc9f4175c5aa59c95cb8063931b1394eaa4df",
+    "serial_log_sha256": "cdddadb29da618537252824678e98c6ea956b9ad29f716353e830a1a34971ca0",
+    "trace_content_sha256": "7104eda487f123d0cedf35a02f6bb7a93e37257a1784d4b9929cf325013076f4"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 3.71,
+    "drive_stop_s": 69.7,
+    "end_reason": "row_end",
+    "ended_at_s": 71.0,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.182,
+    "host_latches": [],
+    "lateral_max_m": 0.1346,
+    "lateral_p95_m": 0.0748,
+    "lateral_rmse_m": 0.0472,
+    "min_clearance_m": 1.1403,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.048,
+    "speed_max_m_s": 0.451,
+    "speed_mean_m_s": 0.354,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "heading_p10",
+   "digests": {
+    "executor_log_sha256": "e63753c2f9dd55dc10b668c07dcebde928d500a8f6ad0e052c33256e5567b3e6",
+    "serial_log_sha256": "2218020b42ec43856c05708a7436d89ff5f99b0076b8b811ba4a08a713f2d234",
+    "trace_content_sha256": "d805d36d1ad0bcd9561f48453cd76969c72a8412d31bf269e2904d56a53e8e99"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 3.61,
+    "drive_stop_s": 68.86,
+    "end_reason": "row_end",
+    "ended_at_s": 70.2,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.751,
+    "host_latches": [],
+    "lateral_max_m": 0.1485,
+    "lateral_p95_m": 0.0986,
+    "lateral_rmse_m": 0.0478,
+    "min_clearance_m": 1.1281,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.043,
+    "speed_max_m_s": 0.442,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "heading_n10",
+   "digests": {
+    "executor_log_sha256": "43061a472fefa60b8357ddde7bec19dc7489fe6c585f20bfd98f12a376c338b8",
+    "serial_log_sha256": "a9decb154c64e56f99fa562f057d2ac3bd2ee3ef8a5a731fbc04290239b5425e",
+    "trace_content_sha256": "dc326f1f534d769cd38a78d8ab1468f348687d4a5ced887d01a467fabd01bd52"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 3.81,
+    "drive_stop_s": 71.1,
+    "end_reason": "row_end",
+    "ended_at_s": 72.4,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.346,
+    "host_latches": [],
+    "lateral_max_m": 0.1254,
+    "lateral_p95_m": 0.0986,
+    "lateral_rmse_m": 0.0609,
+    "min_clearance_m": 1.1424,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.065,
+    "speed_max_m_s": 0.451,
+    "speed_mean_m_s": 0.348,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "heading_n10",
+   "digests": {
+    "executor_log_sha256": "dca5a96f511e7dc05c3b2fc9ce73e01247c17d1f54e91da27516f11ab378ab1d",
+    "serial_log_sha256": "92166783dfb4fa91f183dba65b1883ef5f5c4d759c3fe6bc83e37380ee8e35a3",
+    "trace_content_sha256": "8b74ba9a7472d232d0362fe0e3838930d90a9fe09b5643ebbf268214e8cf5ce7"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 3.21,
+    "drive_stop_s": 70.5,
+    "end_reason": "row_end",
+    "ended_at_s": 71.8,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.666,
+    "host_latches": [],
+    "lateral_max_m": 0.1231,
+    "lateral_p95_m": 0.1079,
+    "lateral_rmse_m": 0.0628,
+    "min_clearance_m": 1.1475,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.06,
+    "speed_max_m_s": 0.443,
+    "speed_mean_m_s": 0.348,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "heading_n10",
+   "digests": {
+    "executor_log_sha256": "58842c451c084bb784809728f29c589aa663e5bb52be191a81cdd4bf8861c15f",
+    "serial_log_sha256": "dd6dfb4f7f7d9fe72aaa6a507a5ce50b5ac2304cb7faaa7fe1765bcf0b03cf56",
+    "trace_content_sha256": "ba267604955524b3e0561b73ffd49dbbf6f4efdaea580e9333fc1df5bf981c47"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 3.81,
+    "drive_stop_s": 70.6,
+    "end_reason": "row_end",
+    "ended_at_s": 71.9,
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.48,
+    "host_latches": [],
+    "lateral_max_m": 0.17,
+    "lateral_p95_m": 0.0949,
+    "lateral_rmse_m": 0.0582,
+    "min_clearance_m": 1.1073,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.079,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.35,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "pull_left",
+   "digests": {
+    "executor_log_sha256": "f1e02f0bbc64309309c5afeadb236adc95b2aac23cdd0a27bbf9713587dfeff9",
+    "serial_log_sha256": "fd4c604029040259da6b3df0fbfabd2e2bfcef8e99ddab70ad7d028336a43339",
+    "trace_content_sha256": "9b6693ae4d2a1d5631c6363eb63793c801b4cc94f9ed8de5aa706237554a901e"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.6,
+    "end_reason": "row_end",
+    "ended_at_s": 66.9,
+    "first_pause": null,
+    "heading_max_deg": 3.648,
+    "heading_rmse_deg": 1.598,
+    "host_latches": [],
+    "lateral_max_m": 0.1052,
+    "lateral_p95_m": 0.0818,
+    "lateral_rmse_m": 0.0379,
+    "min_clearance_m": 1.1422,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.059,
+    "speed_max_m_s": 0.447,
+    "speed_mean_m_s": 0.363,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "pull_left",
+   "digests": {
+    "executor_log_sha256": "1b5194773e6444941e8b84bfc0b491c90bda191014f4e82351f69867c33076aa",
+    "serial_log_sha256": "64955eb8c536072ab93f026510f8e544af59358429aa0e2aec8f89561e14e9e0",
+    "trace_content_sha256": "4161c6994aeeff6f5dd1e573c8b113071fd1b37f971b44570569f5821caad271"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.4,
+    "end_reason": "row_end",
+    "ended_at_s": 67.7,
+    "first_pause": null,
+    "heading_max_deg": 5.377,
+    "heading_rmse_deg": 2.44,
+    "host_latches": [],
+    "lateral_max_m": 0.1308,
+    "lateral_p95_m": 0.1191,
+    "lateral_rmse_m": 0.0658,
+    "min_clearance_m": 1.1526,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.051,
+    "speed_max_m_s": 0.437,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "pull_left",
+   "digests": {
+    "executor_log_sha256": "ee55581b0dadabd1b2888c7b69b1b0810396ededa55514b338285577e5b3d5f6",
+    "serial_log_sha256": "4196c8ca86fa14fadc2764245a5be35582631d65b2a62678737f838149a710c0",
+    "trace_content_sha256": "2fbb442c2e637cbfb587eeeffed980578594802f2c7979d2cc9e3e555e263d69"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.2,
+    "end_reason": "row_end",
+    "ended_at_s": 69.5,
+    "first_pause": null,
+    "heading_max_deg": 2.644,
+    "heading_rmse_deg": 1.262,
+    "host_latches": [],
+    "lateral_max_m": 0.0941,
+    "lateral_p95_m": 0.0691,
+    "lateral_rmse_m": 0.0395,
+    "min_clearance_m": 1.1904,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.076,
+    "speed_max_m_s": 0.429,
+    "speed_mean_m_s": 0.349,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "pull_right",
+   "digests": {
+    "executor_log_sha256": "e8d457be1726759ab4d51157304f06cf73ecb07d9c3b3e5d7275138b58e306ca",
+    "serial_log_sha256": "6f17db4aa0d700370902f8265a81e4818612f6d47ffa7800026fbc58d0050d1f",
+    "trace_content_sha256": "eb45d8a4118dfb73092ebe9b45f2a8b9553d4751fcd7ae5642c39dfd89d4fe03"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.26,
+    "end_reason": "row_end",
+    "ended_at_s": 67.5,
+    "first_pause": null,
+    "heading_max_deg": 4.947,
+    "heading_rmse_deg": 2.225,
+    "host_latches": [],
+    "lateral_max_m": 0.1367,
+    "lateral_p95_m": 0.1242,
+    "lateral_rmse_m": 0.0732,
+    "min_clearance_m": 1.1449,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.065,
+    "speed_max_m_s": 0.445,
+    "speed_mean_m_s": 0.36,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "pull_right",
+   "digests": {
+    "executor_log_sha256": "316c3aacd83588d2adc7fb220e0f38d5f5a16e3c7e573177bcadf2cb4372257c",
+    "serial_log_sha256": "a06688ae3e50a6dee208c0145a5d477765456e6fc837ca695a395a019a913441",
+    "trace_content_sha256": "1cba2c0c3f465bdccd8ae971d38200480fa76b873e6207312a4829758b42fbfa"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.9,
+    "end_reason": "row_end",
+    "ended_at_s": 67.2,
+    "first_pause": null,
+    "heading_max_deg": 2.675,
+    "heading_rmse_deg": 1.384,
+    "host_latches": [],
+    "lateral_max_m": 0.0933,
+    "lateral_p95_m": 0.0778,
+    "lateral_rmse_m": 0.0364,
+    "min_clearance_m": 1.1845,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.064,
+    "speed_max_m_s": 0.447,
+    "speed_mean_m_s": 0.362,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "pull_right",
+   "digests": {
+    "executor_log_sha256": "e3a67324b7046d4aa05d5623786958b0eb2e3f6adf0b2b2bd08ab65236cb7f2b",
+    "serial_log_sha256": "8dadcc6b4211f8ebf59dd15b7e2213c9886637cb852a1b60d7d379879bd3b74a",
+    "trace_content_sha256": "5f824c7cadf0746580a81bfaa8f7b7be3dcddcb37dc8b45edc96c978107e2c55"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.5,
+    "end_reason": "row_end",
+    "ended_at_s": 67.7,
+    "first_pause": null,
+    "heading_max_deg": 3.725,
+    "heading_rmse_deg": 1.936,
+    "host_latches": [],
+    "lateral_max_m": 0.1221,
+    "lateral_p95_m": 0.1137,
+    "lateral_rmse_m": 0.0633,
+    "min_clearance_m": 1.1543,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.057,
+    "speed_max_m_s": 0.438,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "speed_0p2",
+   "digests": {
+    "executor_log_sha256": "8dd2f4ace3f7f5e6ea5a01078bf74a2e7d989ce5b7b503a607bf9b1819a6718f",
+    "serial_log_sha256": "4d9c06c77342a9bc889e96d2a14d8a4f10411d3ef50541681fbe7a758ff5937e",
+    "trace_content_sha256": "f891bbe8a657b3000198b21cb0a5314d30af8baca33ab5e3cd676d42fe42d13a"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 119.96,
+    "end_reason": "row_end",
+    "ended_at_s": 121.3,
+    "first_pause": null,
+    "heading_max_deg": 4.716,
+    "heading_rmse_deg": 1.765,
+    "host_latches": [],
+    "lateral_max_m": 0.1115,
+    "lateral_p95_m": 0.0928,
+    "lateral_rmse_m": 0.0458,
+    "min_clearance_m": 1.153,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.045,
+    "speed_max_m_s": 0.223,
+    "speed_mean_m_s": 0.197,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "speed_0p2",
+   "digests": {
+    "executor_log_sha256": "f11e1c0c17823700f600cc166160bc8b7f9e2c6779b8e5856b90d2ed61afc58c",
+    "serial_log_sha256": "16791fe22089b679ccf7f850618cf253f9c53188a876f02032a74188dc3072b2",
+    "trace_content_sha256": "2a01232b2161626257d8559d329770dfc923d772bbe97d8abd31e9b0d2011d84"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 118.3,
+    "end_reason": "row_end",
+    "ended_at_s": 119.6,
+    "first_pause": null,
+    "heading_max_deg": 3.418,
+    "heading_rmse_deg": 1.697,
+    "host_latches": [],
+    "lateral_max_m": 0.0887,
+    "lateral_p95_m": 0.0791,
+    "lateral_rmse_m": 0.0426,
+    "min_clearance_m": 1.1907,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.046,
+    "speed_max_m_s": 0.233,
+    "speed_mean_m_s": 0.2,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "speed_0p2",
+   "digests": {
+    "executor_log_sha256": "af4aef514f0feb131b841f65d33fb071450732792430bf1807148ae93f846ffb",
+    "serial_log_sha256": "e58ce13b1ffaed4d15552616f6660175491630b382cd927ae678695ef570f909",
+    "trace_content_sha256": "828e428510f8f2d3aaa9268346001ebb6f6eb19a98b08c3bc7b2744eca2ddbb5"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.37,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 120.86,
+    "end_reason": "row_end",
+    "ended_at_s": 122.1,
+    "first_pause": null,
+    "heading_max_deg": 2.172,
+    "heading_rmse_deg": 0.905,
+    "host_latches": [],
+    "lateral_max_m": 0.0571,
+    "lateral_p95_m": 0.0347,
+    "lateral_rmse_m": 0.0199,
+    "min_clearance_m": 1.2199,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.044,
+    "speed_max_m_s": 0.236,
+    "speed_mean_m_s": 0.195,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "speed_0p5",
+   "digests": {
+    "executor_log_sha256": "c01f158fff008c6d24bfbf886e5032c37b7264726abfe893ce4c984fcd87ccb8",
+    "serial_log_sha256": "29363b7b0a00c42a729672475ac9b9434df2396cfb1309ac401c3db0ead8b1d8",
+    "trace_content_sha256": "e2a1ba8185565725efc004ad0229b0261de033b6dcc97677d209919c5856324e"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.66,
+    "end_reason": "row_end",
+    "ended_at_s": 69.0,
+    "first_pause": null,
+    "heading_max_deg": 3.722,
+    "heading_rmse_deg": 1.998,
+    "host_latches": [],
+    "lateral_max_m": 0.1155,
+    "lateral_p95_m": 0.0981,
+    "lateral_rmse_m": 0.0538,
+    "min_clearance_m": 1.1584,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.05,
+    "speed_max_m_s": 0.51,
+    "speed_mean_m_s": 0.352,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "speed_0p5",
+   "digests": {
+    "executor_log_sha256": "ff312887f30adbb9053480fca7f42d334b00f42d3cf361a8b75aaaa99393fa0b",
+    "serial_log_sha256": "fec92c67ada2699c18ae08c18478f0f8a595847587ca0e67b34ee13dc4877418",
+    "trace_content_sha256": "0b7dd91e8ff5444c92f9b4cdd0a09593839bddf7250eb6b8a17f3cfd84bb95d1"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.56,
+    "end_reason": "row_end",
+    "ended_at_s": 67.8,
+    "first_pause": null,
+    "heading_max_deg": 5.169,
+    "heading_rmse_deg": 1.811,
+    "host_latches": [],
+    "lateral_max_m": 0.0946,
+    "lateral_p95_m": 0.083,
+    "lateral_rmse_m": 0.0411,
+    "min_clearance_m": 1.1834,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.055,
+    "speed_max_m_s": 0.509,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "speed_0p5",
+   "digests": {
+    "executor_log_sha256": "66520345b38421e778869de99977caa3c70df74764017998020428e42cb917e2",
+    "serial_log_sha256": "8d35bcc0649a5223ecb65004b625277c208f2600589abba8edf734fb54bbc767",
+    "trace_content_sha256": "42a126957ff0a5ffda8f4449805816704d8c89f302132ac6b3efefda3acd1739"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 65.5,
+    "end_reason": "row_end",
+    "ended_at_s": 66.8,
+    "first_pause": null,
+    "heading_max_deg": 3.28,
+    "heading_rmse_deg": 1.738,
+    "host_latches": [],
+    "lateral_max_m": 0.1222,
+    "lateral_p95_m": 0.1061,
+    "lateral_rmse_m": 0.0532,
+    "min_clearance_m": 1.163,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.07,
+    "speed_max_m_s": 0.501,
+    "speed_mean_m_s": 0.364,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "table_x070",
+   "digests": {
+    "executor_log_sha256": "5692ce22d7a1ab44e3136d08de0542ea8a9d2ad74735e8df42079ff20fbb459b",
+    "serial_log_sha256": "fea28602eb8f70d1a40ab9e3f8cf1ed8cb5b4fdcfdac9ff0fff43920c337a86b",
+    "trace_content_sha256": "b8bd7a6d29b1e75097801abb4e3722cdd5819fb313b9dfb9436538f3c8f3bea6"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 71.0,
+    "end_reason": "row_end",
+    "ended_at_s": 72.4,
+    "first_pause": null,
+    "heading_max_deg": 4.548,
+    "heading_rmse_deg": 2.149,
+    "host_latches": [],
+    "lateral_max_m": 0.1247,
+    "lateral_p95_m": 0.1053,
+    "lateral_rmse_m": 0.0583,
+    "min_clearance_m": 1.1451,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.073,
+    "speed_max_m_s": 0.425,
+    "speed_mean_m_s": 0.335,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "table_x070",
+   "digests": {
+    "executor_log_sha256": "511d4fe4c841ae207b465218e5e648be7d1b932dafcf6d7110fe1d34c5243f9c",
+    "serial_log_sha256": "00a768bfddd006f7882a1335ab924746caed3e77a72d01a8709f43a16f013f80",
+    "trace_content_sha256": "40c896bffcc62b2b56a1a6f46556d5ed8163f75d72c22f2e645224b41cbcd6e3"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 71.7,
+    "end_reason": "row_end",
+    "ended_at_s": 73.0,
+    "first_pause": null,
+    "heading_max_deg": 4.582,
+    "heading_rmse_deg": 2.016,
+    "host_latches": [],
+    "lateral_max_m": 0.1035,
+    "lateral_p95_m": 0.0949,
+    "lateral_rmse_m": 0.0533,
+    "min_clearance_m": 1.1599,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.049,
+    "speed_max_m_s": 0.416,
+    "speed_mean_m_s": 0.332,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "table_x070",
+   "digests": {
+    "executor_log_sha256": "4a54a89a9f2801a4a090e98e116381ae760a7d57a8b5b2f5414b86da619789bb",
+    "serial_log_sha256": "48940e4e669a4ca338d4f45e7e69a64be8f0859cad38fbece943c0ae387a488c",
+    "trace_content_sha256": "dd7953de844343e662ae023d9c4b8908c960817c40acf3c836a49d53a611c9de"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 70.76,
+    "end_reason": "row_end",
+    "ended_at_s": 72.1,
+    "first_pause": null,
+    "heading_max_deg": 3.642,
+    "heading_rmse_deg": 1.849,
+    "host_latches": [],
+    "lateral_max_m": 0.1172,
+    "lateral_p95_m": 0.1104,
+    "lateral_rmse_m": 0.0644,
+    "min_clearance_m": 1.1638,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.409,
+    "speed_mean_m_s": 0.336,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "table_x130",
+   "digests": {
+    "executor_log_sha256": "4e9b1dc57dc71319c617810125ca4a2d3aa1c990998399164a419a9b0732fb40",
+    "serial_log_sha256": "6382dae60e5956a6c227f20ab429aad46e83ce18e96748e0c4aafd498302f9a6",
+    "trace_content_sha256": "31042786f54a65d229cb029e924e53c1fb8467ea7d2df162370f4fa45e46779d"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 64.76,
+    "end_reason": "row_end",
+    "ended_at_s": 66.0,
+    "first_pause": null,
+    "heading_max_deg": 3.009,
+    "heading_rmse_deg": 1.342,
+    "host_latches": [],
+    "lateral_max_m": 0.0808,
+    "lateral_p95_m": 0.0748,
+    "lateral_rmse_m": 0.0444,
+    "min_clearance_m": 1.1971,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.063,
+    "speed_max_m_s": 0.48,
+    "speed_mean_m_s": 0.368,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "table_x130",
+   "digests": {
+    "executor_log_sha256": "f5f8207b71caea7c2bcc83c5e9ce4a0845f66e847d698af2c6007fb8fea452e2",
+    "serial_log_sha256": "48d8dc3c5a615b3f82abb39a0a2f81318261a78d4632eac9322f802ae655961f",
+    "trace_content_sha256": "591c8594f9f8853a7c6c6b8ce389c7b47e557d688d4b514181192c0443ae1d57"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 64.06,
+    "end_reason": "row_end",
+    "ended_at_s": 65.3,
+    "first_pause": null,
+    "heading_max_deg": 2.966,
+    "heading_rmse_deg": 1.24,
+    "host_latches": [],
+    "lateral_max_m": 0.1408,
+    "lateral_p95_m": 0.1362,
+    "lateral_rmse_m": 0.0589,
+    "min_clearance_m": 1.1324,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.047,
+    "speed_max_m_s": 0.484,
+    "speed_mean_m_s": 0.372,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "table_x130",
+   "digests": {
+    "executor_log_sha256": "9655d2f57b0e23377387838a8cf96dcd4bd662942bad03224d6fb27b791b9746",
+    "serial_log_sha256": "322ee5f154791646fed58246bd882169ec77f8ad4066589b1f5bb20083aacf96",
+    "trace_content_sha256": "a6e12c85e63583359de6bf7fbbb111344cafe60b320b0c9921805df3fd98b9fd"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 64.9,
+    "end_reason": "row_end",
+    "ended_at_s": 66.2,
+    "first_pause": null,
+    "heading_max_deg": 3.792,
+    "heading_rmse_deg": 1.97,
+    "host_latches": [],
+    "lateral_max_m": 0.1022,
+    "lateral_p95_m": 0.0985,
+    "lateral_rmse_m": 0.0603,
+    "min_clearance_m": 1.172,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.063,
+    "speed_max_m_s": 0.471,
+    "speed_mean_m_s": 0.368,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "digests": {
+    "executor_log_sha256": "1c29bc0d48330a28cf97003e0e9fa02e8809091c6ed0ee0d641455e94932b72d",
+    "serial_log_sha256": "6fadc47cb896619ed7b4ff5075fbf3790bd12d74cbb7a518fac2776bef068c9d",
+    "trace_content_sha256": "7c8d4839960b2791cbc403428a108f8c44a430c18f8280f464fde05bf3bd2390"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 1.24,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 6.15,
+    "end_reason": "steering_feedback_invalid",
+    "ended_at_s": 6.1,
+    "first_pause": null,
+    "heading_max_deg": 2.358,
+    "heading_rmse_deg": 0.807,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      6.08,
+      "MCU fault POT_NOISE"
+     ]
+    ],
+    "lateral_max_m": 0.0071,
+    "lateral_p95_m": 0.0055,
+    "lateral_rmse_m": 0.0031,
+    "min_clearance_m": 1.2498,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -22.122,
+    "speed_max_m_s": 0.377,
+    "speed_mean_m_s": 0.252,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.051
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "digests": {
+    "executor_log_sha256": "387e23f6c612ed6e076d80af08c49e839d8d36705c05bd061d4736d1225a543b",
+    "serial_log_sha256": "454f7ed278bb480460e0318283dde7b3830af97b1fe7d2652101cd5ff9cb3884",
+    "trace_content_sha256": "f012b30b86c1defa85cf26b6987c7ae4cc028fc1089dd280daa60f973c89a7e5"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 1.28,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 6.15,
+    "end_reason": "steering_feedback_invalid",
+    "ended_at_s": 6.1,
+    "first_pause": null,
+    "heading_max_deg": 3.401,
+    "heading_rmse_deg": 1.5,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      6.08,
+      "MCU fault POT_NOISE"
+     ]
+    ],
+    "lateral_max_m": 0.0761,
+    "lateral_p95_m": 0.0731,
+    "lateral_rmse_m": 0.0399,
+    "min_clearance_m": 1.1792,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -22.087,
+    "speed_max_m_s": 0.387,
+    "speed_mean_m_s": 0.26,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.049
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "digests": {
+    "executor_log_sha256": "49abfc081b4d4353a544ecbbbf8cfbd295646b1c10df55a37cf7922742981573",
+    "serial_log_sha256": "ea8623a929dd789e212405c003d864e590ca9c9b52f856b3bc5936e879bfdfb0",
+    "trace_content_sha256": "929b9aca9e6931a40f63957f0c092aee4d73a6228f49614972dcdf9b6ea60a57"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 1.19,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 6.25,
+    "end_reason": "steering_feedback_invalid",
+    "ended_at_s": 6.2,
+    "first_pause": null,
+    "heading_max_deg": 0.924,
+    "heading_rmse_deg": 0.284,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      6.18,
+      "MCU fault POT_NOISE"
+     ]
+    ],
+    "lateral_max_m": 0.0303,
+    "lateral_p95_m": 0.0206,
+    "lateral_rmse_m": 0.0098,
+    "min_clearance_m": 1.2284,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -22.173,
+    "speed_max_m_s": 0.37,
+    "speed_mean_m_s": 0.238,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.13
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "dist_terrain",
+   "digests": {
+    "executor_log_sha256": "f52be288016333d320b4762ca880ecc0d93bf838595ae6dbdec480f6f150343a",
+    "serial_log_sha256": "98d28a659c854c1c54be89d8f03769526591e845bba6391ecc195cad9d6533df",
+    "trace_content_sha256": "855df59a86f6710e31dd566ab15d7410bf47cca849448602cccb5363ed05d322"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 1.56,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 7.05,
+    "end_reason": "steering_not_following",
+    "ended_at_s": 7.0,
+    "first_pause": null,
+    "heading_max_deg": 6.373,
+    "heading_rmse_deg": 1.33,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      6.94,
+      "MCU fault TRACK"
+     ]
+    ],
+    "lateral_max_m": 0.0908,
+    "lateral_p95_m": 0.0629,
+    "lateral_rmse_m": 0.0271,
+    "min_clearance_m": 1.1798,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -21.819,
+    "speed_max_m_s": 0.376,
+    "speed_mean_m_s": 0.269,
+    "steer_fault_lines": [
+     [
+      "TRACK",
+      6.902
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "dist_terrain",
+   "digests": {
+    "executor_log_sha256": "1eb81c94947c8b4bc8d23f6a29161ac6fef279d6df2c5a4a2e1033cbfd62a0f0",
+    "serial_log_sha256": "4dd284eb1735168080334620f9abc273b23c0096425e9054b708b840bdb65a42",
+    "trace_content_sha256": "96bbb6c29f943a7a233bdf0d408d98d026cc60f27ed8a8124995298d43addf44"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 1.27,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 6.25,
+    "end_reason": "steering_not_following",
+    "ended_at_s": 6.2,
+    "first_pause": null,
+    "heading_max_deg": 6.762,
+    "heading_rmse_deg": 1.635,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      6.18,
+      "MCU fault TRACK"
+     ]
+    ],
+    "lateral_max_m": 0.0482,
+    "lateral_p95_m": 0.0275,
+    "lateral_rmse_m": 0.0106,
+    "min_clearance_m": 1.1736,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -22.095,
+    "speed_max_m_s": 0.38,
+    "speed_mean_m_s": 0.253,
+    "steer_fault_lines": [
+     [
+      "TRACK",
+      6.166
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "dist_terrain",
+   "digests": {
+    "executor_log_sha256": "27af375f19f5abaf21b4251990ca5fbcb624c763cd6393b3dbb487e71f0e64d6",
+    "serial_log_sha256": "49425a13ad209bb1bcb60445b0fb47d6a0000912a10220079e98cbec8cc4d0db",
+    "trace_content_sha256": "2cc1d94e130b3d60bb0397081c6d94afd1a8f58da39893449dff8b2121b3cf3e"
+   },
+   "expect": "row_end",
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "distance_m": 3.37,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 13.25,
+    "end_reason": "steering_not_following",
+    "ended_at_s": 13.2,
+    "first_pause": null,
+    "heading_max_deg": 7.585,
+    "heading_rmse_deg": 4.526,
+    "host_latches": [
+     [
+      "mcu_disarmed",
+      13.14,
+      "MCU fault TRACK"
+     ]
+    ],
+    "lateral_max_m": 0.2047,
+    "lateral_p95_m": 0.2025,
+    "lateral_rmse_m": 0.1334,
+    "min_clearance_m": 1.0823,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -20.034,
+    "speed_max_m_s": 0.409,
+    "speed_mean_m_s": 0.28,
+    "steer_fault_lines": [
+     [
+      "TRACK",
+      13.074
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "digests": {
+    "executor_log_sha256": "742b3d32d3c70981d7a2d0da7f0528f145cbf13db6bb5b246e8be652a392c24b",
+    "serial_log_sha256": "11203b26ce11d7c559c9adda64ae899b471a9cc721cbc8d9c5fdce7530709a48",
+    "trace_content_sha256": "63733bbe9032f31f4708abe8787e152346e54f30a3692743f1665c3ef8fab4c6"
+   },
+   "expect": "stale_imu",
+   "failed": [],
+   "metrics": {
+    "distance_m": 6.82,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.4,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 2.136,
+    "heading_rmse_deg": 1.072,
+    "host_latches": [],
+    "lateral_max_m": 0.1063,
+    "lateral_p95_m": 0.0993,
+    "lateral_rmse_m": 0.0534,
+    "min_clearance_m": 1.1766,
+    "pauses_after_start": [
+     "stale_imu"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.409,
+    "speed_max_m_s": 0.423,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "digests": {
+    "executor_log_sha256": "c42b2d1517759692fb01170d1b12f22b0195723b30bba3c2e0584155afd6156c",
+    "serial_log_sha256": "cb1673c00287cc26a0945f3c11be703c5b248937a6f8bc4c979e591d3ddca992",
+    "trace_content_sha256": "948baf979f624e29921bdb1c134a4590ba832fc315c2e8e4f8b5feb040ff9afa"
+   },
+   "expect": "stale_imu",
+   "failed": [],
+   "metrics": {
+    "distance_m": 6.88,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.4,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 0.972,
+    "heading_rmse_deg": 0.356,
+    "host_latches": [],
+    "lateral_max_m": 0.0404,
+    "lateral_p95_m": 0.0363,
+    "lateral_rmse_m": 0.0203,
+    "min_clearance_m": 1.2385,
+    "pauses_after_start": [
+     "stale_imu"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.342,
+    "speed_max_m_s": 0.43,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "digests": {
+    "executor_log_sha256": "d1364c853650a76b16b627ccc7947f5cd72882bdc9fa786695f17d64d1758ba9",
+    "serial_log_sha256": "1cb33a6fdcdabb05c4f2fdb37d14fa221bc28c21e01b0d8bafb6e795d7bce775",
+    "trace_content_sha256": "ed162b87a2f9fa10ae28d370b01df0c1bbb212757c7ecc1c4ded30454ff27b82"
+   },
+   "expect": "stale_imu",
+   "failed": [],
+   "metrics": {
+    "distance_m": 6.81,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.4,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 2.17,
+    "heading_rmse_deg": 1.035,
+    "host_latches": [],
+    "lateral_max_m": 0.0575,
+    "lateral_p95_m": 0.0559,
+    "lateral_rmse_m": 0.0377,
+    "min_clearance_m": 1.2088,
+    "pauses_after_start": [
+     "stale_imu"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.41,
+    "speed_max_m_s": 0.427,
+    "speed_mean_m_s": 0.355,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "gnss_nominal",
+   "digests": {
+    "executor_log_sha256": "28166d137931d3c58503226897d5e503fa3bb71a8b07abbf48267b902ac341e6",
+    "serial_log_sha256": "44ebd8468b660920df059cea7f9a274cabbe8283758ac292e2b383dfa9ff8a90",
+    "trace_content_sha256": "bd098820e48e0559c0613c9c3141e8c56611891a25d16be513122cb830c98542"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.37,
+    "drive_start_s": 1.31,
+    "drive_stop_s": 66.5,
+    "end_reason": "row_end",
+    "ended_at_s": 67.9,
+    "first_pause": null,
+    "heading_max_deg": 3.947,
+    "heading_rmse_deg": 1.855,
+    "host_latches": [],
+    "lateral_max_m": 0.121,
+    "lateral_p95_m": 0.1081,
+    "lateral_rmse_m": 0.056,
+    "min_clearance_m": 1.1412,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.02,
+    "speed_max_m_s": 0.435,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "gnss_nominal",
+   "digests": {
+    "executor_log_sha256": "4201ec4332d564524365b70a9b937e5576b14deaba20e8fc412a994c3e1f1336",
+    "serial_log_sha256": "186992630b12c30d28618535891103d2bfcb108d0565e1411b06b444a22189ae",
+    "trace_content_sha256": "3a16256dd4fb51f3e34f70f74f4eb4d17e149014b7fd6e10922ea44d0b793d8c"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 69.06,
+    "end_reason": "row_end",
+    "ended_at_s": 70.3,
+    "first_pause": null,
+    "heading_max_deg": 3.556,
+    "heading_rmse_deg": 1.831,
+    "host_latches": [],
+    "lateral_max_m": 0.1219,
+    "lateral_p95_m": 0.1091,
+    "lateral_rmse_m": 0.056,
+    "min_clearance_m": 1.1355,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.052,
+    "speed_max_m_s": 0.423,
+    "speed_mean_m_s": 0.345,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "gnss_nominal",
+   "digests": {
+    "executor_log_sha256": "d36485e5b7ba3f614e87cff5b5b6ad1d3714aae2a37ac07ec7574f10126fb560",
+    "serial_log_sha256": "a4390dfd382b14a989f7458f9f48ecad2cb63521a2be9b74b4ecebb45afb50f5",
+    "trace_content_sha256": "47e33560e20ef7203f10e6e38496d3aa05774e55a7cea8ef47e983d69d62ed4e"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.56,
+    "end_reason": "row_end",
+    "ended_at_s": 68.9,
+    "first_pause": null,
+    "heading_max_deg": 1.916,
+    "heading_rmse_deg": 1.092,
+    "host_latches": [],
+    "lateral_max_m": 0.1045,
+    "lateral_p95_m": 0.0971,
+    "lateral_rmse_m": 0.0462,
+    "min_clearance_m": 1.1686,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.054,
+    "speed_max_m_s": 0.433,
+    "speed_mean_m_s": 0.353,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "operator_link_lost",
+   "digests": {
+    "executor_log_sha256": "15484349803b1cba89a4f6a90fb6b749c35f61b33c5b0f69badfe793335c3079",
+    "serial_log_sha256": "15e3556c4094684f3709455c2224bd63a1c2b0a93cfe67668c3957737bdeebd9",
+    "trace_content_sha256": "121ff6896a0ead3a4ce496a91d3c846c51c0c154d6fe210ba23c3352089c7987"
+   },
+   "expect": "operator_link_lost",
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "distance_m": 7.09,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 21.0,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 2.857,
+    "heading_rmse_deg": 1.457,
+    "host_latches": [],
+    "lateral_max_m": 0.067,
+    "lateral_p95_m": 0.0619,
+    "lateral_rmse_m": 0.0289,
+    "link_drive_zero_s": 1.05,
+    "min_clearance_m": 1.187,
+    "pauses_after_start": [
+     "operator_link_lost"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.115,
+    "speed_max_m_s": 0.441,
+    "speed_mean_m_s": 0.359,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4000
+  },
+  {
+   "condition": "operator_link_lost",
+   "digests": {
+    "executor_log_sha256": "95da847cbabfc65f7ad015c4e08d3d526d55700f45777f47ae0062165b02e36f",
+    "serial_log_sha256": "3d0f9f43f80dc75424f910847b7555688b2f519005f17e265173b46bf89cbf94",
+    "trace_content_sha256": "999319736e21408ed4ddd9bedc52b69f4a5c9a61fa606bdc37db6922a7c57c30"
+   },
+   "expect": "operator_link_lost",
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "distance_m": 7.03,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 21.0,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 2.132,
+    "heading_rmse_deg": 1.126,
+    "host_latches": [],
+    "lateral_max_m": 0.0754,
+    "lateral_p95_m": 0.0728,
+    "lateral_rmse_m": 0.0537,
+    "link_drive_zero_s": 1.05,
+    "min_clearance_m": 1.1907,
+    "pauses_after_start": [
+     "operator_link_lost"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.191,
+    "speed_max_m_s": 0.435,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4001
+  },
+  {
+   "condition": "operator_link_lost",
+   "digests": {
+    "executor_log_sha256": "b25365bdc7e5e2d54be793acc055b3726799eb584f44d5f16c743d79ccda07f2",
+    "serial_log_sha256": "982f17ef9639880edcc7bf001db1cd5b4d8351ff46eb36806a956c3525bf9198",
+    "trace_content_sha256": "24a482713d9e0b21b5565dd8ef1e2e1ec8febfc1e223f44f0d8677a8d5c94e13"
+   },
+   "expect": "operator_link_lost",
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "distance_m": 7.35,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 21.0,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 2.002,
+    "heading_rmse_deg": 1.024,
+    "host_latches": [],
+    "lateral_max_m": 0.1037,
+    "lateral_p95_m": 0.102,
+    "lateral_rmse_m": 0.0547,
+    "link_drive_zero_s": 1.05,
+    "min_clearance_m": 1.1755,
+    "pauses_after_start": [
+     "operator_link_lost"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -15.875,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.372,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "refused": null,
+   "seed": 4002
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "b7b0fd2399225da1c95a2001afef2785151db57d554655a885b70a057a55750f",
+    "serial_log_sha256": "fdaf1bc7173761f4466f461235f3d406085737bb4bc1b1153f208d03c856f499",
+    "trace_content_sha256": "485a685f3ec8455ef58e4bb37b89274e800e299730e1c4ad83e24f4b6c317875"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.26,
+    "end_reason": "row_end",
+    "ended_at_s": 67.6,
+    "first_pause": null,
+    "heading_max_deg": 2.225,
+    "heading_rmse_deg": 1.131,
+    "lateral_max_m": 0.1018,
+    "lateral_p95_m": 0.0896,
+    "lateral_rmse_m": 0.0472,
+    "min_clearance_m": 1.1711,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.087,
+    "speed_max_m_s": 0.458,
+    "speed_mean_m_s": 0.36,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "40499ccbb88e731baf8f26285788d0a6068b624ca05c2d32fd8e3d9b9de5d72a",
+    "serial_log_sha256": "ab076ece43e4c9d5e1ed6b427d6c5856f744186f59aa813eeaad9375f76a5ec9",
+    "trace_content_sha256": "8cd4d5273016a00098d2b39848da6d97ac9082b7f5bc328f32454a1db1234fa8"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.38,
+    "drive_start_s": 1.31,
+    "drive_stop_s": 68.26,
+    "end_reason": "row_end",
+    "ended_at_s": 69.5,
+    "first_pause": null,
+    "heading_max_deg": 1.777,
+    "heading_rmse_deg": 0.8,
+    "lateral_max_m": 0.0902,
+    "lateral_p95_m": 0.0765,
+    "lateral_rmse_m": 0.0362,
+    "min_clearance_m": 1.189,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.046,
+    "speed_max_m_s": 0.421,
+    "speed_mean_m_s": 0.349,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 1
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "04b859e518aecd5905d1b26ae521f791fdea15190c9b09f173fd7b44fea56059",
+    "serial_log_sha256": "c89587814dbd43f12c35489b773fd9223019d36a0f2a311bf5ff779d8fecaa3f",
+    "trace_content_sha256": "923013cded6c51aafc31aeb126656fb98b8ccd600c9b00efd1b9eb1413b449c2"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.38,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 70.36,
+    "end_reason": "row_end",
+    "ended_at_s": 71.7,
+    "first_pause": null,
+    "heading_max_deg": 3.151,
+    "heading_rmse_deg": 1.339,
+    "lateral_max_m": 0.0961,
+    "lateral_p95_m": 0.086,
+    "lateral_rmse_m": 0.0417,
+    "min_clearance_m": 1.1803,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.043,
+    "speed_max_m_s": 0.423,
+    "speed_mean_m_s": 0.338,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 2
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "7c40e0818d86b5f9daed945b925da6eb883bb2be27d2306f6613f7c7fa1190e2",
+    "serial_log_sha256": "594cc94e276f5b09b4feebdc30dcb03cd8f2023881ebfc15fea3f0033f563a0b",
+    "trace_content_sha256": "619263214c05a5644afc285bf1ed44a620cac5f3ba0e8895805421cab265621d"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.9,
+    "end_reason": "row_end",
+    "ended_at_s": 68.2,
+    "first_pause": null,
+    "heading_max_deg": 2.811,
+    "heading_rmse_deg": 1.188,
+    "lateral_max_m": 0.097,
+    "lateral_p95_m": 0.0789,
+    "lateral_rmse_m": 0.0449,
+    "min_clearance_m": 1.1817,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.067,
+    "speed_max_m_s": 0.439,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 3
+  },
+  {
+   "condition": "nominal",
+   "digests": {
+    "executor_log_sha256": "1b454081e6fe15fc3c5c4d7cc4af6005b6f231001125e30bb537b4a2cd23410d",
+    "serial_log_sha256": "5a91af730fddd3dd829bd8a3fe123a85b4aa11ae78965f0e72cd6ce2f93181a7",
+    "trace_content_sha256": "d66741686564ea9de707cafefd53eb5d596045cd6ebea12654b537217f856394"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.06,
+    "end_reason": "row_end",
+    "ended_at_s": 69.4,
+    "first_pause": null,
+    "heading_max_deg": 3.412,
+    "heading_rmse_deg": 1.439,
+    "lateral_max_m": 0.1022,
+    "lateral_p95_m": 0.0869,
+    "lateral_rmse_m": 0.0496,
+    "min_clearance_m": 1.1743,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.098,
+    "speed_max_m_s": 0.434,
+    "speed_mean_m_s": 0.35,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 4
+  },
+  {
+   "condition": "lateral_p040",
+   "digests": {
+    "executor_log_sha256": "a4140b5fc6a5f086820e810aad25ddcb394d2897523625f4e614154dc2f2daa5",
+    "serial_log_sha256": "e43e970f171e0b067bfd3345f06898698540f9ad85118adc71308ab3b5bc1e95",
+    "trace_content_sha256": "b1c0b334e255da3b911fd8f8aaff1ec0841fd943e6ba0eb205c1423cdae3b607"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.45,
+    "drive_start_s": 1.86,
+    "drive_stop_s": 67.9,
+    "end_reason": "row_end",
+    "ended_at_s": 69.2,
+    "first_pause": null,
+    "heading_max_deg": 10.774,
+    "heading_rmse_deg": 1.901,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0968,
+    "lateral_rmse_m": 0.0441,
+    "min_clearance_m": 0.88,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.057,
+    "speed_max_m_s": 0.432,
+    "speed_mean_m_s": 0.355,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lateral_n040",
+   "digests": {
+    "executor_log_sha256": "1221de376a3d61d67d7c62cb939dd6ba39dd9db7b840bf533761db3917f67b15",
+    "serial_log_sha256": "03de5b687bc014696182482270d9e29bff998efd7068fd944fec72dd4b8435e1",
+    "trace_content_sha256": "74b3e802f620ea190b639afd0aaad4a9eb6e9bac1a2e941dcc31740f8584bf61"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.44,
+    "drive_start_s": 1.86,
+    "drive_stop_s": 68.36,
+    "end_reason": "row_end",
+    "ended_at_s": 69.6,
+    "first_pause": null,
+    "heading_max_deg": 10.952,
+    "heading_rmse_deg": 0.967,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0564,
+    "lateral_rmse_m": 0.0361,
+    "min_clearance_m": 0.88,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.352,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "heading_p8",
+   "digests": {
+    "executor_log_sha256": "695623560db86e90ec33f2345bdec4fae90a51a477771fb0670951d8e116a742",
+    "serial_log_sha256": "8dfeb74823380c2e05d3764ebba7abe39317080019c4c857524b53c3ae0dd3d2",
+    "trace_content_sha256": "c2687437f75a2b832e2930eae64f13162f656be8278b13454d6dee027891a0d4"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.43,
+    "drive_start_s": 1.66,
+    "drive_stop_s": 69.3,
+    "end_reason": "row_end",
+    "ended_at_s": 70.7,
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.778,
+    "lateral_max_m": 0.1115,
+    "lateral_p95_m": 0.098,
+    "lateral_rmse_m": 0.0432,
+    "min_clearance_m": 1.1684,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.089,
+    "speed_max_m_s": 0.44,
+    "speed_mean_m_s": 0.346,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "heading_n8",
+   "digests": {
+    "executor_log_sha256": "2d6956f0cf39c9617d33b6a1856e01bdc923ca07dcb5950744cca93318b5a869",
+    "serial_log_sha256": "de0890153bd33381b335938bd81909cf95233b55e531b4cf54e8ae3110b1c68c",
+    "trace_content_sha256": "32c7424bc0e5dd4027bb61c6a7cf8a40d0ad04e2ef5a2a3052606f5af1bc2384"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.71,
+    "drive_stop_s": 67.0,
+    "end_reason": "row_end",
+    "ended_at_s": 68.3,
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.116,
+    "lateral_max_m": 0.1221,
+    "lateral_p95_m": 0.0677,
+    "lateral_rmse_m": 0.0368,
+    "min_clearance_m": 1.1452,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.057,
+    "speed_max_m_s": 0.443,
+    "speed_mean_m_s": 0.358,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_p2",
+   "digests": {
+    "executor_log_sha256": "eef242e11e297d907d1445da6a4916885d3927279a9c5cc63154acaa32fe62ba",
+    "serial_log_sha256": "4a10ded25f08916feb6a8d540a14d94964f6173274419a2f4f8e74247ee8445c",
+    "trace_content_sha256": "8fbd2af97005bec1048e239ba19219bf080345a5af6402c5a023c61d30b45314"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.42,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 68.76,
+    "end_reason": "row_end",
+    "ended_at_s": 70.1,
+    "first_pause": null,
+    "heading_max_deg": 1.823,
+    "heading_rmse_deg": 0.785,
+    "lateral_max_m": 0.0873,
+    "lateral_p95_m": 0.0579,
+    "lateral_rmse_m": 0.0271,
+    "min_clearance_m": 1.195,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.085,
+    "speed_max_m_s": 0.425,
+    "speed_mean_m_s": 0.347,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_n2",
+   "digests": {
+    "executor_log_sha256": "df3220089fd968d9778d2bbf5ff38018cf3fbf69d975d00a08fdcaa79c10b784",
+    "serial_log_sha256": "eb710f9736e6245529ca9d59a49e19fa725895efd2ef3394733196329f294827",
+    "trace_content_sha256": "342b020fe01016f9873d326ab4cb0843c1ba1e1006f563732e5865b57bb48531"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.4,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.6,
+    "end_reason": "row_end",
+    "ended_at_s": 68.9,
+    "first_pause": null,
+    "heading_max_deg": 1.347,
+    "heading_rmse_deg": 0.599,
+    "lateral_max_m": 0.1118,
+    "lateral_p95_m": 0.0984,
+    "lateral_rmse_m": 0.0468,
+    "min_clearance_m": 1.1725,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.068,
+    "speed_max_m_s": 0.427,
+    "speed_mean_m_s": 0.352,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "side_pull",
+   "digests": {
+    "executor_log_sha256": "aa63046db711c56021b79f7626391d14d78517aaed159d4032d48efde04dc2b4",
+    "serial_log_sha256": "d80461a224b727facab05f895c8386ec6cccf7387aa7c30f3550c54bb0e55b90",
+    "trace_content_sha256": "6ed4dfc2b71b7adbbb229e613009b67e28d6d286d7c014d9e464db2a6c34c264"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.39,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 66.86,
+    "end_reason": "row_end",
+    "ended_at_s": 68.1,
+    "first_pause": null,
+    "heading_max_deg": 2.758,
+    "heading_rmse_deg": 1.39,
+    "lateral_max_m": 0.0785,
+    "lateral_p95_m": 0.0667,
+    "lateral_rmse_m": 0.0397,
+    "min_clearance_m": 1.1984,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.043,
+    "speed_max_m_s": 0.447,
+    "speed_mean_m_s": 0.356,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lidar_dropout_0p2",
+   "digests": {
+    "executor_log_sha256": "166de179ba061ddf99cb4dc616c8d0cb5f7195b66d8da553d551f320b845beb5",
+    "serial_log_sha256": "0e434dea6a7b925446ee7964dceaa5ed1ed9725dd804c5a3027bac58be8c766a",
+    "trace_content_sha256": "f0eda3925cedcf77d27cba1cdc6ddb649b3aa67801d1c4c5b8d4c18ea31ad99b"
+   },
+   "expect": "row_end",
+   "failed": [],
+   "metrics": {
+    "distance_m": 23.41,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 67.7,
+    "end_reason": "row_end",
+    "ended_at_s": 69.0,
+    "first_pause": null,
+    "heading_max_deg": 3.487,
+    "heading_rmse_deg": 1.443,
+    "lateral_max_m": 0.1068,
+    "lateral_p95_m": 0.0896,
+    "lateral_rmse_m": 0.0432,
+    "min_clearance_m": 1.1688,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": 0.075,
+    "speed_max_m_s": 0.429,
+    "speed_mean_m_s": 0.352,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "lidar_stale_1p0",
+   "digests": {
+    "executor_log_sha256": "7aecd571434f60679ca9cf05d94e64c9e166b9f1cc5b112e013a3cde6d4f9c77",
+    "serial_log_sha256": "7710040f8d879a4ab61a951347675fbf18eb09370f22cc900f7fd7a3e9985990",
+    "trace_content_sha256": "1fd643076a153f95ba43d8f2223a9bc832a9fd36bcb1ea0b1f8e0f1ecc29e8e0"
+   },
+   "expect": "stale_lidar",
+   "failed": [],
+   "metrics": {
+    "distance_m": 6.25,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 20.3,
+    "end_reason": null,
+    "ended_at_s": null,
+    "first_pause": [
+     20.3,
+     "stale_lidar"
+    ],
+    "heading_max_deg": 2.059,
+    "heading_rmse_deg": 1.094,
+    "lateral_max_m": 0.0774,
+    "lateral_p95_m": 0.0738,
+    "lateral_rmse_m": 0.0354,
+    "min_clearance_m": 1.189,
+    "pauses_after_start": [
+     "stale_lidar"
+    ],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -16.967,
+    "speed_max_m_s": 0.393,
+    "speed_mean_m_s": 0.328,
+    "stale_drive_zero_s": 0.0,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  },
+  {
+   "condition": "obstacle",
+   "digests": {
+    "executor_log_sha256": "f8ab5588f55fa62ef960854ba03f56b650dac064c9ff28b0ad34190e95879485",
+    "serial_log_sha256": "281af39da8900e45c6638588445aea3a52e1170f7aa816badfa634545b7a171c",
+    "trace_content_sha256": "7347e866fa55853d9a89539f1cff77e6064edfa6585d1e9c81cae1017236ef1f"
+   },
+   "expect": "obstacle_ahead",
+   "failed": [],
+   "metrics": {
+    "distance_m": 10.76,
+    "drive_start_s": 1.26,
+    "drive_stop_s": 35.2,
+    "end_reason": "obstacle_ahead",
+    "ended_at_s": 36.6,
+    "first_pause": null,
+    "heading_max_deg": 2.751,
+    "heading_rmse_deg": 1.229,
+    "lateral_max_m": 0.0905,
+    "lateral_p95_m": 0.0794,
+    "lateral_rmse_m": 0.044,
+    "min_clearance_m": 0.3908,
+    "pauses_after_start": [],
+    "rest_speed_m_s": 0.0,
+    "row_end_error_m": -12.511,
+    "speed_max_m_s": 0.398,
+    "speed_mean_m_s": 0.317,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "geometry_only",
+   "refused": null,
+   "seed": 0
+  }
+ ],
+ "runs": 91,
+ "schema": "ubts.steer_sim.follow_realdims.v1.condensed"
+}
