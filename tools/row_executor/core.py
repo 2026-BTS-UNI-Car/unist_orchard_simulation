@@ -212,6 +212,17 @@ VENDOR_SOURCES = dict(estimator='sim/ubts/closed_loop/estimator.py', controllers
 SINGLE_ROW_VENDOR_PATH = VENDOR_SOURCES['single_row']
 STEER_CONTROL_VENDOR_PATH = VENDOR_SOURCES['steer_control']
 DEFAULT_STEER_CONTROLLER = {'kind': 'row_follow'}    # front_steer without a controller factory: the vendored P8 controller
+
+
+def default_steer_controller(config):
+    """The controller spec of a front_steer Runner without a controller factory (the vehicle): row_follow, with the
+    configured wheelbase (steer_wheelbase_m, the measured vehicle; None keeps the controller default) as the SIM runs
+    pass it (safety_scripts.follow_realdims.controller)."""
+    spec = dict(DEFAULT_STEER_CONTROLLER)
+    wheelbase = getattr(config, 'steer_wheelbase_m', None)
+    if wheelbase is not None:
+        spec['wheelbase_m'] = float(wheelbase)
+    return spec
 # single-row stop categories (single_row_stop_category): the vendored table first; these executor-only pause / end reasons
 # are not in it. Display / log only - the SIM evaluation uses the vendored table (PREREG); nothing re-maps a table reason.
 SINGLE_ROW_EXECUTOR_CATEGORIES = {
@@ -906,7 +917,7 @@ class Runner:
                 # the vendored row-following controller (closed_loop/steer_control.py, kind row_follow) with the field
                 # tuning values of the config (tuning_values); the SIMs pass their own factory (scripted / row_follow)
                 self.steer_control = steer_control_module(controllers)
-                self._new_controller = self.steer_control.make_factory(dict(DEFAULT_STEER_CONTROLLER), config)
+                self._new_controller = self.steer_control.make_factory(default_steer_controller(config), config)
             self.guard = SteerOutputGuard.from_config(config)
             self.steer_monitor = SteerMonitor(config)
         self.stats = dict(imu_in=0, imu_rejected=0, imu_stamp_drop=0, scans_in=0, scans_rejected={},

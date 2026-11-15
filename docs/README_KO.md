@@ -36,6 +36,7 @@
 | [`HOST_BRIDGE_V3_KO.md`](steering/HOST_BRIDGE_V3_KO.md) | 호스트 조향 브리지 V3(lease, STOP 확인, 래치) |
 | [`FIRMWARE_V3_KO.md`](steering/FIRMWARE_V3_KO.md) | 조향 펌웨어 V3 구현 메모 |
 | [`EXECUTOR_STEER_KO.md`](steering/EXECUTOR_STEER_KO.md) | 조향 실행기와 T1 실행기 루프(13절이 최신 마무리) |
+| [`EXECUTOR_ESP32_KO.md`](steering/EXECUTOR_ESP32_KO.md) | 실행기와 실차 ESP32-S3 브리지(2026-11-16): 어댑터(눈금, ANGLE 정책, 추종·미끄럼 감시, Arm 전 점검), 차량 SHADOW 설정, 안전 규칙과 남는 위험, Jetson 실행 환경, 가짜 보드 끝단 시험 |
 | [`STACK_OPERATIONS_KO.md`](steering/STACK_OPERATIONS_KO.md) | Gazebo 스택 운영 규칙과 그림·영상 갈무리 |
 | [`SIM_DASHBOARD_KO.md`](steering/SIM_DASHBOARD_KO.md) | SIM 대시보드(대시보드 저장소 사본 + SIM 확장) |
 | [`FIELD_TUNING_KO.md`](steering/FIELD_TUNING_KO.md) | 현장 조정 파일(기본·고급·잠금 묶음) |

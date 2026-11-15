@@ -106,8 +106,9 @@ from . import calib_runs as CR
 from . import config as C
 from . import field_tuning as T
 from . import online_scale as OS
-from .bridge_client import (ARMED, LATCHED, LEASE_GONE_ERRORS, BridgeClient, BridgeError, SteerBridgeClient,
-                            UnixSocketTransport, idle_latch_only, recovery_hint)
+from .bridge_client import (ARMED, ESP32_KIND, LATCHED, LEASE_GONE_ERRORS, BridgeClient, BridgeError,
+                            Esp32AbsHoldAdapter, Esp32SteerBridgeClient, SteerBridgeClient, UnixSocketTransport,
+                            idle_latch_only, recovery_hint)
 from .core import (ACTIVE, CALIB_KINDS, ENDED, IDLE, PAUSED, SINGLE_ROW_NOT_STOPS, Runner, ScanStamper,
                    single_row_stop_category, verify_vendor)
 from .navigation_observation import NativeNavigationGate
@@ -877,6 +878,7 @@ class ExecutorLoop:
         self.log = log if log is not None else _NullLog()
         self.source_digest = source_digest
         self.steering = C.is_front_steer(cfg)
+        self.esp32 = None                       # front_steer + steer_bridge_kind esp32_abs_hold: the shared adapter
         if self.steering:
             self._bridge_factory = bridge_factory or (
                 lambda: SteerBridgeClient.from_config(cfg, clock=clock, wall=wall))
@@ -889,6 +891,13 @@ class ExecutorLoop:
         # SHADOW: no transport object at all (nothing can connect to the bridge socket).
         self._stop_transport = (stop_transport or UnixSocketTransport(cfg.socket_path, cfg.bridge_timeout_s)
                                 if self.motor_allowed else None)
+        if self.steering and self.motor_allowed and cfg.steer_bridge_kind == ESP32_KIND and bridge_factory is None:
+            # the ESP32-S3 bridge (docs/steering/EXECUTOR_ESP32_KO.md): the client and the STOP path share one adapter
+            # over the socket transport (the STOP stays a direct call: the adapter holds no lock across the socket)
+            self.esp32 = Esp32AbsHoldAdapter.from_config(cfg, self._stop_transport, clock=clock, wall=wall)
+            self._stop_transport = self.esp32
+            esp32 = self.esp32
+            self._bridge_factory = lambda: Esp32SteerBridgeClient.from_config(cfg, esp32, clock=clock, wall=wall)
         self.bridge = None                      # created by the first Arm (MOTOR only)
         self._requests = queue.Queue()
         self._stop_event = threading.Event()
@@ -2412,6 +2421,11 @@ def parse_args(argv=None):
                    help='allow motor output (also needs motor_output_enabled in the config and an operator Arm)')
     p.add_argument('--shadow-auto', action='store_true', help='SHADOW only: emulated hold + automatic restarts')
     p.add_argument('--log-dir', default='/var/log/row_executor')
+    p.add_argument('--no-print-token', action='store_true',
+                   help='print the operator page address without the token (the container log stays token-free)')
+    p.add_argument('--token-file', default=None,
+                   help='where the operator token goes (default <log-dir>/operator_token.txt); the Jetson kit puts it '
+                        'next to the dashboard link file (docs/steering/EXECUTOR_ESP32_KO.md 5)')
     p.add_argument('--max-log-mb', type=float, default=2000.)
     p.add_argument('--scan-topic', default='/scan')
     p.add_argument('--imu-topic', default='/imu/data_raw')
@@ -2462,9 +2476,14 @@ def main(argv=None):
             print('operator page bind %s:%d failed: %s' % (cfg.bind_host, cfg.bind_port, exc), file=sys.stderr)
             log.close()
             return 3
-        write_token(os.path.join(args.log_dir, 'operator_token.txt'), token)
+        write_token(args.token_file or os.path.join(args.log_dir, 'operator_token.txt'), token)
         url = 'http://%s:%d/?t=%s' % (cfg.bind_host, cfg.bind_port, token)
-        print('operator page: ' + url, flush=True)
+        if args.no_print_token:
+            print('operator page: http://%s:%d/ (token in %s)' % (cfg.bind_host, cfg.bind_port, args.token_file or
+                                                                  os.path.join(args.log_dir, 'operator_token.txt')),
+                  flush=True)
+        else:
+            print('operator page: ' + url, flush=True)
         loop._event('operator_page', url_host='%s:%d' % (cfg.bind_host, cfg.bind_port))
         threading.Thread(target=server.serve_forever, name='row-executor-http', daemon=True).start()
     ros = None
