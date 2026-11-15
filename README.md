@@ -61,7 +61,7 @@ flowchart LR
   end
   subgraph JET["Jetson Orin Nano"]
     EXE["실행기 20 Hz<br/>추정기 L0~L3 + 열 추종 제어기"]
-    BR["조향 브리지<br/>(새 보드용은 작업 중)"]
+    BR["ESP32-S3 조종 브리지<br/>(대시보드 저장소, 2026-11-16 설치)"]
     DB["대시보드<br/>수동 조종 · 자율 시작/STOP"]
   end
   subgraph ESP["ESP32-S3 · 펌웨어 ABS-HOLD-8"]
@@ -161,7 +161,7 @@ Gazebo 조향 모델은 2026-11-16 측정 치수 프로필 `front_steer_v1_spec_
 
 <img src="docs/assets/dashboard/sim_dashboard_steer_drag.png" alt="SIM 대시보드 조향 패널, 끌어서 조향" width="240" align="right">
 
-**대시보드 사본 feb4600(2026-11-16).** 조향 패널에 끌어서 조향 각을 정하는 막대가 생겼다. 막대를 끄는 동안 그 각으로 가고 놓으면 0°로
+**대시보드 사본 a435d44(2026-11-16, 화면은 feb4600 과 같음).** 조향 패널에 끌어서 조향 각을 정하는 막대가 생겼다. 막대를 끄는 동안 그 각으로 가고 놓으면 0°로
 돌아온다. 새 보드용 브리지(ESP32-S3)에서는 A/D 가 누르는 동안 왼쪽·오른쪽 끝까지 간다. SIM 은 V3 브리지라서 막대도 A/D 와 같은 램프를
 따르고, 서 있을 때는 한 번에 5°까지만 움직이며 놓아도 5°만 돌아온다(주행 중에는 0°까지, 아래 확인). Network 쪽에는 Jetson Wi-Fi 관리
 (주변 검색, 비밀번호로 연결, 자동 연결·우선순위, 자동 되돌림)가 생겼다. SIM 에서는 네트워크 제어를 꺼 두어 버튼이 비활성이고 어떤
@@ -289,7 +289,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 | 조향 | 일반 DC 모터 + BTS7960, 가변저항을 벨트로 연결(ESP32-S3 GPIO6), 보드 펄스 유지(ABS-HOLD-8), 좌우 약 20°까지(측정 2026-11-16), 리밋 스위치 없음. 보드 시험 명령 0 → ±20 약 3.5 s | 벨트 비, 가변저항 종류·범위, 명령 눈금의 물리 각, 0° 오차 크기, 유격, 모터 정격 |
 | 구동 | 4륜, 좌우 모터 묶음, BTS7960 2개(보드의 2·3번). 조향 장착 전 100 % duty 0.928 m/s | 조향 장착 뒤 duty→속도, 특히 25~60 %. 새 보드 펌웨어에 구동 명령 끊김 정지 장치 없음 |
 | 센서 | RPLIDAR S2(꼭대기 0.57 m, 앞차축 0.21 m 뒤, 좌우 가운데: 측정 2026-11-16; 3240빔 10 Hz), BNO085 IMU, u-blox F9P GNSS, UVC 카메라 | S2 스캔 평면 높이(SIM 0.55 m, 꼭대기 − 0.02 m 자리값), IMU 장착 |
-| 계산 | Jetson Orin Nano, ESP32-S3 하나(네이티브 USB, 2026-11-16~; 옛 ESP8266은 뺐다) | 새 보드용 Jetson 브리지(작업 중) |
+| 계산 | Jetson Orin Nano, ESP32-S3 하나(네이티브 USB, 2026-11-16~; 옛 ESP8266은 뺐다) | 새 보드용 Jetson 브리지·실행기 어댑터는 2026-11-16 설치(실행기는 SHADOW, 차를 움직이지 않음) |
 
 전체 표와 출처: [`docs/HARDWARE_KO.md`](docs/HARDWARE_KO.md).
 
@@ -321,7 +321,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 
 - **현장 검증 0.** 조향 장치를 단 실차로 달린 적이 없다. 실차 주행, Jetson 설치, 펌웨어 쓰기, 장착 보정은 사용자가 현장에서 한다.
 - **실측은 일부뿐.** 2026-11-16 치수(휠베이스, 윤거, 바퀴, 조향 한계, LiDAR 위치)와 새 보드 펌웨어를 넣은 프로필 `front_steer_v1_spec_20261116`이 있지만 조향 모터·가변저항·벨트·유격·질량·차체 상자·발자국은 자리값이다. 사용자 스택은 이 프로필로 뜨지만(R91) 코드의 기본 프로필과 등록 판정은 v0.1이고, v0.3은 자격 불합격(열 예산 자리값)이다.
-- **새 보드의 펄스 조향(ABS-HOLD-8)은 외력에 약하다(SIM, 자리값 외란).** 펄스 사이에 드라이버를 놓아 조향축 외란 6 run이 열 끝 전에 섰다. 실행기의 조향 GO 규칙(8 °/s 자리값)은 보드의 5.09 °/s를 거부해서, 측정 치수 차는 등록에 문서화한 4.0 °/s 로 돈다(문턱은 P8 에서 정할 일). 새 보드용 Jetson 브리지는 대시보드 저장소에 생겼지만 실행기와는 아직 맞추지 않았다([`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](docs/steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) 5절).
+- **새 보드의 펄스 조향(ABS-HOLD-8)은 외력에 약하다(SIM, 자리값 외란).** 펄스 사이에 드라이버를 놓아 조향축 외란 6 run이 열 끝 전에 섰다. 실행기의 조향 GO 규칙(8 °/s 자리값)은 보드의 5.09 °/s를 거부해서, 측정 치수 차는 등록에 문서화한 4.0 °/s 로 돈다(문턱은 P8 에서 정할 일). 새 보드용 Jetson 브리지는 대시보드 저장소에 있고, 실행기가 그 브리지로 모는 어댑터(`steer_bridge_kind: esp32_abs_hold`, [`EXECUTOR_ESP32_KO.md`](docs/steering/EXECUTOR_ESP32_KO.md))는 가짜 보드로만 확인했다. Jetson 에는 2026-11-16 SHADOW 로 설치해 `/scan`·IMU 를 받는 것까지 봤고, MOTOR 는 현장 측정(조향 극성·눈금·속도, 구동 방향)과 결정(조향 GO 문턱, 펌웨어 구동 감시) 뒤에 쓴다 ([`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](docs/steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) 5절).
 - **측정 치수 차의 Gazebo 열 추종은 등록 판정을 하지 않았다.** 사용자 스택 확인(이미지 wf12, 판정 아님)에서 3 run 중 2 run 이 열 끝까지 갔고 1 run 은 실행기 틱 지연으로 2.7 m 에서 섰다. 측정 치수 차로 G-SIM 등록 확인을 하려면 기준을 먼저 등록하고 `tools/steer_sim/stack.py up --override compose.ubts-steer.measured.yaml`로 돌린다.
 - **Gazebo 열 추종은 장면 하나(W1, 열 30 m)다. 최종 확인은 8b단계(wf11, 2026-11-15)에서 처음 합격했지만, 그때 이 PC 가 한가했고 스레드 배치를 켜고 끈 비교를 하지 않아 바쁜 PC 에서도 통과한다는 뜻은 아니다.** 이미지 wf10(7단계)에서 대시보드 화면은 합격했지만 등록 열 추종은 3/4, 사용자 명령은 0/3 이다. 실패는 모두 안전 한도(fresh 상한, 운영자 연결 기한 1.0 s, 정지 감시)에 걸린 정지였고, 실패 순간마다 1~2 s 동안 이 PC 의 E 코어(효율 등급 0)가 꽉 차고 P 코어가 비었다(VM 전체가 느려지는 꼴). steer 컨테이너의 CPU 를 줄였지만(브리지 몫 약 33~44 %) 이 포화를 막지 못했다. 전원 구성·VM 스레드 배치는 사용자 결정이다(`STEER_FOLLOW_GSIM_FINAL_KO.md` 16절). 이미지 wf9(6단계)에서 등록 열 추종은 4/4 열 끝까지 갔지만, 대시보드가 붙는 화면 확인과 사용자 명령(1/3)은 불합격이다. 실패는 모두 안전 한도에 걸린 정지였고, 그때 이 PC 의 E 코어(효율 등급 0)가 약 80 % 로 찼고 P 코어는 반쯤 비어 있었다(Windows 전체 CPU 는 58.8~69.9 %, `STEER_FOLLOW_GSIM_FINAL_KO.md` 15절). 이미지 wf8(5단계)에서 대시보드 화면은 6/6 합격했지만 등록 열 추종은 2/4, 사용자 명령(sim_auto)은 0/3 이다(wf7 에서는 3/3). 실패 다섯 모두 이 PC 가 바쁜 때(호스트 CPU 평균 36~49 %) 실행기의 스캔 처리(통로 갱신)가 0.15~0.32 s 걸려 LiDAR 나이(`stale_lidar`, `fresh` 상한)나 조향 상태 나이(0.3 s) 한도에 걸린 것이다. 진단 스레드는 스캔 처리를 늦추지 않았다(따로 잼). wf7 의 출발 직후 입력 끊김은 실행기 탓이 아니라 새 ROS 참가자가 스택에 들어온 뒤 SIM 쪽 /clock·IMU 가 약 0.35 s 멈춘 것이었다(`STACK_OPERATIONS_KO.md` 9절, 검사가 기다리게 고침). 화면의 `session_conflict`는 운영자 세션 규약 개정 5 로 고쳤다.
 - 열 끝 정지 위치가 Gazebo에서 +0.45 m로 빠른 SIM(+0.04~+0.09 m)보다 뒤다. 열 끝 기둥까지 열로 보는 추정기 규칙 때문이며, 끝 구조물이

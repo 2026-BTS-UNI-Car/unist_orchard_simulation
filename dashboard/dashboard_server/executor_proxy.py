@@ -5,7 +5,13 @@ The dashboard calls the executor's operator HTTP on behalf of the page, so the p
   UBTS_EXECUTOR_URL         http://host:port of the executor operator page (tools/row_executor/operator_http.py)
   UBTS_EXECUTOR_TOKEN_FILE  the token file the executor writes at every start (operator_token.txt)
 
-Without UBTS_EXECUTOR_URL the relay is "not configured": the status says so and every action answers 503. The
+Without UBTS_EXECUTOR_URL the dashboard reads the link file of the Jetson executor kit (deploy/jetson_row_executor):
+  UBTS_EXECUTOR_LINK_FILE   default <dashboard>/runtime/row_executor/dashboard_link.json, written by the kit's installer
+                            {"schema": "ubts.row_executor.dashboard_link.v1", "url": "http://127.0.0.1:<port>",
+                             "token_file": "<the same folder>/operator_token.txt"}
+                            read again when it changes (no container restart); only a loopback URL and a token file in
+                            the folder of the link file are taken
+With neither the relay is "not configured": the status says so and every action answers 503. The
 executor checks Host, Origin and the X-Row-Token header and takes JSON bodies of at most 4 KiB; this module sends
 exactly that, with only the fields of the contract. The status is reduced to the fields the screens show (no GNSS
 coordinates, no paths). Standard library only.
@@ -295,6 +301,73 @@ class ExecutorClient:
         if isinstance(reply.get("status"), dict):        # a start reply carries the status: the same fields as GET
             reply["status"] = page_status(reply["status"])
         return code, reply
+
+
+LINK_SCHEMA = "ubts.row_executor.dashboard_link.v1"
+LINK_FILE = "runtime/row_executor/dashboard_link.json"
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+MAX_LINK_BYTES = 2048
+
+
+class LinkedExecutor:
+    """The executor of the kit's link file (module docstring). current() -> ExecutorClient or None; the file is read
+    again when its (mtime, size) changes; a missing or refused file means 'not configured' (error() says why)."""
+
+    def __init__(self, path):
+        self.path = str(path)
+        self._stamp = None
+        self._client = None
+        self._error = "link_file_missing"
+        self._lock = threading.Lock()
+
+    def error(self):
+        return self._error
+
+    def current(self):
+        try:
+            info = os.stat(self.path)
+        except OSError:
+            with self._lock:
+                self._stamp, self._client, self._error = None, None, "link_file_missing"
+            return None
+        stamp = (info.st_mtime_ns, info.st_size)
+        with self._lock:
+            if stamp != self._stamp:
+                self._stamp = stamp
+                self._client, self._error = self._load(info.st_size)
+            return self._client
+
+    def _load(self, size):
+        if size > MAX_LINK_BYTES:
+            return None, "link_file_too_large"
+        try:
+            with open(self.path, "r", encoding="utf-8") as handle:
+                data = json.loads(handle.read(MAX_LINK_BYTES + 1))
+        except (OSError, UnicodeDecodeError, ValueError):
+            return None, "link_file_unreadable"
+        if not isinstance(data, dict) or data.get("schema") != LINK_SCHEMA or set(data) - {"schema", "url", "token_file", "note"}:
+            return None, "link_file_schema"
+        url, token = data.get("url"), data.get("token_file")
+        if not isinstance(url, str) or not isinstance(token, str):
+            return None, "link_file_schema"
+        if urlsplit(url).hostname not in LOOPBACK_HOSTS:
+            return None, "link_url_not_loopback"
+        folder = os.path.dirname(os.path.realpath(self.path))
+        if os.path.dirname(os.path.realpath(token)) != folder:
+            return None, "link_token_outside_folder"
+        try:
+            return ExecutorClient(url, token), None
+        except ValueError:
+            return None, "link_url_invalid"
+
+
+def executor_from_env(env, root):
+    """The dashboard's executor relay: ExecutorClient (UBTS_EXECUTOR_URL) or LinkedExecutor (the kit's link file)."""
+    client = ExecutorClient.from_env(env)
+    if client is not None:
+        return client
+    path = (env.get("UBTS_EXECUTOR_LINK_FILE") or "").strip() or os.path.join(str(root), LINK_FILE)
+    return LinkedExecutor(path)
 
 
 def not_configured_status() -> dict:

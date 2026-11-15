@@ -1,6 +1,6 @@
 {
- "bytes": 4986683,
- "commit": "feb460017cfd926445712053d2e98a550b6c84ee",
+ "bytes": 4990639,
+ "commit": "a435d44a97588938c34c5b5af7de41c63ea8ae22",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
@@ -37,10 +37,10 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "30dde7bbf4783dfdc134107576ef3b46cedc71ac",
-   "bytes": 92364,
+   "blob": "a83cf924f5ada246b24e981caf0697f902463428",
+   "bytes": 93038,
    "mode": "100644",
-   "sha256": "c5b4b1d033f9663a73abcfd543233acdd0d3fd5d3576e258c53ae40f52475840"
+   "sha256": "a3887d2dd8c4b539ec8b04dc285be38957501313904a03d069a27e1f1c7b46b5"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
@@ -79,10 +79,10 @@
    "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
   },
   "dashboard_server/executor_proxy.py": {
-   "blob": "dfe73c488548927569a7c7f43e0aee69b9055660",
-   "bytes": 15473,
+   "blob": "e0278e68aad1b2db0b76403e9b644e759050382b",
+   "bytes": 18755,
    "mode": "100644",
-   "sha256": "a3727126faccd1b8f4542d0c08233ef9b8c93e74d6b8a83da09cd25353baf501"
+   "sha256": "33b5b8f95e41ff23e7e739efcf6f04e22e34432688149111ff7d257f741db264"
   },
   "dashboard_server/extensions.py": {
    "blob": "18110aea03888e63eac5eb1de435277b18171aef",
@@ -817,7 +817,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "f4d221440df06f3fe4f99b5db27c44395da6b65790d8054fe569c9ada7dd79fc",
+ "files_sha256": "1fb87259e7845836ae881f12c8c8671356d28181cd973c1a007e60bb24196d36",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [
