@@ -21,6 +21,18 @@ Steps (docs/steering/SPEC_UPDATE_KO.md):
 Writes <out>/<profile_id>.yaml, REPORT.json, SUMMARY_KO.txt, host_profile.json and firmware_cfg.txt. --install also
 copies the profile to sim/ubts/steering/profiles/ (refused when the file exists unless --force). Results of the
 checks are placeholder-based or partially measured SIM results, not field validation.
+
+2026-11-16 additions (real dimensions and the new steering board):
+  * fields wheel_width_m, steer_motor_tau_s, lidar_y_in_base_m (direct) and the input-only LiDAR fields
+    lidar_behind_front_axle_m, lidar_top_height_m, lidar_scan_below_top_m: lidar_x_in_base_m = rear axle x +
+    wheelbase - behind (MEASURED: the axle-relative position), lidar_z_m = top - below (ESTIMATED when the offset is
+    not measured); source '자리값' = SIM_ASSUMED for a value nobody measured, '추정' = ESTIMATED (a model value fitted
+    to a measured record; the note becomes the source)
+  * top-level base_origin footprint_centre_symmetric_axles: rear_axle_x_in_base_m = -wheelbase / 2 (DEFINITION, the
+    SIM convention: base origin = footprint centre, both axles symmetric about it; not measured)
+  * top-level steer_firmware {mode, step_time_measured_s}: the candidate becomes schema v4 with group K (the steering
+    firmware law of the SIM ESP emulator: abs_hold_fw constants of ABS-HOLD-8-REBOUND-LIMITS, the SIM host ANGLE
+    policy, the measured step times; docs/steering/ABS_HOLD8_SIM_KO.md)
 """
 from __future__ import annotations
 
@@ -48,7 +60,8 @@ from steering import vehicle_profile as vp  # noqa: E402
 
 SCHEMA = 'ubts.steer_spec_input.v1'
 REPORT_SCHEMA = 'ubts.steer_spec_report.v1'
-SOURCES = {'사용자': 'USER_APPROX', '측정': 'MEASURED', '제품표기': 'PRODUCT_LABEL'}
+SOURCES = {'사용자': 'USER_APPROX', '측정': 'MEASURED', '제품표기': 'PRODUCT_LABEL', '자리값': 'SIM_ASSUMED',
+           '추정': 'ESTIMATED'}
 # input field -> (question, profile parameter or None for an input-only field)
 SPEC_FIELDS = {
     'wheelbase_m': 'Q2', 'track_front_m': 'Q2', 'track_rear_m': 'Q2', 'kingpin_width_m': 'Q2',
@@ -61,8 +74,60 @@ SPEC_FIELDS = {
     'belt_pulley_teeth_steer': 'Q22', 'belt_pot_play_deg': 'Q23', 'pot_location': 'Q23', 'pot_range_deg': 'Q23',
     'pot_to_steer_ratio': 'Q22', 'pot_adc_end_raws': 'Q24', 'pot_turn_deg_end_to_end': 'Q24',
     'steer_limit_switch': 'Q25',
+    # 2026-11-16
+    'wheel_width_m': 'Q2', 'steer_motor_tau_s': 'Q11', 'lidar_y_in_base_m': 'Q14', 'lidar_behind_front_axle_m': 'Q14',
+    'lidar_top_height_m': 'Q14', 'lidar_scan_below_top_m': 'Q14',
 }
-INPUT_ONLY = ('belt_pulley_teeth_steer', 'pot_adc_end_raws', 'pot_turn_deg_end_to_end')
+INPUT_ONLY = ('belt_pulley_teeth_steer', 'pot_adc_end_raws', 'pot_turn_deg_end_to_end', 'lidar_behind_front_axle_m',
+              'lidar_top_height_m', 'lidar_scan_below_top_m')
+TOP_LEVEL = ('schema', 'base_profile', 'new_profile_id', 'description', 'fields', 'base_origin', 'steer_firmware')
+BASE_ORIGINS = ('footprint_centre_symmetric_axles',)
+FW_MODES = ('v3_servo', 'abs_hold_8')
+# Schema v4 group K records (vehicle_profile V4_PARAMETER_GROUPS): the steering law of the SIM ESP emulator.
+# abs_hold_fw: constants of BTS7960_Serial_Control.ino ABS-HOLD-8-REBOUND-LIMITS (received 2026-11-16) and the
+# calibration RIGHT / CENTER / LEFT of its REBOUND_CALIBRATION.md; abs_hold_host: the SIM host ANGLE policy (CONFIG).
+ABS_HOLD_FW = dict(cal_right=1681, cal_center=1900, cal_left=2180, command_max_deg=20.0, pulse_pwm=100, pulse_long_ms=80,
+                   pulse_short_ms=50, pulse_long_above_counts=30, settle_ms=300, rebound_window_ms=100,
+                   target_tol_counts=10, restart_tol_counts=16, rebound_max_counts=20, progress_min_counts=3,
+                   no_progress_max=3, drive_budget_ms=1000, guard_counts=15, sample_ms=5, median_of=5,
+                   pair_tol_counts=20, stale_ms=100, limit_margin_counts=100)
+ABS_HOLD_HOST = dict(step_deg=0.5, deadband_deg=1.0, min_interval_ms=1000, poll_ms=200)
+FW_SOURCE = ('BTS7960_Serial_Control.ino, firmware ABS-HOLD-8-REBOUND-LIMITS (ESP32-S3, received 2026-11-16); '
+             'calibration RIGHT 1681 / CENTER 1900 / LEFT 2180 from its REBOUND_CALIBRATION.md (board test; the '
+             'physical degrees of the +-20 command scale are not verified)')
+
+
+def k_records(mode, timing):
+    """The four group K records of a schema v4 candidate. timing: the step_time_measured_s item of the input."""
+    fw_range = {k: [v, v] for k, v in ABS_HOLD_FW.items()}
+    tag = 'MEASURED_' + timing['date'] if timing['source'] == '측정' else SOURCES[timing['source']]
+    return {
+        'steer_fw_mode': dict(
+            value=mode, range={'choices': list(FW_MODES)}, unit='-', provenance='CONFIG', identify=['none'],
+            stale_after_mod=False,
+            note='SIM ESP 에뮬레이터의 조향 법칙. v3_servo = 펌웨어 V3 서보(예전 결과 전부), abs_hold_8 = 실기 보드 펌웨어 '
+                 'ABS-HOLD-8의 펄스 유지(docs/steering/ABS_HOLD8_SIM_KO.md)'),
+        'abs_hold_fw': dict(
+            value=dict(ABS_HOLD_FW), range=fw_range, unit='count(12비트 ADC); ms; deg(명령 눈금)',
+            provenance='FIRMWARE', identify=['part'], stale_after_mod=False, source=FW_SOURCE,
+            note='보정(RIGHT/CENTER/LEFT = 명령 +20/0/-20), PWM 100 펄스 80 ms(|오차| > 30) 또는 50 ms, 끈 뒤 300 ms 조용한 '
+                 '값으로 판정, 목표 허용 10, 다시 시작 16, 되튐 20 이상 취소, 진척 3 미만 3번 취소, 한 보정 구동 1000 ms 한도, '
+                 '5개 중앙값 + 짝 확인(20), 신선도 100 ms. 물리 각도와 명령 각의 관계는 외부 측정이 없다'),
+        'abs_hold_host': dict(
+            value=dict(ABS_HOLD_HOST), range=dict(step_deg=[0.1, 2.0], deadband_deg=[0.5, 3.0],
+                                                  min_interval_ms=[200, 3000], poll_ms=[50, 1000]),
+            unit='deg(명령 눈금); ms', provenance='CONFIG', identify=['none'], stale_after_mod=False,
+            note='SIM 호스트의 ANGLE 정책(새 보드용 Jetson 브리지는 아직 없다): poll_ms마다 실행기 목표를 step_deg로 '
+                 '반올림해 마지막 ANGLE과 deadband_deg 이상 다르면 보낸다(마지막 ANGLE 뒤 min_interval_ms가 지났거나 '
+                 '보드가 목표에 닿았거나 유지를 취소했을 때). 취소 뒤 오차가 다시 시작 문턱보다 크면 같은 ANGLE을 다시 보낸다. '
+                 '새 목표는 펌웨어에서 300 ms 기다림과 구동 예산을 다시 시작하므로 자주 보내면 조향이 멈춘다'),
+        'steer_step_time_measured_s': dict(
+            value=dict(timing['value']), range=dict(outward_20=[2.0, 6.0], return_20=[1.0, 6.0]), unit='s',
+            provenance=tag, identify=['B5'], stale_after_mod=False,
+            source='B5 (%s) %s' % (timing['source'], timing.get('note') or ''),
+            note='보드 시험의 계단 응답(명령 0 -> +-20, +-20 -> 0, 서 있는 차). SIM 실행기의 측정 조향 속도는 '
+                 '(보정 표지 각) / outward_20 이다(abs_hold.executor_values)'),
+    }
 # What to measure or run again when a parameter changes (SPEC_UPDATE_KO.md 4).
 RECHECK = {
     'geometry': (('wheelbase_m', 'track_front_m', 'track_rear_m', 'kingpin_width_m', 'wheel_radius_front_m',
@@ -104,9 +169,28 @@ def load_spec(path):
     doc = yaml.safe_load(Path(path).read_bytes())
     if not isinstance(doc, dict) or doc.get('schema') != SCHEMA:
         raise SpecError('spec schema must be %s' % SCHEMA)
-    unknown = sorted(set(doc) - {'schema', 'base_profile', 'new_profile_id', 'description', 'fields'})
+    unknown = sorted(set(doc) - set(TOP_LEVEL))
     if unknown:
         raise SpecError('unknown top-level keys: %s' % ', '.join(unknown))
+    if doc.get('base_origin') not in (None,) + BASE_ORIGINS:
+        raise SpecError('base_origin must be null or one of %s' % ', '.join(BASE_ORIGINS))
+    firmware = doc.get('steer_firmware')
+    if firmware is not None:
+        if not isinstance(firmware, dict) or set(firmware) != {'mode', 'step_time_measured_s'}:
+            raise SpecError('steer_firmware is {mode, step_time_measured_s}')
+        if firmware['mode'] not in FW_MODES:
+            raise SpecError('steer_firmware.mode must be one of %s' % ', '.join(FW_MODES))
+        timing = firmware['step_time_measured_s']
+        if not isinstance(timing, dict) or set(timing) - {'value', 'source', 'date', 'note'}:
+            raise SpecError('steer_firmware.step_time_measured_s is {value, source, date, note}')
+        value = timing.get('value')
+        if not isinstance(value, dict) or set(value) != {'outward_20', 'return_20'} or not all(
+                isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 for v in value.values()):
+            raise SpecError('steer_firmware.step_time_measured_s.value is {outward_20, return_20} in s (> 0)')
+        if timing.get('source') not in SOURCES:
+            raise SpecError('steer_firmware.step_time_measured_s.source must be one of %s' % ', '.join(SOURCES))
+        if timing['source'] == '측정':
+            timing['date'] = _date(timing.get('date'), 'steer_firmware.step_time_measured_s')
     fields = doc.get('fields') or {}
     given = {}
     for name, item in fields.items():
@@ -124,7 +208,7 @@ def load_spec(path):
         date = _date(item.get('date'), name) if source == '측정' else (
             _date(item['date'], name) if item.get('date') is not None else None)
         note = item.get('note')
-        if source in ('측정', '제품표기') and (not isinstance(note, str) or not note.strip()):
+        if source in ('측정', '제품표기', '추정') and (not isinstance(note, str) or not note.strip()):
             raise SpecError('%s: a %s value needs a note (it becomes the profile source)' % (name, source))
         given[name] = dict(value=item['value'], source=source, date=date, note=note, q=SPEC_FIELDS[name])
     return doc, given
@@ -137,7 +221,7 @@ def _travel_at_ratio_one(get):
     return vp.pot_travel_deg(view.__getitem__)
 
 
-def resolve_inputs(given, base_doc):
+def resolve_inputs(given, base_doc, base_origin=None):
     """Turn the input-only fields into profile parameters (in place). Returns notes."""
     notes = []
 
@@ -171,6 +255,38 @@ def resolve_inputs(given, base_doc):
         given['pot_center_raw'] = dict(item, value=int(centre))
         notes.append('ADC 끝-끝 %d count = 가변저항 %.2f deg / 링크 %.2f deg; 가운데 raw %d' % (abs(left - right), span_deg,
                                                                                          travel, centre))
+    if base_origin == 'footprint_centre_symmetric_axles':
+        rear = -float(current('wheelbase_m')) / 2.
+        given['rear_axle_x_in_base_m'] = dict(
+            value=round(rear, 6), source=None, date=None, q='Q2', tag='DEFINITION',
+            note='SIM 규약: base 원점 = 발자국 가운데, 두 차축이 원점에 대칭(실측 아님). 뒤차축 x = -휠베이스 / 2')
+        notes.append('뒤차축 x = -휠베이스 %.4f / 2 = %.4f m (base 원점 규약)' % (float(current('wheelbase_m')), rear))
+    if 'lidar_behind_front_axle_m' in given:
+        item = given.pop('lidar_behind_front_axle_m')
+        rear = float(given['rear_axle_x_in_base_m']['value']) if 'rear_axle_x_in_base_m' in given else float(
+            current('rear_axle_x_in_base_m'))
+        x = rear + float(current('wheelbase_m')) - float(item['value'])
+        given['lidar_x_in_base_m'] = dict(item, value=round(x, 6),
+                                          note='%s; x = 뒤차축 x %.4f + 휠베이스 %.4f - %.4f (차축 기준 위치가 측정값이고 '
+                                               'base 원점은 규약)' % (item['note'], rear, float(current('wheelbase_m')),
+                                                                 float(item['value'])))
+        notes.append('LiDAR x = %.4f + %.4f - %.4f = %.4f m' % (rear, float(current('wheelbase_m')),
+                                                                 float(item['value']), x))
+    if 'lidar_top_height_m' in given:
+        top = given.pop('lidar_top_height_m')
+        below = given.pop('lidar_scan_below_top_m', None)
+        if below is None:
+            raise SpecError('lidar_top_height_m needs lidar_scan_below_top_m (the scan plane below the top)')
+        z = float(top['value']) - float(below['value'])
+        both_measured = top['source'] == '측정' and below['source'] in ('측정', '제품표기')
+        given['lidar_z_m'] = dict(
+            top, value=round(z, 6), tag=None if both_measured else 'ESTIMATED',
+            note='꼭대기 %.3f m(%s %s) - 스캔 평면까지 %.3f m(%s: %s)' % (
+                float(top['value']), top['source'], top.get('date') or '', float(below['value']), below['source'],
+                below.get('note') or ''))
+        notes.append('LiDAR z = 꼭대기 %.3f - %.3f = %.3f m' % (float(top['value']), float(below['value']), z))
+    elif 'lidar_scan_below_top_m' in given:
+        raise SpecError('lidar_scan_below_top_m needs lidar_top_height_m')
     if 'pot_to_steer_ratio' in given:
         ratios.append(('pot_to_steer_ratio', float(given['pot_to_steer_ratio']['value']), given['pot_to_steer_ratio']))
     if ratios:
@@ -213,9 +329,11 @@ def build_candidate(base_doc, given, spec_doc):
             value = {k: float(value) for k in rec['value']}
         if isinstance(value, int) and not isinstance(value, bool) and isinstance(rec['value'], float):
             value = float(value)
-        tag = SOURCES[item['source']]
+        tag = item.get('tag') or SOURCES[item['source']]
         if tag == 'MEASURED':
             tag = 'MEASURED_' + item['date']
+            dates.append(item['date'])
+        elif item.get('source') == '측정' and item.get('date'):
             dates.append(item['date'])
         if rec['range'] is None:          # SPEC_PENDING null value
             rec['range'] = [0.0, max(1.0, float(value) * 2.)] if isinstance(value, (int, float)) else None
@@ -226,12 +344,25 @@ def build_candidate(base_doc, given, spec_doc):
         rec['value'] = value
         rec['provenance'] = tag
         rec['stale_after_mod'] = False
-        if tag.startswith('MEASURED_') or tag == 'PRODUCT_LABEL':
-            rec['source'] = '%s (%s) %s' % (item['q'], item['source'], item['note'])
+        label = item['source'] or '규약'
+        if tag.startswith('MEASURED_') or tag in ('PRODUCT_LABEL', 'ESTIMATED', 'DEFINITION'):
+            rec['source'] = '%s (%s) %s' % (item['q'], label, item['note'])
         elif item.get('note'):
-            rec['source'] = '%s (%s) %s' % (item['q'], item['source'], item['note'])
-        rec['note'] = ((rec.get('note') or '') + ' | 사양 반영: %s %s' % (item['q'], item['source'])).strip(' |')
+            rec['source'] = '%s (%s) %s' % (item['q'], label, item['note'])
+        rec['note'] = ((rec.get('note') or '') + ' | 사양 반영: %s %s' % (item['q'], label)).strip(' |')
         applied[name] = dict(value=value, provenance=tag, q=item['q'])
+    firmware = spec_doc.get('steer_firmware')
+    if firmware is not None:
+        if doc['schema'] != vp.SCHEMA_V3:
+            raise SpecError('steer_firmware needs a schema v3 base profile (it adds the v4 group K)')
+        doc['schema'] = vp.SCHEMA_V4
+        params.update(k_records(firmware['mode'], firmware['step_time_measured_s']))
+        applied['steer_fw_mode'] = dict(value=firmware['mode'], provenance='CONFIG', q='FW')
+        applied['steer_step_time_measured_s'] = dict(value=firmware['step_time_measured_s']['value'],
+                                                     provenance=params['steer_step_time_measured_s']['provenance'],
+                                                     q='B5')
+        if firmware['step_time_measured_s'].get('date'):
+            dates.append(firmware['step_time_measured_s']['date'])
     stamp = max(dates) if dates else datetime.date.today().strftime('%Y%m%d')
     doc['profile_id'] = spec_doc.get('new_profile_id') or 'front_steer_v1_spec_%s' % stamp
     doc['description'] = spec_doc.get('description') or (
@@ -274,7 +405,7 @@ def host_values(profile):
 
 def gazebo_values(profile):
     from steering import gz_model
-    text = gz_model._generated_rover_sdf()
+    text = gz_model._generated_rover_sdf(profile)
     sdf, manifest = gz_model.steer_world_sdf(text, profile)
     import xml.etree.ElementTree as E
     model = E.fromstring(sdf).find("world/model[@name='%s']" % gz_model.MODEL_NAME)
@@ -283,7 +414,11 @@ def gazebo_values(profile):
                         upper=round(j['upper'], 5) if j['upper'] is not None else None)
              for name, j in joints.items() if 'steer' in name}
     keep = ('steer_type', 'drive_mode', 'wheel_collision', 'sdf_sha256')
-    return dict(steer_joints=steer, manifest={k: manifest.get(k) for k in keep})
+    laser = manifest['sensor_link_checks']['laser']
+    wheels = {name: [round(x, 4) for x in w['xyz']] for name, w in
+              ((n, gz_model.wheel_layout(profile)['wheels'][n]) for n in gz_model.WHEELS)}
+    return dict(steer_joints=steer, manifest={k: manifest.get(k) for k in keep},
+                laser_link_xyz=[round(x, 4) for x in laser['link_xyz']], wheels_xyz=wheels)
 
 
 def _flat(value, prefix=''):
@@ -405,7 +540,7 @@ def main(argv=None):
         base_bytes = base_path.read_bytes()
         base = vp.parse_profile(base_bytes, origin=str(base_path))
         base_doc = yaml.safe_load(base_bytes)
-        notes = resolve_inputs(given, base_doc)
+        notes = resolve_inputs(given, base_doc, spec_doc.get('base_origin'))
         doc, widened, applied = build_candidate(base_doc, given, spec_doc)
     except (SpecError, vp.ProfileError, OSError) as exc:
         print('spec input refused: %s' % exc)
@@ -424,8 +559,9 @@ def main(argv=None):
     for name in profile.names():
         old = base.value(name) if base.has(name) else None
         new = profile.value(name)
-        if old != new or base.provenance(name) != profile.provenance(name):
-            changed.append(dict(name=name, old=old, new=new, old_provenance=base.provenance(name),
+        old_tag = base.provenance(name) if base.has(name) else None
+        if old != new or old_tag != profile.provenance(name):
+            changed.append(dict(name=name, old=old, new=new, old_provenance=old_tag,
                                 new_provenance=profile.provenance(name), derived=profile.is_derived(name)))
     fw_old, fw_new = _safe(firmware_constants, base), _safe(firmware_constants, profile)
     host_old, host_new = _safe(host_values, base), _safe(host_values, profile)

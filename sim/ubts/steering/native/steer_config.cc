@@ -408,6 +408,52 @@ void parse_ext(const ObjectView &e, const ActuatorConfig &act, ExtConfig *out) {
   }
 }
 
+// Optional block "steer_law" (profile schema v4, firmware mode only). Every key is required inside the block.
+void parse_law(const ObjectView &b, LawConfig *out) {
+  static const char *const keys[] = {
+      "kind",          "cal_right",         "cal_center",          "cal_left",        "command_max_deg",
+      "pulse_pwm",     "pulse_long_ms",     "pulse_short_ms",      "pulse_long_above_counts", "settle_ms",
+      "rebound_window_ms", "target_tol_counts", "restart_tol_counts", "rebound_max_counts", "progress_min_counts",
+      "no_progress_max", "drive_budget_ms", "guard_counts",        "sample_ms",       "median_of",
+      "pair_tol_counts", "stale_ms",        "limit_margin_counts", "host_step_deg",   "host_deadband_deg",
+      "host_min_interval_ms", "host_poll_ms"};
+  b.require_keys(keys, sizeof keys / sizeof keys[0]);
+  if (b.string("kind") != "abs_hold_8") throw ConfigError(b.key_path("kind") + ": only abs_hold_8 is modelled");
+  out->present = true;
+  out->cal_right = static_cast<int>(b.integer("cal_right", 1, 4095));
+  out->cal_center = static_cast<int>(b.integer("cal_center", 1, 4095));
+  out->cal_left = static_cast<int>(b.integer("cal_left", 1, 4095));
+  if (!(out->cal_right < out->cal_center && out->cal_center < out->cal_left)) {
+    throw ConfigError("steer_law: need cal_right < cal_center < cal_left");
+  }
+  out->command_max_deg = b.number("command_max_deg", 1.0, 90.0);
+  out->pulse_pwm = static_cast<int>(b.integer("pulse_pwm", 1, 255));
+  out->long_ms = static_cast<int>(b.integer("pulse_long_ms", 1, 1000));
+  out->short_ms = static_cast<int>(b.integer("pulse_short_ms", 1, 1000));
+  out->long_above = static_cast<int>(b.integer("pulse_long_above_counts", 0, 4095));
+  out->settle_ms = static_cast<int>(b.integer("settle_ms", 1, 10000));
+  out->rebound_window_ms = static_cast<int>(b.integer("rebound_window_ms", 0, 10000));
+  out->target_tol = static_cast<int>(b.integer("target_tol_counts", 0, 4095));
+  out->restart_tol = static_cast<int>(b.integer("restart_tol_counts", 0, 4095));
+  out->rebound_max = static_cast<int>(b.integer("rebound_max_counts", 1, 4095));
+  out->progress_min = static_cast<int>(b.integer("progress_min_counts", 0, 4095));
+  out->no_progress_max = static_cast<int>(b.integer("no_progress_max", 1, 1000));
+  out->budget_ms = static_cast<int>(b.integer("drive_budget_ms", 21, 100000));
+  out->guard = static_cast<int>(b.integer("guard_counts", 0, 4095));
+  out->sample_ms = static_cast<int>(b.integer("sample_ms", 1, 1000));
+  out->median_of = static_cast<int>(b.integer("median_of", 1, 9));
+  if (out->median_of % 2 != 1) throw ConfigError(b.key_path("median_of") + ": must be odd");
+  out->pair_tol = static_cast<int>(b.integer("pair_tol_counts", 0, 4095));
+  out->stale_ms = static_cast<int>(b.integer("stale_ms", 1, 10000));
+  out->limit_margin = static_cast<int>(b.integer("limit_margin_counts", 0, 4095));
+  out->host_step_deg = b.number("host_step_deg", 0.0, 90.0, true);
+  out->host_deadband_deg = b.number("host_deadband_deg", 0.0, 90.0);
+  out->host_min_interval_ms = static_cast<int>(b.integer("host_min_interval_ms", 1, 100000));
+  out->host_poll_ms = static_cast<int>(b.integer("host_poll_ms", 1, 100000));
+  if (out->target_tol > out->restart_tol) throw ConfigError("steer_law: need target_tol_counts <= restart_tol_counts");
+  if (out->short_ms > out->long_ms) throw ConfigError("steer_law: need pulse_short_ms <= pulse_long_ms");
+}
+
 const char *const kProtocolV1 = "ubts.steer_lockstep.v1";
 const char *const kProtocolV2 = "ubts.steer_lockstep.v2";
 
@@ -518,10 +564,13 @@ Config parse_config(const std::string &line) {
                                           "profile_sha256", "profile_overrides", "geometry", "actuator", "pot",
                                           "test_servo",    "mcu",        "injections", "firmware"};
     // "steer_ext" (profile schema v3) is optional in both protocols: without it every extension term is off.
-    bool has_ext = false;
+    bool has_ext = false, has_law = false;
     {
       const json::Node &root = parsed.node(parsed.root());
-      for (size_t i = 0; i < root.keys.size(); ++i) has_ext = has_ext || root.keys[i] == "steer_ext";
+      for (size_t i = 0; i < root.keys.size(); ++i) {
+        has_ext = has_ext || root.keys[i] == "steer_ext";
+        has_law = has_law || root.keys[i] == "steer_law";
+      }
     }
     std::vector<const char *> key_set;
     if (v2) {
@@ -530,6 +579,8 @@ Config parse_config(const std::string &line) {
       key_set.assign(keys_v1, keys_v1 + sizeof keys_v1 / sizeof keys_v1[0]);
     }
     if (has_ext) key_set.push_back("steer_ext");
+    // "steer_law" (profile schema v4) is optional and needs protocol v2 in firmware mode (checked below).
+    if (has_law) key_set.push_back("steer_law");
     top.require_keys(&key_set[0], key_set.size());
     Config cfg;
     const std::string protocol = top.string("protocol");
@@ -595,10 +646,12 @@ Config parse_config(const std::string &line) {
         }
         cfg.mcu_baud = static_cast<uint32_t>(value);
         parse_firmware(top.object("firmware"), cfg.geometry, &cfg.fw);
+        if (has_law) parse_law(top.object("steer_law"), &cfg.law);
       } else if (firmware.kind != json::kNull) {
         throw ConfigError("firmware: must be null unless the mode is firmware");
       }
     }
+    if (has_law && !cfg.law.present) throw ConfigError("steer_law: only in mode firmware (protocol v2)");
     return cfg;
   } catch (const json::ParseError &e) {
     throw ConfigError(std::string("startup line is not valid JSON: ") + e.what());

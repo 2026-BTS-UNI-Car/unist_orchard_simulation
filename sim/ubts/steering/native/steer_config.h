@@ -140,6 +140,48 @@ struct ExtConfig {
   double push_sd_nm, push_corr_length_m;                             // pushing torque (OU in distance)
 };
 
+// Optional startup block "steer_law" (vehicle profile schema v4, steer_fw_mode abs_hold_8; firmware mode only):
+// the steering law of the real board firmware ABS-HOLD-8-REBOUND-LIMITS replaces the V3 servo law (abs_hold8.h).
+// Absent: the V3 law runs and the session is bit-identical to one without the block. Counts of a 12-bit ADC, ms.
+struct LawConfig {
+  LawConfig()
+      : present(false),
+        cal_right(1681),
+        cal_center(1900),
+        cal_left(2180),
+        command_max_deg(20.0),
+        pulse_pwm(100),
+        long_ms(80),
+        short_ms(50),
+        long_above(30),
+        settle_ms(300),
+        rebound_window_ms(100),
+        target_tol(10),
+        restart_tol(16),
+        rebound_max(20),
+        progress_min(3),
+        no_progress_max(3),
+        budget_ms(1000),
+        guard(15),
+        sample_ms(5),
+        median_of(5),
+        pair_tol(20),
+        stale_ms(100),
+        limit_margin(100),
+        host_step_deg(0.5),
+        host_deadband_deg(1.0),
+        host_min_interval_ms(1000),
+        host_poll_ms(200) {}
+  bool present;
+  int cal_right, cal_center, cal_left;
+  double command_max_deg;
+  int pulse_pwm, long_ms, short_ms, long_above, settle_ms, rebound_window_ms;
+  int target_tol, restart_tol, rebound_max, progress_min, no_progress_max, budget_ms, guard;
+  int sample_ms, median_of, pair_tol, stale_ms, limit_margin;
+  double host_step_deg, host_deadband_deg;
+  int host_min_interval_ms, host_poll_ms;
+};
+
 struct Config {
   Config() : protocol(1), mode(0), seed(0), tick_hz(0), mcu_baud(0) {}
   int protocol;  // 1 or 2 (startup protocol string; frame header version)
@@ -155,6 +197,7 @@ struct Config {
   ExtConfig ext;         // optional steer_ext block
   uint32_t mcu_baud;     // v2 firmware mode: mcu.baud (checked against the compiled firmware baud)
   FirmwareConfig fw;     // v2 firmware mode
+  LawConfig law;         // optional steer_law block (firmware mode)
 };
 
 class ConfigError : public std::runtime_error {

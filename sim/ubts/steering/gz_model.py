@@ -67,11 +67,13 @@ What the transform does (values from one vehicle profile, steering/vehicle_profi
   IMU        sensor update_rate = imu_rate_hz; sensor pose inside imu_link = profile IMU
              position minus the link position, rotation = imu_mount_rpy_deg (yaw_sign -1:
              roll + pi, the sensor mounted upside down as in steered_plant)
-  sensors    the laser and camera_link positions stay those of the pinned rover.yaml (the Embree LiDAR
-             cpu_lidar.py reads its mount from rover.yaml). A profile whose LiDAR or camera position differs is
-             refused (SteerModelError sensor_mount_not_applied) unless allow_sensor_mount_mismatch=True; then the
-             manifest result_flags carry sensor_mount_not_applied:<link> (and lidar_imu_xy_relation_broken when
-             the IMU moved but the laser did not)
+  sensors    this function does not move the laser and camera_link: they come from the generated model. Since
+             2026-11-16 the scene assembly generates the model with the profile's LiDAR mount
+             (gz_assemble.profile_lidar_mount; the supervisor gives cpu_lidar a runtime rover.yaml copy with the same
+             mount), so the laser link matches the profile. A profile whose LiDAR or camera position still differs
+             from the given model is refused (SteerModelError sensor_mount_not_applied) unless
+             allow_sensor_mount_mismatch=True; then the manifest result_flags carry sensor_mount_not_applied:<link>
+             (and lidar_imu_xy_relation_broken when the IMU moved but the laser did not)
 
 Topics (design 4.3): steering targets {prefix}/steer_left_cmd, {prefix}/steer_right_cmd
 (axle_pivot {prefix}/steer_axle_cmd), drive {prefix}/<wheel>_cmd with prefix /sim/act
@@ -1167,12 +1169,17 @@ def describe_model(model):
     return dict(name=model.get('name'), links=links, joints=joints, plugins=plugins)
 
 
-def _generated_rover_sdf():
-    """generate_world.generate() of the pinned rover.yaml (sim/ubts must be on sys.path)."""
+def _generated_rover_sdf(profile=None):
+    """generate_world.generate() of the pinned rover.yaml (sim/ubts must be on sys.path). With a profile, its LiDAR
+    mount goes into the config first (gz_assemble.profile_lidar_mount: the laser link at the profile position)."""
     from camera_profile import load_rover_config   # pinned module, imported only
     from generate_world import generate            # pinned module, imported only
     root = Path(__file__).resolve().parents[1]
-    return generate(load_rover_config(root / 'rover.yaml'))
+    config = load_rover_config(root / 'rover.yaml')
+    if profile is not None:
+        from .gz_assemble import profile_lidar_mount
+        profile_lidar_mount(config, profile)
+    return generate(config)
 
 
 def main(argv=None):
@@ -1190,7 +1197,7 @@ def main(argv=None):
                         help='wheel collision shape (default: %s)' % DEFAULT_WHEEL_COLLISION)
     args = parser.parse_args(argv)
     profile = load_profile(args.profile)
-    text = _generated_rover_sdf() if args.generate else args.input.read_text(encoding='utf-8')
+    text = _generated_rover_sdf(profile) if args.generate else args.input.read_text(encoding='utf-8')
     out, manifest = steer_world_sdf(text, profile, drive_mode=args.drive_mode, steer_control=args.steer_control,
                                     topic_prefix=args.topic_prefix, wheel_collision=args.wheel_collision)
     args.output.parent.mkdir(parents=True, exist_ok=True)

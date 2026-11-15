@@ -483,7 +483,7 @@ def test_spec_request_lists_every_new_placeholder(profile):
 
 # --- value shapes (RP-04) -------------------------------------------------------------------------------------------
 def test_shapes_cover_the_parameters(profile):
-    assert set(vp.SHAPES) <= set(vp.PARAMETER_NAMES_V3)
+    assert set(vp.SHAPES) <= set(vp.PARAMETER_NAMES_V4)   # schema v4 (2026-11-16) adds group K
     assert not set(vp.SHAPES) & set(vp.DERIVATIONS)
     for name in profile.names():
         if not profile.is_derived(name) and profile.value(name) is not None:

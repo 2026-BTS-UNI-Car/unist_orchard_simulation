@@ -429,6 +429,22 @@ def field_metadata(scene, base_metadata, summary):
                 truth_note='world truth (centreline, rows, end) only in field_world/eval_truth.json, evaluation only')
 
 
+def profile_lidar_mount(config, view):
+    """Put the profile's LiDAR mount (lidar_x_in_base_m, lidar_y_in_base_m, lidar_z_m) into a rover config's lidar
+    block in place, so that the generated laser link (generate_world: laser and imu_link at the LiDAR x, y) and the
+    Embree LiDAR (cpu_lidar.py reads the same block from the runtime copy the supervisor writes) follow the profile.
+    The pinned rover.yaml is not edited. Returns the mount block of the scene manifest. A profile with the rover.yaml
+    values (every profile before 2026-11-16) leaves the config, and so the SDF, as it was."""
+    lidar = config['lidar']
+    want = dict(x_m=float(view.value('lidar_x_in_base_m')), y_m=float(view.value('lidar_y_in_base_m')),
+                height_above_ground_m=float(view.value('lidar_z_m')))
+    before = {key: float(lidar[key]) for key in want}
+    changed = any(abs(want[key] - before[key]) > 1e-9 for key in want)
+    if changed:
+        lidar.update(want)
+    return dict(want, source='profile', rover_yaml=before, differs_from_rover_yaml=changed)
+
+
 def assemble_base(scene, out_dir, *, profile=None, profile_path=None, lidar_backend='embree', render_engine=None,
                   headless_rendering=None, camera=True, rover_config=None, field_spec=None):
     """Assemble a scene's world with the generated (not yet steered) ubts_rover.
@@ -453,6 +469,10 @@ def assemble_base(scene, out_dir, *, profile=None, profile_path=None, lidar_back
     assemble_world = _assemble_module()
     from camera_profile import load_rover_config        # pinned module, imported only
     config = copy.deepcopy(rover_config) if rover_config is not None else load_rover_config(SIM_ROOT / 'rover.yaml')
+    lidar_mount = profile_lidar_mount(config, view) if rover_config is None else dict(
+        x_m=float(config['lidar']['x_m']), y_m=float(config['lidar']['y_m']),
+        height_above_ground_m=float(config['lidar']['height_above_ground_m']), source='rover_config_argument',
+        differs_from_rover_yaml=None)
     world_options = config.setdefault('world', {})
     world_options['physics_hz'] = float(view.value('gz_physics_hz'))
     world_options['preset'] = 'sensor_test' if SCENE_WORLD[scene] in ('W0', 'W2') else 'original'
@@ -499,7 +519,7 @@ def assemble_base(scene, out_dir, *, profile=None, profile_path=None, lidar_back
     return dict(tree=tree, world=world, view=view, engine=engine, headless=headless, summary=summary,
                 cameras_removed=cameras_removed, output=output, metadata=metadata, lidar_backend=lidar_backend,
                 camera=camera, gnss_removed=dict(origin_elements=gnss_removed, metadata_keys=metadata_removed),
-                field_world=fw)
+                field_world=fw, lidar_mount=lidar_mount)
 
 
 def scene_manifest(scene, base, text, model_manifest):
@@ -524,7 +544,8 @@ def scene_manifest(scene, base, text, model_manifest):
         source_commit_origin=source['source_commit_origin'], source_files_sha256=source['source_files']['files_sha256'],
         source_file_count=source['source_files']['file_count'],
         result_flags=list(model_manifest.get('result_flags') or []),
-        result_kind=view.result_label()['result_kind'], field_validated=False)
+        result_kind=view.result_label()['result_kind'], field_validated=False,
+        lidar_mount=base.get('lidar_mount'))
 
 
 def build_scene(scene, out_dir, *, profile=None, profile_path=None, lidar_backend='embree', render_engine=None,

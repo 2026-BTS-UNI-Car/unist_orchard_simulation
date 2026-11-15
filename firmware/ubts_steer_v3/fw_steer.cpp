@@ -19,6 +19,8 @@ const int32_t kPolMinCounts = 4;
 
 uint32_t servo_period() { return 1000u / fw.w_par[kPSvhz]; }
 
+uint8_t g_law_release = 0;  // the hooked law released the driver (EN low) for this servo period
+
 // Start of ACTIVE or HOLD. From OFF the pins stay OFF until the first servo update; between ACTIVE and HOLD
 // the pins continue (spec 7.1, 7.6).
 void enter_servo(uint8_t mode) {
@@ -41,6 +43,22 @@ void servo_update(uint32_t dt) {
   const Cal &cal = fw.w_cal;
   const int32_t soft_l = cal.soft_l, soft_r = cal.soft_r;
   const int32_t goal = clamp32(fw.tgt, soft_r, soft_l);
+  if (steer_law_hook) {  // optional law of an emulated board (fw_steer.h); the V3 servo state stays at rest
+    int32_t held = goal;
+    uint8_t release = 1;
+    const int16_t out = steer_law_hook(fw.now, goal, fw.raw, fw.servo_live == 0, cal, &held, &release);
+    fw.cmd = held;
+    fw.rrem = 0;
+    fw.in_db = 0;
+    fw.braked = 0;
+    fw.u = out;
+    g_law_release = (out == 0 && release) ? 1 : 0;
+    if (out != 0) {
+      fw.last_sign = static_cast<int8_t>(sgn32(out));
+      fw.last_nz_ms = fw.now;
+    }
+    return;
+  }
   const int32_t rate = drive_moving(fw.now) ? p[kPRmov] : p[kPRstd];
   if (fw.cmd == goal) {
     fw.rrem = 0;
@@ -105,6 +123,8 @@ void set_steer_pins(uint8_t en, uint8_t a, uint8_t b) {
 }
 
 }  // namespace
+
+SteerLawHook steer_law_hook = 0;
 
 void steer_boot(uint32_t now) {
   fw.mode = kModeOff;
@@ -219,6 +239,10 @@ void steer_output() {
       if (!fw.servo_live) {
         set_steer_pins(0, 0, 0);
       } else if (fw.u == 0) {
+        if (steer_law_hook && g_law_release) {
+          set_steer_pins(0, 0, 0);  // hooked law: driver released (EN low)
+          break;
+        }
         set_steer_pins(1, 0, 0);  // BRAKE
       } else {
         const int32_t v = static_cast<int32_t>(fw.u) * fw.w_cal.mdir;

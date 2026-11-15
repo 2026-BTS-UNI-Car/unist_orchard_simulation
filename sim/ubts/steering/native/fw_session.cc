@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include "abs_hold8.h"  // optional SIM steering law (startup block steer_law)
 #include "fw_main.h"   // firmware/ubts_steer_v3: read-only state view for the change channels
 #include "fw_state.h"  // firmware RAM, read only for the servo evaluation channels (report_servo)
 
@@ -46,6 +47,7 @@ FirmwareSession::FirmwareSession(const Config &cfg, SteerModel *model)
   for (int i = 0; i < kChannelCount; ++i) channels_[i] = 0;
   channels_[kChMcuState] = 255;
   if (cfg.mode == kModeFirmware) g_mcu.configure(cfg.mcu_baud, cfg.fw.chip_id, cfg.fw.boot_seed, cfg.fw.eeprom);
+  if (cfg.mode == kModeFirmware) abs_hold8_install(cfg.law);  // null hook (V3 law) without the steer_law block
 }
 
 void FirmwareSession::reset_mcu(int64_t tick, uint32_t reason) {
@@ -61,6 +63,7 @@ void FirmwareSession::reset_mcu(int64_t tick, uint32_t reason) {
 
 void FirmwareSession::reset(double delta_eq, FwStepOutput *out) {
   model_->reset(delta_eq);
+  abs_hold8_install(cfg_.law);  // law state from scratch (null hook without the steer_law block)
   g_mcu.session_reset();
   powered_ = true;
   power_on_tick_ = -1;

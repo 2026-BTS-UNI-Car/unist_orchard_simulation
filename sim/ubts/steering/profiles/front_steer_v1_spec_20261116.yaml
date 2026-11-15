@@ -1,0 +1,1621 @@
+# 조향 차량 프로필 front_steer_v1_spec_20261116 (tools/steer_sim/apply_spec.py가 만든 판)
+# 바탕: front_steer_v0_3_placeholder. 사양 입력 파일 SHA-256 31062e029cefb15d0b1099783dbcbda3918cb3f3e4222f2a3074cb7c85d4b459. 바꾼 칸의 provenance와 source가 출처다.
+# 이 파일은 버전 파일이다. 고치지 말고 사양 입력을 고쳐 새 판을 만든다(docs/steering/SPEC_UPDATE_KO.md).
+schema: ubts.vehicle_profile.v4
+profile_id: front_steer_v1_spec_20261116
+description: 실제 치수(2026-11-16 측정)와 새 조향 보드 펌웨어 ABS-HOLD-8 의 펄스 유지(SIM ESP 에뮬레이터 abs_hold_8)를 넣은 판. 나머지 조향 사양(킹핀 폭, Ackermann,
+  유격, 발자국 길이, 질량, IMU 자세, 가변저항 전기 범위 등)은 자리값이다. 결과는 자리값 기반 SIM 결과로 적는다.
+parameters:
+  wheelbase_m:
+    value: 0.657
+    range: [0.65, 0.9]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    note: '뒤차축-앞차축(axle_pivot이면 회전 중심) 거리. 기존 SIM 가정값 | 사양 반영: Q2 측정'
+    source: Q2 (측정) 앞뒤 축 간격 65.7 cm(사용자 측정)
+  track_front_m:
+    value: 0.527
+    range: [0.5, 0.65]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q2 (측정) 좌우 바퀴 바깥-바깥 62.2 cm - 바퀴 두께 9.5 cm = 바퀴 중심 사이 52.7 cm(앞뒤 구별 없이 준 값)
+    note: '사양 반영: Q2 측정'
+  track_rear_m:
+    value: 0.527
+    range: [0.5, 0.65]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q2 (측정) 앞 윤거와 같은 측정(앞뒤 구별 없이 준 값)
+    note: '사양 반영: Q2 측정'
+  kingpin_width_m:
+    value: 0.46
+    range: [0.4, 0.6]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+    note: 두 킹핀 축 사이 거리(바퀴 중심 높이)
+  wheel_radius_front_m:
+    value: 0.13
+    range: [0.1, 0.16]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q2 (측정) 바퀴 지름 26 cm
+    note: '사양 반영: Q2 측정'
+  wheel_radius_rear_m:
+    value: 0.13
+    range: [0.1, 0.16]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q2 (측정) 바퀴 지름 26 cm(네 바퀴 같음)
+    note: '사양 반영: Q2 측정'
+  wheel_width_m:
+    value: 0.095
+    range: [0.08, 0.16]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q2 (측정) 바퀴 두께 9.5 cm
+    note: '사양 반영: Q2 측정'
+  rear_axle_x_in_base_m:
+    value: -0.3285
+    range: [-0.5, -0.25]
+    unit: m
+    provenance: DEFINITION
+    identify: [B1]
+    stale_after_mod: false
+    note: 'base(발자국 중심)에서 뒤차축 중심까지 x | 사양 반영: Q2 규약'
+    source: 'Q2 (규약) SIM 규약: base 원점 = 발자국 가운데, 두 차축이 원점에 대칭(실측 아님). 뒤차축 x = -휠베이스 / 2'
+  footprint_length_m:
+    value: 1.22
+    range: [1.0, 1.5]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: true
+    note: '절단 전 제품 표기. 조향 장치 돌출을 포함해 실측으로 바꾼다. (새 자리값) 범위는 임시로 정했다(설계: 실측으로 교체)'
+  footprint_width_m:
+    value: 0.7
+    range: [0.6, 0.85]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: true
+    note: '절단 전 제품 표기. (새 자리값) 범위는 임시로 정했다(설계: 실측으로 교체)'
+  front_bumper_x_in_base_m:
+    value: 0.61
+    range: [0.5, 0.75]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: true
+    note: 값은 절단 전 표기. 정지 위치 e(앞범퍼 s - s_E)의 정의는 사전등록 정의다
+  ground_clearance_m:
+    value: 0.1
+    range: [0.05, 0.2]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+  steer_type:
+    value: linkage
+    range:
+      choices: [linkage, axle_pivot]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [photo, design, Q10]
+    stale_after_mod: false
+  caster_deg:
+    value: 0.0
+    range: [0.0, 10.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+  kingpin_inclination_deg:
+    value: 0.0
+    range: [0.0, 12.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+  scrub_radius_m:
+    range: [-0.09, 0.13]
+    unit: m
+    provenance: DERIVED
+    derived_from: [track_front_m, kingpin_width_m, kingpin_inclination_deg, wheel_radius_front_m]
+    identify: [B1]
+    note: (윤거 - 킹핀 폭)/2 - 바퀴 반경 x tan(킹핀 경사). linkage 형식에서만 뜻이 있다. 자리값에서 0.05. 범위는 입력 범위 전체가 주는 -0.084~0.125를 덮는다(설계 표 0~0.10은
+      킹핀 폭 0.58~0.60 m를 막아서 넓혔다. 음수는 킹핀 축이 바퀴 중심보다 바깥)
+  steer_hardware_margin_m:
+    value: 0.02
+    range: [0.0, 0.1]
+    unit: m
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+    note: '브래킷 등 미지 돌출(설계 3.2: 스윕 + 이 값). 앞바퀴가 차체 반폭 밖으로 나온 만큼(이 값까지) 바퀴 바깥쪽으로만 더한다. 직진처럼 바퀴가 차체 안이면 0이라 발자국은 차체와 같다(설계 7.1)'
+  steer_sweep_m:
+    unit: m
+    provenance: DERIVED
+    derived_from: [wheel_radius_front_m, wheel_width_m, kingpin_width_m, track_front_m, steer_mech_limit_deg, footprint_width_m,
+      steer_type]
+    identify: [B1]
+    note: 바퀴가 기계 한계에 있을 때 앞바퀴 모서리가 차체 반폭 밖으로 나오는 거리(브래킷 여유 제외). 자리값 28도에서 약 0.043
+  mass_kg:
+    value: 24.0
+    range: [20.0, 60.0]
+    unit: kg
+    provenance: SIM_ASSUMED
+    identify: [B1]
+    stale_after_mod: false
+    note: 차체 질량(바퀴 제외). 축별 체중계로 잰다
+  cog_x_in_base_m:
+    value: 0.0
+    range: [-0.2, 0.2]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [B1]
+    stale_after_mod: false
+  cog_z_m:
+    value: 0.32
+    range: [0.2, 0.45]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [B1]
+    stale_after_mod: false
+  wheel_mass_kg:
+    value: 1.5
+    range: [1.0, 3.0]
+    unit: kg
+    provenance: SIM_ASSUMED
+    identify: [part]
+    stale_after_mod: false
+  wheel_inertia_kgm2:
+    unit: kg*m^2
+    provenance: DERIVED
+    derived_from: [wheel_mass_kg, wheel_radius_front_m, wheel_radius_rear_m, drive_wheels]
+    identify: [part]
+    note: 속이 찬 원판 가정 J = m r^2 / 2. r은 구동 바퀴 반경(front2면 앞바퀴, 아니면 뒷바퀴. G-SIM DC 직선과 같은 바퀴). G-SIM 안정 조건용. 자리값에서 0.0147
+  steer_link_mass_kg:
+    value: 0.5
+    range: [0.3, 2.0]
+    unit: kg
+    provenance: SIM_NUMERIC
+    identify: [none]
+    stale_after_mod: false
+    note: 수치 안정용. 설계는 0.3 이상. (새 자리값) 상한 2.0은 임시로 정했다
+  gz_body_box_m:
+    value: [1.1, 0.54, 0.24]
+    range: [0.1, 1.5]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [none]
+    stale_after_mod: false
+    note: G-SIM 차체 상자 길이, 폭, 높이
+  gz_physics_hz:
+    value: 120
+    range: [120, 120]
+    unit: Hz
+    provenance: SIM_NUMERIC
+    identify: [none]
+    stale_after_mod: false
+    note: G-SIM 물리 주기(dt 1/120 s)
+  gz_drive_mode:
+    value: force_dc
+    range:
+      choices: [force_dc, kinematic_velocity]
+    unit: '-'
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: 기본은 바퀴별 DC 모터 직선(힘 모드). 기하 검사는 바퀴별 기구학 속도 모드
+  gz_steer_joint_cmd_max_rad_s:
+    value: 5.0
+    range: [3.0, 8.0]
+    unit: rad/s
+    provenance: SIM_NUMERIC
+    identify: [none]
+    stale_after_mod: false
+    note: 조향 관절 JointPositionController 속도 모드 cmd_max(5 rad/s 근처). (새 자리값) 범위 3~8은 임시
+  steer_ackermann_ratio:
+    value: 0.5
+    range: [0.0, 1.0]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [B3]
+    stale_after_mod: false
+    note: 0 평행, 1 이상 Ackermann
+  steer_mech_limit_deg:
+    value: {left_wheel_toward_left: 20.0, left_wheel_toward_right: 20.0, right_wheel_toward_left: 20.0, right_wheel_toward_right: 20.0}
+    range: [20.0, 35.0]
+    unit: deg
+    provenance: MEASURED_20261116
+    identify: [B2, B3]
+    stale_after_mod: false
+    note: '바퀴별·방향별 기계 한계(바퀴 각). Gazebo 관절 limit와 공유 모델이 같은 값을 쓴다 | 사양 반영: Q2 측정'
+    source: Q2 (측정) 조향이 좌우 최대 약 20 도까지 돌고 그 이상 안 간다(사용자 확인). 어느 바퀴·등가각인지 구별이 없어 네 방향 모두 바퀴각 20 도로 둔다
+  steer_soft_margin_deg:
+    value: 3.0
+    range: [2.0, 5.0]
+    unit: deg
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: 바퀴별 소프트 한계 = 기계 한계 - 이 값
+  steer_soft_limit_eq_left_deg:
+    unit: deg
+    provenance: DERIVED
+    derived_from: [steer_mech_limit_deg, steer_soft_margin_deg, steer_ackermann_ratio, wheelbase_m, kingpin_width_m, steer_type]
+    identify: [B2]
+    note: 두 바퀴가 모두 소프트 한계 안에 드는 가장 큰 왼쪽 등가각. 호스트 API 한계. 자리값에서 약 23.46
+  steer_soft_limit_eq_right_deg:
+    unit: deg
+    provenance: DERIVED
+    derived_from: [steer_mech_limit_deg, steer_soft_margin_deg, steer_ackermann_ratio, wheelbase_m, kingpin_width_m, steer_type]
+    identify: [B2]
+    note: 오른쪽 등가각 소프트 한계(크기). 자리값에서 약 23.46
+  steer_rate_max_deg_s:
+    value: 100.0
+    range: [10.0, 100.0]
+    unit: deg/s
+    provenance: ESTIMATED
+    identify: [B5, F4]
+    stale_after_mod: false
+    note: '주행 중 조향 속도 상한(등가각). steer_rate_standstill_deg_s 이상이어야 한다(읽기에서 검사). 15 아래로 스윕할 때는 정지 중 값도 함께 낮춘다 | 사양 반영: Q11 추정'
+    source: Q11 (추정) PWM 100(39 %) 80 ms 펄스 한 번에 2.5~3.6 명령도(보드 시험 verification_quiet_full.log, 서 있는 차)를 내도록 L1 식 w = rate
+      (u - min) / (1 - min) 에 맞춘 값. 100 % 에서의 속도는 재지 않았다. 서 있을 때 잰 값이라 주행 중 값도 같게 둔다
+  steer_rate_standstill_deg_s:
+    value: 100.0
+    range: [5.0, 100.0]
+    unit: deg/s
+    provenance: ESTIMATED
+    identify: [B5, F5]
+    stale_after_mod: false
+    note: '차가 서 있을 때 조향 속도 상한. 주행 중 값 이하 | 사양 반영: Q11 추정'
+    source: Q11 (추정) steer_rate_max_deg_s 와 같은 맞춤(시험이 서 있는 차에서였다)
+  steer_motor_tau_s:
+    value: 0.02
+    range: [0.02, 0.3]
+    unit: s
+    provenance: ESTIMATED
+    identify: [B5]
+    stale_after_mod: false
+    note: '조향 모터 속도 1차 지연 | 사양 반영: Q11 추정'
+    source: 'Q11 (추정) measurement_serial.log 의 PWM 100 700 ms 펄스: 출력을 끄자 10 ms 안에 멈춘다(관성 주행이 거의 없음). 1차 지연을 짧게 둔 맞춤 값'
+  steer_min_pwm_pct:
+    value: 10.0
+    range: [10.0, 50.0]
+    unit: '%'
+    provenance: SIM_ASSUMED
+    identify: [B4]
+    stale_after_mod: false
+    note: '주행 중 조향 모터가 움직이기 시작하는 PWM(이 값을 넘어야 움직인다). steer_min_pwm_standstill_pct 이하여야 한다(읽기에서 검사). 35 위로 스윕할 때는 정지 중 값도 함께
+      올린다 | 사양 반영: Q11 자리값'
+    source: Q11 (자리값) 움직이기 시작하는 PWM 은 재지 않았다(PWM 100 은 움직인다). 맞춤에 쓴 가정
+  steer_min_pwm_standstill_pct:
+    value: 10.0
+    range: [10.0, 60.0]
+    unit: '%'
+    provenance: SIM_ASSUMED
+    identify: [B4, F5]
+    stale_after_mod: false
+    note: '설계 3.3 L1의 ''정지 중 최소 PWM 증가'' 자리값. (새 자리값) 설계 표에 숫자가 없어 새로 둔 값. 주행 중 값 이상 | 사양 반영: Q11 자리값'
+    source: Q11 (자리값) 주행 중 값과 같게 둔 가정(시험이 서 있는 차에서였고 주행 중 값은 모른다)
+  steer_backlash_deg:
+    value: 2.0
+    range: [0.0, 6.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B6]
+    stale_after_mod: false
+    note: 모터 쪽 각과 링크 쪽 각 사이 전체 놀이 폭. 원래 링크를 다시 쓰면 클 수 있다(Q10)
+  steer_zero_offset_deg:
+    value: {dist: normal, mean: 0.0, sd: 0.7}
+    range: [-2.0, 2.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [F1]
+    stale_after_mod: false
+    note: run마다 뽑는다(범위로 자른 정규분포). 링크 0일 때 바퀴 쪽 등가각의 기계 정렬 오차
+  steer_lr_asymmetry:
+    value: 0.0
+    range: [-0.1, 0.1]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [B3]
+    stale_after_mod: false
+    note: 왼쪽 조향 이득 1 + a, 오른쪽 1 - a
+  steer_backlash_wander:
+    value: {sd_deg: 0.3, corr_length_m: 5.0}
+    range:
+      sd_deg: [0.0, 1.0]
+      corr_length_m: [5.0, 5.0]
+    unit: deg; m
+    provenance: SIM_ASSUMED
+    identify: [F1, F6]
+    stale_after_mod: false
+    note: 주행 중 백래시 안에서 링크 쪽 각의 떠돎(OU, 거리 기준)
+  steer_self_locking:
+    value: false
+    range:
+      choices: [false, true]
+    unit: '-'
+    provenance: ESTIMATED
+    identify: [part, B8, Q11]
+    stale_after_mod: false
+    note: 'F-SIM 기본 false(watchdog·전원 끊김 때 더 나쁜 쪽). G-SIM은 자기 잠금 가정 | 사양 반영: Q11 추정'
+    source: Q11 (추정) 보드 시험에서 출력을 끈 뒤 되튐(rebound 12~26 count)이 보여 손으로 되밀리는 비자기잠금으로 본다(REBOUND_CALIBRATION.md)
+  steer_release_restoring:
+    value: {scale: 1.0, centering_per_s_per_m_s: 1.0, noise_sd_deg: 0.3, noise_corr_length_m: 1.0}
+    range:
+      scale: [0.0, 2.0]
+      centering_per_s_per_m_s: [1.0, 1.0]
+      noise_sd_deg: [0.3, 0.3]
+      noise_corr_length_m: [1.0, 1.0]
+    unit: -; 1/(s*m/s); deg; m
+    provenance: SIM_ASSUMED
+    identify: [B8]
+    stale_after_mod: false
+    note: 비자기잠금이고 조향 출력이 없을 때만(F-SIM 전용). 주행 중 바퀴가 곧은 링크 각 쪽으로 복원 d(theta_l)/dt = -scale*c*|v|*(theta_l - theta_s) + OU 잡음.
+      (새 자리값) 설계에는 '자리값 + OU 잡음, 0~2배'만 있어 c 1.0, 잡음 0.3 deg, 상관 1 m는 임시(B8로 잰다)
+  steer_link_table:
+    value:
+    - [-40.0, -40.0]
+    - [40.0, 40.0]
+    range: [-90.0, 90.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B3]
+    stale_after_mod: false
+    note: 가변저항 쪽 각(조향 등가각 눈금) -> 바퀴 쪽 등가각. 조각 선형, 기본 직선
+  steer_gear_ratio:
+    value: null
+    range: null
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [part, Q11]
+    stale_after_mod: false
+    note: 미정. L1 모델에서는 쓰지 않는다
+  steer_motor_stall_torque_nm:
+    value: 5.0
+    range: [2.0, 15.0]
+    unit: N*m
+    provenance: SPEC_PENDING
+    identify: [part, B5]
+    stale_after_mod: false
+    note: '조향축 기준 정지 토크(L1b). v0.2부터 외란 모형이 쓴다: 외력 토크 / 이 값 = 등가 duty(STEER_EXT_MODEL_KO.md)'
+  steer_load_moving_nm:
+    value: 0.5
+    range: [0.2, 2.0]
+    unit: N*m
+    provenance: SIM_ASSUMED
+    identify: [B5, F5]
+    stale_after_mod: false
+    note: 주행 중 조향 부하 토크(L1b)
+  steer_load_standstill_nm:
+    value: 3.0
+    range: [1.0, 10.0]
+    unit: N*m
+    provenance: SIM_ASSUMED
+    identify: [B5, F5]
+    stale_after_mod: false
+    note: 정지 중 조향 부하 토크(L1b)
+  steer_motor_stall_current_a:
+    value: null
+    range: null
+    unit: A
+    provenance: SPEC_PENDING
+    identify: [part, Q11]
+    stale_after_mod: false
+    note: 미정. THERMAL 판정 근거용 정보
+  steer_actuator_level:
+    value: L1
+    range:
+      choices: [L0, L1, L1b]
+    unit: '-'
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: 설계 3.3 모델 수준. 기본 L1
+  imu_vibration_steer_m_s2:
+    value: 0.0
+    range: [0.0, 0.5]
+    unit: m/s^2
+    provenance: SIM_ASSUMED
+    identify: [F4]
+    stale_after_mod: false
+    note: 조향 PWM 100 %일 때 IMU 진동. 조향 PWM에 비례
+  steer_loop_location:
+    value: esp
+    range:
+      choices: [esp, host]
+    unit: '-'
+    provenance: CONFIG
+    identify: [Q4]
+    stale_after_mod: false
+  sim_mcu_tick_hz:
+    value: 1000
+    range:
+      choices: [1000, 2000]
+    unit: Hz
+    provenance: SIM_NUMERIC
+    identify: [none]
+    stale_after_mod: false
+    note: SIM의 MCU 틱(1 ms). lockstep 시작 줄의 mcu_tick_hz 기본값. (새 자리값) 선택지 1000/2000은 설계 표에 없다
+  servo_hz:
+    value: 500
+    range:
+      choices: [500, 1000]
+    unit: Hz
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+    note: 설계 D표 500~1000 가운데 sim_mcu_tick_hz(1000, 2000)를 나누는 값만 쓸 수 있어 선택지로 적었다
+  servo_kp_pct_per_deg:
+    value: 15.0
+    range: [5.0, 40.0]
+    unit: '%/deg'
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+  servo_deadband_deg:
+    value: 0.5
+    range: [0.2, 1.5]
+    unit: deg
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+  servo_min_pwm_pct:
+    value: 45.0
+    range: [10.0, 50.0]
+    unit: '%'
+    provenance: FIRMWARE
+    identify: [B4]
+    stale_after_mod: false
+    note: '설계 3.3 서보의 최소 PWM. v0.1 40 -> v0.2 45: 정지 중 시작 PWM 35 %와 10 %p 간격(결정 R18 결정 2: B4 시작 PWM + 5 %p 이상, 여유 포함). 정지
+      중 서보 최소 출력의 조향 속도가 15 x (0.45 - 0.35) / 0.65 = 2.3 deg/s로 v0.1(1.15)의 두 배다. 시작 PWM 이하이면 warnings()에 servo_min_pwm_cannot_start_the_motor가
+      남는다'
+  servo_max_pwm_pct:
+    value: 100.0
+    range: [50.0, 100.0]
+    unit: '%'
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+    note: 설계 3.3 서보의 최대 PWM. (새 자리값) D표에 숫자가 없어 새로 둔 값
+  servo_dwell_brake_s:
+    value: 0.2
+    range: [0.1, 0.5]
+    unit: s
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+  servo_reversal_pause_ms:
+    value: 20.0
+    range: [0.0, 120.0]
+    unit: ms
+    provenance: FIRMWARE
+    identify: [B5]
+    stale_after_mod: false
+  c_ttl_max_ms:
+    value: 300.0
+    range: [150.0, 500.0]
+    unit: ms
+    provenance: FIRMWARE
+    identify: [B9]
+    stale_after_mod: false
+  c_resend_hz:
+    value: 20.0
+    range: [10.0, 50.0]
+    unit: Hz
+    provenance: CONFIG
+    identify: [B9]
+    stale_after_mod: false
+    note: 브리지가 현재 명령을 다시 보내는 주기
+  ttl_expiry_drive_mode:
+    value: brake
+    range:
+      choices: [brake, release]
+    unit: '-'
+    provenance: CONFIG
+    identify: [sim_compare]
+    stale_after_mod: false
+  watchdog_ms:
+    value: 500.0
+    range: [300.0, 2000.0]
+    unit: ms
+    provenance: FIRMWARE
+    identify: [B9]
+    stale_after_mod: false
+    note: 링크 watchdog. V2는 2000. B9 뒤 결정
+  steer_watchdog_mode:
+    value: hold
+    range:
+      choices: [hold, center, free]
+    unit: '-'
+    provenance: CONFIG
+    identify: [B8, Q6]
+    stale_after_mod: false
+  steer_hold_after_loss_s:
+    value: 2.0
+    range: [1.0, 5.0]
+    unit: s
+    provenance: FIRMWARE
+    identify: [B8]
+    stale_after_mod: false
+  steer_hold_after_stop_s:
+    value: 2.0
+    range: [1.0, 5.0]
+    unit: s
+    provenance: FIRMWARE
+    identify: [B8]
+    stale_after_mod: false
+  steer_hold_after_disarm_s:
+    value: 2.0
+    range: [1.0, 5.0]
+    unit: s
+    provenance: FIRMWARE
+    identify: [B8]
+    stale_after_mod: false
+  stop_policy_steer:
+    value: hold_measured
+    range:
+      choices: [hold_measured, hold_target, center]
+    unit: '-'
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: STOP 때 조향 정책(SIM 비교)
+  stop_confirm_periods:
+    value: 2
+    range: [1, 4]
+    unit: status periods
+    provenance: CONFIG
+    identify: [B8]
+    stale_after_mod: false
+  stop_resend_interval_ms:
+    value: 50.0
+    range: [20.0, 100.0]
+    unit: ms
+    provenance: CONFIG
+    identify: [B8]
+    stale_after_mod: false
+  stop_resend_max:
+    value: 5
+    range: [3, 10]
+    unit: times
+    provenance: CONFIG
+    identify: [B8]
+    stale_after_mod: false
+  status_hz:
+    value: 20
+    range: [10, 50]
+    unit: Hz
+    provenance: FIRMWARE
+    identify: [B9]
+    stale_after_mod: false
+  status_latency_s:
+    value: 0.03
+    range: [0.01, 0.1]
+    unit: s
+    provenance: FIRMWARE
+    identify: [B9]
+    stale_after_mod: false
+  serial_delay_ms:
+    value: 5.0
+    range: [2.0, 20.0]
+    unit: ms
+    provenance: SIM_ASSUMED
+    identify: [B9]
+    stale_after_mod: false
+  baud:
+    value: 115200
+    range:
+      choices: [115200, 230400]
+    unit: baud
+    provenance: FIRMWARE
+    identify: [B9]
+    stale_after_mod: false
+  pot_valid_raw:
+    value: {min_raw: 20, max_raw: 1003}
+    range: [0, 1023]
+    unit: count
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: 거른 raw가 이 범위 밖이면 POT_OPEN(아래) / POT_SHORT(위)
+  cal_end_raw_window:
+    value: {min_raw: 60, max_raw: 963}
+    range: [0, 1023]
+    unit: count
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B2]
+    stale_after_mod: false
+    note: 보정 저장 때 끝점이 이 안에 있어야 한다
+  pot_jump_counts:
+    value: {counts: 8, window_ms: 2.0}
+    range:
+      counts: [8, 8]
+      window_ms: [2.0, 2.0]
+    unit: count; ms
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: 거른 값이 window 안에 counts 넘게 변하면 POT_JUMP
+  pot_noise_counts:
+    value: {sd_counts: 5.0, window_ms: 50.0}
+    range:
+      sd_counts: [5.0, 5.0]
+      window_ms: [50.0, 50.0]
+    unit: count; ms
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B7, B8]
+    stale_after_mod: false
+    note: 창 안 표준편차가 sd_counts를 넘으면 POT_NOISE
+  polarity_fault:
+    value: {away_deg: 2.0, duration_s: 0.2}
+    range:
+      away_deg: [1.0, 4.0]
+      duration_s: [0.1, 0.5]
+    unit: deg; s
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B0, B8]
+    stale_after_mod: false
+    note: '|PWM| >= servo_min_pwm_pct인데 위치가 cmd에서 멀어지는 쪽으로 away_deg 넘게 duration 동안 움직이면 POLARITY. v0.1 1 deg/0.1 s는 정지 중 기어감과
+      거른 값 +-2 count 흔들림으로 오탐이 났다(결정 R18 결정 2). v0.2 2 deg/0.2 s(10 deg/s보다 빨리 멀어져야 걸린다). 반대 극성은 오차가 커지며 서보 출력이 올라가 이 속도를
+      넘는다. 실측 잡음으로 다시 정한다(P9)'
+  stall_detect:
+    value: {pwm_pct: 60.0, duration_s: 0.5, min_motion_deg: 0.5}
+    range:
+      pwm_pct: [60.0, 60.0]
+      duration_s: [0.5, 0.5]
+      min_motion_deg: [0.5, 0.5]
+    unit: '%; s; deg'
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: PWM >= pwm_pct인데 duration 동안 위치 변화 < min_motion이면 STALL
+  track_fault:
+    value: {error_deg: 3.0, duration_s: 1.0}
+    range:
+      error_deg: [3.0, 3.0]
+      duration_s: [1.0, 1.0]
+    unit: deg; s
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: 내부 목표와 위치 차가 error_deg 초과로 duration 지속이면 TRACK
+  driver_stuck_fault:
+    value: {motion_deg: 3.0, duration_s: 0.3}
+    range:
+      motion_deg: [2.0, 5.0]
+      duration_s: [0.3, 0.6]
+    unit: deg; s
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: '조향 PWM 0인데 duration 동안 한 방향으로 motion_deg 넘게 움직이면 DRV_STUCK. v0.1 2 deg는 주행 중 비자기잠금 바퀴가 가운데로 돌아올 때 오판이 났다(결정 R18
+      결정 3: 0.4 m/s, 조향 15 deg에서 복원 약 6 deg/s). v0.2 3 deg(0.3 s에 10 deg/s 넘게). 문턱 분리·움직이는 중 판정은 P9 펌웨어 후보 그대로'
+  thermal_proxy:
+    value: {pwm_pct: 80.0, window_s: 30.0, accumulated_s: 10.0}
+    range:
+      pwm_pct: [80.0, 80.0]
+      window_s: [30.0, 30.0]
+      accumulated_s: [5.0, 20.0]
+    unit: '%; s; s'
+    provenance: SIM_ASSUMED
+    where: mcu
+    identify: [B8]
+    stale_after_mod: false
+    note: window 안에서 |PWM| >= pwm_pct 누적이 accumulated_s를 넘으면 THERMAL. v0.1 5 s는 정지 중 전폭 쓸기를 두 번만 허용했다(결정 R18 결정 3, T1_RIG_KO.md).
+      v0.2 10 s(30 s 중 1/3). 모터 정격(Q11, 정지 전류)이 오면 다시 정한다
+  crc_burst_n:
+    value: 5
+    range: [5, 5]
+    unit: lines
+    provenance: FIRMWARE
+    where: mcu
+    identify: [B9]
+    stale_after_mod: false
+    note: CRC 틀린 줄이 연속 n개면 CRC
+  host_status_gap_ms:
+    value: 150.0
+    range: [150.0, 150.0]
+    unit: ms
+    provenance: CONFIG
+    where: host
+    identify: [B9]
+    stale_after_mod: false
+    note: 상태 줄 끊김(20 Hz의 3주기)
+  host_seq_gap:
+    value: {missing: 5, window_s: 1.0}
+    range:
+      missing: [5, 5]
+      window_s: [1.0, 1.0]
+    unit: lines; s
+    provenance: CONFIG
+    where: host
+    identify: [B9]
+    stale_after_mod: false
+    note: window 안에 상태 번호 n이 missing개 넘게 빠지면 결함
+  host_track_mismatch:
+    value: {error_deg: 3.0, duration_s: 3.0}
+    range:
+      error_deg: [3.0, 3.0]
+      duration_s: [1.5, 5.0]
+    unit: deg; s
+    provenance: CONFIG
+    where: host
+    identify: [B8]
+    stale_after_mod: false
+    note: 요청각과 측정각 차가 error_deg 초과로 duration 지속. v0.1 1.5 s는 정지 중 느린 조향(서보 최소 출력 근처)과 반전 때 백래시 통과에 걸렸다(결정 R18 결정 3). v0.2
+      3.0 s. v0.3(개정 43)부터 호스트는 MCU 서보 램프가 목표에 닿은 상태 줄만 센다(램프 중 뒤처짐은 MCU TRACK이 본다)
+  steering_ineffective:
+    value: {min_speed_m_s: 0.2, min_steer_deg: 3.0, rate_error_deg_s: 3.0, rate_error_frac: 0.5, duration_s: 1.5}
+    range:
+      min_speed_m_s: [0.2, 0.2]
+      min_steer_deg: [3.0, 3.0]
+      rate_error_deg_s: [3.0, 3.0]
+      rate_error_frac: [0.5, 0.5]
+      duration_s: [1.5, 1.5]
+    unit: m/s; deg; deg/s; -; s
+    provenance: CONFIG
+    where: host
+    identify: [F2]
+    stale_after_mod: false
+    note: v > min_speed, |delta| > min_steer에서 |r_gyro - v tan(delta_pot)/L| > max(rate_error_deg_s, rate_error_frac x 예측)가
+      duration 지속
+  steering_authority_insufficient:
+    value: {limit_fraction: 0.95, duration_s: 1.5}
+    range:
+      limit_fraction: [0.95, 0.95]
+      duration_s: [1.5, 1.5]
+    unit: -; s
+    provenance: CONFIG
+    where: executor
+    identify: [none]
+    stale_after_mod: false
+    note: 등가 소프트 한계의 limit_fraction 이상에 duration 넘게 머물고 횡오차가 줄지 않음. PREREG_STEER에서 확정
+  pot_location:
+    value: motor
+    range:
+      choices: [motor, wheel]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [design]
+    stale_after_mod: false
+    note: 'motor: 백래시 앞(모터 쪽) 각을 잰다. wheel: 백래시 뒤 링크 쪽 각을 잰다'
+  pot_range_deg:
+    value: 270.0
+    range: [240.0, 340.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [part]
+    stale_after_mod: false
+    note: 단회전 가변저항의 전기 회전 범위
+  pot_to_steer_ratio:
+    value: 1.0
+    range: [0.5, 5.0]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [design, Q22, Q24]
+    stale_after_mod: false
+    note: 벨트 비 = 가변저항 축 각 / 조향 각(풀리 비, Q22·Q24). v0.2부터 1 미만도 받는다(설계 v2 V2-6.5). 읽을 때 끝 멈춤의 raw가 cal_end_raw_window 안인지(pot_range_exceeded),
+      보정 표지가 가운데에서 50 count 이상인지(pot_cal_half_width_small) 검사한다
+  pot_center_raw:
+    value: 512
+    range: [400, 624]
+    unit: count
+    provenance: SPEC_PENDING
+    identify: [B2]
+    stale_after_mod: false
+    note: 직진(측정 지점 각 0)일 때 이상 raw. (새 자리값) 설계 표에 없어 새로 둔 자리값
+  adc_bits:
+    value: 10
+    range: [10, 10]
+    unit: bit
+    provenance: GENERIC_SPEC
+    identify: [none]
+    stale_after_mod: false
+    note: ESP8266 A0
+  adc_ratiometric:
+    value: false
+    range:
+      choices: [false, true]
+    unit: '-'
+    provenance: GENERIC_SPEC
+    identify: [B7, Q16]
+    stale_after_mod: false
+    note: 내부 기준 전압으로 재므로 비례 측정이 아니다[추정, 확인 필요]
+  pot_supply_sag_per_pwm:
+    value: 0.005
+    range: [0.0, 0.02]
+    unit: 1/(PWM fraction)
+    provenance: SIM_ASSUMED
+    identify: [B7]
+    stale_after_mod: false
+    note: 조향·구동 PWM 100 %당 급전 0.5 % 처짐
+  pot_lsb_deg:
+    range: [0.04, 0.5]
+    unit: deg
+    provenance: DERIVED
+    derived_from: [pot_range_deg, adc_bits, pot_to_steer_ratio]
+    identify: [B3]
+    note: 가변저항 범위 / 2^bit / 비. 자리값에서 약 0.264. 범위는 입력 범위 전체가 주는 0.047~0.332를 덮는다(설계 표 0.05~0.5는 240도·비 5를 막아서 넓혔다)
+  pot_noise_sd_counts:
+    value: 1.0
+    range: [1.0, 3.0]
+    unit: count
+    provenance: SPEC_PENDING
+    identify: [B7]
+    stale_after_mod: false
+  pot_linearity_pct:
+    value: 0.0
+    range: [-2.0, 2.0]
+    unit: '%'
+    provenance: SPEC_PENDING
+    identify: [B3]
+    stale_after_mod: false
+    note: '전 범위에 사인 한 주기(규약 7절). 조향 범위(약 +-106 count)에서는 굽음보다 국소 이득 변화로 크게 나타난다: 중앙 기울기 x (1 + 2 pi x 값/100), 2 %면 약 1.126배.
+      pot_gain_error와 섞인 항으로 해석한다. 보정(B2, B3)이 이 이득을 흡수한다'
+  pot_gain_error:
+    value: 0.0
+    range: [-0.05, 0.05]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [B3]
+    stale_after_mod: false
+  pot_cal_residual_deg:
+    value: {dist: normal, mean: 0.0, sd: 0.5}
+    range: [-1.5, 1.5]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [F1]
+    stale_after_mod: false
+    note: run마다 뽑는다(범위로 자른 정규분포). 직진 보정 잔차. firmware 모드에서 쓴다
+  pot_drift_deg_per_h:
+    value: 0.0
+    range: [0.0, 2.0]
+    unit: deg/h
+    provenance: SIM_ASSUMED
+    identify: [B7]
+    stale_after_mod: false
+  pot_filter:
+    value: {sample_hz: 1000, median_of: 5}
+    range:
+      sample_hz: [1000, 2000]
+      median_of: [3, 9]
+    unit: Hz; samples
+    provenance: FIRMWARE
+    identify: [B7]
+    stale_after_mod: false
+    note: 1~2 kHz로 읽고 중앙값을 쓴다
+  pot_fault_injections:
+    value: [open, short, stuck, noise_x10, jump, slip, drift, reversed]
+    range:
+      choices: [open, short, stuck, noise_x10, jump, slip, drift, reversed]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [B8]
+    stale_after_mod: false
+    note: SIM 고장 주입 종류(단선, 단락, 멈춤, 잡음 10배, 급변, 축 미끄럼, 서서히 표류, 방향 반대)
+  drive_wheels:
+    value: 4wd_lr_pairs
+    range:
+      choices: [4wd_lr_pairs, rear2, front2]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [wiring, Q3]
+    stale_after_mod: false
+    note: '지금 배선: 4륜, 한쪽 앞뒤 모터가 한 드라이버'
+  drive_lr_mode:
+    value: equal_duty
+    range:
+      choices: [equal_duty, electronic_diff]
+    unit: '-'
+    provenance: CONFIG
+    identify: [F2]
+    stale_after_mod: false
+    note: 좌·우 같은 duty(기본). 전자식 차동은 기본 OFF
+  forward_curve:
+    value: {main: P_fit1003, bracket: field1010}
+    range:
+      main:
+        choices: [P_fit1003, field1010]
+      bracket:
+        choices: [P_fit1003, field1010]
+    unit: '-'
+    provenance: DEFINITION
+    source: '단일열 사전등록 PREREG plants: P_fit1003 primary, field1010 slow low-duty bracket'
+    identify: [F3]
+    stale_after_mod: true
+    note: 곡선 역할. 두 곡선 모두 옛 구동계 값이다
+  drive_curve_P_fit1003:
+    value:
+      speed_at_90_m_s: 0.8
+      speed_at_100_m_s: 0.9
+      deadband_pct: 5.0
+      fit_points_pct_m_s:
+      - [40.0, 0.33]
+      - [55.0, 0.47]
+      - [70.0, 0.61]
+      - [88.0, 0.78]
+    range:
+      speed_at_90_m_s: [0.8, 0.8]
+      speed_at_100_m_s: [0.9, 0.9]
+      deadband_pct: [5.0, 5.0]
+      fit_points_pct_m_s: [0.0, 100.0]
+    unit: m/s; %
+    provenance: ESTIMATED
+    source: '10/3 맞춤: sim_in_loop.P_FIT1003(speed_at_90_m_s 0.80, forward_deadband_pct 5) + field_response 기본 speed_at_100_m_s
+      0.90. 40/55/70/88 % -> 0.33/0.47/0.61/0.78 m/s'
+    identify: [F3]
+    stale_after_mod: true
+  drive_curve_field1010_measured:
+    value: {speed_at_90_m_s: 0.72, speed_at_100_m_s: 0.9}
+    range:
+      speed_at_90_m_s: [0.72, 0.72]
+      speed_at_100_m_s: [0.9, 0.9]
+    unit: m/s
+    provenance: MEASURED_20261010_OLD_DRIVETRAIN
+    source: field_response.py speed_at_90_m_s / speed_at_100_m_s(10/10 수동 주행 LiDAR)
+    identify: [F3]
+    stale_after_mod: true
+  drive_curve_field1010_deadband_pct:
+    value: 50.0
+    range: [50.0, 50.0]
+    unit: '%'
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: true
+    note: field_response.py forward_deadband_pct. 90 % 아래는 측정이 없다
+  reverse_curve:
+    value: 0.8
+    range: [0.5, 1.0]
+    unit: x forward
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: false
+    note: 후진 정상 속도 = 전진 곡선 x 이 값(수동 조종 S키). 실행기는 후진하지 않는다
+  mcu_ramp:
+    value: {pwm_per_s: 255, reversal_dwell_ms: 120.0}
+    range:
+      pwm_per_s: [255, 255]
+      reversal_dwell_ms: [120.0, 120.0]
+    unit: PWM/s; ms
+    provenance: FIRMWARE
+    source: wheel_pwm.ino(255 PWM/s = 100 %/s, BREAK_MS 120). 10/10 MCU 보고 기울기 p50 249/s(옛 구동계 측정)
+    identify: [none]
+    stale_after_mod: true
+  stop_release:
+    value: {onset_s: 0.25, decel_median_m_s2: 1.3, decel_log_sd: 0.15}
+    range:
+      onset_s: [0.25, 0.25]
+      decel_median_m_s2: [1.3, 1.3]
+      decel_log_sd: [0.15, 0.15]
+    unit: s; m/s^2; -
+    provenance: MEASURED_20261010_OLD_DRIVETRAIN
+    source: field_response.py coast_onset_s / coast_decel_median_m_s2 / coast_decel_log_sd. 0.90~0.95 m/s에서 놓은 뒤 0.56~0.60
+      m(n = 3)
+    identify: [F3]
+    stale_after_mod: true
+    note: 키 놓기·DISARM. EN 켬, MCU 램프로 duty 감소. 감속은 정지마다 로그정규로 뽑는다
+  stop_brake:
+    value: {onset_s: 0.1, decel_median_m_s2: 2.0, decel_log_sd: 0.0}
+    range:
+      onset_s: [0.1, 0.1]
+      decel_median_m_s2: [1.3, 4.0]
+      decel_log_sd: [0.0, 0.0]
+    unit: s; m/s^2; -
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: false
+    note: STOP·watchdog·결함. EN 켬, duty 즉시 0. 물리 제동은 측정된 적 없다. (새 자리값) 정지별 퍼짐 값이 설계에 없어 0
+  stop_coast:
+    value: {onset_s: 0.05, decel_median_m_s2: 0.6, decel_log_sd: 0.0}
+    range:
+      onset_s: [0.05, 0.05]
+      decel_median_m_s2: [0.3, 1.3]
+      decel_log_sd: [0.0, 0.0]
+    unit: s; m/s^2; -
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: false
+    note: EN 끔(MCU 리셋·부팅, 전원 차단). 관성 주행. (새 자리값) 정지별 퍼짐 값이 설계에 없어 0
+  steering_efficiency:
+    value: {dist: uniform, low: 0.85, high: 1.0}
+    range: [0.6, 1.0]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [F2]
+    stale_after_mod: false
+    note: run마다 U(0.85, 1.0). 이상값 1은 A1·A12 기하 검사에만
+  scrub_speed_loss_per_deg:
+    value: {dist: uniform, low: 0.0, high: 0.006}
+    range: [0.0, 0.01]
+    unit: 1/deg
+    provenance: SIM_ASSUMED
+    identify: [F2]
+    stale_after_mod: false
+    note: run마다 U(0, 0.006). 조향 중 끌림 속도 손실
+  understeer_gradient:
+    value: {dist: uniform, low: 0.0, high: 0.03}
+    range: [0.0, 0.05]
+    unit: s^2/m
+    provenance: SIM_ASSUMED
+    identify: [F2]
+    stale_after_mod: false
+    note: run마다 U(0, 0.03)
+  curvature_wander:
+    value: {mean_deg_per_m: -0.15, sd_deg_per_m: 0.95, corr_length_m: 8.0}
+    range:
+      mean_deg_per_m: [-0.6, 0.6]
+      sd_deg_per_m: [0.0, 0.95]
+      corr_length_m: [8.0, 8.0]
+    unit: deg/m; deg/m; m
+    provenance: ESTIMATED
+    source: field_response.py wander_mean_deg_per_m / wander_sd_deg_per_m / wander_corr_length_m(10/10 차동 직진 편향)
+    identify: [F1, F6]
+    stale_after_mod: true
+    note: 곡률 떠돎(OU, 거리 기준). 줄인 값은 민감도 시험에만. 평균 +-0.6은 drift 조건
+  lateral_slip_sd_m_s:
+    value: 0.032
+    range: [0.032, 0.064]
+    unit: m/s
+    provenance: ESTIMATED
+    source: field_response.py lateral_slip_sd_m_s
+    identify: [F6]
+    stale_after_mod: true
+    note: 옆 미끄럼(OU). 상한은 slip_x2 조건
+  speed_run_scale:
+    value: {mode: 1.03, sd_low: 0.16, sd_high: 0.04}
+    range:
+      mode: [1.03, 1.03]
+      sd_low: [0.16, 0.16]
+      sd_high: [0.04, 0.04]
+    unit: '-'
+    provenance: ESTIMATED
+    source: field_response.py speed_run_scale_mode / _sd_low / _sd_high
+    identify: [F6]
+    stale_after_mod: true
+  speed_fluctuation_sd:
+    value: 0.05
+    range: [0.05, 0.05]
+    unit: '-'
+    provenance: ESTIMATED
+    source: field_response.py speed_fluctuation_sd
+    identify: [F6]
+    stale_after_mod: true
+  speed_fluctuation_tau_s:
+    value: 2.0
+    range: [2.0, 2.0]
+    unit: s
+    provenance: SIM_ASSUMED
+    identify: [F6]
+    stale_after_mod: true
+    note: field_response.py speed_fluctuation_tau_s
+  drive_accel_tau_s:
+    value: 0.25
+    range: [0.25, 0.25]
+    unit: s
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: true
+    note: field_response.py accel_tau_s(출발 지연, 미측정)
+  drive_decel_tau_s:
+    value: 0.08
+    range: [0.08, 0.08]
+    unit: s
+    provenance: SIM_ASSUMED
+    identify: [F3]
+    stale_after_mod: true
+    note: field_response.py decel_tau_s
+  drive_omega0_rad_s:
+    unit: rad/s
+    provenance: DERIVED
+    derived_from: [forward_curve, drive_curve_P_fit1003, drive_curve_field1010_measured, wheel_radius_rear_m, wheel_radius_front_m,
+      drive_wheels]
+    identify: [F3]
+    note: 주 곡선 점의 최소제곱 직선 v = r w0 (d - d0)에서 w0 = (r w0) / r. 자리값에서 약 6.69
+  drive_deadband_frac:
+    unit: '-'
+    provenance: DERIVED
+    derived_from: [forward_curve, drive_curve_P_fit1003, drive_curve_field1010_measured]
+    identify: [F3]
+    note: 같은 직선의 d0(P_fit1003 약 0.048, field1010 0.5)
+  drive_tau_stall_nm:
+    value: 4.4
+    range: [0.5, 5.0]
+    unit: N*m
+    provenance: SPEC_PENDING
+    identify: [part, F3]
+    stale_after_mod: false
+    note: 바퀴당 정지 토크(G-SIM DC 직선에만 쓴다). v0의 1.6(가속 가정 1.5 m/s^2)은 G-SIM 출발 시정수를 약 0.65 s로 만들어 F-SIM drive_accel_tau_s 0.25
+      s(옛 구동계 release 정지 거리를 재현하는 값)와 맞지 않았다. 시정수 T = r^2 w0 m_eff / (4 tau_stall), m_eff 약 33 kg(30 kg + 바퀴 관성)에서 T가 약 0.25
+      s가 되는 값으로 둔다. 실측 전 자리값
+  battery_voltage_scale:
+    value: 1.0
+    range: [0.85, 1.05]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [Q13]
+    stale_after_mod: false
+    note: 구동 모터 전압 배율. G-SIM은 w0와 tau_stall에 곱한다
+  v_target_m_s:
+    value: 0.4
+    range: [0.2, 0.6]
+    unit: m/s
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: 열 추종 목표 속도(L4)
+  wheel_mu_lat:
+    value: 0.9
+    range: [0.5, 1.0]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [F2]
+    stale_after_mod: false
+  wheel_mu_long:
+    value: 0.9
+    range: [0.5, 1.0]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [F2]
+    stale_after_mod: false
+  ground_mu:
+    value: 1.0
+    range: [1.0, 1.0]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [none]
+    stale_after_mod: false
+    note: DART는 두 면 마찰의 최솟값을 쓴다
+  terrain:
+    value: flat
+    range:
+      choices: [flat, ruts, ridges, bumps]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [record_analysis]
+    stale_after_mod: false
+    note: 평지(기본), 바퀴자국·두둑·요철(원본 terrain.py 값)
+  lidar_x_in_base_m:
+    value: 0.1185
+    range: [0.0, 0.35]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q14 (측정) LiDAR 는 앞바퀴 축에서 21 cm 뒤(사용자 측정); x = 뒤차축 x -0.3285 + 휠베이스 0.6570 - 0.2100 (차축 기준 위치가 측정값이고 base 원점은 규약)
+    note: '사양 반영: Q14 측정'
+  lidar_y_in_base_m:
+    value: 0.0
+    range: [-0.05, 0.05]
+    unit: m
+    provenance: MEASURED_20261116
+    identify: [B1]
+    stale_after_mod: false
+    source: Q14 (측정) 좌우는 바퀴 기준 정중앙(사용자 측정)
+    note: '사양 반영: Q14 측정'
+  lidar_z_m:
+    value: 0.55
+    range: [0.55, 0.65]
+    unit: m
+    provenance: ESTIMATED
+    identify: [B1, Q14]
+    stale_after_mod: false
+    source: 'Q14 (측정) 꼭대기 0.570 m(측정 20261116) - 스캔 평면까지 0.020 m(자리값: S2 꼭대기에서 스캔 평면까지. 제품 도면을 레포에서 확인하지 못해 머리 높이의 절반쯤으로 둔
+      자리값)'
+    note: '사양 반영: Q14 측정'
+  lidar_yaw_offset_deg:
+    value: 179.08
+    range: [169.08, 189.08]
+    unit: deg
+    provenance: ESTIMATED
+    source: 10/10 기록. 실행기 config.py lidar_yaw_offset_deg 관례(스캔 프레임에서 주행축이 -179.08 deg)
+    identify: [B10, F1]
+    stale_after_mod: true
+  lidar_roll_pitch_deg:
+    value: {roll: 0.0, pitch: 0.0}
+    range: [-2.0, 2.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B1]
+    stale_after_mod: false
+  lidar_noise_sd_m:
+    value: 0.015
+    range: [0.01, 0.03]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [F6]
+    stale_after_mod: false
+  lidar_latency_s:
+    value: 0.08
+    range: [0.005, 0.15]
+    unit: s
+    provenance: ESTIMATED
+    source: '설계 3.7: 스캔 지연 약 0.08 s(추정)'
+    identify: [none]
+    stale_after_mod: false
+  lidar_sweep_s:
+    value: 0.1
+    range: [0.1, 0.1]
+    unit: s
+    provenance: GENERIC_SPEC
+    identify: [none]
+    stale_after_mod: false
+    note: 10 Hz 한 바퀴. 스캔 중 움직임은 합성하지 않는다
+  lidar_beams:
+    value: 3240
+    range: [3240, 3240]
+    unit: beams
+    provenance: MEASURED_20261010
+    source: field_response.py lidar_hz 근거(10 Hz, 3240 beams, 0.60 m)
+    identify: [none]
+    stale_after_mod: false
+    note: 실제 S2 형식
+  lidar_hz:
+    value: 10
+    range: [10, 10]
+    unit: Hz
+    provenance: MEASURED_20261010
+    source: field_response.py lidar_hz
+    identify: [none]
+    stale_after_mod: false
+  imu_pose_in_base:
+    value: {x: 0.18, y: 0.0, z: 0.56}
+    range:
+      x: [0.13, 0.23]
+      y: [-0.05, 0.05]
+      z: [0.51, 0.61]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [B1]
+    stale_after_mod: true
+    note: x, y는 LiDAR와 거의 같다(사용자). z는 SIM 가정
+  imu_mount_rpy_deg:
+    value: {roll: 0.0, pitch: 0.0, yaw: 0.0, yaw_sign: 1}
+    range:
+      roll: [-5.0, 5.0]
+      pitch: [-5.0, 5.0]
+      yaw: [0.0, 0.0]
+      yaw_sign:
+        choices: [1, -1]
+    unit: deg; -
+    provenance: SPEC_PENDING
+    identify: [standstill_record]
+    stale_after_mod: true
+    note: 기본 단위 회전. 스윕은 기울기 +-5 deg, yaw 부호 +-
+  imu_rate_hz:
+    value: 33
+    range:
+      choices: [20, 33]
+    unit: Hz
+    provenance: CONFIG
+    identify: [jetson_config]
+    stale_after_mod: false
+    note: 지금 Jetson 설정 33 Hz(10/10 기록은 약 20 Hz)
+  imu_gyro_scale:
+    value: {mean: 1.013, sd: 0.02}
+    range:
+      mean: [1.013, 1.013]
+      sd: [0.02, 0.02]
+    unit: '-'
+    provenance: ESTIMATED
+    source: field_response.py gyro_scale_mean / gyro_scale_sd
+    identify: [F6]
+    stale_after_mod: true
+    note: run마다 plant가 뽑는다
+  imu_gyro_bias_sd_deg_s:
+    value: 0.03
+    range: [0.03, 0.03]
+    unit: deg/s
+    provenance: ESTIMATED
+    source: field_response.py gyro_bias_sd_deg_s
+    identify: [F6]
+    stale_after_mod: true
+  imu_gyro_still_noise_sd_deg_s:
+    value: 0.09
+    range: [0.09, 0.09]
+    unit: deg/s
+    provenance: MEASURED_20261010
+    source: field_response.py gyro_still_noise_sd_deg_s
+    identify: [F6]
+    stale_after_mod: true
+  imu_gyro_vibration_deg_s_per_m_s2:
+    value: 1.5
+    range: [1.5, 1.5]
+    unit: (deg/s)/(m/s^2)
+    provenance: ESTIMATED
+    source: field_response.py gyro_vibration_deg_s_per_m_s2
+    identify: [F6]
+    stale_after_mod: true
+  imu_vibration_drive_at_90_m_s2:
+    value: 1.7
+    range: [1.7, 1.7]
+    unit: m/s^2
+    provenance: MEASURED_20261010_OLD_DRIVETRAIN
+    source: field_response.py drive_vibration_at_90_m_s2
+    identify: [F6]
+    stale_after_mod: true
+  imu_vibration_drive_at_100_m_s2:
+    value: 3.0
+    range: [3.0, 3.0]
+    unit: m/s^2
+    provenance: MEASURED_20261010_OLD_DRIVETRAIN
+    source: field_response.py drive_vibration_at_100_m_s2
+    identify: [F6]
+    stale_after_mod: true
+  imu_vibration_drive_below_90_m_s2:
+    value: 1.7
+    range: [0.7, 1.7]
+    unit: m/s^2
+    provenance: SIM_ASSUMED
+    identify: [F6]
+    stale_after_mod: true
+    note: '설계 3.7: 90 % 아래 1.7 가정. 단일열 PREREG P_fit1003은 0.7을 썼다. (새 자리값) 범위 0.7~1.7은 두 값을 잇는 임시 범위'
+  imu_vibration_still_m_s2:
+    value: {low: 0.02, high: 0.3}
+    range:
+      low: [0.02, 0.02]
+      high: [0.3, 0.3]
+    unit: m/s^2
+    provenance: MEASURED_20261010
+    source: field_response.py still_vibration_rms_m_s2(run마다 로그 균등)
+    identify: [F6]
+    stale_after_mod: true
+  camera_pose_in_base:
+    value: {x: 0.4, y: 0.0, z: 0.48}
+    range:
+      x: [0.4, 0.4]
+      y: [0.0, 0.0]
+      z: [0.48, 0.48]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [none]
+    stale_after_mod: false
+    note: G-SIM 표시용. 위치 추정에 쓰지 않는다
+  gnss_antenna_pose_in_base:
+    value: {x: 0.0, y: 0.0, z: 0.9}
+    range:
+      x: [0.0, 0.0]
+      y: [0.0, 0.0]
+      z: [0.9, 0.9]
+    unit: m
+    provenance: SIM_ASSUMED
+    identify: [none]
+    stale_after_mod: false
+    note: 가상 GPS 표시용. 제어 입력이 아니다
+  self_reflection_mask:
+    value: 0
+    range: [0, 3240]
+    unit: beams
+    provenance: MEASURED_20261010
+    source: 10/10 주행 16,359스캔에서 1.2 m 안 자기반사 빔 0개(옛 장착)
+    identify: [B10]
+    stale_after_mod: true
+    note: 조향 장치를 단 뒤 조향 -최대 / 0 / +최대 정지 스캔으로 다시 맞춘다
+  belt_type:
+    value: timing
+    range:
+      choices: [timing, flat, round]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [part, photo, Q22]
+    stale_after_mod: false
+    note: 벨트 종류(이가 있는 타이밍 / 평벨트 / 둥근 고무줄). 이 건너뜀(belt_skip_per_10000deg)은 timing만
+  belt_pulley_teeth_pot:
+    value: 20
+    range: [10, 60]
+    unit: teeth
+    provenance: SPEC_PENDING
+    identify: [part, Q22]
+    stale_after_mod: false
+    note: 가변저항 쪽 풀리 잇수. 이 하나 건너뜀의 각(belt_tooth_step_deg)을 정한다. timing이 아니면 쓰지 않는다
+  belt_tooth_step_deg:
+    range: [1.2, 72.0]
+    unit: deg
+    provenance: DERIVED
+    derived_from: [belt_pulley_teeth_pot, pot_to_steer_ratio]
+    identify: [part, Q22]
+    note: 이 하나 건너뛸 때 가변저항 0점이 옮겨 가는 조향 등가각 = 360 / 잇수 / 벨트 비. 자리값에서 18
+  belt_pot_play_deg:
+    value: 0.3
+    range: [0.0, 2.0]
+    unit: deg
+    provenance: SPEC_PENDING
+    identify: [B6, Q23]
+    stale_after_mod: false
+    note: 측정 쪽 유격(벨트 늘어남·물림 틈, 조향 등가각). 잰 축과 가변저항 축 사이의 놀이 연산자. 링크 백래시와 따로다
+  belt_creep_sd_deg_per_100deg:
+    value: 0.0
+    range: [0.0, 0.5]
+    unit: deg
+    provenance: SIM_ASSUMED
+    identify: [B7, Q22]
+    stale_after_mod: false
+    note: '마찰 벨트의 누적 미끄럼: 가변저항 축이 100 deg(조향 눈금) 움직일 때 0점의 무작위 걸음 sd. 타이밍 벨트 0. flat·round는 0~0.5로 스윕'
+  belt_skip_per_10000deg:
+    value: 0.0
+    range: [0.0, 5.0]
+    unit: skips
+    provenance: SIM_ASSUMED
+    identify: [Q22, Q28]
+    stale_after_mod: false
+    note: '정상 운행 중 이 건너뜀 빈도: 조향 10,000 deg 움직임마다 평균 횟수(포아송). 한 번에 +-belt_tooth_step_deg. 기본 0(건너뜀 없음). 고장 대본은 주입 belt_skip을
+      쓴다'
+  pot_travel_deg:
+    range: [10.0, 400.0]
+    unit: deg
+    provenance: DERIVED
+    derived_from: [steer_mech_limit_deg, steer_type, wheelbase_m, kingpin_width_m, steer_ackermann_ratio, steer_zero_offset_deg,
+      steer_lr_asymmetry, steer_link_table, pot_to_steer_ratio, steer_backlash_deg, pot_location]
+    identify: [Q24]
+    note: 오른쪽 끝 멈춤에서 왼쪽 끝 멈춤까지 가변저항 축이 도는 각(백래시 포함, pot_location motor). pot_range_deg(전기 회전 범위)와 비교한다. 자리값에서 약 54.2
+  pot_cal_half_width_counts:
+    range: [0.0, 1023.0]
+    unit: count
+    provenance: DERIVED
+    derived_from: [steer_mech_limit_deg, steer_type, wheelbase_m, kingpin_width_m, steer_ackermann_ratio, steer_zero_offset_deg,
+      steer_lr_asymmetry, steer_link_table, pot_to_steer_ratio, pot_range_deg, adc_bits, pot_gain_error, pot_center_raw, pot_linearity_pct]
+    identify: [B2]
+    note: 보정 표지(기계 한계 - 1 deg와 0)의 가운데에서의 count 거리 중 작은 것. 펌웨어가 50 미만을 거부한다(marks_valid). 읽을 때 50 미만이면 거부(pot_cal_half_width_small).
+      자리값에서 약 95.2
+  steer_limit_switch:
+    value: none
+    range:
+      choices: [none, both]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [wiring, Q25]
+    stale_after_mod: false
+    note: 양 끝 리밋 스위치. 기본 none(설계 v2 V2-6.4). both는 모형·펌웨어에 없어 읽기가 거부한다(ESP8266 남는 핀 D4 하나). 스위치가 생기면 배선과 함께 설계를 다시 정한다
+  steer_supply_shared_with_drive:
+    value: true
+    range:
+      choices: [false, true]
+    unit: '-'
+    provenance: SPEC_PENDING
+    identify: [wiring, Q26]
+    stale_after_mod: false
+    note: '조향 모터가 구동과 같은 배터리면 true: battery_voltage_scale을 조향 속도에도 곱한다(설계 v2 V2-6.5)'
+  steer_backdrive_coast_gain:
+    value: 3.0
+    range: [1.0, 10.0]
+    unit: '-'
+    provenance: SIM_ASSUMED
+    identify: [B8]
+    stale_after_mod: false
+    note: 드라이버가 꺼졌을 때(EN 끔, 전원 끔) 되밀리는 속도 배율. 전기 제동(EN 켬, 출력 0)이 없어서 더 빨리 밀린다
+  steer_self_lock_breakaway_nm:
+    value: 8.0
+    range: [2.0, 30.0]
+    unit: N*m
+    provenance: SIM_ASSUMED
+    identify: [B8, Q11]
+    stale_after_mod: false
+    note: 자기 잠금 감속기(steer_self_locking true)일 때 출력 0에서 외력으로 밀리기 시작하는 토크. 비자기잠금(기본)에서는 쓰지 않는다
+  steer_disturbance_design_nm:
+    value: 2.5
+    range: [0.5, 5.0]
+    unit: N*m
+    provenance: SIM_ASSUMED
+    identify: [design]
+    stale_after_mod: false
+    note: '설계 외란 크기: ESP 위치 루프가 래치 결함 없이 직진각으로 되돌려야 하는 조향축 외력(설계 v2 V2-6.6, ST-11). 이보다 큰 외력에서는 정해진 결함(TRACK 또는 STALL)으로 선다.
+      정지 토크 5 N*m, 주행 중 시작 PWM 25 %에서 평형 서보 출력 0.25가 서보 최소 출력 0.45보다 작다'
+  steer_terrain_impacts:
+    value: {rate_per_m: 0.0, torque_sd_nm: 1.5, duration_s: 0.05}
+    range:
+      rate_per_m: [0.0, 2.0]
+      torque_sd_nm: [0.0, 10.0]
+      duration_s: [0.01, 0.5]
+    unit: 1/m; N*m; s
+    provenance: SIM_ASSUMED
+    identify: [record_analysis]
+    stale_after_mod: false
+    note: '지면 충격: 거리 포아송(rate_per_m)으로 시작하는 사각 토크 펄스(크기 N(0, sd), 길이 duration). 기본 rate 0(꺼짐). 과수원 두둑·돌은 0.2~1/m로 스윕'
+  steer_terrain_push:
+    value: {sd_nm: 0.0, corr_length_m: 2.0}
+    range:
+      sd_nm: [0.0, 5.0]
+      corr_length_m: [0.5, 20.0]
+    unit: N*m; m
+    provenance: SIM_ASSUMED
+    identify: [record_analysis]
+    stale_after_mod: false
+    note: '바퀴를 미는 토크(바퀴자국·옆 경사): 거리 기준 OU 과정. 기본 sd 0(꺼짐)'
+  steer_fw_mode:
+    value: abs_hold_8
+    range:
+      choices: [v3_servo, abs_hold_8]
+    unit: '-'
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: SIM ESP 에뮬레이터의 조향 법칙. v3_servo = 펌웨어 V3 서보(예전 결과 전부), abs_hold_8 = 실기 보드 펌웨어 ABS-HOLD-8의 펄스 유지(docs/steering/ABS_HOLD8_SIM_KO.md)
+  abs_hold_fw:
+    value: {cal_right: 1681, cal_center: 1900, cal_left: 2180, command_max_deg: 20.0, pulse_pwm: 100, pulse_long_ms: 80, pulse_short_ms: 50,
+      pulse_long_above_counts: 30, settle_ms: 300, rebound_window_ms: 100, target_tol_counts: 10, restart_tol_counts: 16,
+      rebound_max_counts: 20, progress_min_counts: 3, no_progress_max: 3, drive_budget_ms: 1000, guard_counts: 15, sample_ms: 5,
+      median_of: 5, pair_tol_counts: 20, stale_ms: 100, limit_margin_counts: 100}
+    range:
+      cal_right: [1681, 1681]
+      cal_center: [1900, 1900]
+      cal_left: [2180, 2180]
+      command_max_deg: [20.0, 20.0]
+      pulse_pwm: [100, 100]
+      pulse_long_ms: [80, 80]
+      pulse_short_ms: [50, 50]
+      pulse_long_above_counts: [30, 30]
+      settle_ms: [300, 300]
+      rebound_window_ms: [100, 100]
+      target_tol_counts: [10, 10]
+      restart_tol_counts: [16, 16]
+      rebound_max_counts: [20, 20]
+      progress_min_counts: [3, 3]
+      no_progress_max: [3, 3]
+      drive_budget_ms: [1000, 1000]
+      guard_counts: [15, 15]
+      sample_ms: [5, 5]
+      median_of: [5, 5]
+      pair_tol_counts: [20, 20]
+      stale_ms: [100, 100]
+      limit_margin_counts: [100, 100]
+    unit: count(12비트 ADC); ms; deg(명령 눈금)
+    provenance: FIRMWARE
+    identify: [part]
+    stale_after_mod: false
+    source: BTS7960_Serial_Control.ino, firmware ABS-HOLD-8-REBOUND-LIMITS (ESP32-S3, received 2026-11-16); calibration RIGHT
+      1681 / CENTER 1900 / LEFT 2180 from its REBOUND_CALIBRATION.md (board test; the physical degrees of the +-20 command
+      scale are not verified)
+    note: 보정(RIGHT/CENTER/LEFT = 명령 +20/0/-20), PWM 100 펄스 80 ms(|오차| > 30) 또는 50 ms, 끈 뒤 300 ms 조용한 값으로 판정, 목표 허용 10, 다시
+      시작 16, 되튐 20 이상 취소, 진척 3 미만 3번 취소, 한 보정 구동 1000 ms 한도, 5개 중앙값 + 짝 확인(20), 신선도 100 ms. 물리 각도와 명령 각의 관계는 외부 측정이 없다
+  abs_hold_host:
+    value: {step_deg: 0.5, deadband_deg: 1.0, min_interval_ms: 1000, poll_ms: 200}
+    range:
+      step_deg: [0.1, 2.0]
+      deadband_deg: [0.5, 3.0]
+      min_interval_ms: [200, 3000]
+      poll_ms: [50, 1000]
+    unit: deg(명령 눈금); ms
+    provenance: CONFIG
+    identify: [none]
+    stale_after_mod: false
+    note: 'SIM 호스트의 ANGLE 정책(새 보드용 Jetson 브리지는 아직 없다): poll_ms마다 실행기 목표를 step_deg로 반올림해 마지막 ANGLE과 deadband_deg 이상 다르면 보낸다(마지막
+      ANGLE 뒤 min_interval_ms가 지났거나 보드가 목표에 닿았거나 유지를 취소했을 때). 취소 뒤 오차가 다시 시작 문턱보다 크면 같은 ANGLE을 다시 보낸다. 새 목표는 펌웨어에서 300 ms
+      기다림과 구동 예산을 다시 시작하므로 자주 보내면 조향이 멈춘다'
+  steer_step_time_measured_s:
+    value: {outward_20: 3.5, return_20: 2.5}
+    range:
+      outward_20: [2.0, 6.0]
+      return_20: [1.0, 6.0]
+    unit: s
+    provenance: MEASURED_20261116
+    identify: [B5]
+    stale_after_mod: false
+    source: 'B5 (측정) verification_quiet_full.log(보드 시험, 차는 서 있음, 명령 눈금): 0 -> -20 마지막 긴 펄스까지 3.34 s(허용 10 count 안까지 약 3.7
+      s), 0 -> +20 약 3.6 s(끝에서 되튐 12~18 count, 허용 안까지 약 4.4 s), +20 -> 0 2.17 s, -20 -> 0 2.90 s. outward_20 은 앞의 둘(3.34,
+      3.6)의 평균, return_20 은 뒤의 둘의 평균'
+    note: 보드 시험의 계단 응답(명령 0 -> +-20, +-20 -> 0, 서 있는 차). SIM 실행기의 측정 조향 속도는 (보정 표지 각) / outward_20 이다(abs_hold.executor_values)
