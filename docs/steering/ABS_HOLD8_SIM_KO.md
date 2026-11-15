@@ -4,6 +4,7 @@
 - 새 프로필: `sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml`(스키마 v4). 입력 파일:
   `profiles/steer_spec_input_20261116.yaml`, 도구 `tools/steer_sim/apply_spec.py`(`SPEC_UPDATE_KO.md`).
 - 기본 프로필(`load_profile()`)은 여전히 v0.1이다. 예전 결과가 그대로 다시 만들어지도록 바꾸지 않았다. 새 프로필은 이름으로 고른다.
+- 사용자 화면용 Gazebo 스택(로컬 `sim_stack.py`)은 2026-11-16부터 덮어쓰기 파일 `compose.ubts-steer.measured.yaml`로 이 프로필을 이름으로 고른다(결정 R91, `DECISIONS_KO.md`).
 - 이 프로필로 만든 수치는 **자리값 기반 SIM 결과**다(남은 SPEC_PENDING 자리값 34칸: 킹핀 폭, Ackermann, 유격, 발자국, 가변저항 사양, IMU 자세 등. 질량 같은 SIM 가정값도 남는다). 현장 성능이 아니다.
 
 ## 1. 근거

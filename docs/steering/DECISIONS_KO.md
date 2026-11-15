@@ -676,3 +676,26 @@
   - 고치지 않는다: P4 의 기본 프로필 v0.1 자리값 변경이거나 실차 MCU 와 같은 펌웨어 규칙 변경(P9)이다. A19(F) 불합격은 그대로다.
     다음 후보: P9 에서 실측 가변저항 잡음으로 polp·polt 를 정하거나(v0.2 의 2° / 0.2 s 는 이미 그 방향), 서보 최소 출력과 정지 시작
     출력의 간격을 넓힌다(R18 결정 2).
+
+## R91. 사용자 화면용 스택은 측정 치수 프로필(조향 펌웨어 흉내 abs_hold_8)로 띄운다. 기본 프로필 v0.1 과 그것을 고정한 기록은 그대로 둔다
+
+- 2026-11-16. 사용자 요청: 시뮬레이션 모델이 잰 차를 따르고, README 가 새 모델을 보이게.
+- 무엇: 덮어쓰기 파일 `compose.ubts-steer.measured.yaml`이 모든 서비스에 `UBTS_STEER_PROFILE` =
+  `steering/profiles/front_steer_v1_spec_20261116.yaml`(이미지 안 절대 경로)을 주고, 실행기에는 조향 GO 문턱
+  `steer_rate_min_deg_s` 4.0 °/s(사전등록 `steer_follow_realdims_v1`에 문서화된 변경: 자리값 8 °/s 는 보드의 5.09 °/s 를 거부)와
+  열 추종 제어기 휠베이스 0.657 m(프로필 값, 제어기 기본 0.76 m 는 옛 자리값)를 준다. 그래서 Gazebo 장면(바퀴·차축·조향 관절
+  한계, LiDAR 장착), ESP 에뮬레이터(ABS-HOLD-8 펄스 유지), 호스트 보정표, 실행기 값이 모두 측정 치수 프로필을 따른다.
+  `compose.ubts-steer.yaml`은 `UBTS_STEER_PROFILE`을 빈 기본값으로 넘기기만 한다(비면 기본 프로필).
+- 로컬 도구 `tools/local_env/sim_stack.py`(저장소 밖)는 이 파일을 기본으로 붙인다(`--vehicle measured`; `--vehicle placeholder`는
+  v0.1). `--ref`에 이 파일이 없거나 이미지에 측정 치수 프로필이 없으면(wf12 전 이미지) v0.1 로 띄우고 그렇다고 알린다.
+- 빠른 SIM 로컬 기본: README 의 "빠른 SIM으로 열 추종 한 번"은 측정 치수 프로필의 등록 대본(`follow_realdims --parts matrix
+  --only nominal`)으로 바꾸고, v0.1 의 `follow_matrix --only nominal`은 옛 기준으로 남긴다.
+- 바꾸지 않은 것: `vehicle_profile.DEFAULT_PROFILE_ID`(v0.1), 등록 대본들(`follow_matrix`, `follow_wide`, T1 안전 대본, G-SIM 최종
+  확인)의 프로필, G-SIM 측정 도구 `tools/steer_sim/stack.py`의 기본. 이것들을 고정한 기록(steer_follow_v1, wide_v2, G-SIM 최종
+  확인, T1 71)은 같은 명령으로 그대로 다시 만든다. 측정 치수로 G-SIM 측정을 할 때는 `stack.py up --override
+  compose.ubts-steer.measured.yaml`로 이름을 붙여 고른다.
+- 까닭: 기본 프로필을 바꾸면 프로필을 이름 없이 쓰는 시험과 기록이 소리 없이 다른 차로 돈다. 차는 화면용 스택에서 이름으로 고른다.
+- 남는 자리값: 차체 상자, 발자국(1.22 × 0.70 m), 질량, 카메라 위치, LiDAR 스캔 평면 높이의 0.02 m, 조향 장치의 SPEC_PENDING 34칸.
+  Gazebo 조향 관절은 위치 제어라 펄스 사이의 되밀림은 빠른 SIM 에만 있다(`ABS_HOLD8_SIM_KO.md` 6절).
+- 시험: `sim/ubts/test_steering_stack_vehicle.py`(덮어쓰기 파일의 값 = 프로필·등록 값, 실행기 설정이 서고 제어기가 만들어짐,
+  기본 compose 는 비어 있음).
