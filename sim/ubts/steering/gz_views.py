@@ -7,6 +7,8 @@ SHA-256 is checked). No safety chain, not for evaluation. Every value is a place
   python3 -B -m steering.gz_views w0 --out /runs/views_w0     # model: front, side, top, oblique (+ steered left 15 deg)
   python3 -B -m steering.gz_views w1 --out /runs/views_w1     # orchard: high overview, oblique overview, lane entry,
                                                               # rover camera, model in the lane
+  --profile <YAML>  the vehicle profile (default: the shipped default v0.1; the README model pictures of 2026-11-16 use
+                    steering/profiles/front_steer_v1_spec_20261116.yaml, the measured dimensions)
 Writes <out>/scene/ (the demo scene) and <out>/run/ (run.json, stills/<tag>_<view>.png with the overlay lines and
 stills/<tag>_<view>_raw.png without). The container needs the GPU render settings of GZ_DEMO_KO.md 3 (D3D12 / Ogre 1).
 """
@@ -84,17 +86,20 @@ def main(argv=None):
     p.add_argument('world', choices=sorted(VIEW_SETS))
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--font', default=None)
+    p.add_argument('--profile', type=Path, default=None,
+                   help='vehicle profile YAML (default: the shipped default profile)')
     args = p.parse_args(argv)
     install_views()
     install_scripts()
-    profile = load_profile()
+    profile = load_profile(args.profile)
     scene = args.out / 'scene'
     manifest = dd.build_demo_scene(args.world, scene, profile=profile, views=VIEW_SETS[args.world],
                                    rover_camera=args.world == 'w1', grid=args.world == 'w0')
     record = dd.run_demo(scene, SCRIPT_NAMES[args.world], args.out / 'run', profile=profile, backend='l0',
                          video=False, font=args.font)
     stills = record['frames']['stills']
-    summary = dict(world=args.world, scene_sdf_sha256=manifest['sdf_sha256'],
+    summary = dict(world=args.world, profile_id=profile.profile_id, profile_sha256=profile.sha256,
+                   scene_sdf_sha256=manifest['sdf_sha256'],
                    rover_model_sha256=manifest['demo']['rover_model_sha256'], stills=stills,
                    errors=record['run']['errors'], result_kind=dd.RESULT_KIND)
     (args.out / 'VIEWS.json').write_bytes((json.dumps(summary, indent=1, ensure_ascii=False, default=str) + '\n')

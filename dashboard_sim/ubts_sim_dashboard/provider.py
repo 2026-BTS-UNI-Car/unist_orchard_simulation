@@ -31,6 +31,9 @@ class SimulationProvider(TelemetryProvider):
     def __init__(self, config_path=None):
         super().__init__(config_path)
         self.mode = 'simulation'
+        # No network changes in the simulation: the Network page's AP switch and Wi-Fi manager (dashboard 2026-11-16,
+        # wifi_manager.WifiManager asks this flag before every request) stay disabled whatever the environment says.
+        self.network_control_enabled = False
         self.sim_status_file = os.environ.get('SIM_STATUS_FILE') or SIM_STATUS_FILE
 
     # --- the Gazebo stack -----------------------------------------------------------------------------------------
@@ -114,6 +117,10 @@ class SimulationProvider(TelemetryProvider):
 
     def network_control_status(self):
         return {'enabled': False, 'state': 'simulation_only'}
+
+    def _network_mode_command(self, command, payload=None):
+        # the host network helper of the vehicle (nsenter into the Jetson's network); never run in the simulation
+        return {'ok': False, 'enabled': False, 'state': 'disabled', 'error': 'hardware_action_unavailable_in_simulation'}
 
     def docker(self):
         return {'available': False, 'containers': [], 'state': 'isolated_simulation', 'socket_mounted': False}

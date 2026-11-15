@@ -360,6 +360,36 @@
 <div class="chart-readout" id="networkModeReadout"></div>
 <div class="test-result" id="networkModeResult">네트워크 제어 상태를 확인하고 있습니다.</div>
 <p class="control-note">AP 이름은 BTS_Jetson입니다. 접속한 기기가 1분 동안 없으면 저장된 Wi-Fi를 1분간 찾은 뒤 다시 AP로 돌아옵니다.</p>
+<div class="notice warn" hidden="" id="wifiTrialBanner" role="status"><span><strong id="wifiTrialTitle">새 Wi-Fi 시험 연결</strong> <span id="wifiTrialDetail"></span></span></div>
+<div class="panel-actions network-mode-actions" hidden="" id="wifiTrialActions">
+<button class="action-button primary" disabled="" id="wifiTrialConfirm" type="button">이 연결 유지</button>
+<button class="action-button secondary" id="wifiTrialRevert" type="button">지금 되돌리기</button>
+</div>
+<div class="test-result" hidden="" id="wifiResult" role="status"></div>
+<div class="panel-section wifi-stack" id="wifiScanBlock">
+<div class="panel-head mini"><h4>주변 Wi-Fi</h4><div class="panel-actions"><small id="wifiScanAge">검색 전</small><button class="action-button secondary" disabled="" id="wifiScanButton" type="button">주변 검색</button></div></div>
+<form autocomplete="off" class="interface-card wifi-stack" hidden="" id="wifiConnectForm">
+<div class="card-title"><strong id="wifiFormTitle">Wi-Fi 연결</strong><span class="tag info" id="wifiFormTag">새 Wi-Fi</span></div>
+<small class="control-note" id="wifiFormSub"></small>
+<label class="field" id="wifiPasswordField"><span id="wifiPasswordLabel">비밀번호</span><input autocapitalize="off" autocomplete="off" class="input" id="wifiPassword" maxlength="128" spellcheck="false" type="password"/></label>
+<div class="panel-actions network-mode-actions">
+<label class="switch-control" id="wifiPasswordShowField"><input id="wifiPasswordShow" type="checkbox"/><span>비밀번호 보기</span></label>
+<label class="switch-control"><input checked="" id="wifiAutoconnect" type="checkbox"/><span>자동 연결</span></label>
+<label class="field-inline">우선순위<input class="input wifi-priority" id="wifiPriority" inputmode="numeric" max="999" min="-999" step="1" type="number" value="0"/></label>
+</div>
+<p class="control-note" id="wifiFormNote">연결을 바꾸는 동안 이 화면이 잠시 끊길 수 있습니다. 정해진 시간 안에 '이 연결 유지'를 누르지 않으면 Jetson이 이전 연결로 돌아갑니다.</p>
+<div class="panel-actions network-mode-actions">
+<button class="action-button primary" id="wifiConnectSubmit" type="submit">연결 시험 시작</button>
+<button class="action-button secondary" id="wifiConnectCancel" type="button">취소</button>
+</div>
+</form>
+<div class="interface-list" id="wifiScanList"><p class="control-note">주변 검색을 누르면 Jetson이 찾은 Wi-Fi가 여기에 나옵니다.</p></div>
+</div>
+<div class="panel-section wifi-stack" id="wifiSavedBlock">
+<div class="panel-head mini"><h4>저장된 Wi-Fi</h4><small id="wifiSavedCount">확인 중</small></div>
+<div class="interface-list" id="wifiSavedList"></div>
+<p class="control-note">자동 연결이 켜진 저장 Wi-Fi 가운데 보이는 것 중 우선순위가 높은 것에 먼저 붙습니다. 바꾼 값은 다음 연결부터 쓰이고 지금 연결은 끊지 않습니다.</p>
+</div>
 </section>
 <section class="dashboard-grid">
 <article class="panel chart-panel wide">
@@ -652,6 +682,11 @@
 <div><button class="btn-hold" data-steer-key="a" type="button">◀ A</button><button class="btn-hold" data-steer-key="c" type="button">가운데</button><button class="btn-hold" data-steer-key="d" type="button">D ▶</button></div>
 <div><button class="btn-hold" data-steer-key="w" type="button">전진 W</button><button class="btn-hold" data-steer-key="s" type="button">후진 S</button></div>
 </div>
+<div class="steer-drag-block">
+<div class="gps-map-footer"><span id="steerDragLabel">끌어서 조향 각 (놓으면 0°)</span><strong><output for="steerDrag" id="steerDragValue">0°</output></strong></div>
+<div aria-disabled="true" aria-labelledby="steerDragLabel" aria-valuemax="20" aria-valuemin="-20" aria-valuenow="0" aria-valuetext="가운데 0°" class="steer-gauge steer-drag btn-hold" id="steerDrag" role="slider"><i class="steer-drag-centre"></i><i class="steer-drag-thumb" id="steerDragThumb"></i></div>
+<div class="gps-map-footer"><small>◀ 왼쪽 20°</small><small>오른쪽 20° ▶</small></div>
+</div>
 <div aria-hidden="true" class="steer-gauge"><i></i><i class="measured" hidden="" id="steerGaugeMeasured"></i><i class="target" hidden="" id="steerGaugeTarget"></i></div>
 <div class="gps-map-footer"><small id="steerGaugeLeft">왼쪽</small><small>목표(파랑) · 측정(검정)</small><small id="steerGaugeRight">오른쪽</small></div>
 <div class="chart-readout compact" id="steerReadout"></div>
@@ -659,9 +694,9 @@
 <label for="steerSpeedSlider"><span>속도 상한 (Q −5, E +5)</span><strong id="steerSpeedValue">20%</strong></label>
 <input id="steerSpeedSlider" max="60" min="0" step="5" type="range" value="20"/>
 </div>
-<div aria-label="조향 각" class="segmented-control"><button data-steer-angle="5" type="button">5°</button><button data-steer-angle="10" type="button">10°</button><button data-steer-angle="15" type="button">15°</button><button data-steer-angle="20" type="button">20°</button></div>
+<div aria-label="조향 각" class="segmented-control" id="steerAngleChoices"><button data-steer-angle="5" type="button">5°</button><button data-steer-angle="10" type="button">10°</button><button data-steer-angle="15" type="button">15°</button><button data-steer-angle="20" type="button">20°</button></div>
 <div aria-label="조향 키를 놓았을 때" class="segmented-control"><button class="active" data-steer-mode="centre" type="button">가운데로</button><button data-steer-mode="hold" type="button">각 유지</button></div>
-<p class="help-text">조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 고른 각까지 조향, C는 누르는 동안 가운데로. A/D를 놓으면 가운데로 돌아온다(정지 중에는 한 번 5°까지, ‘각 유지’를 고르면 그대로). STOP·Esc는 언제나.</p>
+<p class="help-text" id="steerHelp">조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 고른 각까지 조향, C는 누르는 동안 가운데로. A/D를 놓으면 가운데로 돌아온다(정지 중에는 한 번 5°까지, ‘각 유지’를 고르면 그대로). 막대를 끌면 그 각으로, 놓으면 0°로. STOP·Esc는 언제나.</p>
 <div class="sim-map-actions" hidden="" id="steerFaults"></div>
 <div class="test-result" id="steerCommandStatus">조향 장치 확인 중</div>
 </div>

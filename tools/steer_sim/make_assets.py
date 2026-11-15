@@ -37,6 +37,12 @@ SIM_TAG = '[SIM · 자리값]'
 GZ_VIEWS = ('steering.gz_views (Gazebo 정지 장면, 이미지 ubts-steer-sim:wf4c, 프로필 front_steer_v0_1_placeholder, '
             '2026-11-13, 그림 위 띠는 gz_views가 넣은 조건 표시)')
 W0 = 'gsim_final_20261113/media/gz_views/views_w0/run/stills/'
+# The rover model pictures follow the measured profile since 2026-11-16 (decision R91): gz_views --profile, image wf12.
+GZ_VIEWS_V1 = ('steering.gz_views --profile steering/profiles/front_steer_v1_spec_20261116.yaml (Gazebo 정지 장면, 이미지 '
+               'ubts-steer-sim:wf12, 프로필 front_steer_v1_spec_20261116, 2026-11-16, 그림 위 띠는 gz_views가 넣은 조건 '
+               '표시). 2026-11-13 판(프로필 v0.1, wf4c)은 이 파일의 git 이력에 있다')
+W0_V1 = 'sim_stack_realdims_20261116/media/gz_views/views_w0/run/stills/'
+UI_V1 = 'sim_stack_realdims_20261116/shots/'
 W1 = 'gsim_final_20261113/media/gz_views/views_w1/run/stills/'
 FINAL_N3 = 'gsim_final_20261113/sessions/s2a_nominal_3/media/cam_follow/frames'
 FINAL_UI = 'gsim_final_20261113/sessions/s2b_ui2/browser/'
@@ -54,19 +60,25 @@ TOP_VIEW = ('tools/steer_sim/gsim_media.py frames %s (위에서 본 그림, matp
 CAMERA_BODY_CROP = 58 / 360
 
 RECIPES = [
-    dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png', source=W0 + 'straight_model_oblique.png',
-         made_by=GZ_VIEWS,
-         caption='Gazebo 조향 차량 모델을 비스듬히 본 모습. 차체 상자, 앞바퀴 조향 링크, LiDAR(기둥 위 원통), 카메라(앞 검은 상자). '
-                 '치수·질량은 프로필 v0.1의 자리값'),
-    dict(name='rover_side', out='docs/assets/rover/rover_side.png', op='png', source=W0 + 'straight_model_side.png',
-         made_by=GZ_VIEWS, caption='옆에서 본 모델. 휠베이스 0.76 m, 바퀴 반경 0.14 m(자리값)'),
-    dict(name='rover_top', out='docs/assets/rover/rover_top.png', op='png', source=W0 + 'straight_model_top.png',
-         made_by=GZ_VIEWS, caption='위에서 본 모델(오른쪽이 앞). LiDAR와 카메라가 차체 앞쪽 중앙에 있다'),
+    dict(name='rover_oblique', out='docs/assets/rover/rover_oblique.png', op='png',
+         source=W0_V1 + 'straight_model_oblique.png', made_by=GZ_VIEWS_V1,
+         caption='Gazebo 조향 차량 모델(프로필 front_steer_v1_spec_20261116)을 비스듬히 본 모습. 바퀴 위치·크기, 조향 한계, '
+                 'LiDAR 장착(기둥 위 원통)은 2026-11-16 측정값, 차체 상자·카메라(앞 검은 상자)·질량은 자리값'),
+    dict(name='rover_side', out='docs/assets/rover/rover_side.png', op='png', source=W0_V1 + 'straight_model_side.png',
+         made_by=GZ_VIEWS_V1,
+         caption='옆에서 본 모델. 휠베이스 0.657 m, 바퀴 지름 0.26 m(측정 2026-11-16). 차체 상자(발자국 1.22 m)는 자리값이라 '
+                 '바퀴보다 앞뒤로 길다'),
+    dict(name='rover_top', out='docs/assets/rover/rover_top.png', op='png', source=W0_V1 + 'straight_model_top.png',
+         made_by=GZ_VIEWS_V1,
+         caption='위에서 본 모델(오른쪽이 앞). 윤거 0.527 m(측정). LiDAR(원)는 앞차축 0.21 m 뒤 좌우 가운데(측정), '
+                 '카메라(검은 상자)의 위치는 자리값'),
     dict(name='rover_front_straight', out='docs/assets/rover/rover_front_straight.png', op='png',
-         source=W0 + 'straight_model_front.png', made_by=GZ_VIEWS, caption='앞에서 본 모델, 조향 0°'),
+         source=W0_V1 + 'straight_model_front.png', made_by=GZ_VIEWS_V1,
+         caption='앞에서 본 모델, 조향 0°. 바퀴 두께 0.095 m, 바퀴 바깥 폭 0.622 m(측정)'),
     dict(name='rover_front_left15', out='docs/assets/rover/rover_front_left15.png', op='png',
-         source=W0 + 'left15_model_front.png', made_by=GZ_VIEWS,
-         caption='앞에서 본 모델, 조향 목표(등가각) +15°(왼쪽). 바퀴각 좌 +15.6° / 우 +14.5°(Ackermann 비율 0.5, 자리값)'),
+         source=W0_V1 + 'left15_model_front.png', made_by=GZ_VIEWS_V1,
+         caption='앞에서 본 모델, 조향 목표(등가각) +15°(왼쪽). 바퀴각 좌 +15.7° / 우 +14.4°(Ackermann 비율은 자리값). '
+                 '바퀴 조향 한계 20°(측정), SIM 소프트 한계 16.1°'),
     dict(name='orchard_oblique', out='docs/assets/world/orchard_oblique.jpg', op='jpeg', quality=85,
          source=W1 + 'straight_orchard_oblique.png', made_by=GZ_VIEWS,
          caption='W1 원본 과수원 월드(원본 프로젝트의 생성기)를 비스듬히 본 전경. 오른쪽 아래 파란 차가 출발점에 있다'),
@@ -132,6 +144,14 @@ RECIPES = [
          label='열 끝 다가가기와 정지 · wf6 · 3배속',
          made_by='같은 run nominal_3의 마지막 약 30 s(열 끝 정지 뒤 포함), 0.3 s마다 한 장',
          caption='열 끝에 다가가 서는 차량 카메라 화면(wf6, 약 30 s를 3배속, 360 폭). 마지막 줄기를 지나 열 끝에서 섰다(e +0.433 m)'),
+    dict(name='sim_dashboard_steer_drag', out='docs/assets/dashboard/sim_dashboard_steer_drag.png', op='png',
+         source=UI_V1 + 'ui3/steer_panel_moving_drag.png',
+         made_by='SIM 대시보드(대시보드 저장소 feb4600 사본 + SIM 확장, 이미지 wf12, 측정 치수 프로필, SIM 시계)의 Rover Control '
+                 '조향 패널을 Chrome(playwright)으로 찍은 것. 조종 활성화 뒤 W 를 누른 채 막대를 왼쪽으로 끌고 있는 순간(2026-11-16, '
+                 '판정 아님)',
+         caption='SIM 대시보드의 조향 패널: 끌어서 조향 각(막대). 전진 W 를 누른 채 왼쪽 6.5°로 끈 순간(목표 6.5° / 측정 6.7°). '
+                 '놓으면 0°로 돌아온다(SIM 의 V3 브리지에서는 A/D 와 같은 램프, 서 있을 때는 한 번에 5°까지). 좌우 한계 16.1°는 '
+                 '측정 치수 프로필의 소프트 한계'),
     dict(name='sim_dashboard_live_map', out='docs/assets/dashboard/sim_dashboard_live_map.png', op='png',
          source=FINAL3_UI + 'live_map.png',
          made_by='SIM 대시보드(대시보드 저장소 a92cfec 사본 + SIM 확장, 이미지 wf6, SIM 시계)의 지도 화면을 Chrome(playwright)으로 '

@@ -1,0 +1,37 @@
+# Measured vehicle for the user-facing steering stack (decision R91, 2026-11-16; docs/steering/DECISIONS_KO.md).
+# An override file on top of compose.ubts-steer.yaml; the local tool sim_stack.py adds it by default:
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml -f compose.ubts-steer.measured.yaml --profile executor up -d
+# Without this file the stack runs the shipped default profile front_steer_v0_1_placeholder (firmware V3 servo law),
+# as every registered G-SIM record and check did; they stay reproducible. With it:
+#   - every role loads the measured profile front_steer_v1_spec_20261116 (schema v4: wheelbase 0.657 m, track 0.527 m,
+#     wheels 0.26 x 0.095 m, steering limit 20 deg, LiDAR 0.21 m behind the front axle; steer_fw_mode abs_hold_8, the
+#     SIM ESP emulator runs the pulse hold of the board firmware ABS-HOLD-8-REBOUND-LIMITS; docs/steering/ABS_HOLD8_SIM_KO.md):
+#     the Gazebo model and LiDAR mount, the emulator law, the host calibration table and the executor values follow it
+#   - the executor's steering GO threshold steer_rate_min_deg_s is 4.0 deg/s (the documented change of the registered
+#     re-check steer_follow_realdims_v1: the placeholder 8 deg/s refuses the board's 5.09 deg/s)
+#   - the row-following controller uses the profile wheelbase 0.657 m (the controller default 0.76 m is the old
+#     placeholder)
+# sim/ubts/test_steering_stack_vehicle.py checks these values against the profile and the registered re-check.
+# Each value can still be replaced from the environment (UBTS_STEER_PROFILE, UBTS_STEER_EXEC_CONTROLLER,
+# UBTS_STEER_EXEC_OVERRIDES). Placeholder-based SIM results only (자리값 기반 SIM 결과), never field validation.
+services:
+  sim:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}
+  steer:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}
+  recorder:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}
+  dashboard:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}
+  executor:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}
+      UBTS_STEER_EXEC_CONTROLLER: '${UBTS_STEER_EXEC_CONTROLLER:-{"kind": "row_follow", "wheelbase_m": 0.657}}'
+      UBTS_STEER_EXEC_OVERRIDES: '${UBTS_STEER_EXEC_OVERRIDES:-{"steer_rate_min_deg_s": 4.0}}'
+  check:
+    environment:
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-/opt/ubts/sim/ubts/steering/profiles/front_steer_v1_spec_20261116.yaml}

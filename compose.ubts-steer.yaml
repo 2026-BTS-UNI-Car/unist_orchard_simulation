@@ -50,6 +50,12 @@
 # Camera: D3D12 / Ogre 1 on the WSLg GPU (as compose.ubts.gpu.yaml); LiDAR: the Embree CPU process. For software
 # rendering set UBTS_RENDER_ENGINE=ogre2 UBTS_HEADLESS_RENDERING=1 UBTS_LIBGL_SOFTWARE=1 UBTS_EGL_PLATFORM=surfaceless
 # UBTS_GALLIUM_DRIVER=llvmpipe. Placeholder-based SIM results only (자리값 기반 SIM 결과), never field validation.
+# Vehicle profile (decision R91, 2026-11-16): UBTS_STEER_PROFILE names the vehicle profile YAML of the sim, steer and
+# executor roles (Gazebo model and LiDAR mount, ESP emulator law, host calibration table, executor values); empty = the
+# shipped default front_steer_v0_1_placeholder, so every check and record that pins v0.1 / firmware V3 runs as before.
+# The user-facing local stack adds compose.ubts-steer.measured.yaml (the measured profile front_steer_v1_spec_20261116
+# with the ABS-HOLD-8 steering law, its executor values and controller wheelbase):
+#   docker compose -p ubts-steer -f compose.ubts-steer.yaml -f compose.ubts-steer.measured.yaml --profile executor up -d
 name: ubts-steer
 x-environment: &environment
   ROS_DOMAIN_ID: "43"
@@ -89,6 +95,7 @@ x-environment: &environment
   UBTS_STEER_SIDECAR: ${UBTS_STEER_SIDECAR:-}
   UBTS_STEER_CLIP_NODE: ${UBTS_STEER_CLIP_NODE:-}
   UBTS_STEER_FIELD_SPEC: ${UBTS_STEER_FIELD_SPEC:-}
+  UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-}
   UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
   UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
 services:
@@ -264,6 +271,8 @@ services:
       UBTS_STEER_EXEC_SKIP_SOURCE_CHECK: ${UBTS_STEER_EXEC_SKIP_SOURCE_CHECK:-0}
       # the stage 5 input diagnostics of the SIM clock mode (SpinMonitor, tick diag, input_gap): 1 turns them on
       UBTS_STEER_EXEC_INPUT_DIAG: ${UBTS_STEER_EXEC_INPUT_DIAG:-0}
+      # vehicle profile YAML (empty: the shipped default v0.1; compose.ubts-steer.measured.yaml sets the measured one)
+      UBTS_STEER_PROFILE: ${UBTS_STEER_PROFILE:-}
       UBTS_STEER_SOURCE_COMMIT: ${UBTS_STEER_SOURCE_COMMIT:-unknown}
       UBTS_STEER_SOURCE_STATUS_SHA256: ${UBTS_STEER_SOURCE_STATUS_SHA256:-unknown}
     volumes:

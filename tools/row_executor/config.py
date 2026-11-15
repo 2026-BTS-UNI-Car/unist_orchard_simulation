@@ -353,6 +353,21 @@ class ExecutorConfig:
     steer_row_end_agree_m: object = 1.0          # front_steer estimator: a row end needs two consecutive full updates
                                                  # whose reported ends agree within this (EstimatorConfig
                                                  # row_end_agree_m; None = the original streak). S1c round 2, R53
+    # The control bridge the executor talks to (docs/steering/EXECUTOR_ESP32_KO.md, 2026-11-16). 'v3': the V3 steering
+    # bridge (steer_rover_bridge, the SIM and the design). 'esp32_abs_hold': the ESP32-S3 bridge of the real board
+    # (dashboard scripts/esp32_steer_bridge.py, firmware ABS-HOLD-8-REBOUND-LIMITS) through bridge_client
+    # Esp32AbsHoldAdapter: the same control socket and client rules; the adapter converts the steering scale, decides
+    # when a new ANGLE target goes (the SIM host policy abs_hold_host) and runs the host monitors the firmware lacks.
+    steer_bridge_kind: str = 'v3'
+    steer_esp32_mark_deg: object = None          # equivalent wheel angle [deg] at the firmware command +-20 (the CAL
+                                                 # marks). SIM: mechanical limit - 1 deg (abs_hold.mark_angle_deg);
+                                                 # field: the B3 measurement. Needed with steer_bridge_kind esp32_abs_hold
+    steer_esp32_cal: object = None               # [RIGHT, CENTER, LEFT, MAX_COMMAND] of the firmware CAL line the bridge
+                                                 # must report (the calibration identity; the V3 bridge has steer_cal_id)
+    steer_esp32_require_fw_watchdog: bool = True  # arm only when the firmware reports a drive watchdog (FW DRIVE_WD=):
+                                                 # the board firmware of 2026-11-16 has none (EXECUTOR_ESP32_KO.md 4)
+    steer_wheelbase_m: object = None             # wheelbase of the row-follow controller and of the ESP32 adapter's
+                                                 # steering_ineffective rule (None: the controller default 0.76 m)
 
     # --- autonomous start and the operator link (design v2 V2-2, decision R32; docs/steering/OPERATOR_API_KO.md). An
     # untouched block is left out of to_dict()/digest() (existing configs keep their digest).
@@ -734,6 +749,9 @@ _SPEC.update({
     'steer_row_end_agree_m': (_REAL, .1, 5., 'nullable'),
     'steer_authority_fraction': (_REAL, .5, 1.), 'steer_authority_s': (_REAL, .2, 10.),
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
+    'steer_bridge_kind': (str,), 'steer_esp32_mark_deg': (_REAL, 5., 40., 'nullable'),
+    'steer_esp32_cal': ('esp32_cal',), 'steer_esp32_require_fw_watchdog': (bool,),
+    'steer_wheelbase_m': (_REAL, .2, 3., 'nullable'),
 })
 # Autonomous start and operator link (design v2 V2-2): separate block for the same reason.
 _SPEC.update({
@@ -808,9 +826,24 @@ def _type_problems(cfg):
             problems += _speed_table_shape(value)
         elif kind == 'tuning':
             problems += _tuning_shape(value)
+        elif kind == 'esp32_cal':
+            problems += _esp32_cal_shape(value)
         else:
             problems += _check_scalar(name, value, spec)
     return problems
+
+
+def _esp32_cal_shape(value):
+    """steer_esp32_cal: None or [RIGHT, CENTER, LEFT, MAX_COMMAND] ints of the firmware CAL line (12-bit counts; the pot
+    decreases toward the right: RIGHT < CENTER < LEFT)."""
+    if value is None:
+        return []
+    if (not isinstance(value, (list, tuple)) or len(value) != 4 or not all(type(v) is int for v in value)):
+        return ['steer_esp32_cal: must be null or [RIGHT, CENTER, LEFT, MAX_COMMAND] integers']
+    right, center, left, max_command = value
+    if not (0 <= right < center < left <= 4095 and 1 <= max_command <= 90):
+        return ['steer_esp32_cal: need 0 <= RIGHT < CENTER < LEFT <= 4095 and 1 <= MAX_COMMAND <= 90']
+    return []
 
 
 def _plain(value):
@@ -1409,6 +1442,8 @@ def from_dict(data):
         values['controller_overrides'] = dict(values['controller_overrides'])
     if 'tuning_values' in values and isinstance(values['tuning_values'], dict):
         values['tuning_values'] = dict(values['tuning_values'])
+    if isinstance(values.get('steer_esp32_cal'), list):
+        values['steer_esp32_cal'] = tuple(values['steer_esp32_cal'])
     if problems:
         raise ConfigError(problems)
     return ExecutorConfig(**values).validate()
@@ -1861,6 +1896,12 @@ STEER_GO_DEADBAND_MAX_DEG = 1.        # design 6.6: servo deadband <= 1.0 deg
 # STEER_SIM_SOCKET_DIR, a vehicle configuration never on it.
 STEER_SIM_SOCKET_DIR = '/run/ubts-steer/'
 STEER_VEHICLE_SOCKET_DIR = '/run/ubts-rover/'
+# Control bridges (steer_bridge_kind). The ESP32-S3 bridge's steering API: int steer_mrad (left +) on the firmware command
+# scale, +-COMMAND_LIMIT_DEG (dashboard scripts/esp32_abs_hold.py COMMAND_LIMIT_DEG 20, LIMIT_MRAD 349).
+STEER_BRIDGE_KINDS = ('v3', 'esp32_abs_hold')
+ESP32_BRIDGE_KIND = 'esp32_abs_hold'
+ESP32_COMMAND_LIMIT_DEG = 20.
+ESP32_BRIDGE_LIMIT_MRAD = 349
 # Design 6.6 stop reasons. The executor's own monitors (core.SteerMonitor) give steering_feedback_stale /
 # steering_feedback_invalid / steering_uncalibrated / steering_authority_insufficient; every other reason comes from the
 # detector that owns the condition, read from the steering status: MCU fault names (status fl, esp_motor_v3
@@ -1884,6 +1925,7 @@ STEER_FAULT_REASONS = (
     ('NOCAL', 'steering_uncalibrated'),
     ('calibration_mismatch', 'steering_uncalibrated'),
     ('steering_status_stale', 'steering_feedback_stale'),     # host latch (status gap 150 ms)
+    ('pot_invalid', 'steering_feedback_invalid'),             # ESP32 bridge: STATUS INVALID / hold cancel INVALID POT
     ('status_seq_gap', 'steering_feedback_stale'),
     ('stop_unconfirmed', 'stop_unconfirmed'),
 )
@@ -1902,6 +1944,8 @@ STEER_LINK_FAULT_REASONS = (
     ('hardware_profile_mismatch', 'link_identity_mismatch'),
     ('internal_error', 'bridge_internal_error'),
     ('mcu_disarmed', 'mcu_disarmed'),
+    ('firmware_mismatch', 'link_identity_mismatch'),          # ESP32 bridge: another firmware on the board
+    ('mcu_drive_watchdog', 'link_watchdog'),                  # ESP32 bridge: the (proposed) firmware drive watchdog fired
 )
 STEER_STOP_REASONS = ('steering_feedback_invalid', 'steering_feedback_stale', 'steering_not_following',
                       'steering_stalled', 'steering_ineffective', 'steering_uncalibrated', 'steering_polarity_fault',
@@ -1976,6 +2020,44 @@ def steer_rule_problems(cfg):
     if not abs(cfg.steer_rotation_centre_x_m) < .5 * cfg.footprint_length_m:
         p.append('front_steer: steer_rotation_centre_x_m %r outside the footprint (length %g m)'
                  % (cfg.steer_rotation_centre_x_m, cfg.footprint_length_m))
+    p += esp32_rule_problems(cfg)
+    return p
+
+
+def esp32_scale(cfg):
+    """Firmware command degrees per equivalent wheel degree of the ESP32 bridge (ESP32_COMMAND_LIMIT_DEG /
+    steer_esp32_mark_deg), or None (not the ESP32 bridge, or no mark angle)."""
+    if getattr(cfg, 'steer_bridge_kind', 'v3') != ESP32_BRIDGE_KIND or cfg.steer_esp32_mark_deg is None:
+        return None
+    return ESP32_COMMAND_LIMIT_DEG / float(cfg.steer_esp32_mark_deg)
+
+
+def esp32_rule_problems(cfg):
+    """Static rules of the bridge choice (front_steer): a known kind; the ESP32 bridge needs the mark angle, the
+    wheelbase, no SIM identity and soft limits that stay inside the board's command range."""
+    p = []
+    if cfg.steer_bridge_kind not in STEER_BRIDGE_KINDS:
+        return ['steer_bridge_kind: must be one of %s' % (STEER_BRIDGE_KINDS,)]
+    if cfg.steer_bridge_kind != ESP32_BRIDGE_KIND:
+        if cfg.steer_esp32_mark_deg is not None or cfg.steer_esp32_cal is not None:
+            p.append('steer_esp32_*: only with steer_bridge_kind %s' % ESP32_BRIDGE_KIND)
+        return p
+    if cfg.steer_allow_sim:
+        p.append('steer_bridge_kind %s: steer_allow_sim must be false (the ESP32 bridge has no SIM identity)'
+                 % ESP32_BRIDGE_KIND)
+    if cfg.steer_esp32_mark_deg is None:
+        p.append('steer_bridge_kind %s needs steer_esp32_mark_deg (equivalent wheel angle of the command +-20)'
+                 % ESP32_BRIDGE_KIND)
+    if cfg.steer_wheelbase_m is None:
+        p.append('steer_bridge_kind %s needs steer_wheelbase_m (controller and steering_ineffective rule)'
+                 % ESP32_BRIDGE_KIND)
+    scale = esp32_scale(cfg)
+    if scale is not None:
+        for name, limit in (('steer_limit_left_mrad', cfg.steer_limit_left_mrad),
+                            ('steer_limit_right_mrad', cfg.steer_limit_right_mrad)):
+            if limit * scale > ESP32_BRIDGE_LIMIT_MRAD + 1e-9:
+                p.append('%s %d mrad is %.0f command mrad, beyond the ESP32 bridge limit %d (command +-%g deg)'
+                         % (name, limit, limit * scale, ESP32_BRIDGE_LIMIT_MRAD, ESP32_COMMAND_LIMIT_DEG))
     return p
 
 
@@ -2044,6 +2126,9 @@ def front_steer_go_problems(cfg):
         problems.append('servo deadband %.2f deg above %g deg (steering GO rule)' % (deadband, STEER_GO_DEADBAND_MAX_DEG))
     if not cfg.steer_polarity_checked:
         unknown.append('steer_polarity_checked false (B0 polarity check)')
-    if cfg.steer_cal_id is None:
+    if getattr(cfg, 'steer_bridge_kind', 'v3') == ESP32_BRIDGE_KIND:
+        if cfg.steer_esp32_cal is None:
+            unknown.append('steer_esp32_cal unknown (the firmware CAL line the ESP32 bridge must report)')
+    elif cfg.steer_cal_id is None:
         unknown.append('steer_cal_id unknown (the calibration set id the bridge must report)')
     return problems, unknown

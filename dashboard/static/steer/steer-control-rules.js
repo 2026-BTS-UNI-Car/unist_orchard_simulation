@@ -40,6 +40,17 @@
  *   - Steering-only inputs (throttle 0) also need the lease, the deadman flag and an armed bridge.
  *   - A stale status blocks throttle and freezes the steering target; stale for 1 s while armed sends STOP [proposal].
  *   - Keys map by the physical key code (layout and IME independent).
+ *
+ * Absolute-target bridges (2026-11-16, the ESP32-S3 'ABS-HOLD' firmware, status steer_control.keys 'full_limit'): the
+ * firmware moves the wheels to an absolute target by itself (slowly, about 6 command deg/s), so the page does not ramp:
+ *   - A/D held: the target is the full left / right limit at once; released: 0 at once ('가운데로') or kept ('각 유지').
+ *   - C held: 0; released: the target stays 0. No standstill step limit (the firmware has its own correction budget).
+ *   - The drag control (dragStart / dragMove / dragEnd): a precise angle while dragging, applied to the target at most
+ *     every dragPeriodMs in dragStepDeg steps; released (pointer up / cancel, touch end, blur, hidden page) it goes back
+ *     to 0. The drag also works with ramp bridges (V3), through the same ramp as A/D.
+ *   - Keys and the drag never fight: whichever started first owns the steering until it is released; the other input
+ *     is ignored meanwhile (W/S drive is separate). STOP always wins: it drops the lease and clears every input.
+ *   - The status age limit is the bridge's steering.age_limit_ms when it gives one (150..500 ms), else statusAgeMaxMs.
  * The fault and latch catalogues carry the short Korean labels a screen shows. Placeholder-based SIM results only
  * (자리값 기반 SIM 결과), never field validation. Tests: node --test dashboard/static/test_steer_control_rules.mjs.
  */
@@ -70,6 +81,9 @@
     stopRetries: 3,
     stopRetryMs: 150,
     sampleKeepMs: 2000,
+    dragPeriodMs: 250,           // drag: at most one new target per this time (the bridge spaces ANGLE >= 0.5 s)
+    dragStepDeg: 0.5,            // drag targets in this step
+    ageLimitMaxMs: 500,          // upper bound of a bridge-given steering.age_limit_ms
   });
 
   var VEHICLE_PROFILE = 'front_steer';
@@ -92,6 +106,12 @@
     ['mcu_state_mismatch', 'MCU 상태 불일치'], ['c_rejected', 'C 명령 거절'], ['hardware_fault', '전송 장애'],
     ['arm_rejected', 'ARM 거절'], ['arm_unconfirmed', 'ARM 확인 없음'], ['internal_error', '브리지 내부 오류'],
     ['mcu_ttl_expired', 'C TTL 만료 래치'],
+  ];
+  // Faults of the ESP32-S3 'ABS-HOLD' bridge (scripts/esp32_abs_hold.py) with a short Korean label and a display class.
+  var ESP32_FAULTS = [
+    ['pot_invalid', '가변저항 값 무효', 'bad'], ['steer_hold_cancelled', '조향 유지 취소(펌웨어)', 'warn'],
+    ['steer_stop', '조향 정지(펌웨어)', 'warn'], ['firmware_mismatch', '펌웨어 이름 다름', 'bad'],
+    ['mcu_drive_watchdog', '구동 감시 정지(펌웨어)', 'bad'],
   ];
   // Error codes and stop reasons (HOST_BRIDGE_V3_KO.md 3) -> short Korean text.
   var MESSAGES = {
@@ -140,6 +160,10 @@
     escape: 'Esc: STOP',
     http_failed: 'HTTP 요청 실패',
     bad_reply: '응답 형식 오류',
+    pot_invalid: '가변저항 값 무효',
+    firmware_mismatch: '펌웨어 이름이 ABS-HOLD 가 아님',
+    esp32_not_ready: 'ESP32 준비 중(배너·STOP 확인 전)',
+    mcu_drive_watchdog: '펌웨어 구동 감시가 멈춤',
   };
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -210,6 +234,8 @@
     this.hostTarget = null;        // the page's ramped steering target (mrad, float)
     this.stepOrigin = null;        // target at the start of a standstill press (mrad)
     this.centreReturn = false;     // A/D released while moving: ramping back to 0 while moving
+    this.steerSource = null;       // 'keys' (A/D/C) or 'drag': who owns the steering until it is released
+    this.drag = { active: false, deg: 0, appliedAt: null };   // deg: left positive, as steer_mrad
     this.lastRampAt = null;
     this.dirty = false;
     this.lastSent = { at: null, op: null, throttle: null, steer: null };
@@ -258,9 +284,23 @@
     if (!this.statusOk() || this.lastStatusAt === null) return false;
     if (now - this.lastStatusAt > this.cfg.pollStaleMs) return false;
     var s = this.steering();
-    if (!isNum(s.age_ms) || s.age_ms > this.cfg.statusAgeMaxMs) return false;
+    if (!isNum(s.age_ms) || s.age_ms > this.ageLimitMs()) return false;
     var host = this.lastStatus.steering_host;
     return !(host && host.stale === true);
+  };
+  SteerController.prototype.ageLimitMs = function () {
+    var given = this.steering().age_limit_ms;
+    return isNum(given) ? clamp(given, this.cfg.statusAgeMaxMs, this.cfg.ageLimitMaxMs) : this.cfg.statusAgeMaxMs;
+  };
+  // True for a bridge whose firmware holds absolute targets by itself (status steer_control.keys 'full_limit').
+  SteerController.prototype.absoluteMode = function () {
+    var sc = this.lastStatus && this.lastStatus.steer_control;
+    return !!(sc && typeof sc === 'object' && sc.keys === 'full_limit');
+  };
+  // Largest drag angle (deg) per side from the status limits; 20 before a status gives them.
+  SteerController.prototype.dragLimitDeg = function () {
+    var lim = this.limits();
+    return lim ? { left: mradToDeg(lim.left), right: mradToDeg(lim.right) } : { left: 20, right: 20 };
   };
   SteerController.prototype.moving = function (now) {
     var limit = now - this.cfg.movingWindowMs;
@@ -353,8 +393,10 @@
   SteerController.prototype.keyDown = function (key) {
     if (!(key in this.keys) || this.keys[key]) return;
     if (this.releasing) return;
+    var steerKey = key === 'a' || key === 'd';
+    if (steerKey && this.steerSource === 'drag') return;    // the drag owns the steering until it is released
     this.keys[key] = true;
-    if (key === 'a' || key === 'd') this.centreReturn = false;
+    if (steerKey) { this.centreReturn = false; this.steerSource = 'keys'; }
     this._armedHint();
     this.dirty = true;
     this._emit();
@@ -363,6 +405,7 @@
     if (!(key in this.keys) || !this.keys[key]) return;
     this.keys[key] = false;
     if ((key === 'a' || key === 'd') && !this.keys.a && !this.keys.d && !this.centreHeld) {
+      this.steerSource = null;
       this._steerReleased(this.now());
     }
     this.dirty = true;
@@ -374,6 +417,8 @@
     var moving = this.fresh(now) && this.moving(now);
     if (!this.steerHold && (moving || this.steerMode === 'centre')) {
       this.centreReturn = true;          // centre mode: always; design 4.4: only while moving
+    } else if (this.absoluteMode()) {
+      this.centreReturn = false;         // absolute targets: 'keep' keeps the target (the firmware holds it)
     } else if (!moving) {
       this._freeze(now);                 // standing (design mode or steer hold): keep the wheels where they are
     }                                    // moving with steer hold: keep the target
@@ -389,15 +434,19 @@
   SteerController.prototype.setCentre = function (held) {
     held = !!held;
     if (held === this.centreHeld || this.releasing) return;
+    if (held && this.steerSource === 'drag') return;        // the drag owns the steering until it is released
     this.centreHeld = held;
     var now = this.now();
     if (held) {
       this.centreReturn = false;
       this.stepOrigin = null;
+      this.steerSource = 'keys';
       this._armedHint();
     } else {
       this.stepOrigin = null;
-      if (this.lease && !this.keys.a && !this.keys.d && !(this.fresh(now) && this.moving(now))) this._freeze(now);
+      if (!this.keys.a && !this.keys.d) this.steerSource = null;
+      if (this.lease && !this.keys.a && !this.keys.d && !this.absoluteMode()
+          && !(this.fresh(now) && this.moving(now))) this._freeze(now);
     }
     this.dirty = true;
     this._emit();
@@ -419,16 +468,58 @@
     this._emit();
     return true;
   };
+  // The drag control. deg: left positive (as steer_mrad), clamped to the status limits, in dragStepDeg steps.
+  SteerController.prototype._dragDeg = function (deg) {
+    var lim = this.dragLimitDeg();
+    var step = this.cfg.dragStepDeg > 0 ? this.cfg.dragStepDeg : 0.5;
+    var value = clamp(num(deg), -lim.right, lim.left);
+    value = roundHalfAway(value / step) * step;
+    value = clamp(value, -lim.right, lim.left);
+    return Math.abs(value) < 1e-9 ? 0 : value;
+  };
+  // Returns true when the drag took the steering (armed, not releasing, keys not holding it).
+  SteerController.prototype.dragStart = function (deg) {
+    if (this.drag.active || this.releasing) return this.drag.active;
+    if (this.steerSource === 'keys' || this.keys.a || this.keys.d || this.centreHeld) return false;
+    if (!this.lease) { this._armedHint(); this._emit(); return false; }
+    this.drag = { active: true, deg: this._dragDeg(deg), appliedAt: null };
+    this.steerSource = 'drag';
+    this.centreReturn = false;
+    this.stepOrigin = null;
+    this.dirty = true;
+    this._emit();
+    return true;
+  };
+  SteerController.prototype.dragMove = function (deg) {
+    if (!this.drag.active) return;
+    var value = this._dragDeg(deg);
+    if (value === this.drag.deg) return;
+    this.drag.deg = value;
+    this._emit();
+  };
+  // Released (pointer up / cancel, touch end, blur, hidden page): back to 0.
+  SteerController.prototype.dragEnd = function (reason) {
+    if (!this.drag.active) return;
+    this.drag = { active: false, deg: 0, appliedAt: null, endedBy: reason || 'release' };
+    if (this.steerSource === 'drag') this.steerSource = null;
+    this.stepOrigin = null;
+    if (this.lease) this.centreReturn = true;
+    this.dirty = true;
+    this._emit();
+  };
   SteerController.prototype.blur = function () {
     var self = this;
     ['w', 's', 'a', 'd'].forEach(function (k) { self.keyUp(k); });
     this.setCentre(false);
+    this.dragEnd('blur');
   };
   SteerController.prototype._clearInputs = function () {
     this.keys = { w: false, s: false, a: false, d: false };
     this.centreHeld = false;
     this.centreReturn = false;
     this.stepOrigin = null;
+    this.steerSource = null;
+    this.drag = { active: false, deg: 0, appliedAt: null };
     this.dirty = false;
   };
 
@@ -444,7 +535,7 @@
     return Math.round(clamp(this.hostTarget, -lim.right, lim.left));
   };
   SteerController.prototype.steeringActive = function () {
-    return this.keys.a || this.keys.d || this.centreHeld || this.centreReturn;
+    return this.keys.a || this.keys.d || this.centreHeld || this.centreReturn || this.drag.active;
   };
   SteerController.prototype._updateSteering = function (now) {
     var dtMs = this.lastRampAt === null ? 0 : clamp(now - this.lastRampAt, 0, this.cfg.maxRampDtMs);
@@ -452,10 +543,13 @@
     if (!this.lease || this.hostTarget === null) return;
     var lim = this.limits();
     if (!lim || !this.fresh(now)) return;             // stale: the target stays (no ramp, no centre return)
+    if (this.absoluteMode()) { this._updateAbsolute(now, lim); return; }
     var moving = this.moving(now);
     var goal = null, rate = moving ? this.cfg.movingRateDegS : this.cfg.standstillRateDegS;
     var steerKey = this.keys.a || this.keys.d;
-    if (this.centreHeld) {
+    if (this.drag.active) {
+      goal = degToMrad(this.drag.deg);                  // ramp bridges: the drag goes through the same ramp as A/D
+    } else if (this.centreHeld) {
       goal = 0;
       rate = this.cfg.standstillRateDegS;               // design 4.4: centre at the standstill rate cap
     } else if (steerKey) {
@@ -494,6 +588,29 @@
       this.stepOrigin = null;
       this.dirty = true;
     }
+  };
+  // Absolute-target bridge: no ramp, no standstill step; the drag at most every dragPeriodMs.
+  SteerController.prototype._updateAbsolute = function (now, lim) {
+    var goal = null;
+    if (this.drag.active) {
+      if (this.drag.appliedAt !== null && now - this.drag.appliedAt < this.cfg.dragPeriodMs) return;
+      goal = degToMrad(this.drag.deg);
+      if (this.hostTarget !== null && Math.abs(goal - this.hostTarget) < 0.5) return;
+      this.drag.appliedAt = now;
+    } else if (this.centreHeld) {
+      goal = 0;
+    } else if (this.keys.a || this.keys.d) {
+      var dir = (this.keys.a ? 1 : 0) - (this.keys.d ? 1 : 0);
+      goal = dir > 0 ? lim.left : dir < 0 ? -lim.right : this.hostTarget;
+    } else if (this.centreReturn) {
+      goal = 0;
+      this.centreReturn = false;
+      this.dirty = true;
+    }
+    this.stepOrigin = null;
+    if (goal === null) return;
+    goal = clamp(goal, -lim.right, lim.left);
+    if (goal !== this.hostTarget) { this.hostTarget = goal; this.dirty = true; }
   };
   SteerController.prototype.setSteerMode = function (mode) {
     if (mode !== 'centre' && mode !== 'design') return false;
@@ -735,6 +852,7 @@
 
   var api = {
     DEFAULTS: DEFAULTS, VEHICLE_PROFILE: VEHICLE_PROFILE, MCU_FAULTS: MCU_FAULTS, HOST_LATCHES: HOST_LATCHES,
+    ESP32_FAULTS: ESP32_FAULTS,
     MESSAGES: MESSAGES, SteerController: SteerController, mcuDrive: mcuDrive, mradFromPermille: mradFromPermille,
     permilleFromMrad: permilleFromMrad, degToMrad: degToMrad, mradToDeg: mradToDeg, roundHalfAway: roundHalfAway,
     messageFor: messageFor, keyFromEvent: keyFromEvent,
