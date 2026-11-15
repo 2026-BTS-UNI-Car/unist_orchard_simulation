@@ -417,11 +417,11 @@ class ExecutorConfig:
     gnss_rtk_fix_types: str = 'fixed'            # 'fixed' or 'fixed,float' (a NavSatFix GBAS fix is fixed OR float)
     gnss_rtk_max_hacc_m: float = .05             # gate: reported horizontal accuracy <= this
     gnss_rtk_gain: float = .5                    # correction target = gain x filtered (RTK - LiDAR) lateral ...
-    gnss_rtk_cap_m: float = .15                  # ... within +-cap (never more than this off the LiDAR row line)
+    gnss_rtk_cap_m: float = .10                  # ... within +-cap (never more than this off the LiDAR row line)
     gnss_rtk_rate_m_s: float = .05               # the applied correction moves at most this fast (fade: no step)
     gnss_rtk_hold_s: float = 1.5                 # no usable fix for longer: the correction fades to 0
     gnss_rtk_window_m: float = 20.               # learning window of the row line (path)
-    gnss_rtk_min_span_m: float = 4.              # path a line needs before it is used
+    gnss_rtk_min_span_m: float = 8.              # path a line needs before it is used
     gnss_rtk_antenna_x_m: float = 0.             # antenna lever arm in the base frame (placeholder)
     gnss_rtk_antenna_y_m: float = 0.
 

@@ -1,0 +1,308 @@
+{
+ "conditions": [
+  {
+   "gnss": {
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "nominal_fixed",
+   "role": "harmless",
+   "world": "nominal"
+  },
+  {
+   "gnss": {
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "jog_fixed",
+   "role": "benefit",
+   "world": "jog_r"
+  },
+  {
+   "gnss": {
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "float"
+    }
+   },
+   "name": "jog_float_only",
+   "role": "identical",
+   "world": "jog_r"
+  },
+  {
+   "gnss": {
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed",
+     "windows": [
+      [
+       60.0,
+       66.0,
+       "float"
+      ],
+      [
+       66.0,
+       70.0,
+       "none"
+      ],
+      [
+       76.0,
+       79.0,
+       "single"
+      ]
+     ]
+    }
+   },
+   "name": "jog_fixed_transitions",
+   "role": "harmless",
+   "world": "jog_r"
+  },
+  {
+   "gnss": {
+    "jumps": [
+     {
+      "at_s": 59.0,
+      "duration_s": 6.0,
+      "east_m": 0.35,
+      "north_m": -0.35
+     },
+     {
+      "at_s": 70.0,
+      "duration_s": 0.2,
+      "east_m": -0.3,
+      "north_m": 0.2
+     },
+     {
+      "at_s": 75.0,
+      "duration_s": 0.2,
+      "east_m": 0.25,
+      "north_m": 0.3
+     }
+    ],
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "jog_fixed_jump",
+   "role": "harmless",
+   "world": "jog_r"
+  },
+  {
+   "gnss": {
+    "frame_mirror": true,
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "nominal_mirror",
+   "role": "identical",
+   "world": "nominal"
+  },
+  {
+   "gnss": {
+    "antenna_xy_m": [
+     0.5,
+     0.2
+    ],
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "jog_lever",
+   "role": "benefit",
+   "world": "jog_r"
+  },
+  {
+   "gnss": {
+    "latency_s": 0.1,
+    "phase_ms": 30,
+    "rate_hz": 5.0,
+    "rtk": {
+     "default_type": "fixed"
+    }
+   },
+   "name": "curve_fixed",
+   "role": "harmless",
+   "world": "curve_l60"
+  }
+ ],
+ "criteria": {
+  "benefit_jog_reduction": 0.1,
+  "benefit_seed_majority": true,
+  "cap_m": 0.1,
+  "cap_tolerance_m": 0.0001,
+  "follow": "follow_wide.judge, expect row_end (round 2 criteria: lateral RMSE 0.20 m, p95 0.35 m, max 0.50 m, heading RMSE 5 deg, max 15 deg, speed 0.50 m/s, e +-1.0 m, no contact, at rest, A22), for every off and rtk run",
+  "harm_max_m": 0.05,
+  "harm_rmse_m": 0.02,
+  "rate_m_s": 0.05,
+  "rate_tolerance_m": 0.0002,
+  "same_end": true
+ },
+ "duration_s": 200.0,
+ "executor": {
+  "gnss_mode": "weak_constraint",
+  "rtk_settings": {
+   "antenna_x_m": 0.0,
+   "antenna_y_m": 0.0,
+   "cap_m": 0.1,
+   "disagree_reset_m": 8.0,
+   "fix_types": [
+    "fixed"
+   ],
+   "frame_ratio": 2.0,
+   "frame_reject_after": 3,
+   "frame_rms_m": 0.05,
+   "gain": 0.5,
+   "heading_gate_deg": 3.0,
+   "hold_s": 1.5,
+   "innovation_beta": 0.3,
+   "jump_gate_m": 0.25,
+   "learn_delay_m": 2.0,
+   "learn_gate_m": 0.03,
+   "max_disagree_m": 0.2,
+   "max_hacc_m": 0.05,
+   "max_rms_m": 0.05,
+   "min_points": 6,
+   "min_span_m": 8.0,
+   "min_spread_m": 0.01,
+   "rate_m_s": 0.05,
+   "reanchor_after": 5,
+   "refresh_m": 5.0,
+   "window_m": 20.0
+  }
+ },
+ "id": "gnss_rtk_weak_v1",
+ "jog_window_s": [
+  21.0,
+  28.5
+ ],
+ "profiles": {
+  "v01": {
+   "controller": "row_follow",
+   "executor_config": {},
+   "profile_id": "front_steer_v0_1_placeholder"
+  },
+  "v1": {
+   "controller": "row_follow with the profile wheelbase",
+   "executor_config": {
+    "steer_rate_min_deg_s": 4.0
+   },
+   "profile_id": "front_steer_v1_spec_20261116"
+  }
+ },
+ "receiver": {
+  "latency_s": 0.1,
+  "models": "steering/gnss_sim.py RTK_MODELS (placeholders)",
+  "phase_ms": 30,
+  "rate_hz": 5.0
+ },
+ "result_kind": "placeholder-based SIM result",
+ "roles": [
+  "benefit",
+  "harmless",
+  "identical"
+ ],
+ "runs_per_seed_set": 22,
+ "schema": "ubts.steer_sim.prereg_rtk_matrix.v1",
+ "seeds": {
+  "dev": [
+   100,
+   101
+  ],
+  "judge": [
+   6000,
+   6001,
+   6002,
+   6003,
+   6004
+  ]
+ },
+ "simulator": "F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)",
+ "twin": "off: the same profile, world, seed and stream key, gnss_mode off, no GNSS packets",
+ "worlds": {
+  "curve_l60": {
+   "curvature_1_m": 0.016666666666666666,
+   "end_post_m": null,
+   "end_post_radius_m": 0.06,
+   "end_s_m": 40.0,
+   "extra": [],
+   "gaps": [],
+   "half_width_m": 1.75,
+   "post_radius_m": 0.12,
+   "spacing_m": 1.5,
+   "start_s_m": -4.5
+  },
+  "jog_r": {
+   "curvature_1_m": 0.0,
+   "end_post_m": null,
+   "end_post_radius_m": 0.06,
+   "end_s_m": 40.0,
+   "extra": [
+    [
+     21.0,
+     -2.1,
+     0.12
+    ],
+    [
+     22.5,
+     -2.1,
+     0.12
+    ],
+    [
+     24.0,
+     -2.1,
+     0.12
+    ],
+    [
+     25.5,
+     -2.1,
+     0.12
+    ]
+   ],
+   "gaps": [
+    [
+     "R",
+     21.0,
+     4
+    ]
+   ],
+   "half_width_m": 1.75,
+   "post_radius_m": 0.12,
+   "spacing_m": 1.5,
+   "start_s_m": -4.5
+  },
+  "nominal": {
+   "curvature_1_m": 0.0,
+   "end_post_m": null,
+   "end_post_radius_m": 0.06,
+   "end_s_m": 40.0,
+   "extra": [],
+   "gaps": [],
+   "half_width_m": 1.75,
+   "post_radius_m": 0.12,
+   "spacing_m": 1.5,
+   "start_s_m": -4.5
+  }
+ }
+}

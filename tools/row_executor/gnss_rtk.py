@@ -11,15 +11,27 @@ memory, none is logged):
   learning   every usable fix while the LiDAR corridor is valid and TWO-SIDED gives a centre-line point: the antenna
              position minus the lever arm (heading = odometry yaw + the odometry->GNSS rotation alpha, a 2D Kabsch fit of
              the run's odometry and RTK tracks) minus the LiDAR lateral offset along the line normal. A straight line is
-             fitted (total least squares) to the points of the last window_m of path. It is used only when it has
-             min_points over min_span_m and its residual RMS is <= max_rms_m (a curved row or bad data: no line).
-  frame      the RTK cross-track position of the base against the LiDAR lateral offset must have a slope inside
-             slope_range (1 = same frame; a mirrored or badly scaled GNSS frame gives -1 / far from 1) once the LiDAR
-             lateral spread reaches min_spread_m. Checked at most once per metre of path; frame_reject_after
-             consecutive failed checks refuse the constraint for the run. Until a check passes nothing is applied.
-  bias       a sample farther than learn_gate_m from the active line is not learnt (a LiDAR bias, e.g. misplaced trees
-             or a skipped line, is not learnt into the line). Disagreement for disagree_reset_m of path drops the line
-             (the row really moved, or the line was wrong): it is relearnt from the LiDAR.
+             fitted to the learnt points of the last window_m of path, robustly: its direction joins the median points
+             of the first and the last third (a few contaminated points at one end do not tilt it), it passes through
+             the median point. It is used only when it has min_points over min_span_m and its residual RMS is <=
+             max_rms_m (a curved row or bad data: no line). Once a line exists it is refitted only every refresh_m of
+             path (between refreshes it is fixed, so samples are judged against a line they cannot move).
+  frame      the odometry track and the RTK track of the window must match by a rotation (2D Procrustes residual RMS
+             <= frame_rms_m) and clearly worse by a reflection (residual > frame_ratio x the rotation's): a mirrored
+             frame (east / north swapped) fits the reflection instead, a badly scaled frame fits neither. Judged once
+             the odometry track's cross-track spread reaches min_spread_m (a straight track is mirror-symmetric), at
+             most once per metre of path; frame_reject_after reflection verdicts refuse the constraint for the run.
+             Until a check passes nothing is applied. (The LiDAR-vs-RTK lateral slope is reported only: a LiDAR bias
+             step inside the window moves it.)
+  bias       a sample is learnt only learn_delay_m of path after it was taken, and only when the filtered
+             disagreement at the time it was taken was within learn_gate_m and the sample itself is within twice that
+             of the line fitted without it (a LiDAR bias, e.g. misplaced trees or a skipped line, is judged against the
+             line from before it began and is not learnt; the filter keeps single noisy fixes from refusing samples);
+             when one is refused, the samples still pending are refused with it (the onset of a bias). A filtered
+             disagreement beyond learn_gate_m for disagree_reset_m of path, or beyond max_disagree_m, drops the line
+             (the row really moved or bends, or the line was wrong): it is relearnt.
+  heading    the LiDAR corridor axis (odometry yaw + heading error, rotated by alpha) must stay within heading_gate_deg
+             of the line; beyond it (a curved row bends away from the straight line) the line is dropped at once.
 
 Gate (every condition, else the fix is not used; reasons are counted): solution type in fix_types ('fixed'; 'float'
 optional; a NavSatFix GBAS status - the UBTS driver's RTK FIXED or FLOAT - counts as float), reported horizontal accuracy
@@ -42,7 +54,7 @@ from .perception_settings import RtkSettings
 
 FIX_TYPES = ('none', 'single', 'dgps', 'float', 'fixed', 'rtk', 'unknown')
 REASONS = ('fixes', 'used', 'fix_type', 'hacc', 'layer', 'layer_flag', 'no_pose', 'rtk_jump', 'no_corridor',
-           'track_restart', 'line_reset')
+           'track_restart', 'line_reset', 'heading_reset', 'divergence_reset')
 NMEA_QUALITY = {0: 'none', 1: 'single', 2: 'dgps', 4: 'fixed', 5: 'float', 6: 'none'}    # GGA field 6 (6: dead reckoning)
 UBX_CARR_SOLN = {1: 'float', 2: 'fixed'}                                                  # NAV-PVT flags bits 6-7
 NAVSAT_STATUS = {-1: 'none', 0: 'single', 1: 'dgps', 2: 'rtk'}    # NavSatStatus; UBTS driver: 2 = GGA quality 4 or 5
@@ -68,6 +80,40 @@ def fix_type_from_message(msg):
         return NAVSAT_STATUS.get(int(msg.status.status), 'unknown')
     except (AttributeError, TypeError, ValueError):
         return 'unknown'
+
+
+def _median(values):
+    ordered = sorted(values)
+    n = len(ordered)
+    return ordered[n // 2] if n % 2 else .5 * (ordered[n // 2 - 1] + ordered[n // 2])
+
+
+def _median_point(points):
+    return _median([p[0] for p in points]), _median([p[1] for p in points])
+
+
+def _cross_spread(points):
+    """RMS distance of 2D points from their principal line."""
+    phi, (mx, my) = _direction(points)
+    nx, ny = -math.sin(phi), math.cos(phi)
+    return math.sqrt(sum((nx * (x - mx) + ny * (y - my)) ** 2 for x, y in points) / len(points))
+
+
+def _procrustes_rms(odo, gnss, reflect=False):
+    """RMS residual of the best rotation (+ translation) from the odometry points onto the GNSS points, with the
+    odometry mirrored first when reflect; None when the points do not span a direction."""
+    if reflect:
+        odo = [(x, -y) for x, y in odo]
+    fitted = _kabsch(odo, gnss)
+    if fitted is None:
+        return None
+    angle, (ox, oy), (gx, gy) = fitted
+    c, s = math.cos(angle), math.sin(angle)
+    total = 0.
+    for (px, py), (qx, qy) in zip(odo, gnss):
+        ax, ay = px - ox, py - oy
+        total += (qx - gx - (c * ax - s * ay)) ** 2 + (qy - gy - (s * ax + c * ay)) ** 2
+    return math.sqrt(total / len(odo))
 
 
 def _finite(value):
@@ -105,12 +151,17 @@ class RtkConstraint:
         self.origin = None                # first usable fix of the run (memory only; positions are relative to it)
         self.path_m = 0.
         self._pose = None                 # odometry base pose of the latest tick
-        self.samples = deque(maxlen=SAMPLE_CAP)   # [path, gx, gy, ox, oy, yaw, lateral, heading, two_sided, learn]
+        # [path, gx, gy, ox, oy, yaw, lateral, heading, two_sided, learn (None = pending, learn_delay_m),
+        #  filtered disagreement when taken (None without a line)]
+        self.samples = deque(maxlen=SAMPLE_CAP)
         self.prev = None                  # last fix that passed the jump gate: (gx, gy, ox, oy)
         self.rejected = []                # consecutive jump-rejected fixes: (gx, gy, ox, oy)
         self.alpha = None                 # odometry -> RTK frame rotation [rad]
         self.line = None                  # (px, py, phi, rms, span, points)
+        self._line_path = None            # path at the last line fit (refresh_m)
         self.slope = self.spread = None
+        self.path_spread = None
+        self.frame_rms = None             # (rotation, reflection) residual RMS of the last frame check
         self.frame = 'unverified'         # 'unverified' | 'verified' | 'rejected'
         self.frame_failures = 0
         self._frame_path = None
@@ -192,6 +243,8 @@ class RtkConstraint:
             out['line'] = dict(points=self.line[5], span_m=round(self.line[4], 2), rms_m=round(self.line[3], 4))
         if self.slope is not None:
             out.update(slope=round(self.slope, 3), spread_m=round(self.spread, 4))
+        if self.frame_rms is not None:
+            out.update(frame_rms_m=[round(v, 4) for v in self.frame_rms], path_spread_m=round(self.path_spread, 4))
         return out
 
     # --- internals -------------------------------------------------------------------------------------------------
@@ -250,32 +303,54 @@ class RtkConstraint:
         if s.get('corridor_valid') is not True or not _finite(lateral) or not _finite(heading):
             return 'no_corridor'
         two_sided = 'one_side' not in str(s.get('corridor_reason'))
-        sample = [self.path_m, gx, gy, ox, oy, yaw, float(lateral), float(heading), two_sided, two_sided]
+        sample = [self.path_m, gx, gy, ox, oy, yaw, float(lateral), float(heading), two_sided,
+                  None if two_sided else False, None]
+        if self.line is not None and self.alpha is not None:
+            axis = yaw + float(heading) + self.alpha          # the LiDAR corridor axis in the RTK frame
+            if abs(math.atan2(math.sin(axis - self.line[2]), math.cos(axis - self.line[2]))) > math.radians(
+                    cfg.heading_gate_deg):
+                self._drop_line('heading_reset')
         if self.line is not None and self.alpha is not None:
             delta = self._delta(sample)
-            if abs(delta) > cfg.learn_gate_m:
-                sample[9] = False
+            self.delta_f = delta if self.delta_f is None else (self.delta_f
+                                                               + cfg.innovation_beta * (delta - self.delta_f))
+            self.last_used_t = t
+            sample[10] = self.delta_f
+            if abs(self.delta_f) > cfg.max_disagree_m:
+                self._drop_line('divergence_reset')
+            elif abs(self.delta_f) > cfg.learn_gate_m:
                 if self.disagree_from is None:
                     self.disagree_from = self.path_m
                 elif self.path_m - self.disagree_from >= cfg.disagree_reset_m:
-                    for old in self.samples:
-                        old[9] = False
-                    sample[9] = two_sided
-                    self.line = None
-                    self.delta_f = None
-                    self.disagree_from = None
-                    self.counts['line_reset'] += 1
+                    self._drop_line('line_reset')
             else:
                 self.disagree_from = None
-            if self.line is not None:
-                self.delta_f = delta if self.delta_f is None else (self.delta_f
-                                                                   + cfg.innovation_beta * (delta - self.delta_f))
-                self.last_used_t = t
         self.samples.append(sample)
+        refused = False
+        for old in self.samples:                 # pending samples old enough: learnt if they agree with the line
+            if old[9] is None and self.path_m - old[0] >= cfg.learn_delay_m:
+                old[9] = ((old[10] is None or abs(old[10]) <= cfg.learn_gate_m)
+                          and (self.line is None or self.alpha is None
+                               or abs(self._delta(old)) <= 2. * cfg.learn_gate_m))
+                refused = refused or not old[9]
+        if refused:                              # the onset of a bias: the samples still pending are not learnt
+            for old in self.samples:
+                if old[9] is None:
+                    old[9] = False
         while self.samples and self.path_m - self.samples[0][0] > cfg.window_m:
             self.samples.popleft()
         self._fit()
         return 'used'
+
+    def _drop_line(self, counter):
+        """The line is dropped: every sample taken so far stays for the alignment but is never learnt; new samples
+        build the next line."""
+        for old in self.samples:
+            old[9] = False
+        self.line = None
+        self.delta_f = None
+        self.disagree_from = None
+        self.counts[counter] += 1
 
     def _base(self, sample):
         """Base position of a sample in the run-local RTK frame (antenna minus the lever arm at the aligned yaw)."""
@@ -294,20 +369,28 @@ class RtkConstraint:
         pts = self.samples
         if len(pts) < 3 or pts[-1][0] - pts[0][0] < cfg.min_span_m:
             return
-        fitted = _kabsch([(p[3], p[4]) for p in pts], [(p[1], p[2]) for p in pts])
+        odo, gnss = [(p[3], p[4]) for p in pts], [(p[1], p[2]) for p in pts]
+        fitted = _kabsch(odo, gnss)
         if fitted is None:
             return
         self.alpha = fitted[0]
-        learn = [p for p in pts if p[9]]
+        self._frame_check(odo, gnss)
+        if self.line is not None and self.path_m - self._line_path < cfg.refresh_m:
+            return                         # the line is fixed between refreshes
+        learn = [p for p in pts if p[9] is True]
         if len(learn) < max(3, cfg.min_points) or learn[-1][0] - learn[0][0] < cfg.min_span_m:
             self.line = None
             return
+        self._line_path = self.path_m
         bases = [self._base(p) for p in learn]
         lats = [p[6] for p in learn]
         phi0, _ = _direction(bases)
         n0x, n0y = -math.sin(phi0), math.cos(phi0)
         centres = [(bx - lat * n0x, by - lat * n0y) for (bx, by), lat in zip(bases, lats)]
-        phi, (px, py) = _direction(centres)
+        third = max(1, len(centres) // 3)
+        (ax, ay), (bx2, by2) = _median_point(centres[:third]), _median_point(centres[-third:])
+        phi = math.atan2(by2 - ay, bx2 - ax)
+        px, py = _median_point(centres)
         nx, ny = -math.sin(phi), math.cos(phi)
         residuals = [nx * (cx - px) + ny * (cy - py) for cx, cy in centres]
         rms = math.sqrt(sum(r * r for r in residuals) / len(residuals))
@@ -320,15 +403,23 @@ class RtkConstraint:
         self.spread = math.sqrt(var_l)
         self.slope = (None if var_l <= 0. else
                       sum((q - mean_q) * (lat - mean_l) for q, lat in zip(cross, lats)) / len(lats) / var_l)
-        if (self.frame != 'unverified' or self.spread < cfg.min_spread_m or self.slope is None
-                or (self._frame_path is not None and self.path_m - self._frame_path < 1.)):
+
+    def _frame_check(self, odo, gnss):
+        cfg = self.s
+        if self.frame != 'unverified' or (self._frame_path is not None and self.path_m - self._frame_path < 1.):
+            return
+        self.path_spread = _cross_spread(odo)
+        if self.path_spread < cfg.min_spread_m:
+            return
+        rotation, reflection = _procrustes_rms(odo, gnss), _procrustes_rms(odo, gnss, reflect=True)
+        if rotation is None or reflection is None:
             return
         self._frame_path = self.path_m
-        lo, hi = cfg.slope_range
-        if lo <= self.slope <= hi:
+        self.frame_rms = (rotation, reflection)
+        if rotation <= cfg.frame_rms_m and reflection > cfg.frame_ratio * rotation:
             self.frame = 'verified'
             self.frame_failures = 0
-        else:
+        elif reflection <= cfg.frame_rms_m and rotation > cfg.frame_ratio * reflection:
             self.frame_failures += 1
             if self.frame_failures >= cfg.frame_reject_after:
                 self.frame = 'rejected'

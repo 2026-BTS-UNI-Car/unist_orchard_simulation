@@ -471,3 +471,15 @@
   기록도 같음, A19 seed 101 두 번 같음). 4) ① 후보 켬 7/10(s4000 불합격 그대로, s4004·s101 새로 불합격) -> **채택 조건 불충족, 채택 안 함**.
   ② 끔 13/15(s204 같은 붙잡힘, s202 출발 직후 거짓 열 끝), 켬 9/15. ③과 3)·4)의 회귀는 돌리지 않았다(채택 판단에 쓰일 일이 없음).
   후보 코드는 커밋 `f517b3a`로 되돌렸다(`sim/`·`tools/`가 main `0f07467`과 같다). 자세한 것은 `STEER_FOLLOW_WIDE_RESULT_KO.md` 12절.
+
+### 개정 100 — A13 GNSS 모드 `weak_constraint` (2026-11-16, 결정 R100, `weak_constraint`의 첫 측정 전. 이 작업은 100번대를 쓴다)
+
+- 모드 `off`·`log_only`·`geofence`의 등록 문구(개정 30)는 그대로다.
+- 모드 `weak_constraint`(`front_steer`만):
+  - 실행기 노드의 GNSS 구독은 개정 30과 같다(`/gps/fix`; 정적 검사 허용 목록 `EXECUTOR_GNSS_TOPICS`).
+  - GNSS 값이 통로 추정(횡오차, 방향 오차, 폭, 열 끝)으로 가는 길은 여전히 0이다. 조향 명령 계산으로 가는 길은 하나만 허용한다:
+    `PerceptionLayers.controller_snapshot` → `gnss_rtk.RtkConstraint.apply`가 제어기에 주는 `lateral_offset`에 더하는 u.
+  - u는 모든 틱에서 |u| ≤ `gnss_rtk_cap_m`, 틱 사이 변화 ≤ `gnss_rtk_rate_m_s` × 틱 간격이어야 한다(기록 반올림 여유 1e-4 m, 2e-4 m).
+  - 기하 가드, 실행기 기록의 스냅숏, 정지 규칙은 LiDAR 원값을 쓴다.
+  - u가 run 내내 0인 run(예: FIXED가 없는 run, 좌표계 거부)은 같은 seed의 `off` run과 조향·구동 명령 열이 같아야 한다(바이트 비교).
+- 참값: SIM의 RTK fix는 참 안테나 위치에서 합성한 측정이다(`gnss_sim.py` 역할 plant). `gnss_rtk.py`는 역할 decision이다.

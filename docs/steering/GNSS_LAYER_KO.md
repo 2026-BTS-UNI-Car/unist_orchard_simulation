@@ -3,6 +3,7 @@
 - 작성: 2026-11-13. 작업 번호 PC-12. 설계 `DESIGN_v2_KO.md` V2-1 3항(L3), 결정 R31, 합격 기준 개정 30(A13).
 - 코드: `tools/row_executor/gnss_layer.py`(층), `perception_settings.py`(설정, 표준 라이브러리만), `perception_layers.py`(Runner 연결), `config.py`의 `gnss_*` 묶음, `core.py`(`Runner.feed_gnss`, geofence 끝), `executor_main.py`(입력 대기열, `/gps/fix` 구독). SIM: `sim/ubts/steering/gnss_sim.py`(가상 GNSS), `t1_rig.py`(`RigConfig.gnss`), `tools/row_executor/sim_in_loop_steer.py`(GNSS 패킷), `safety_scripts/perception_compare.py`(개발 비교).
 - 기본은 꺼짐(`gnss_mode` `'off'`)이다. 꺼져 있으면 층을 만들지 않고 설정 digest와 실행기 기록이 그대로다(5.1절).
+- RTK 보정용 모드 `weak_constraint`(2026-11-16, 결정 R100)는 따로 적었다: [`GNSS_RTK_KO.md`](GNSS_RTK_KO.md).
 - SIM 수치는 모두 **자리값 기반 SIM 결과**다. 가상 GNSS의 잡음 모형은 자리값이다(10/10 수신기의 짧은 시간 흔들림은 잰 적이 없다). 이 문서와 코드·기록에 GNSS 좌표는 없다. 실행기 기록에는 run의 첫 fix 기준 국소 미터만 남는다.
 
 ## 1. 왜 약한 층인가
@@ -21,9 +22,10 @@
 | `off`(기본) | 아무것도 하지 않는다. `/gps/fix`를 구독하지 않는다 | 없음 |
 | `log_only` | 아래 3절의 판정을 모두 하고 기록·상태에만 낸다 | 없음. 같은 seed에서 명령 열이 `off`와 같다(5.2절) |
 | `geofence` | `log_only` + 열 범위 펜스가 확인되면 run을 끝낸다(`gnss_geofence`, 분류 `OPERATOR_OR_BACKSTOP`) | 펜스 밖으로 확인된 fix가 이어질 때만 정지 |
+| `weak_constraint` | `geofence` + RTK FIXED fix로 조향 제어기의 횡오차 입력을 상한 ±0.10 m 안에서 조금 당긴다(`front_steer`만, [`GNSS_RTK_KO.md`](GNSS_RTK_KO.md)) | RTK FIXED가 있고 run 국소 열 선·좌표계 확인이 있을 때만. 추정기·기하 가드·정지 규칙은 그대로 |
 
 - 설계의 열린 선택 4는 현장 기본을 `log_only`로 제안한다. 실행기 설정의 기본값은 기존 설정의 digest를 지키려고 `'off'`로 두었다. 현장 설정 파일에서 `"gnss_mode": "log_only"`를 켠다.
-- 설계에 적힌 `weak_constraint`는 만들지 않았다(RTK 보정 계획이 없음, 계획 4절 다7). 설정 검사가 거부한다.
+- 설계에 적힌 `weak_constraint`는 처음(2026-11-13)에는 만들지 않았다(그때 RTK 보정 계획이 없었음, 계획 4절 다7). 사용자가 2026-11-14 RTK 보정을 쓰기로 해서 2026-11-16에 만들었다(기본 꺼짐, `GNSS_RTK_KO.md`).
 - GNSS가 끊기거나 품질이 낮거나 튀면 'GNSS 없음'으로 처리한다. 그것만으로 서지 않는다(`log_only`, `geofence` 모두).
 
 ## 3. 판정 규칙 (`gnss_layer.GnssLayer`)

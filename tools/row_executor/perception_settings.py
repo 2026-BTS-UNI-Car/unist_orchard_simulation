@@ -124,20 +124,25 @@ class RtkSettings:
     fix_types: tuple = ('fixed',)    # accepted solutions; 'float' also admits a NavSatFix GBAS fix (fixed or float)
     max_hacc_m: float = .05          # reported horizontal accuracy <= this (a FIXED solution reports about 0.01-0.03 m)
     gain: float = .5                 # correction target = gain x the filtered RTK - LiDAR lateral disagreement ...
-    cap_m: float = .15               # ... bounded to +-cap_m (the LiDAR row line is never overridden by more)
+    cap_m: float = .10               # ... bounded to +-cap_m (the LiDAR row line is never overridden by more)
     rate_m_s: float = .05            # the applied correction moves at most this fast (also the fade out: no step)
     hold_s: float = 1.5              # without a usable fix for longer the target is 0 (fade out at rate_m_s)
     window_m: float = 20.            # learning window: the last window_m of path
-    min_span_m: float = 4.           # a line needs this much path in its learning samples
+    min_span_m: float = 8.           # a line needs this much path in its learning samples
     min_points: int = 6
+    refresh_m: float = 5.            # an existing line is refitted only every refresh_m of path (fixed in between)
     max_rms_m: float = .05           # straight-line fit residual RMS above this: no line (curved row, bad data)
-    learn_gate_m: float = .10        # a sample farther from the active line is not learnt (a LiDAR bias is not learnt)
+    learn_gate_m: float = .03        # a sample farther from the line is not learnt (a LiDAR bias is not learnt) ...
+    learn_delay_m: float = 2.        # ... judged this much path after it was taken (against the line without it)
     disagree_reset_m: float = 8.     # samples disagreeing over this much path: the line is dropped and relearnt
+    max_disagree_m: float = .20      # filtered disagreement beyond this: the line is dropped (a bend, a wrong line)
+    heading_gate_deg: float = 3.     # LiDAR corridor axis vs the line beyond this: the line is dropped (curved row)
     jump_gate_m: float = .25         # RTK innovation against the odometry-predicted position (step / wrong fix)
     reanchor_after: int = 5          # this many consecutive mutually consistent rejected fixes: the track restarts
-    min_spread_m: float = .02        # frame check needs this LiDAR lateral spread (std) in the samples ...
-    slope_range: tuple = (.5, 1.5)   # ... and the RTK-vs-LiDAR lateral slope inside this range (a mirrored frame: -1)
-    frame_reject_after: int = 3      # consecutive failed frame checks: the constraint is refused for the run
+    min_spread_m: float = .01        # frame check: the odometry track's cross-track spread must reach this ...
+    frame_rms_m: float = .05         # ... the RTK track must match it by a rotation within this RMS ...
+    frame_ratio: float = 2.          # ... and a reflection must fit worse by this factor (a mirrored frame: reversed)
+    frame_reject_after: int = 3      # this many reflection verdicts: the constraint is refused for the run
     innovation_beta: float = .3      # low-pass of the per-fix disagreement
     antenna_x_m: float = 0.          # antenna in the base frame (lever arm; a constant error cancels in the learnt line)
     antenna_y_m: float = 0.
@@ -149,17 +154,18 @@ class RtkSettings:
             p.append('fix_types: fixed, optionally with float')
         p += _range_problems(self, (
             ('max_hacc_m', .005, 1.), ('gain', 0., 1.), ('cap_m', 0., .3), ('rate_m_s', .005, .2), ('hold_s', .2, 5.),
-            ('window_m', 4., 100.), ('min_span_m', 1., 50.), ('min_points', 3, 1000), ('max_rms_m', .005, .3),
-            ('learn_gate_m', .02, .5), ('disagree_reset_m', 1., 100.), ('jump_gate_m', .05, 2.),
-            ('reanchor_after', 1, 50), ('min_spread_m', .005, .2), ('frame_reject_after', 1, 50),
+            ('window_m', 4., 100.), ('min_span_m', 1., 50.), ('min_points', 3, 1000), ('refresh_m', .5, 50.),
+            ('max_rms_m', .005, .3),
+            ('learn_gate_m', .01, .5), ('learn_delay_m', 0., 20.), ('disagree_reset_m', 1., 100.),
+            ('max_disagree_m', .02, 1.),
+            ('heading_gate_deg', .5, 20.), ('jump_gate_m', .05, 2.),
+            ('reanchor_after', 1, 50), ('min_spread_m', .005, .2), ('frame_rms_m', .005, .5),
+            ('frame_ratio', 1.1, 10.), ('frame_reject_after', 1, 50),
             ('innovation_beta', .01, 1.), ('antenna_x_m', -2., 2.), ('antenna_y_m', -2., 2.)))
         if p:
             return p
         if self.min_span_m >= self.window_m:
             p.append('min_span_m must be below window_m')
-        lo, hi = self.slope_range
-        if not (0. < lo < 1. < hi):
-            p.append('slope_range: 0 < lo < 1 < hi')
         return p
 
 

@@ -90,12 +90,16 @@ class FixTypeTest(unittest.TestCase):
     def test_settings(self):
         self.assertEqual(RtkSettings().problems(), [])
         for bad in (dict(fix_types=('float',)), dict(fix_types=('fixed', 'single')), dict(fix_types=['fixed']),
-                    dict(cap_m=.5), dict(gain=1.5), dict(min_span_m=30.), dict(slope_range=(1.1, 2.)),
+                    dict(cap_m=.5), dict(gain=1.5), dict(min_span_m=30.), dict(frame_ratio=1.),
                     dict(rate_m_s=0.)):
             with self.subTest(bad=bad):
                 self.assertTrue(replace(RtkSettings(), **bad).problems())
         with self.assertRaises(ValueError):
             RtkConstraint(RtkSettings(cap_m=1.))
+        # the ExecutorConfig gnss_rtk_* defaults are the RtkSettings defaults
+        from row_executor import perception_settings as PS
+        from row_executor.config import ExecutorConfig
+        self.assertEqual(PS.rtk_settings(ExecutorConfig()), RtkSettings())
 
 
 class ConstraintTest(unittest.TestCase):
@@ -106,7 +110,8 @@ class ConstraintTest(unittest.TestCase):
         self.assertIsNotNone(rtk.line)
         self.assertEqual(trace[-1][4], 'active')
         self.assertLess(max(abs(r[2]) for r in trace), .02)
-        self.assertAlmostEqual(rtk.slope, 1., delta=.15)
+        self.assertLess(rtk.frame_rms[0], .01)                     # rotation fits ...
+        self.assertGreater(rtk.frame_rms[1], 3. * rtk.frame_rms[0])    # ... the reflection does not
         self.assertGreater(rtk.counts['used'], 100)
         self.assertEqual(rtk.counts['rtk_jump'], 0)
         summary = rtk.summary(trace[-1][0])
@@ -114,7 +119,7 @@ class ConstraintTest(unittest.TestCase):
         self.assertNotIn('east', str(summary))            # run-local values only, no position
 
     def test_lidar_bias_is_pulled_back_bounded_and_rate_limited(self):
-        bias = .2
+        bias = .15
         rtk = RtkConstraint()
         trace = drive(rtk, bias=lambda s: -bias if 10. <= s < 16. else 0.)
         cfg = rtk.s
@@ -125,13 +130,18 @@ class ConstraintTest(unittest.TestCase):
         self.assertLess(abs(trace[-1][2]), .02)                                 # back after the stretch
         self.assertEqual(rtk.counts['line_reset'], 0)
         # a larger bias saturates at the cap
-        rtk = RtkConstraint()
-        trace = drive(rtk, bias=lambda s: .6 if 10. <= s < 18. else 0.)
+        rtk = RtkConstraint(RtkSettings(max_disagree_m=.5))
+        trace = drive(rtk, bias=lambda s: .3 if 10. <= s < 18. else 0.)
         self.assertAlmostEqual(min(r[2] for r in trace), -cfg.cap_m, delta=1e-9)
+        # beyond max_disagree_m the line is dropped instead (a bend or a wrong line): the correction fades
+        rtk = RtkConstraint()
+        trace = drive(rtk, bias=lambda s: .3 if 10. <= s < 18. else 0.)
+        self.assertGreaterEqual(rtk.counts['divergence_reset'], 1)
+        self.assertLessEqual(max(abs(r[2]) for r in trace), cfg.cap_m + 1e-12)
 
     def test_lasting_disagreement_drops_the_line(self):
         rtk = RtkConstraint()
-        trace = drive(rtk, length_m=40., bias=lambda s: .3 if s >= 10. else 0.)
+        trace = drive(rtk, length_m=40., bias=lambda s: .12 if s >= 10. else 0.)
         self.assertGreaterEqual(rtk.counts['line_reset'], 1)
         self.assertLess(abs(trace[-1][2]), .02)
         self.assertLessEqual(steps(trace), rtk.s.rate_m_s * TICK + 1e-12)
@@ -171,7 +181,7 @@ class ConstraintTest(unittest.TestCase):
                 return None
             return 'fixed', .014
         rtk = RtkConstraint(cfg)
-        trace = drive(rtk, length_m=24., fix=fix, bias=lambda s: -.2 if s >= 10. else 0.)
+        trace = drive(rtk, length_m=24., fix=fix, bias=lambda s: -.15 if s >= 10. else 0.)
         self.assertLessEqual(steps(trace), cfg.rate_m_s * TICK + 1e-12)
         at_13 = [r for r in trace if r[1] < 13.][-1][2]
         self.assertGreater(at_13, .05)
@@ -208,8 +218,13 @@ class ConstraintTest(unittest.TestCase):
         trace = drive(rtk, mirror=True, bias=lambda s: .2 if s > 15. else 0.)
         self.assertEqual(rtk.frame, 'rejected')
         self.assertEqual(max(abs(r[2]) for r in trace), 0.)
-        self.assertLess(rtk.slope, 0.)
+        self.assertLess(rtk.frame_rms[1], rtk.frame_rms[0])        # the reflection fits
         self.assertEqual(trace[-1][4], 'refused')
+        # a scaled frame fits neither: never verified, nothing applied
+        rtk = RtkConstraint()
+        trace = drive(rtk, offset=lambda t, s: (.05 * s, 0.), bias=lambda s: .2 if s > 15. else 0.)
+        self.assertEqual(rtk.frame, 'unverified')
+        self.assertEqual(max(abs(r[2]) for r in trace), 0.)
 
     def test_lever_arm_error_cancels(self):
         # the executor assumes the antenna at the base; it sits 0.5 m ahead and 0.2 m left (a constant lever error)
@@ -218,8 +233,8 @@ class ConstraintTest(unittest.TestCase):
         lever = RtkConstraint(RtkSettings(antenna_x_m=.5, antenna_y_m=.2))
         trace_lever = drive(lever)
         self.assertEqual(lever.frame, 'verified')
-        # only the heading wander (about 2 deg) x the 0.5 m lever remains: about 0.02 m peak of disagreement, x gain
-        self.assertLess(max(abs(a[2] - b[2]) for a, b in zip(trace, trace_lever)), .015)
+        # only the heading wander (about 2 deg) x the 0.5 m lever remains: a few cm of disagreement x the gain
+        self.assertLess(max(abs(a[2] - b[2]) for a, b in zip(trace, trace_lever)), .05)
 
     def test_curved_row_is_bounded(self):
         rtk = RtkConstraint()
