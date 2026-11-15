@@ -4,6 +4,7 @@
 - 코드: `tools/row_executor/gnss_layer.py`(층), `perception_settings.py`(설정, 표준 라이브러리만), `perception_layers.py`(Runner 연결), `config.py`의 `gnss_*` 묶음, `core.py`(`Runner.feed_gnss`, geofence 끝), `executor_main.py`(입력 대기열, `/gps/fix` 구독). SIM: `sim/ubts/steering/gnss_sim.py`(가상 GNSS), `t1_rig.py`(`RigConfig.gnss`), `tools/row_executor/sim_in_loop_steer.py`(GNSS 패킷), `safety_scripts/perception_compare.py`(개발 비교).
 - 기본은 꺼짐(`gnss_mode` `'off'`)이다. 꺼져 있으면 층을 만들지 않고 설정 digest와 실행기 기록이 그대로다(5.1절).
 - RTK 보정용 모드 `weak_constraint`(2026-11-16, 결정 R100)는 따로 적었다: [`GNSS_RTK_KO.md`](GNSS_RTK_KO.md).
+- 2026-11-16 고침(결정 R101): 다시 잡은(`reanchored`) 뒤 짧은 새 궤적으로 정렬을 다시 맞추고 고정하던 결함(3.3절, 확인 5.4절).
 - SIM 수치는 모두 **자리값 기반 SIM 결과**다. 가상 GNSS의 잡음 모형은 자리값이다(10/10 수신기의 짧은 시간 흔들림은 잰 적이 없다). 이 문서와 코드·기록에 GNSS 좌표는 없다. 실행기 기록에는 run의 첫 fix 기준 국소 미터만 남는다.
 
 ## 1. 왜 약한 층인가
@@ -42,12 +43,13 @@
 
 - 마지막으로 받아들인 fix에서 실행기 odometry로 움직인 만큼 옮긴 예측과 새 fix의 차이(혁신)가 `gnss_jump_gate_m`(3 m)을 넘으면 기각한다(`jump`).
 - 정렬(3.3) 전에는 두 좌표계 사이의 회전을 모르므로 크기만 비교한다: | |ΔGNSS| − |Δodometry| |. 정렬 뒤에는 벡터 차이를 쓴다.
-- 서로 맞는 기각 fix가 연달아 3개(`reanchor_after`)면 수신기 해의 계단으로 보고 다시 잡는다(`reanchored`). 5 s(`jump_max_gap_s`)보다 긴 끊김 뒤에는 검사 없이 다시 시작한다(`restarted`).
+- 서로 맞는 기각 fix가 연달아 3개(`reanchor_after`)면 수신기 해의 계단으로 보고 다시 잡는다(`reanchored`, 정렬은 3.3절). 5 s(`jump_max_gap_s`)보다 긴 끊김 뒤에는 검사 없이 다시 시작한다(`restarted`).
 - 한 fix짜리 튐은 기각 하나로 끝난다. 그래서 SIM의 단발 튐 조건에서 '기각 수 = 주입 수'를 볼 수 있다(5.3절).
 
 ### 3.3 진행 방향 점검(정렬과 course drift)
 
 - run의 odometry 경로가 `gnss_course_baseline_m`(15 m)를 넘으면, 받아들인 (odometry, GNSS) 쌍 전체로 두 좌표계 사이의 회전을 맞춘다(2D Kabsch: 두 센서가 본 진행 방향). 경로가 기준의 두 배(30 m)가 될 때까지 다시 맞추고, 그 뒤에는 고정한다(기준 정렬).
+- 다시 잡으면(`reanchored`) 계단 앞의 쌍을 버리고, 새 궤적의 경로를 그 순간부터 다시 잰다. 새 궤적이 15 m가 될 때까지는 갖고 있던 정렬(고정이든 아니든)을 그대로 쓰고, 15 m부터 새 궤적으로 다시 맞추며, 30 m에서 고정한다. 이미 고정된 정렬은 계속 고정이다(결정 R101, 2026-11-16). 그 전에는 맞춤·고정을 run 경로로 판정해서, 고정 거리 바로 앞의 짧은 단독 구간(약 1 m)으로 정렬을 다시 맞추고 고정하는 결함이 있었다(`gnss_rtk_weak_v1`의 지오펜스 거짓 정지 2, `GNSS_RTK_RESULT_KO.md`). 끊김 뒤 다시 시작(`restarted`)은 궤적을 비우지 않는다.
 - 마지막 15 m 창만으로 맞춘 회전과 기준 정렬의 차이가 course drift다. `gnss_course_tolerance_deg`(45°)를 넘으면 `course_disagree`를 표시한다(표시만).
 - 이것은 heading 입력이 아니다. odometry 방향이 크게 무너졌을 때(예: 정합이 계속 틀려 회전이 쌓임)만 잡는 거친 점검이다. 합성 시험(`test_gnss_layer.py`)에서 60° 어긋남은 잡는다.
 - 가상 GNSS 잡음 모형으로 0.4 m/s 직진을 seed 50개씩 돌린 값(SIM 모형만, 실행기 없이 층만; `runs/perception_layers_20261113/scripts/gnss_course_check.py`): 28.5 m 열은 정렬 오차 p50 2.38°, 최대 9.43°, course drift 최대 13.5°, 위치 불일치 최대 3.85 m. 60 m 열은 2.11°, 9.33°, 24.3°, 8.01 m. 표시(course·위치)와 펜스 작동은 모두 0이었다.
@@ -127,10 +129,30 @@
 
 GNSS 층은 1 Hz에 상수 개의 연산과 run당 최대 600쌍의 Kabsch 맞춤(경로 30 m까지, 그 뒤 15 m 창)이다. 따로 시간을 재지 않았다. 실행기 한 걸음 p99 최대(작업자 4 부하): `off` 191 ms, `gnss_log` 115 ms로 부하에 묻혀 구분되지 않는다.
 
+### 5.4 다시 잡음 뒤 정렬 고침(R101) 확인
+
+- **판정이 아니다**(새 사전등록 없음, `gnss_rtk_weak_v1` 판정은 그대로). 수치는 자리값 기반 SIM 결과다. 2026-11-16 06:50~07:23 KST, 무거운 측정 잠금 안, 작업자 4. main `25f0c8d`(분리
+  작업 트리)와 고친 커밋 `1312efa`를 같은 PC·같은 세션에서 돌렸다. 원본은 저장소 밖 `runs/gnss_reanchor_fix_20261116/measure/`.
+- 끔 동일성(같은 잠금 안, main `25f0c8d` 분리 작업 트리와 비교): 열 추종 `steer_follow_v1` 15 run(v0.1 nominal 5 포함)과 측정 치수 프로필 nominal 5 run은 둘 다 통과, 설정 digest·직렬 로그·trace 20/20 같음. T1 안전 대본은 둘 다 71/71, 직렬 로그·trace 71/71 같음. 실행기 기록은 시간 칸(`ms`, `loop_ms`, `ph`, `scan.proc_ms`)과 튜닝 파일 경로(`tuning.file`, 작업 트리 이름)만 다르다(열 추종 20 run에서 칸별로 대조; T1은 실행기 기록 파일을 남기지 않아 digest만 봄).
+
+| 확인 | 고치기 전(main) | 고친 뒤 |
+|---|---|---|
+| 합성 전이 200 seed(층만, 5 Hz FIXED, 경로 29.0~30.6 m 단독 계단, 45 m) | 펜스 작동 33/200, 정렬 오차 최대 73.5° | 펜스 작동 0/200, 정렬 오차 최대 0.01° |
+| RTK 행렬 `jog_fixed_transitions` 판정 seed 6000~6004, 두 프로필(`weak_constraint` = `geofence` 포함) | rtk run 8/10(v01 s6001, v1 s6003 `gnss_geofence`; 판정 기록과 직렬·trace·명령 20/20 같음) | rtk run 10/10. 두 run은 `row_end`, 다시 잡은 뒤 위치 불일치 최대 12.7·9.5 → 0.86·0.81 m, 표시 0. 나머지 18 run(off 쌍 10 포함)은 직렬·trace·명령 같음 |
+| `perception_compare` GNSS 6 조건 × seed 0~2, `gnss_log`(`log_only`)·`all`(`geofence`) | 54/54 통과(`gnss_log` 명령 = off 18/18), 펜스 작동 0, 튐 기각 36(주입 36), 다시 잡음 0 | 같음: 54/54, 직렬 로그·trace·명령 54/54 같음. 실행기 기록은 시간 칸·튜닝 경로만 다름(GNSS 블록 같음) |
+| `follow_wide` GNSS 4 조건(`geofence`) × seed 100~104 | 20/20 `row_end`, 펜스 작동 0, 다시 잡음 0 | 같음: 20/20, 직렬 로그·trace 20/20 같음. 실행기 기록은 시간 칸·튜닝 경로만 다름(GNSS 블록 같음) |
+
+- 두 run의 다시 잡음 2번은 그대로 일어나고(단독 해로, 다시 FIXED로), 단독 구간 동안의 위치 불일치는 계단 크기(약 5~6 m)다. 그 fix의 펜스 여유는
+  3 × 7 m = 21 m라 걸리지 않는다. FIXED가 돌아오면 첫 정렬로 다시 옮겨 불일치가 1 m 아래로 돌아온다.
+- 다시 잡음이 2번 있었던 6 run 모두(위 2 run + v01 s6004, v1 s6001·s6002·s6004) FIXED가 돌아온 뒤(80 s~)의 위치 불일치 최대가 main
+  3.7~12.7 m에서 0.63~0.87 m가 됐다. 다른 4 run은 main에서도 펜스·표시 문턱에 닿지 않아 명령이 같았고, 실행기 기록의 `gnss.disagreement_m`만 다르다.
+- 다시 잡는 일이 없는 조건(`perception_compare`, `follow_wide`의 GNSS 조건은 단발 튐·끊김·정확도·고정 오프셋뿐)에서는 층의 계산이 그대로다.
+
 ## 6. 한계와 남은 일
 
 - 가상 GNSS의 떠돎·흰 잡음은 자리값이다. 10/10 기록의 GNSS를 LiDAR odometry 참조와 맞대어 짧은 시간 흔들림과 정렬 오차를 재는 일이 남았다(좌표를 문서에 남기지 않는 방식으로).
 - 실제 `/gps/fix`의 공분산 형식·값, 수신기 지연은 확인하지 않았다. 정확도를 모르면 이 층은 fix를 쓰지 않는다.
 - 펜스의 열 축은 정렬 시점의 band 방향 하나다. 열이 휘면 넓은 여유만이 거짓 정지를 막는다.
+- 다시 잡은 뒤 새 궤적이 15 m가 되기 전에는 옛 정렬의 평행 이동을 쓴다. 옮긴 fix는 계단 크기만큼 어긋나고, 넓은 여유가 그것을 받는다. 계단의 옆 성분이 여유보다 크면(단독 해로 정렬한 뒤 FIXED가 돌아오는 경우 여유 10 m) 여전히 펜스가 걸릴 수 있다. 5 s 넘는 끊김 동안 해가 바뀌면 옛 쌍과 새 쌍이 한 궤적에 섞인다(R101 남는 것).
 - G-SIM(Gazebo)의 가상 GPS(`sensor_contract_steer.py`)는 아직 이 층과 이어 보지 않았다. 그쪽은 위도·경도(가상 원점)를 내므로 `LocalFrame` 경로를 탄다.
 - 넓은 사전등록 행렬(PC-14, PC-15)의 GNSS 조건 판정은 다른 묶음의 일이다. 이 문서의 수치는 그 판정이 아니다.

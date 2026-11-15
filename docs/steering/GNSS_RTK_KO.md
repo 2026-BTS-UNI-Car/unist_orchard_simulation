@@ -49,7 +49,7 @@ fix가 쓰이려면 아래가 모두 맞아야 한다. 안 맞으면 그 까닭�
 |---|---|---|
 | 1 | 해 종류가 `gnss_rtk_fix_types`(기본 `fixed`; `fixed,float` 가능) 안 | `fix_type` |
 | 2 | 보고 수평 정확도 ≤ `gnss_rtk_max_hacc_m`(0.05 m) | `hacc` |
-| 3 | 일반 층(`gnss_layer`)이 받아들였다(품질, 순서, 3 m 튐 문). 끊김 뒤 다시 시작·계단 뒤 다시 잡음이면 RTK 궤적도 새로 | `layer` |
+| 3 | 일반 층(`gnss_layer`)이 받아들였다(품질, 순서, 3 m 튐 문). 끊김 뒤 다시 시작·계단 뒤 다시 잡음이면 RTK 궤적도 새로. 일반 층의 정렬은 다시 잡아도 새 궤적이 15 m가 될 때까지 그대로다(R101) | `layer` |
 | 4 | 일반 층이 그 fix로 표시(진행 방향·위치 불일치, 펜스 밖)를 올리지 않았다 | `layer_flag` |
 | 5 | odometry 자세가 있다 | `no_pose` |
 | 6 | odometry로 예측한 위치와의 차이 ≤ `jump_gate_m`(0.25 m). α 전에는 크기만 비교. 서로 맞는 기각이 `reanchor_after`(5)번 이어지면 수신기 해의 계단으로 보고 궤적·선을 새로 시작 | `rtk_jump`, `track_restart` |
@@ -131,6 +131,7 @@ fix가 쓰이려면 아래가 모두 맞아야 한다. 안 맞으면 그 까닭�
 - 단위 시험 `tools/row_executor/tests/test_gnss_rtk.py`: fix 종류 읽기(SIM, NavSatFix, GGA, NAV-PVT), 설정 검사, 일관된 RTK에서 확인·작은 보정, LiDAR 치우침을 상한·속도 한도 안에서 당김, 오래 어긋나면 선 버림, FLOAT·정확도 문, FIXED → FLOAT → 없음에서 계단 없는 줄어듦, 튐 기각과 계단 뒤 새 궤적, 일반 층 결과·표시 문, 거울 좌표계 거부, 레버암 오차, 굽은 열에서 상한 안, run 초기화, front_steer Runner에서 fix 없으면 결정·제어기 입력이 같음, 보정이 제어기 입력에만 들어감.
 - SIM 수신기 시험 `sim/ubts/test_steering_gnss_sim.py`의 `RtkModelTest`.
 - 사전등록 행렬: [`PREREG_GNSS_RTK_KO.md`](PREREG_GNSS_RTK_KO.md). 결과: [`GNSS_RTK_RESULT_KO.md`](GNSS_RTK_RESULT_KO.md)(등록 기준으로 불합격: 지오펜스 거짓 정지 2, 굽은 열 세계 3; 이득·해 없음 묶음 12/12).
+- 지오펜스 거짓 정지 2의 원인(일반 층이 다시 잡은 짧은 궤적으로 정렬을 다시 맞추고 고정함)은 R101(2026-11-16)에서 고쳤다. 같은 판정 seed의 `jog_fixed_transitions`를 개발 확인으로 다시 돌려 rtk run 8/10 → 10/10(`GNSS_LAYER_KO.md` 5.4절). 판정은 다시 하지 않았다.
 
 ## 11. 한계와 남은 일
 
@@ -138,3 +139,4 @@ fix가 쓰이려면 아래가 모두 맞아야 한다. 안 맞으면 그 까닭�
 - LiDAR가 처음부터 치우친 구간(출발 직후 선 건너뜀 등)은 고치지 못한다. 선은 LiDAR가 잘 본 구간에서만 배운다.
 - 실차의 FIXED 구분(5.3절), 수신기 지연, 안테나 레버암, 나무 아래 FIXED 비율은 모두 남은 일이다.
 - G-SIM(Gazebo) 가상 GPS에는 RTK 모형이 없다. 빠른 SIM에서만 확인했다.
+- `weak_constraint`는 일반 층의 지오펜스를 포함한다. FIXED ↔ 단독 전이의 정렬 결함은 R101에서 고쳤지만, 다시 잡은 직후에는 옛 정렬의 평행 이동을 쓰므로 계단의 옆 성분이 FIXED fix의 펜스 여유(10 m)를 넘으면 펜스가 걸릴 수 있다(예: run을 단독 해로 시작해 정렬한 뒤 FIXED가 들어올 때).

@@ -70,6 +70,7 @@
 ## 4. 다음 할 일 (돌리지 않음)
 
 1. 일반 층(`gnss_layer.py`): 다시 잡은(reanchor/restart) 뒤에는 새 궤적이 `course_baseline_m`를 다시 채울 때까지 옛 정렬을 쓰고, 짧은 궤적으로 다시 맞추거나 고정하지 않기. 고친 뒤 `GNSS_LAYER_KO.md` 5절의 비교와 이 행렬의 `jog_fixed_transitions`를 새 seed로 다시 재기.
+   - 2026-11-16 뒤: 결정 R101로 고쳤다(다시 잡음만; 끊김 뒤 다시 시작은 그대로). 이 판정 seed의 `jog_fixed_transitions`와 `GNSS_LAYER_KO.md` 5절의 GNSS 조건을 개발 확인으로 다시 돌렸다(`GNSS_LAYER_KO.md` 5.4절). 새 seed의 새 판정은 하지 않았고 이 문서의 판정은 그대로다.
 2. `gnss_rtk.py`: 3절 첫 항목의 다시 맞춤 규칙.
 3. 이 행렬의 `curve_fixed`는 v0.1 프로필이 못 가는 세계였다. 다음 등록에서는 off 쌍이 통과하는 굽은 열(예: 28.5 m 열, 반지름 60 m)로 바꾸기.
 4. 실차: FIXED/FLOAT를 가르는 입력 경로 결정(드라이버 또는 `/gps/data` 허용), `log_only`로 FIXED 비율·hAcc 기록, 안테나 레버암 측정.
