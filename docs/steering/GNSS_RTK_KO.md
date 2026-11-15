@@ -130,7 +130,7 @@ fix가 쓰이려면 아래가 모두 맞아야 한다. 안 맞으면 그 까닭�
 
 - 단위 시험 `tools/row_executor/tests/test_gnss_rtk.py`: fix 종류 읽기(SIM, NavSatFix, GGA, NAV-PVT), 설정 검사, 일관된 RTK에서 확인·작은 보정, LiDAR 치우침을 상한·속도 한도 안에서 당김, 오래 어긋나면 선 버림, FLOAT·정확도 문, FIXED → FLOAT → 없음에서 계단 없는 줄어듦, 튐 기각과 계단 뒤 새 궤적, 일반 층 결과·표시 문, 거울 좌표계 거부, 레버암 오차, 굽은 열에서 상한 안, run 초기화, front_steer Runner에서 fix 없으면 결정·제어기 입력이 같음, 보정이 제어기 입력에만 들어감.
 - SIM 수신기 시험 `sim/ubts/test_steering_gnss_sim.py`의 `RtkModelTest`.
-- 사전등록 행렬: [`PREREG_GNSS_RTK_KO.md`](PREREG_GNSS_RTK_KO.md). 결과는 판정 run 뒤 `GNSS_RTK_RESULT_KO.md`에 쓴다.
+- 사전등록 행렬: [`PREREG_GNSS_RTK_KO.md`](PREREG_GNSS_RTK_KO.md). 결과: [`GNSS_RTK_RESULT_KO.md`](GNSS_RTK_RESULT_KO.md)(등록 기준으로 불합격: 지오펜스 거짓 정지 2, 굽은 열 세계 3; 이득·해 없음 묶음 12/12).
 
 ## 11. 한계와 남은 일
 

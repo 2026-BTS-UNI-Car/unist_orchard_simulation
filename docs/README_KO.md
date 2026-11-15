@@ -49,6 +49,7 @@
 | [`ACTUATOR_PRIOR_KO.md`](steering/ACTUATOR_PRIOR_KO.md) | L1 구동기 사전값 층과 확인 결과 |
 | [`LOCAL_GRID_KO.md`](steering/LOCAL_GRID_KO.md) | L2 국소 격자 층과 재생·SIM 비교 |
 | [`GNSS_LAYER_KO.md`](steering/GNSS_LAYER_KO.md) | L3 GNSS 약한 층 |
+| [`GNSS_RTK_KO.md`](steering/GNSS_RTK_KO.md), [`PREREG_GNSS_RTK_KO.md`](steering/PREREG_GNSS_RTK_KO.md), [`GNSS_RTK_RESULT_KO.md`](steering/GNSS_RTK_RESULT_KO.md) | L3의 RTK 약한 제약 모드(`weak_constraint`, 기본 꺼짐), 빠른 SIM 행렬의 사전등록과 결과 |
 | [`STEER_EXT_MODEL_KO.md`](steering/STEER_EXT_MODEL_KO.md) | 벨트 가변저항·조향 급전·외란 토크 모형 |
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |

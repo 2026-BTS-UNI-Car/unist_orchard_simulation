@@ -33,6 +33,7 @@
 | 프로필 v0.3 자격(개정 43) | T1, 새 판정 seed | 5 묶음 | 불합격 | ② 정지 중 전폭 쓸기에서 MCU THERMAL 10/10(열 예산 자리값). ① 91/91, ③ 9/9, ④ 31/31, ⑤ ST-11 30/30은 합격. 그래서 기본 프로필은 v0.1 | [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) |
 | 국소 격자 L2, 10/10 기록 재생 일치 | 사람이 몬 10/10 기록(조향 장착 전 차) 153 run, 유효 틱 41,081 | - | 보고 | 격자 선과 빠른 층 band가 0.10 m·1.5° 안에서 맞은 틱 41.3 %(작업 완료 기준 90 %에 못 미침). 갱신 PC p50 2.4 / p99 16.4 ms | [`LOCAL_GRID_KO.md`](steering/LOCAL_GRID_KO.md) |
 | GNSS 약한 층 L3, SIM 비교 | T1, 가상 GNSS(잡음 모형 자리값) | - | 보고 | 사전등록 판정이 아니다. 위치 차분 진행 방향 오차 p50 2.1~2.4°, 최대 9.4° | [`GNSS_LAYER_KO.md`](steering/GNSS_LAYER_KO.md) |
+| GNSS RTK 약한 제약(`gnss_rtk_weak_v1`, 2026-11-16) | F-SIM T1, 40 m 열, 가상 RTK 수신기(자리값), 프로필 v0.1·측정 치수, off 쌍과 비교 | 110 | 불합격 | rtk run 75/80, off 27/30, 묶음 12/12. 오른쪽 나무 4그루가 0.35 m 바깥인 구간의 참 횡오차 v01 35 %·v1 31 % 줄어듦, 보정 최대 0.099 m(상한 0.10), 계단 0, FLOAT만·거울 좌표계는 명령이 off와 같음. 실패: FIXED ↔ 단독 전이에서 일반 층 지오펜스 거짓 정지 2, 굽은 40 m 열을 v0.1이 못 감 3(off도 같음) | [`GNSS_RTK_RESULT_KO.md`](steering/GNSS_RTK_RESULT_KO.md) |
 
 ![빠른 SIM 조건 행렬 15회](steering/figures/steer_follow/fig04_matrix.png)
 

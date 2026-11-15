@@ -80,4 +80,4 @@ run 기준을 run 하나가 아니라 (프로필, 조건)의 평균으로 둔 6�
 ## 6. 기록
 
 - 판정 run: 무거운 측정 잠금 안, 커밋된 작업 트리 그대로, 프로세스 4개. 출력 `runs/rtk_design_20261116/measure/judge/RTK_MATRIX.json`, run마다 trace·직렬·실행기 기록.
-- 결과 문서: `GNSS_RTK_RESULT_KO.md`(판정 run 뒤에 쓴다).
+- 결과 문서: [`GNSS_RTK_RESULT_KO.md`](GNSS_RTK_RESULT_KO.md)(판정 run 뒤에 썼다).
