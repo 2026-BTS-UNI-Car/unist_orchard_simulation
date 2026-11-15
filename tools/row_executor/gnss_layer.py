@@ -18,10 +18,13 @@ only, nudges the controller's lateral input by a bounded amount; it never writes
   course         once the odometry path of the run passes course_baseline_m, the rotation between the run's odometry
                  frame and the GNSS frame is fitted (2D Kabsch on all accepted (odometry, GNSS) pairs of the run: the
                  travel direction seen by both), refitted at every accepted fix until the path reaches twice the
-                 baseline, then frozen (the anchor). The window of the last course_baseline_m of path, fitted alone,
-                 against the anchor gives the drift of the odometry heading against GNSS (flag 'course_disagree' beyond
-                 course_tolerance_deg). A 15 m window of a 7 m-class fix is still +-10 deg off in the SIM noise model:
-                 this is a gross check, never a heading.
+                 baseline, then frozen (the anchor). A reanchor drops the pairs before the step and measures that path
+                 again from the step (decision R101): the alignment in hand (frozen or not) stays until the new track
+                 is course_baseline_m long, is refitted from that track from there on and frozen at twice that, so a
+                 short new track (e.g. a standalone stretch between RTK FIXED fixes) never refits or freezes it. The
+                 window of the last course_baseline_m of path, fitted alone, against the anchor gives the drift of the
+                 odometry heading against GNSS (flag 'course_disagree' beyond course_tolerance_deg). A 15 m window of a
+                 7 m-class fix is still +-10 deg off in the SIM noise model: this is a gross check, never a heading.
   position       with the anchor alignment every accepted fix is mapped into the odometry frame; its distance from the
                  estimator's base pose is the disagreement (flag 'position_disagree' beyond
                  max(fence_margin_m, disagree_factor x hacc)).
@@ -137,6 +140,7 @@ class GnssLayer:
         self.first = None             # first accepted fix of the run (east, north)
         self.rejected_run = []        # consecutive jump-rejected fixes (t, east, north)
         self.track = deque(maxlen=TRACK_PAIRS)       # accepted (path_m, odo_x, odo_y, east, north)
+        self.track_from_m = 0.        # run path where the track (re)started: 0 for the run, the step for a reanchor
         self.first_pose = None        # first base pose seen (odometry)
         self.align = None             # (angle, odo centroid, gnss centroid) of the anchor alignment
         self.align_axis = None        # row axis (odometry) used by the fence after the alignment
@@ -222,12 +226,14 @@ class GnssLayer:
         if odo is None:
             return
         if reanchor:
-            # a step of the receiver solution: the pairs before the step are dropped (the alignment stays until the
-            # path is long enough again)
+            # a step of the receiver solution: the pairs before the step are dropped and the track's path is measured
+            # from here (the alignment stays until the new track is long enough again, R101)
             self.track.clear()
+            self.track_from_m = self.path_m
         self.track.append((self.path_m, odo[0], odo[1], east, north))
-        if not self.align_frozen and self.path_m >= s.course_baseline_m and len(self.track) >= 3:
-            # the anchor alignment: all pairs of the run so far, refitted until the path reaches twice the baseline,
+        track_m = self.path_m - self.track_from_m
+        if not self.align_frozen and track_m >= s.course_baseline_m and len(self.track) >= 3:
+            # the anchor alignment: all pairs of the track so far, refitted until its path reaches twice the baseline,
             # then frozen (the reference of the course windows); the fence's row axis is taken at the first alignment
             fitted = _kabsch([p[1:3] for p in self.track], [p[3:5] for p in self.track])
             if fitted is not None:
@@ -235,7 +241,7 @@ class GnssLayer:
                     start = 0. if self.first_pose is None else self.first_pose[2]
                     self.align_axis = start if band_heading is None else float(band_heading)
                 self.align = fitted
-                self.align_frozen = self.path_m >= 2. * s.course_baseline_m
+                self.align_frozen = track_m >= 2. * s.course_baseline_m
         if self.align is not None:
             window = [p for p in self.track if self.path_m - p[0] <= s.course_baseline_m]
             if window and self.path_m - window[0][0] >= .75 * s.course_baseline_m:

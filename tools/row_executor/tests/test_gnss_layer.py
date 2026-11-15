@@ -2,6 +2,7 @@
 import json
 import math
 import os
+import random
 import sys
 import types
 import unittest
@@ -95,6 +96,103 @@ class GateTest(unittest.TestCase):
             e, n = to_gnss(gx, gy)
             layer.on_fix(t, e, n, 7., True, (x, 0., 0.))
         self.assertGreater(layer.flags['course_disagree'], 0)
+
+
+def transition_run(layer, path_end=45., single=(29.0, 30.6), offset=(4.0, -3.5), seed=7, rate_hz=5., v=.4):
+    """A FIXED-like receiver (white 0.01 m, hacc 0.014 m) with one standalone stretch (path `single`: the receiver's
+    7 m-class solution, here a constant `offset` + white 0.4 m, hacc 7 m), as in the RTK matrix condition
+    jog_fixed_transitions (gnss_rtk_weak_v1). The vehicle drives along odometry x. Returns [(path_m, outcome)]."""
+    rng = random.Random(seed)
+    dt = 1. / rate_hz
+    out = []
+    k = 0
+    x = 0.
+    while x <= path_end:
+        t = 10. + k * dt
+        for j in range(4):
+            layer.note_pose((x - v * dt + v * dt * (j + 1) / 4., 0., 0.) if k else (0., 0., 0.))
+        standalone = single[0] <= x < single[1]
+        sigma, hacc = (.4, 7.) if standalone else (.01, .014)
+        e, n = to_gnss(x, 0., bias=offset if standalone else (0., 0.))
+        e, n = e + rng.gauss(0., sigma), n + rng.gauss(0., sigma)
+        out.append((x, layer.on_fix(t, e, n, hacc, True, (x, 0., 0.))))
+        k += 1
+        x = k * v * dt
+    return out
+
+
+class ReanchorAlignmentTest(unittest.TestCase):
+    """A reanchor drops the pairs before the receiver step; the alignment is refitted (and frozen) only once the new
+    track is as long as the first fit needs (course_baseline_m, frozen at twice that), never from the short new track.
+    The defect (gnss_rtk_weak_v1, 2 runs gnss_geofence): a standalone stretch that started before the freeze distance
+    refitted the alignment from about 1 m of 0.4 m-noise fixes and froze it; the FIXED fixes after it were mapped with
+    the wrong rotation and the standalone translation and the fence tripped."""
+
+    def test_standalone_stretch_does_not_refit_the_alignment(self):
+        layer = GnssLayer(GnssSettings(mode='geofence'))
+        layer.new_run(120.)
+        out = transition_run(layer, seed=10)      # before R101: alignment 4.4 deg, fence tripped (gnss_geofence)
+        self.assertEqual([o for _, o in out].count('reanchored'), 2)       # into the standalone stretch and out of it
+        self.assertAlmostEqual(math.degrees(layer.align[0]), 30., delta=.5)
+        self.assertLess(layer.disagreement, 1.)
+        self.assertEqual(layer.flags['position_disagree'], 0)
+        self.assertFalse(layer.fence_tripped)
+        self.assertIsNone(layer.end_reason())
+
+    def test_refit_after_a_reanchor_waits_for_the_baseline(self):
+        s = GnssSettings(mode='log_only')
+        layer = GnssLayer(s)
+        layer.new_run(120.)
+        # first fit at 15 m, then a lasting 8 m step at 20 m (before the freeze at 30 m): the alignment of the first
+        # track stays until the new track spans 15 m (35 m), refitted from there, frozen at 50 m of run path
+        spikes = {k: (8., 0.) for k in range(50, 200)}
+        aligns = []
+        for k in range(200):
+            x = k * .4
+            for j in range(20):
+                layer.note_pose(((k - 1 + (j + 1) / 20.) * .4 if k else 0., 0., 0.))
+            e, n = to_gnss(x, 0.)
+            if k in spikes:
+                e, n = e + spikes[k][0], n + spikes[k][1]
+            outcome = layer.on_fix(10. + k, e, n, 7., True, (x, 0., 0.))
+            aligns.append((x, outcome, layer.align, layer.align_frozen))
+        reanchor = [x for x, o, _, _ in aligns if o == 'reanchored']
+        self.assertEqual(len(reanchor), 1)
+        held = [a for x, _, a, _ in aligns if reanchor[0] <= x < reanchor[0] + s.course_baseline_m - .4]
+        self.assertTrue(held and all(a is held[0] for a in held))          # the old alignment object, unchanged
+        refit = [x for x, _, a, _ in aligns if x >= reanchor[0] and a is not held[0]]
+        self.assertGreaterEqual(refit[0] - reanchor[0], s.course_baseline_m)
+        frozen = [x for x, _, _, f in aligns if f]
+        self.assertGreaterEqual(frozen[0] - reanchor[0], 2. * s.course_baseline_m)
+        self.assertAlmostEqual(math.degrees(layer.align[0]), 30., delta=.5)
+
+    def test_a_locked_alignment_survives_a_reanchor(self):
+        layer = GnssLayer(GnssSettings(mode='log_only'))
+        layer.new_run(120.)
+        out = transition_run(layer, path_end=50., single=(35., 37.))
+        self.assertEqual([o for _, o in out].count('reanchored'), 2)
+        self.assertTrue(layer.align_frozen)
+        self.assertAlmostEqual(math.degrees(layer.align[0]), 30., delta=.5)
+        self.assertLess(layer.disagreement, 1.)
+
+    def test_no_reanchor_keeps_the_first_fit_rule(self):
+        # without a reanchor the alignment is fitted from the run path (as before the fix): first fit at the first
+        # accepted fix with 15 m of run path, frozen at 30 m
+        layer = GnssLayer(GnssSettings(mode='log_only'))
+        layer.new_run(120.)
+        first = frozen = None
+        for k in range(100):
+            x = k * .4
+            for j in range(20):
+                layer.note_pose(((k - 1 + (j + 1) / 20.) * .4 if k else 0., 0., 0.))
+            e, n = to_gnss(x, 0.)
+            layer.on_fix(10. + k, e, n, 7., True, (x, 0., 0.))
+            if first is None and layer.align is not None:
+                first = layer.path_m
+            if frozen is None and layer.align_frozen:
+                frozen = layer.path_m
+        self.assertAlmostEqual(first, 15.2, delta=1e-6)
+        self.assertAlmostEqual(frozen, 30., delta=.41)
 
 
 class FenceTest(unittest.TestCase):
