@@ -52,6 +52,7 @@
 | [`STEER_EXT_MODEL_KO.md`](steering/STEER_EXT_MODEL_KO.md) | 벨트 가변저항·조향 급전·외란 토크 모형 |
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |
+| [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md), [`PREREG_STEER_FOLLOW_REALDIMS_KO.md`](steering/PREREG_STEER_FOLLOW_REALDIMS_KO.md), [`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) | 2026-11-16 실제 치수 프로필과 새 조향 보드 펌웨어(ESP32-S3, ABS-HOLD-8) 흉내, 그 프로필로 열 추종 다시 재기의 사전등록과 결과 |
 
 결과
 

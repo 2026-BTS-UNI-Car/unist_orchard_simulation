@@ -222,3 +222,7 @@ fix_p3 뒤 다시 돌린 것(2026-11-09, `fw=04353B49`, 모든 빌드의 소스 
 
 - 해결(fix_p3): 저장소 `.gitignore`의 `firmware/`(원래 PX4 펌웨어 빌드 결과용)가 새 폴더 `firmware/ubts_steer_v3/`도 무시했다. 그 줄 뒤에 `!/firmware/`, `/firmware/*`, `!/firmware/ubts_steer_v3/`를 더했다. 이제 맨 위 `firmware/` 안에서 `ubts_steer_v3/`만 `git status`에 보인다. 다른 깊이의 `firmware/` 폴더와 맨 위 `firmware/`의 다른 항목은 그대로 무시된다(`git check-ignore`로 확인). 커밋은 통합 담당이 한다.
 - 해결(3단계 확인): 지금 `docker/Dockerfile.ubts-steer`(HEAD `0c1311e`)는 `COPY firmware /opt/ubts/firmware`로 펌웨어 소스를 복사하고, 펌웨어 build id가 없으면 이미지 빌드가 실패한다. `.dockerignore`에는 `firmware`를 막는 규칙이 없다. 이 문서의 이전 판에 적은 "`sim/ubts`만 복사"는 그보다 앞선 상태다. 3단계 시험은 이미지를 새로 만들지 않고 기반 이미지에 작업 트리를 읽기 전용으로 붙여 돌렸다.
+
+## 8. 조향 법칙 걸이 (2026-11-16)
+
+실기 조향 보드가 ESP32-S3 + 펌웨어 ABS-HOLD-8-REBOUND-LIMITS로 바뀌었다. 이 V3 펌웨어는 이제 SIM의 직렬 규약·안전 껍데기다. 실기 보드의 펄스 유지 법칙을 SIM에서 흉내 내려고 `fw_steer.h`에 비어 있는 함수 포인터 `steer_law_hook`을 더했다. 비어 있으면(기본, 기기에서는 늘) `servo_update()`가 지금까지의 V3 법칙을 그대로 돈다. 네이티브 SIM 세션이 프로필 `steer_fw_mode abs_hold_8`일 때 `native/abs_hold8.cc`를 끼운다. `#if UBTS_STEER_SIM` 분기는 두지 않았다(`test_steering_firmware.py`의 규칙). 소스가 바뀌어 펌웨어 build id가 바뀐다. 자세한 것은 [`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md).

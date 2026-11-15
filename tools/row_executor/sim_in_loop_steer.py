@@ -146,6 +146,16 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
         steer_rotation_centre_x_m=float(value('rear_axle_x_in_base_m')),
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')))
+    measured = abs_hold_executor_values(profile)
+    if measured is not None:
+        # steering firmware ABS-HOLD-8 (profile schema v4, steer_fw_mode abs_hold_8): the 'measured' steering values
+        # are the real board's step response (steering.abs_hold.executor_values), not the motor rate at full PWM
+        values.update(
+            steer_rate_limit_deg_s=round(XC.STEER_RATE_FRACTION * measured['rate_deg_s'], 3),
+            steer_rate_limit_standstill_deg_s=round(XC.STEER_RATE_FRACTION * measured['rate_standstill_deg_s'], 3),
+            steer_measured_rate_deg_s=measured['rate_deg_s'],
+            steer_measured_rate_standstill_deg_s=measured['rate_standstill_deg_s'],
+            steer_servo_deadband_deg=measured['deadband_deg'])
     values.update(overrides or {})
     if isinstance(values.get('prior_speed_table'), list):
         # a JSON episode spec gives the table as lists ([[duty, speed], ...]); the config field is a tuple of tuples
@@ -158,6 +168,16 @@ def steer_executor_config(rig, overrides=None, base_duty_pct=55):
             values['prior_speed_table'] = profile_speed_table(profile)
     from dataclasses import replace
     return replace(XC.ExecutorConfig(), **values).validate()
+
+
+def abs_hold_executor_values(profile):
+    """The executor's 'measured' steering values of a profile in steering firmware mode abs_hold_8 (schema v4), else
+    None (every earlier profile: the values above stay)."""
+    try:
+        from steering import abs_hold
+    except ImportError:          # an older sim tree without the module: no abs_hold_8 profiles either
+        return None
+    return abs_hold.executor_values(profile)
 
 
 def profile_speed_table(profile, duties=(10, 20, 30, 40, 50, 60, 70, 80, 90, 100), factor=1.):

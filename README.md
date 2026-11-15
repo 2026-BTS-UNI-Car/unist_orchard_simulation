@@ -5,12 +5,15 @@ UNIST BTS 유니주행차 팀의 과수원 로버 시뮬레이션 저장소입�
 
 > **English summary.** Simulation repository of a small orchard rover (a converted ride-on toy car, now being refitted
 > with front-wheel steering: a plain DC motor turns the steering and a belt-coupled potentiometer closes a position loop
-> on an ESP8266). Goal: drive one orchard row along the centre line between two tree rows and stop at the row end, no
+> on the board; since 2026-11-16 one ESP32-S3 with three BTS7960 drivers and the pulse-hold firmware
+> ABS-HOLD-8-REBOUND-LIMITS, before that an ESP8266 design). Goal: drive one orchard row along the centre line between
+> two tree rows and stop at the row end, no
 > U-turn. Inputs: 2D LiDAR (RPLIDAR S2) and raw IMU as the main sensors, applied PWM and steering angle as bounded
 > priors, GNSS as a weak optional layer; no wheel encoders, no vision. Two simulators share one code path: a fast
 > deterministic simulator (F-SIM: executor, host bridge, ESP firmware V3 and steered plant on one clock) and a Gazebo
-> Harmonic stack (G-SIM: ROS 2 Jazzy in Docker). Every number here is a placeholder-based SIM result: the steering
-> hardware has not been measured yet, so nothing in this repository is a field result. The documents are in Korean.
+> Harmonic stack (G-SIM: ROS 2 Jazzy in Docker). Every number here is a placeholder-based SIM result: the main dimensions
+> were measured on 2026-11-16 (profile front_steer_v1_spec_20261116), the rest of the steering hardware is still a
+> placeholder, so nothing in this repository is a field result. The documents are in Korean.
 
 ![G-SIM 열 추종, 사용자 로컬 명령, 차량 카메라](docs/assets/video/row_follow_wf7_user_10x.gif)
 
@@ -18,8 +21,10 @@ UNIST BTS 유니주행차 팀의 과수원 로버 시뮬레이션 저장소입�
 통로 하나를 처음부터 열 끝까지 달리고 선 차량 카메라 화면(약 99 s를 10배속). 실행기는 `/scan`과 raw IMU만 보고 조향과 구동을
 정한다. 최종 확인 4단계 F run 3([결과](docs/steering/STEER_FOLLOW_GSIM_FINAL_KO.md#135-f-사용자-명령-그대로-3-run)).
 
-> **이 저장소의 모든 수치는 자리값 기반 SIM 결과입니다. 현장 성능이 아닙니다.** 조향 장치(모터, 가변저항, 벨트, 치수)의 값은 아직
-> 자리값이고, 조향 장치를 단 실차로 잰 값은 없습니다. 검증되지 않은 것은 [현재 한계](#현재-한계와-다음-할-일)에 적었습니다.
+> **이 저장소의 모든 수치는 자리값 기반 SIM 결과입니다. 현장 성능이 아닙니다.** 2026-11-16에 실제 치수(휠베이스, 윤거, 바퀴,
+> 조향 한계 ±20°, LiDAR 위치)와 새 조향 보드 펌웨어를 받아 프로필 `front_steer_v1_spec_20261116`에 넣었지만, 조향 장치의 나머지
+> 값(모터, 가변저항, 벨트 비, 유격, 질량 등)은 아직 자리값이고 조향 장치를 단 실차로 달린 기록은 없습니다. 검증되지 않은 것은
+> [현재 한계](#현재-한계와-다음-할-일)에 적었습니다.
 
 ## 목표
 
@@ -52,24 +57,26 @@ flowchart LR
   end
   subgraph JET["Jetson Orin Nano"]
     EXE["실행기 20 Hz<br/>추정기 L0~L3 + 열 추종 제어기"]
-    BR["조향 브리지 V3"]
+    BR["조향 브리지<br/>(새 보드용은 작업 중)"]
     DB["대시보드<br/>수동 조종 · 자율 시작/STOP"]
   end
-  subgraph ESP["ESP8266 펌웨어 V3"]
-    SV["조향 위치 루프 500 Hz"]
-    DR["구동 램프 · TTL · watchdog"]
+  subgraph ESP["ESP32-S3 · 펌웨어 ABS-HOLD-8"]
+    SV["조향 절대 각 유지<br/>PWM 100 펄스 → 300 ms 끔 → 판정"]
+    DR["구동 명령 n F/R pwm"]
   end
   LI --> EXE
   IM --> EXE
   GN --> EXE
   DB --> EXE
   EXE -->|"duty · 목표 조향각"| BR
-  BR <-->|"USB 직렬, V3 줄"| ESP
-  SV --> SM["조향 DC 모터<br/>+ 벨트 가변저항"]
-  DR --> DM["구동 DC 모터 4개"]
+  BR <-->|"네이티브 USB(Jetson USB-C)<br/>ANGLE · STATUS · STOP"| ESP
+  SV --> SM["BTS7960 1 → 조향 DC 모터<br/>+ 벨트 가변저항(GPIO6)"]
+  DR --> DM["BTS7960 2·3 → 왼쪽·오른쪽<br/>구동 DC 모터(각 앞뒤 2개)"]
 ```
 
-[도식] 실차는 조향 장치를 만드는 중이고 설치·현장 확인은 계획이다. SIM에서는 센서·차체가 Gazebo로, ESP가 에뮬레이터로 바뀐다.
+[도식] 2026-11-16의 실차 구성(사용자 알림·펌웨어 소스). 2026-11-15까지의 설계는 ESP8266 하나에 펌웨어 V3였고 실차에 쓰인 적이 없다
+([`docs/ARCHITECTURE_KO.md`](docs/ARCHITECTURE_KO.md) 1.2절). SIM에서는 센서·차체가 Gazebo로, ESP가 에뮬레이터로 바뀐다. 에뮬레이터는 V3
+직렬 규약을 그대로 쓰고, 프로필이 `abs_hold_8`이면 조향 법칙만 새 보드의 펄스 유지로 흉내 낸다([`ABS_HOLD8_SIM_KO.md`](docs/steering/ABS_HOLD8_SIM_KO.md)).
 컨테이너 구성, 자료 흐름, 추정기 층, 실행기 상태 기계는 [`docs/ARCHITECTURE_KO.md`](docs/ARCHITECTURE_KO.md).
 
 ```mermaid
@@ -78,8 +85,8 @@ flowchart LR
     E0["통로 band<br/>횡·방향 오차, 열 끝"] --> PP["주시점 추종 + trim<br/>→ 목표 조향각"]
     E0 --> GOV["속도 조절기<br/>상한 11개의 최솟값"]
   end
-  subgraph IN["안쪽 루프: ESP8266"]
-    SV2["P 제어 · 데드밴드 · 최소 PWM"] --> MOT["조향 모터 → 앞바퀴"]
+  subgraph IN["안쪽 루프: ESP(에뮬레이터)"]
+    SV2["V3 서보: P 제어 · 데드밴드 · 최소 PWM<br/>또는 ABS-HOLD-8: 펄스 50/80 ms · 300 ms 끔"] --> MOT["조향 모터 → 앞바퀴"]
     MOT --> POT["가변저항(벨트)"]
     POT --> SV2
     RAMP["구동 램프 255/s"]
@@ -91,7 +98,8 @@ flowchart LR
   CAR -->|"LiDAR · IMU"| E0
 ```
 
-[도식] 제어 루프. 바깥 루프는 `sim/ubts/closed_loop/steer_control.py`, 안쪽 루프는 `firmware/ubts_steer_v3/`(SIM에서 구현됨, 실기에 쓰기 전).
+[도식] 제어 루프. 바깥 루프는 `sim/ubts/closed_loop/steer_control.py`, 안쪽 루프는 `firmware/ubts_steer_v3/`의 V3 서보(SIM 전용, 실기에 쓴 적 없음)
+또는 실기 보드 펌웨어의 펄스 유지 흉내(`sim/ubts/steering/native/abs_hold8.cc`, 프로필 `steer_fw_mode`).
 
 ## 로버 모델과 시뮬레이션 환경
 
@@ -138,6 +146,7 @@ flowchart LR
 | 안전 대본(빠른 SIM, 실행기 포함) | STOP, TTL, watchdog, 운영자 신호 끊김, 두 화면 등 | 합격 71/71 |
 | 외란 아래 직진 유지(ESP 루프만, 프로필 v0.2) | 조향축 토크 외란 대본 × 5 seed | 불합격 39/40(크기 밖 외란 1회의 첫 결함 이름이 등록 밖) |
 | 프로필 v0.3 자격 | 정상·고장·외란 대본 | 불합격(정지 중 전폭 쓸기의 열 예산 자리값). 기본 프로필은 v0.1 |
+| 실제 치수·실기 조향 펌웨어로 다시 재기(`steer_follow_realdims_v1`, 2026-11-16) | 빠른 SIM, 측정 치수 + ABS-HOLD-8 펄스 유지 흉내 | 15회 15/15 합격. 넓은 조건 20조건 × 3 seed 51/60 불합격: 조향 외란 6 run(펄스 사이 드라이버를 놓아 밀림, 외란 크기는 자리값), 운영자 연결 3 run(등록 기준이 R60보다 옛것). 실행기 GO 규칙(8 °/s)이 보드 조향 속도 5.09 °/s를 거부한다. [`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](docs/steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) |
 | 넓은 조건 평가(사전등록 `steer_follow_wide_v2`) | 빠른 SIM 큰 조건 행렬 275 run | 불합격. 2차 판정 262/275(1차 251/275). [`STEER_FOLLOW_WIDE_RESULT_KO.md`](docs/steering/STEER_FOLLOW_WIDE_RESULT_KO.md) |
 | Gazebo 최종 확인(이미지 wf5 → wf6 → wf7 → wf8 → wf9 → wf10 → wf11, SIM 시계) | W1 과수원, 한 번 눌러 시작, 열 추종 4 run · 대시보드 화면 · A17(G) · PW-08(wf6) · 사용자 명령 3 run | **8b단계(wf11, 2026-11-15) 합격**: 열 추종 4/4(e +0.437~+0.456 m, 횡 RMSE 0.020~0.033 m), 화면 6/6, 사용자 명령 3/3 열 끝(33.5 m), 모두 첫 시도. 측정 동안 Windows 이기종 스레드 배치를 '성능 코어 선호'로 뒀지만 호스트 부하가 7단계의 절반쯤이어서 배치 덕분인지는 가르지 못했다(`STEER_FOLLOW_GSIM_FINAL_KO.md` 19절). 7단계까지는 불합격. wf10(7단계): 화면 합격(호스트 고장 무효 1 번 뒤 6/6), 열 추종 3/4(nominal_1 이 22.3 m 에서 `speed_cap_below_min`), 사용자 명령 0/3(`OPERATOR_LINK_LOST` 2, `speed_cap_below_min` 1, 무효 1) — 실패 사건마다 바로 앞 0~2 s 에 이 PC 의 E 코어가 79~80 % 로 차고 P 코어가 15~29 % 로 비었다. 6단계 화면 실패는 lease 만료가 아니라 모의 MCU 프로세스만 0.34 s 멈춘 뒤의 상태 줄 틈 래치였다. wf9(6단계): 열 추종 4/4 합격, 화면 불합격(첫 run 이 go 2.4 s 뒤 `steering_feedback_stale`), 사용자 명령 1/3 — 실패 셋은 Windows 전체 CPU 70 % 아래였지만 이 PC 의 E 코어가 약 80 % 로 찼던 때(실행기·브리지·에뮬레이터가 함께 느려짐). wf8: 화면 6/6 합격(운영자 세션 규약 개정 5), 열 추종 2/4, 사용자 명령 0/3 — 실패 다섯은 모두 호스트가 바쁜 때 실행기 스캔 처리 0.15~0.32 s(LiDAR·조향 상태 나이 한도). wf7 의 출발 직후 입력 끊김은 새 DDS 참가자 합류 뒤 SIM 쪽 정지로 가렸고 검사가 기다리게 고쳤다. wf7: 사용자 명령 3/3 열 끝(33.3~33.4 m), A17(G) `bridge_stall` 4/4. wf6: 열 추종 3/4, 화면 합격, A17(G) 24/25, PW-08 합격 |
 
@@ -213,7 +222,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 | `sim/ubts/orchard_perception/`, `sim/ubts/encoderless/` | 스캔 통로 검출, 센서만 쓰는 운동 추정 |
 | `sim/ubts/` (바로 아래) | 다시 쓰는 기반 모듈(어댑터, CPU LiDAR, 월드 조립 등)과 시험 |
 | `tools/row_executor/` | 한 열 실행기: Runner, 운영자 HTTP, 국소 격자, GNSS 층, 현장 조정 파일, vendor 사본 |
-| `firmware/ubts_steer_v3/` | 조향 펌웨어 V3(ESP8266). 네이티브 lockstep 프로그램에 함께 컴파일된다 |
+| `firmware/ubts_steer_v3/` | 조향 펌웨어 V3(ESP8266 설계, 실기에 쓴 적 없음). SIM의 직렬 규약·안전 껍데기로 네이티브 lockstep 프로그램에 함께 컴파일된다. 실기 보드 펌웨어(ESP32-S3, ABS-HOLD-8)는 이 저장소에 없고 SIM은 그 조향 법칙을 `sim/ubts/steering/native/abs_hold8.cc`로 흉내 낸다 |
 | `dashboard/`, `dashboard_sim/` | 대시보드 저장소 사본(서버, 정적 파일, 센서 브리지, 조향 브리지 V3)과 SIM 확장 |
 | `ros2_ws/src/orchard_gazebo/`, `ros2_ws/src/orchard_navigation/` | 원본 프로젝트의 과수원 월드 생성기와 제어 참조 |
 | `tools/field_calib/`, `tools/drive_response/` | 현장 보정 도구, 수동 주행 기록의 PWM duty·속도 분석 |
@@ -225,17 +234,18 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 
 | 부분 | 알려진 것 | 아직 자리값·미정 |
 |---|---|---|
-| 차량 | 2인승 어린이용 4륜 전동차 개조(개조 전 표기 1.22 × 0.70 m, 12 V), 휠 엔코더 없음 | 휠베이스, 윤거, 질량, 바퀴 지름(SIM 0.76 m, 0.56 m, 24 kg, 0.28 m) |
-| 조향 | 일반 DC 모터 + 모터 드라이버, 가변저항을 벨트로 연결, ESP 위치 루프, 리밋 스위치 없음 | 벨트 비, 가변저항 종류·범위, 조향각 한계(SIM 28°)·속도(SIM 30°/s), 모터 정격 |
-| 구동 | 4륜, 좌우 모터 묶음, BTS7960 계열 드라이버 2개. 조향 장착 전 100 % duty 0.928 m/s | 조향 장착 뒤 duty→속도, 특히 25~60 % |
-| 센서 | RPLIDAR S2(지면 약 0.6 m, 3240빔 10 Hz), BNO085 IMU, u-blox F9P GNSS, UVC 카메라 | LiDAR·IMU 장착 각(조향 장치를 단 뒤 다시 잼) |
-| 계산 | Jetson Orin Nano, ESP8266(펌웨어 V3는 SIM에서만 돔, 실기에 쓰기 전) | 조향 드라이버의 ESP 핀(규격 A안) |
+| 차량 | 2인승 어린이용 4륜 전동차 개조(개조 전 표기 1.22 × 0.70 m, 12 V), 휠 엔코더 없음. 측정(2026-11-16): 휠베이스 0.657 m, 윤거 0.527 m(바퀴 바깥 0.622 m), 바퀴 지름 0.26 m·두께 0.095 m | 질량, 발자국(SIM 1.22 × 0.70 m), 무게중심 |
+| 조향 | 일반 DC 모터 + BTS7960, 가변저항을 벨트로 연결(ESP32-S3 GPIO6), 보드 펄스 유지(ABS-HOLD-8), 좌우 약 20°까지(측정 2026-11-16), 리밋 스위치 없음. 보드 시험 명령 0 → ±20 약 3.5 s | 벨트 비, 가변저항 종류·범위, 명령 눈금의 물리 각, 0° 오차 크기, 유격, 모터 정격 |
+| 구동 | 4륜, 좌우 모터 묶음, BTS7960 2개(보드의 2·3번). 조향 장착 전 100 % duty 0.928 m/s | 조향 장착 뒤 duty→속도, 특히 25~60 %. 새 보드 펌웨어에 구동 명령 끊김 정지 장치 없음 |
+| 센서 | RPLIDAR S2(꼭대기 0.57 m, 앞차축 0.21 m 뒤, 좌우 가운데: 측정 2026-11-16; 3240빔 10 Hz), BNO085 IMU, u-blox F9P GNSS, UVC 카메라 | S2 스캔 평면 높이(SIM 0.55 m, 꼭대기 − 0.02 m 자리값), IMU 장착 |
+| 계산 | Jetson Orin Nano, ESP32-S3 하나(네이티브 USB, 2026-11-16~; 옛 ESP8266은 뺐다) | 새 보드용 Jetson 브리지(작업 중) |
 
 전체 표와 출처: [`docs/HARDWARE_KO.md`](docs/HARDWARE_KO.md).
 
 ## 조향 사양이 오면
 
 고칠 파일은 `sim/ubts/steering/profiles/steer_spec_input.yaml` 하나, 돌릴 명령은 `tools/steer_sim/apply_spec.py` 하나입니다.
+2026-11-16 실제 치수 입력은 `profiles/steer_spec_input_20261116.yaml`이고 결과가 `front_steer_v1_spec_20261116`입니다(기본 프로필은 그대로 v0.1).
 입력 검사 → 새 프로필 후보 → 펌웨어 CFG·호스트 프로필·Gazebo 관절 값 → 바뀐 값 요약과 다시 잴 목록 → 짧은 확인 순서로 갑니다.
 절차: [`docs/steering/SPEC_UPDATE_KO.md`](docs/steering/SPEC_UPDATE_KO.md). 질문 목록(Q1~Q29): [`VEHICLE_SPEC_REQUEST_KO.md`](docs/steering/VEHICLE_SPEC_REQUEST_KO.md).
 
@@ -257,7 +267,8 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 검증되지 않은 것:
 
 - **현장 검증 0.** 조향 장치를 단 실차로 달린 적이 없다. 실차 주행, Jetson 설치, 펌웨어 쓰기, 장착 보정은 사용자가 현장에서 한다.
-- **실측 프로필 없음.** 조향 모터·가변저항·벨트·치수가 자리값이다. 기본 프로필은 v0.1이고, 다음 판 v0.3은 자격 불합격(열 예산 자리값)이다.
+- **실측은 일부뿐.** 2026-11-16 치수(휠베이스, 윤거, 바퀴, 조향 한계, LiDAR 위치)와 새 보드 펌웨어를 넣은 프로필 `front_steer_v1_spec_20261116`이 있지만 조향 모터·가변저항·벨트·유격·질량은 자리값이다. 기본 프로필은 여전히 v0.1이고, v0.3은 자격 불합격(열 예산 자리값)이다.
+- **새 보드의 펄스 조향(ABS-HOLD-8)은 외력에 약하다(SIM, 자리값 외란).** 펄스 사이에 드라이버를 놓아 조향축 외란 6 run이 열 끝 전에 섰다. 실행기의 조향 GO 규칙(8 °/s 자리값)은 보드의 5.09 °/s를 거부한다. 새 보드용 Jetson 브리지는 아직 없다([`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](docs/steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) 5절).
 - **Gazebo 열 추종은 장면 하나(W1, 열 30 m)다. 최종 확인은 8b단계(wf11, 2026-11-15)에서 처음 합격했지만, 그때 이 PC 가 한가했고 스레드 배치를 켜고 끈 비교를 하지 않아 바쁜 PC 에서도 통과한다는 뜻은 아니다.** 이미지 wf10(7단계)에서 대시보드 화면은 합격했지만 등록 열 추종은 3/4, 사용자 명령은 0/3 이다. 실패는 모두 안전 한도(fresh 상한, 운영자 연결 기한 1.0 s, 정지 감시)에 걸린 정지였고, 실패 순간마다 1~2 s 동안 이 PC 의 E 코어(효율 등급 0)가 꽉 차고 P 코어가 비었다(VM 전체가 느려지는 꼴). steer 컨테이너의 CPU 를 줄였지만(브리지 몫 약 33~44 %) 이 포화를 막지 못했다. 전원 구성·VM 스레드 배치는 사용자 결정이다(`STEER_FOLLOW_GSIM_FINAL_KO.md` 16절). 이미지 wf9(6단계)에서 등록 열 추종은 4/4 열 끝까지 갔지만, 대시보드가 붙는 화면 확인과 사용자 명령(1/3)은 불합격이다. 실패는 모두 안전 한도에 걸린 정지였고, 그때 이 PC 의 E 코어(효율 등급 0)가 약 80 % 로 찼고 P 코어는 반쯤 비어 있었다(Windows 전체 CPU 는 58.8~69.9 %, `STEER_FOLLOW_GSIM_FINAL_KO.md` 15절). 이미지 wf8(5단계)에서 대시보드 화면은 6/6 합격했지만 등록 열 추종은 2/4, 사용자 명령(sim_auto)은 0/3 이다(wf7 에서는 3/3). 실패 다섯 모두 이 PC 가 바쁜 때(호스트 CPU 평균 36~49 %) 실행기의 스캔 처리(통로 갱신)가 0.15~0.32 s 걸려 LiDAR 나이(`stale_lidar`, `fresh` 상한)나 조향 상태 나이(0.3 s) 한도에 걸린 것이다. 진단 스레드는 스캔 처리를 늦추지 않았다(따로 잼). wf7 의 출발 직후 입력 끊김은 실행기 탓이 아니라 새 ROS 참가자가 스택에 들어온 뒤 SIM 쪽 /clock·IMU 가 약 0.35 s 멈춘 것이었다(`STACK_OPERATIONS_KO.md` 9절, 검사가 기다리게 고침). 화면의 `session_conflict`는 운영자 세션 규약 개정 5 로 고쳤다.
 - 열 끝 정지 위치가 Gazebo에서 +0.45 m로 빠른 SIM(+0.04~+0.09 m)보다 뒤다. 열 끝 기둥까지 열로 보는 추정기 규칙 때문이며, 끝 구조물이
   1.2 m 이상 뒤에 있으면 한도(±1.0 m)를 넘는다(설계 결정 필요).

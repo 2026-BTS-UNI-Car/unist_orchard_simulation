@@ -448,18 +448,43 @@ def py_module(module, *args):
     return [sys.executable, '-B', '-m', module] + [str(a) for a in args]
 
 
-def lidar_config_without_noise(source, target):
-    """A runtime copy of rover.yaml for cpu_lidar with lidar.noise_stddev_m 0. Returns (path, the original sd)."""
+def lidar_config_without_noise(source, target, mount=None):
+    """A runtime copy of rover.yaml for cpu_lidar with lidar.noise_stddev_m 0. Returns (path, the original sd).
+    mount: None, or the scene manifest's lidar_mount block (x_m, y_m, height_above_ground_m) put into the copy."""
     config = yaml.safe_load(Path(source).read_text(encoding='utf-8'))
     noise = float(config['lidar'].get('noise_stddev_m', .01))
     out = copy.deepcopy(config)
     out['lidar']['noise_stddev_m'] = 0.
+    if mount is not None:
+        for key in ('x_m', 'y_m', 'height_above_ground_m'):
+            out['lidar'][key] = float(mount[key])
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix('.tmp')
     tmp.write_bytes(yaml.safe_dump(out, sort_keys=False).encode('utf-8'))
     tmp.replace(target)
     return target, noise
+
+
+def lidar_config_with_mount(source, target, mount):
+    """A runtime copy of rover.yaml whose lidar block has the scene's LiDAR mount (profile, 2026-11-16). Returns the
+    path. The pinned rover.yaml is not edited."""
+    config = yaml.safe_load(Path(source).read_text(encoding='utf-8'))
+    out = copy.deepcopy(config)
+    for key in ('x_m', 'y_m', 'height_above_ground_m'):
+        out['lidar'][key] = float(mount[key])
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix('.tmp')
+    tmp.write_bytes(yaml.safe_dump(out, sort_keys=False).encode('utf-8'))
+    tmp.replace(target)
+    return target
+
+
+def scene_lidar_mount(manifest):
+    """The scene's LiDAR mount block when it differs from rover.yaml, else None (every scene before 2026-11-16)."""
+    mount = manifest.get('lidar_mount')
+    return mount if mount and mount.get('differs_from_rover_yaml') else None
 
 
 def retire_stale_status(runtime_dir, role, token, keep=RETIRED_KEEP, names=None):
@@ -507,12 +532,14 @@ def s2_node_ready(path, run_token):
                            (run_token is None or d.get('run_token') == run_token))
 
 
-def clip_node_command(module, scene_dir, runtime, noise_sd, seed):
-    """The clip node's command line (the contract of steering.scan_unobserved_clip)."""
+def clip_node_command(module, scene_dir, runtime, noise_sd, seed, config=None):
+    """The clip node's command line (the contract of steering.scan_unobserved_clip). config: a rover.yaml copy with
+    the scene's LiDAR mount (None: the clip node's default, rover.yaml)."""
+    extra = [] if config is None else ['--config', Path(config)]
     return py_module(module, '--input', '/sim/scan', '--output', '/sim/scan_clipped', '--raster',
                      Path(scene_dir) / 'field_world' / 'raster.npz', '--status-file',
                      Path(runtime) / 'scan_clip_status.json', '--noise-sd', repr(float(noise_sd)), '--noise-seed',
-                     int(seed))
+                     int(seed), *extra)
 
 
 def clip_node_of(args, manifest):
@@ -532,9 +559,13 @@ def sim_children(args, scene_dir, manifest):
     sdf = scene_dir / manifest['sdf']
     clip_node = clip_node_of(args, manifest)
     lidar_config, noise_sd = SIM_ROOT / 'rover.yaml', None
+    mount = scene_lidar_mount(manifest)
     if clip_node:
         lidar_config, noise_sd = lidar_config_without_noise(SIM_ROOT / 'rover.yaml',
-                                                            runtime / 'steer' / 'rover_lidar_no_noise.yaml')
+                                                            runtime / 'steer' / 'rover_lidar_no_noise.yaml', mount)
+    elif mount is not None:
+        lidar_config = lidar_config_with_mount(SIM_ROOT / 'rover.yaml', runtime / 'steer' / 'rover_lidar_mount.yaml',
+                                               mount)
     bridge_yaml = write_bridge_config(manifest, runtime / 'steer' / 'bridge_steer.runtime.yaml')
     renderer = manifest['renderer']
     gz = ['gz', 'sim', '-r', '-s', '-v', str(args.gz_verbosity), '--render-engine-server', renderer['engine']]
@@ -554,7 +585,8 @@ def sim_children(args, scene_dir, manifest):
     ]
     scan_input = '/sim/scan'
     if clip_node:
-        children.append(Child('clip_node', clip_node_command(clip_node, scene_dir, runtime, noise_sd, args.seed),
+        children.append(Child('clip_node', clip_node_command(clip_node, scene_dir, runtime, noise_sd, args.seed,
+                                                             lidar_config if mount is not None else None),
                               cwd=str(SIM_ROOT), env=lidar_env,
                               ready=json_file_ready(runtime / 'scan_clip_status.json',
                                                     lambda d: d.get('state') in ('waiting', 'running')),

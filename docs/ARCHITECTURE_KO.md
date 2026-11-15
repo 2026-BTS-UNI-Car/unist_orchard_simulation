@@ -5,8 +5,62 @@
   개정 [`DESIGN_v2_KO.md`](steering/DESIGN_v2_KO.md)(V2-1 입력, V2-2 시작·정지, V2-3 네 층, V2-4 속도, V2-6 조향 하드웨어),
   운영자 규약 [`OPERATOR_API_KO.md`](steering/OPERATOR_API_KO.md), ESP 규약 [`ESP_PROTOCOL_V3_DRAFT_KO.md`](steering/ESP_PROTOCOL_V3_DRAFT_KO.md).
 - 모든 수치는 자리값이다. 조향 장치의 실제 사양이 오면 바뀐다([`HARDWARE_KO.md`](HARDWARE_KO.md)).
+- 2026-11-16 고침: 실차의 하위 보드가 ESP32-S3 하나(BTS7960 세 개, 펌웨어 ABS-HOLD-8-REBOUND-LIMITS)로 바뀌었다(1.1절). 2026-11-15까지의
+  설계(ESP8266 + 펌웨어 V3)는 1.2절에 그대로 남긴다. SIM은 V3 직렬 규약을 그대로 쓰고 조향 법칙만 새 보드의 것으로 흉내 낼 수 있다
+  (4절, [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md)).
 
 ## 1. 시스템 구성 (실차)
+
+### 1.1 지금 (2026-11-16~)
+
+```mermaid
+flowchart LR
+  subgraph SENS["센서"]
+    LI["RPLIDAR S2<br/>10 Hz, 3240빔<br/>꼭대기 0.57 m · 앞차축 0.21 m 뒤"]
+    IM["BNO085 IMU<br/>raw 33 Hz (I2C)"]
+    GN["u-blox F9P GNSS<br/>약 1 Hz (USB)"]
+    CA["UVC 카메라<br/>표시·기록만"]
+  end
+  subgraph JET["Jetson Orin Nano"]
+    DRV["ROS 2 센서 드라이버<br/>/scan · /imu/data_raw · /gps/fix"]
+    EXE["실행기 (20 Hz)<br/>추정기 L0~L3 + 열 추종 제어기<br/>운영자 HTTP"]
+    BR["새 보드용 조향 브리지<br/>(대시보드 저장소, 작업 중)"]
+    DB["대시보드 서버<br/>수동 조종 · 자율 시작/STOP"]
+  end
+  subgraph ESP["ESP32-S3 (펌웨어 ABS-HOLD-8-REBOUND-LIMITS)"]
+    HOLD["조향 절대 각 유지<br/>PWM 100 펄스 50/80 ms → 300 ms 끔<br/>→ 조용한 가변저항 값으로 판정"]
+    MAN["수동 모터 명령<br/>n F/R pwm · n S · STOP"]
+  end
+  subgraph ACT["BTS7960 드라이버 3개"]
+    D1["1 조향<br/>일반 DC 모터"]
+    D2["2 왼쪽 구동<br/>앞뒤 모터"]
+    D3["3 오른쪽 구동<br/>앞뒤 모터"]
+    POT["가변저항(벨트)<br/>GPIO6 12비트 ADC"]
+  end
+  OP["운영자 휴대폰·노트북"]
+  LI --> DRV
+  IM --> DRV
+  GN --> DRV
+  CA --> DRV
+  DRV --> EXE
+  OP <--> DB
+  DB -->|"자율 시작 · STOP 중계"| EXE
+  EXE -->|"목표 조향각 · 구동 duty"| BR
+  DB -->|"수동 조종 · STOP"| BR
+  BR <-->|"네이티브 USB (Jetson USB-C)<br/>글자 명령 ANGLE · STATUS · STOP · 'n F pwm'"| ESP
+  HOLD --> D1
+  MAN --> D1
+  MAN --> D2
+  MAN --> D3
+  D1 -->|"감속·벨트·링크"| POT
+  POT --> HOLD
+```
+
+[도식] 구현 상태: 보드·드라이버·펌웨어는 **실기에 있음**(사용자, 2026-11-16 Jetson에서 STATUS 응답만 확인, 움직임 없음). 새 보드용
+Jetson 브리지는 **작업 중**(대시보드 저장소). 펌웨어 명령과 규칙은 [`HARDWARE_KO.md`](HARDWARE_KO.md) 2절·6.1절. 실기 펌웨어는 구동 명령이
+끊겨도 서는 장치가 없어 호스트 쪽에서 막아야 한다. SIM은 이 보드를 V3 규약 위의 흉내로 돈다(2절, 4절).
+
+### 1.2 2026-11-15까지의 설계 (ESP8266 + 펌웨어 V3, 기록)
 
 ```mermaid
 flowchart LR
@@ -51,9 +105,9 @@ flowchart LR
   POT -->|"A0 10비트 ADC"| SERVO
 ```
 
-[도식] 구현 상태: Jetson 쪽 소프트웨어(드라이버, 실행기, 브리지 V3, 기록기)와 ESP 펌웨어 V3는 **SIM에서 구현됨**(펌웨어는 PC용
-흉내 층과 ESP8266 컴파일·링크까지, 실기 쓰기 없음). 실차 조향 장치는 사용자가 만드는 중이고, 실차 설치·현장 확인은 **계획**이다.
-조향 모터 드라이버 종류, 벨트 비, 가변저항 사양은 미정이다([`HARDWARE_KO.md`](HARDWARE_KO.md)). 휠 엔코더는 없다.
+[도식] 구현 상태(2026-11-15 기준 기록): Jetson 쪽 소프트웨어(드라이버, 실행기, 브리지 V3, 기록기)와 ESP 펌웨어 V3는 **SIM에서 구현됨**
+(펌웨어는 PC용 흉내 층과 ESP8266 컴파일·링크까지, 실기 쓰기 없음). 2026-11-16에 실차 보드가 1.1절로 바뀌어 이 ESP8266 구성은 실차에
+쓰이지 않는다. 펌웨어 V3는 SIM의 직렬 규약·안전 껍데기로 남는다. 휠 엔코더는 없다.
 
 ## 2. SIM 스택 컨테이너 (G-SIM, `compose.ubts-steer.yaml`)
 
@@ -61,7 +115,7 @@ flowchart LR
 flowchart TB
   subgraph NS["sim 네트워크 이름공간 (ROS 도메인 43, GZ 파티션 ubts-steer)"]
     SIMC["sim<br/>Gazebo Harmonic + 조향 차량 SDF<br/>Embree LiDAR → 자르기 → S2 형식 /scan<br/>IMU 오차 모형 · 가상 GNSS · 카메라"]
-    STEER["steer<br/>ESP 에뮬레이터(펌웨어 V3 네이티브, pty)<br/>+ 조향 브리지 V3"]
+    STEER["steer<br/>ESP 에뮬레이터(펌웨어 V3 네이티브, pty;<br/>조향 법칙 V3 또는 ABS-HOLD-8 흉내)<br/>+ 조향 브리지 V3"]
     RECC["recorder<br/>기록기 + 조향 사이드카"]
     DASH["dashboard<br/>대시보드 사본 + SIM 확장<br/>127.0.0.1:18090"]
     EXEC["executor (profile executor)<br/>실행기 + 열 추종 제어기<br/>운영자 HTTP 127.0.0.1:8097"]
@@ -118,8 +172,8 @@ flowchart LR
     E0 --> GOV["속도 조절기<br/>v_ref = min(순항, 스캔, 지연, 정지 거리,<br/>곡률, 횡오차, 조향, 품질, 열 끝)"]
     GOV --> DUTY["duty = 표⁻¹(v_ref) + PI(v_ref − LiDAR 속도)"]
   end
-  subgraph IN["안쪽 루프 (ESP8266, 서보 500 Hz)"]
-    TGT["목표 S (천분율)<br/>→ 보정표 → 목표 위치"] --> SV["P 제어 + 데드밴드 · 최소/최대 PWM<br/>방향 전환 휴지 · 속도 제한"]
+  subgraph IN["안쪽 루프 (ESP 에뮬레이터: V3 서보 500 Hz 또는 ABS-HOLD-8 펄스)"]
+    TGT["목표 S (천분율)<br/>→ 보정표 → 목표 위치<br/>(ABS-HOLD-8: ANGLE = −S × 20 / 1000)"] --> SV["V3: P 제어 + 데드밴드 · 최소/최대 PWM<br/>ABS-HOLD-8: PWM 100 펄스 50/80 ms,<br/>300 ms 끔, 허용 10 · 다시 시작 16 count"]
     SV --> MOT["조향 모터 드라이버 → DC 모터<br/>→ 감속 · 링크 → 앞바퀴"]
     MOT --> PT["가변저항 (벨트)<br/>A0 1 kHz, 중앙값 5"]
     PT --> SV
@@ -132,7 +186,9 @@ flowchart LR
   CAR -->|"LiDAR · IMU"| E0
 ```
 
-[도식] 구현 상태: 바깥 루프 **구현됨**(`sim/ubts/closed_loop/steer_control.py`, 기본 제어기 `row_follow`). 요레이트 안쪽 루프 이득
+[도식] 구현 상태: 안쪽 루프는 프로필의 `steer_fw_mode`로 고른다. v0.x 프로필은 V3 서보, `front_steer_v1_spec_20261116`(실제 치수,
+2026-11-16)은 실기 보드 펌웨어의 펄스 유지 흉내(`sim/ubts/steering/native/abs_hold8.cc`)다. 바깥 루프 **구현됨**
+(`sim/ubts/closed_loop/steer_control.py`, 기본 제어기 `row_follow`). 요레이트 안쪽 루프 이득
 `k_r`은 걸이만 있고 0이다. ESP 위치 루프는 펌웨어 V3로 **구현됨**(SIM에서 네이티브 빌드로 돔). 서보 이득·데드밴드·최소 PWM 등은
 프로필 v0.1~v0.3의 자리값이다. 외란 아래 직진 유지(ST-11)에서 ESP 위치 루프만으로는 이어지는 힘을 다 되돌리지 못해, 직진 유지는
 바깥 루프가 맡는다([`STEER_HOLD_RESULT_KO.md`](steering/STEER_HOLD_RESULT_KO.md)).
@@ -199,4 +255,6 @@ stateDiagram-v2
 | L0~L3, 설정 키(`prior_enabled`, `local_grid_enabled`, `gnss_mode`) | `sim/ubts/closed_loop/estimator.py`, `tools/row_executor/config.py`, 설계 v2 V2-3 |
 | `run_state` 값, `/api/start`·`/api/arm`·`/api/go`·`/api/stop`·`/api/ack` | `tools/row_executor/operator_http.py`, `executor_main.py`, [`OPERATOR_API_KO.md`](steering/OPERATOR_API_KO.md) |
 | 컨테이너 이름, 포트 18090·8097, 도메인 43 | `compose.ubts-steer.yaml` 머리말 |
-| 핀(D8·D5·D3·D0 구동, D6·D7 조향 PWM, D2 조향 EN, A0 가변저항) | ESP 규격 8.3절(배치 A안, 실기 배선 확인 전) |
+| 핀(D8·D5·D3·D0 구동, D6·D7 조향 PWM, D2 조향 EN, A0 가변저항) | ESP 규격 8.3절(배치 A안, 옛 ESP8266 설계) |
+| ESP32-S3, BTS7960 1·2·3, `ANGLE`·`STATUS`·`STOP`·`n F pwm`, GPIO6 | 실기 펌웨어 `BTS7960_Serial_Control.ino`(레포 밖), [`HARDWARE_KO.md`](HARDWARE_KO.md) 6.1절 |
+| 조향 법칙 `abs_hold_8`, ANGLE 눈금 대응 | `sim/ubts/steering/native/abs_hold8.cc`, `sim/ubts/steering/abs_hold.py`, [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md) |

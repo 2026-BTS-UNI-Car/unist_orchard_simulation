@@ -50,6 +50,12 @@ keeps loading with the v2 parameter set (its results stay reproducible); has(nam
 parameter. v3 also refuses at load what v2 only warns about: pot end stops outside the calibration window, a
 calibration half width below MARK_HALF_WIDTH_MIN counts, and end switches (not modelled, no MCU pin).
 
+Schema v4 (ubts.vehicle_profile.v4, profile front_steer_v1_spec_20261116 and later): the v3 parameters plus group K
+(K_GROUP: the steering firmware law of the SIM ESP emulator). steer_fw_mode v3_servo keeps the firmware V3 servo
+(every earlier result); abs_hold_8 runs the pulse hold of the real board's firmware ABS-HOLD-8-REBOUND-LIMITS with its
+constants (abs_hold_fw), the host ANGLE policy of the SIM (abs_hold_host) and the measured step times
+(steer_step_time_measured_s; docs/steering/ABS_HOLD8_SIM_KO.md). v2 and v3 files keep loading unchanged.
+
 Pure Python + PyYAML (safe loader only). No numpy.
 """
 from __future__ import annotations
@@ -69,7 +75,9 @@ from . import geometry
 
 SCHEMA = 'ubts.vehicle_profile.v2'
 SCHEMA_V3 = 'ubts.vehicle_profile.v3'
-SCHEMAS = (SCHEMA, SCHEMA_V3)
+SCHEMA_V4 = 'ubts.vehicle_profile.v4'
+SCHEMAS = (SCHEMA, SCHEMA_V3, SCHEMA_V4)
+STEER_FW_MODES = ('v3_servo', 'abs_hold_8')
 MARK_HALF_WIDTH_MIN = 50      # counts between the centre mark and each end mark (fw_eeprom.MARK_WINDOW_SPAN_MIN)
 MARK_INSET_DEG = 1.0          # calibration marks at the equivalent mechanical limit - 1 deg (LOCKSTEP 11.11)
 PROFILES_DIR = Path(__file__).resolve().parent / 'profiles'
@@ -160,8 +168,23 @@ V3_PARAMETER_GROUPS = (
 )
 PARAMETER_GROUPS_V3 = PARAMETER_GROUPS + V3_PARAMETER_GROUPS
 PARAMETER_NAMES_V3 = tuple(name for _, names in PARAMETER_GROUPS_V3 for name in names)
-NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3}
-GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V3 for name in names}
+# Schema v4 group K (2026-11-16): the steering firmware law of the SIM ESP emulator.
+V4_PARAMETER_GROUPS = (
+    ('K_steer_firmware', ('steer_fw_mode', 'abs_hold_fw', 'abs_hold_host', 'steer_step_time_measured_s')),
+)
+PARAMETER_GROUPS_V4 = PARAMETER_GROUPS_V3 + V4_PARAMETER_GROUPS
+PARAMETER_NAMES_V4 = tuple(name for _, names in PARAMETER_GROUPS_V4 for name in names)
+NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3, SCHEMA_V4: PARAMETER_NAMES_V4}
+GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V4 for name in names}
+# Keys of the abs_hold_fw mapping: the constants of BTS7960_Serial_Control.ino (ABS-HOLD-8-REBOUND-LIMITS), counts of
+# the board's 12-bit ADC and milliseconds. The SIM emulator (native/abs_hold8.cc) uses every key.
+ABS_HOLD_FW_KEYS = (
+    'cal_right', 'cal_center', 'cal_left', 'command_max_deg', 'pulse_pwm', 'pulse_long_ms', 'pulse_short_ms',
+    'pulse_long_above_counts', 'settle_ms', 'rebound_window_ms', 'target_tol_counts', 'restart_tol_counts',
+    'rebound_max_counts', 'progress_min_counts', 'no_progress_max', 'drive_budget_ms', 'guard_counts', 'sample_ms',
+    'median_of', 'pair_tol_counts', 'stale_ms', 'limit_margin_counts')
+ABS_HOLD_FW_FLOAT_KEYS = ('command_max_deg',)
+ABS_HOLD_HOST_KEYS = ('step_deg', 'deadband_deg', 'min_interval_ms', 'poll_ms')
 
 # Names the steered plant (F-SIM SteeredPlant, P1/P2) reads; geometry.PROFILE_NAMES come on top.
 PLANT_PROFILE_NAMES = (
@@ -244,6 +267,11 @@ SHAPES = {
     'steer_supply_shared_with_drive': BOOL,
     'steer_terrain_impacts': _keys(NUMBER, 'rate_per_m', 'torque_sd_nm', 'duration_s'),
     'steer_terrain_push': _keys(NUMBER, 'sd_nm', 'corr_length_m'),
+    # schema v4
+    'steer_fw_mode': STRING,
+    'abs_hold_fw': {key: (NUMBER if key in ABS_HOLD_FW_FLOAT_KEYS else INTEGER) for key in ABS_HOLD_FW_KEYS},
+    'abs_hold_host': {'step_deg': NUMBER, 'deadband_deg': NUMBER, 'min_interval_ms': INTEGER, 'poll_ms': INTEGER},
+    'steer_step_time_measured_s': _keys(NUMBER, 'outward_20', 'return_20'),
 }
 
 
@@ -701,6 +729,36 @@ def _semantic_checks_v3(values, strict_pot=True):
                            'belt ratio' % (half, MARK_HALF_WIDTH_MIN))
 
 
+def _semantic_checks_v4(values):
+    """Schema v4 checks: the firmware law constants keep the order the firmware relies on."""
+    if values['steer_fw_mode'] not in STEER_FW_MODES:
+        raise ProfileError('out_of_range', 'steer_fw_mode', 'one of %s' % ', '.join(STEER_FW_MODES))
+    fw = values['abs_hold_fw']
+    if not 0 < fw['cal_right'] < fw['cal_center'] < fw['cal_left'] < 4096:
+        raise ProfileError('bad_value', 'abs_hold_fw', 'need 0 < cal_right < cal_center < cal_left < 4096 (12-bit ADC, '
+                                                       'the pot value falls toward the right)')
+    if not 0 < fw['target_tol_counts'] <= fw['restart_tol_counts']:
+        raise ProfileError('bad_value', 'abs_hold_fw', 'need 0 < target_tol_counts <= restart_tol_counts')
+    if not 0 < fw['pulse_short_ms'] <= fw['pulse_long_ms'] < fw['drive_budget_ms']:
+        raise ProfileError('bad_value', 'abs_hold_fw', 'need 0 < pulse_short_ms <= pulse_long_ms < drive_budget_ms')
+    if not 0 < fw['pulse_pwm'] <= 255 or fw['median_of'] % 2 != 1 or fw['median_of'] < 1:
+        raise ProfileError('bad_value', 'abs_hold_fw', 'need 0 < pulse_pwm <= 255 and an odd median_of')
+    if fw['rebound_window_ms'] > fw['settle_ms'] or fw['sample_ms'] <= 0 or fw['stale_ms'] <= fw['sample_ms']:
+        raise ProfileError('bad_value', 'abs_hold_fw', 'need rebound_window_ms <= settle_ms and 0 < sample_ms < stale_ms')
+    host = values['abs_hold_host']
+    if not 0. < host['step_deg'] <= host['deadband_deg'] or host['min_interval_ms'] < host['poll_ms'] or             host['poll_ms'] <= 0:
+        raise ProfileError('bad_value', 'abs_hold_host', 'need 0 < step_deg <= deadband_deg and 0 < poll_ms <= '
+                                                         'min_interval_ms')
+    timing = values['steer_step_time_measured_s']
+    if not (timing['return_20'] > 0. and timing['outward_20'] > 0.):
+        raise ProfileError('bad_value', 'steer_step_time_measured_s', 'step times must be > 0')
+
+
+def abs_hold_mode(profile):
+    """True when the profile runs the ABS-HOLD-8 pulse law in the SIM ESP emulator (schema v4, steer_fw_mode)."""
+    return profile.has('steer_fw_mode') and profile.value('steer_fw_mode') == 'abs_hold_8'
+
+
 # --- consistency warnings ----------------------------------------------------------------------------------------
 def _nominal_number(value):
     """A distribution's centre (uniform mid, normal mean) or the number itself."""
@@ -827,7 +885,7 @@ class VehicleProfile:
 
     @property
     def schema_version(self):
-        return 3 if self.schema == SCHEMA_V3 else 2
+        return {SCHEMA_V3: 3, SCHEMA_V4: 4}.get(self.schema, 2)
 
     def _record(self, name):
         try:
@@ -1086,6 +1144,8 @@ def _finish_records(records, derived_bounds=True):
     _semantic_checks(resolved)
     if 'belt_type' in records:
         _semantic_checks_v3(resolved, strict_pot=derived_bounds)
+    if 'steer_fw_mode' in records:
+        _semantic_checks_v4(resolved)
     computing = set()
 
     def get(name):

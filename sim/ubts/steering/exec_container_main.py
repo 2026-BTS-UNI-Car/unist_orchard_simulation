@@ -137,6 +137,15 @@ def gsim_executor_config(profile, host, cal_id, overrides=None, base_duty_pct=BA
         lidar_yaw_offset_deg=float(value('lidar_yaw_offset_deg')), lidar_x_in_base_m=float(value('lidar_x_in_base_m')),
         footprint_length_m=float(value('footprint_length_m')), footprint_width_m=float(value('footprint_width_m')),
         socket_path=str(socket_path), bind_host=str(bind_host), bind_port=int(bind_port))
+    from . import abs_hold
+    measured = abs_hold.executor_values(profile)
+    if measured is not None:      # steering firmware ABS-HOLD-8: the real board's step response (as the T1 config)
+        values.update(
+            steer_rate_limit_deg_s=round(XC.STEER_RATE_FRACTION * measured['rate_deg_s'], 3),
+            steer_rate_limit_standstill_deg_s=round(XC.STEER_RATE_FRACTION * measured['rate_standstill_deg_s'], 3),
+            steer_measured_rate_deg_s=measured['rate_deg_s'],
+            steer_measured_rate_standstill_deg_s=measured['rate_standstill_deg_s'],
+            steer_servo_deadband_deg=measured['deadband_deg'])
     values.update(overrides or {})
     return replace(XC.ExecutorConfig(), **values).validate()
 

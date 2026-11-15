@@ -1,0 +1,60 @@
+# 조향 장치 사양 입력 2026-11-16 (실제 치수와 새 조향 보드). 빈 판은 steer_spec_input.yaml 이다.
+#
+# 근거(레포 밖 기록, 2026-11-16):
+#   - 사용자 측정(줄자): 바퀴 지름 26 cm, 두께 9.5 cm, 휠베이스 65.7 cm, 바퀴 바깥-바깥 62.2 cm, LiDAR 꼭대기 57 cm,
+#     LiDAR 는 앞차축에서 21 cm 뒤·좌우 가운데, 조향은 좌우 최대 약 20 도(그 이상 안 감), 0 도에도 축 유격으로 좌우 오차가 조금 있다.
+#   - 새 보드 펌웨어 ABS-HOLD-8-REBOUND-LIMITS(BTS7960_Serial_Control.ino)와 보드 시험 기록(verification_quiet_full.log,
+#     measurement_serial.log, rebound_serial.log). 펌웨어 상수와 보정 값은 apply_spec.py 의 ABS_HOLD_FW 에 있다.
+# 명령(저장소 맨 위에서):
+#   python -B tools/steer_sim/apply_spec.py --spec sim/ubts/steering/profiles/steer_spec_input_20261116.yaml --out <저장소 밖>
+schema: ubts.steer_spec_input.v1
+base_profile: front_steer_v0_3_placeholder
+new_profile_id: front_steer_v1_spec_20261116
+description: "실제 치수(2026-11-16 측정)와 새 조향 보드 펌웨어 ABS-HOLD-8 의 펄스 유지(SIM ESP 에뮬레이터 abs_hold_8)를 넣은 판. 나머지 조향 사양(킹핀 폭, Ackermann, 유격, 발자국 길이, 질량, IMU 자세, 가변저항 전기 범위 등)은 자리값이다. 결과는 자리값 기반 SIM 결과로 적는다."
+base_origin: footprint_centre_symmetric_axles
+steer_firmware:
+  mode: abs_hold_8
+  step_time_measured_s:
+    value: {outward_20: 3.5, return_20: 2.5}
+    source: 측정
+    date: 20261116
+    note: "verification_quiet_full.log(보드 시험, 차는 서 있음, 명령 눈금): 0 -> -20 마지막 긴 펄스까지 3.34 s(허용 10 count 안까지 약 3.7 s), 0 -> +20 약 3.6 s(끝에서 되튐 12~18 count, 허용 안까지 약 4.4 s), +20 -> 0 2.17 s, -20 -> 0 2.90 s. outward_20 은 앞의 둘(3.34, 3.6)의 평균, return_20 은 뒤의 둘의 평균"
+fields:
+  wheelbase_m:              {q: Q2,  value: 0.657, source: 측정, date: 20261116, note: "앞뒤 축 간격 65.7 cm(사용자 측정)"}
+  track_front_m:            {q: Q2,  value: 0.527, source: 측정, date: 20261116, note: "좌우 바퀴 바깥-바깥 62.2 cm - 바퀴 두께 9.5 cm = 바퀴 중심 사이 52.7 cm(앞뒤 구별 없이 준 값)"}
+  track_rear_m:             {q: Q2,  value: 0.527, source: 측정, date: 20261116, note: "앞 윤거와 같은 측정(앞뒤 구별 없이 준 값)"}
+  kingpin_width_m:          {q: Q2,  value: null, source: null, date: null, note: null}
+  wheel_radius_front_m:     {q: Q2,  value: 0.13, source: 측정, date: 20261116, note: "바퀴 지름 26 cm"}
+  wheel_radius_rear_m:      {q: Q2,  value: 0.13, source: 측정, date: 20261116, note: "바퀴 지름 26 cm(네 바퀴 같음)"}
+  steer_type:               {q: Q10, value: null, source: null, date: null, note: null}
+  steer_mech_limit_deg:     {q: Q2,  value: 20.0, source: 측정, date: 20261116, note: "조향이 좌우 최대 약 20 도까지 돌고 그 이상 안 간다(사용자 확인). 어느 바퀴·등가각인지 구별이 없어 네 방향 모두 바퀴각 20 도로 둔다"}
+  steer_ackermann_ratio:    {q: Q2,  value: null, source: null, date: null, note: null}
+  steer_backlash_deg:       {q: Q10, value: null, source: null, date: null, note: null}
+  footprint_length_m:       {q: Q2,  value: null, source: null, date: null, note: null}
+  footprint_width_m:        {q: Q2,  value: null, source: null, date: null, note: null}
+  mass_kg:                  {q: Q2,  value: null, source: null, date: null, note: null}
+  steer_self_locking:       {q: Q11, value: false, source: 추정, date: 20261116, note: "보드 시험에서 출력을 끈 뒤 되튐(rebound 12~26 count)이 보여 손으로 되밀리는 비자기잠금으로 본다(REBOUND_CALIBRATION.md)"}
+  steer_motor_stall_torque_nm: {q: Q11, value: null, source: null, date: null, note: null}
+  steer_motor_stall_current_a: {q: Q11, value: null, source: null, date: null, note: null}
+  steer_gear_ratio:         {q: Q11, value: null, source: null, date: null, note: null}
+  steer_rate_max_deg_s:     {q: Q11, value: 100.0, source: 추정, date: 20261116, note: "PWM 100(39 %) 80 ms 펄스 한 번에 2.5~3.6 명령도(보드 시험 verification_quiet_full.log, 서 있는 차)를 내도록 L1 식 w = rate (u - min) / (1 - min) 에 맞춘 값. 100 % 에서의 속도는 재지 않았다. 서 있을 때 잰 값이라 주행 중 값도 같게 둔다"}
+  steer_rate_standstill_deg_s: {q: Q11, value: 100.0, source: 추정, date: 20261116, note: "steer_rate_max_deg_s 와 같은 맞춤(시험이 서 있는 차에서였다)"}
+  steer_min_pwm_pct:        {q: Q11, value: 10.0, source: 자리값, date: null, note: "움직이기 시작하는 PWM 은 재지 않았다(PWM 100 은 움직인다). 맞춤에 쓴 가정"}
+  steer_min_pwm_standstill_pct: {q: Q11, value: 10.0, source: 자리값, date: null, note: "주행 중 값과 같게 둔 가정(시험이 서 있는 차에서였고 주행 중 값은 모른다)"}
+  steer_supply_shared_with_drive: {q: Q26, value: null, source: null, date: null, note: null}
+  belt_type:                {q: Q22, value: null, source: null, date: null, note: null}
+  belt_pulley_teeth_pot:    {q: Q22, value: null, source: null, date: null, note: null}
+  belt_pulley_teeth_steer:  {q: Q22, value: null, source: null, date: null, note: null}
+  belt_pot_play_deg:        {q: Q23, value: null, source: null, date: null, note: null}
+  pot_location:             {q: Q23, value: null, source: null, date: null, note: null}
+  pot_range_deg:            {q: Q23, value: null, source: null, date: null, note: null}
+  pot_to_steer_ratio:       {q: Q22, value: null, source: null, date: null, note: null}
+  pot_adc_end_raws:         {q: Q24, value: null, source: null, date: null, note: null}
+  pot_turn_deg_end_to_end:  {q: Q24, value: null, source: null, date: null, note: null}
+  steer_limit_switch:       {q: Q25, value: null, source: null, date: null, note: null}
+  wheel_width_m:            {q: Q2,  value: 0.095, source: 측정, date: 20261116, note: "바퀴 두께 9.5 cm"}
+  steer_motor_tau_s:        {q: Q11, value: 0.02, source: 추정, date: 20261116, note: "measurement_serial.log 의 PWM 100 700 ms 펄스: 출력을 끄자 10 ms 안에 멈춘다(관성 주행이 거의 없음). 1차 지연을 짧게 둔 맞춤 값"}
+  lidar_y_in_base_m:        {q: Q14, value: 0.0, source: 측정, date: 20261116, note: "좌우는 바퀴 기준 정중앙(사용자 측정)"}
+  lidar_behind_front_axle_m: {q: Q14, value: 0.21, source: 측정, date: 20261116, note: "LiDAR 는 앞바퀴 축에서 21 cm 뒤(사용자 측정)"}
+  lidar_top_height_m:       {q: Q14, value: 0.57, source: 측정, date: 20261116, note: "지면에서 LiDAR 꼭대기 57 cm(사용자 측정)"}
+  lidar_scan_below_top_m:   {q: Q14, value: 0.02, source: 자리값, date: null, note: "S2 꼭대기에서 스캔 평면까지. 제품 도면을 레포에서 확인하지 못해 머리 높이의 절반쯤으로 둔 자리값"}

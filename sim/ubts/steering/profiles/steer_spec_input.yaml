@@ -2,7 +2,8 @@
 #
 # 쓰는 법: docs/steering/SPEC_UPDATE_KO.md
 #   1) 받은 답·잰 값을 아래 칸의 value에 적는다. 모르는 칸은 null로 둔다(바탕 프로필 값이 그대로 남는다).
-#   2) source: 사용자(사용자 설명·어림값) / 측정(실측, date 필수) / 제품표기(라벨·판매 페이지).
+#   2) source: 사용자(사용자 설명·어림값) / 측정(실측, date 필수) / 제품표기(라벨·판매 페이지) /
+#      추정(실측 기록에 맞춘 모형 값, note 필수) / 자리값(아무도 재지 않은 값).
 #      date: 측정한 날 YYYYMMDD. note: 어떻게 얻었는지 한 줄(측정은 note가 출처로 들어간다).
 #   3) 명령(sim/ubts에서):
 #        python -B ../../tools/steer_sim/apply_spec.py --spec steering/profiles/steer_spec_input.yaml --out <저장소 밖 폴더>
@@ -17,6 +18,8 @@ schema: ubts.steer_spec_input.v1
 base_profile: front_steer_v0_3_placeholder     # 바탕 프로필(profiles/ 안 이름). v0.3 = v0.2 값
 new_profile_id: null                           # null이면 front_steer_v1_spec_<가장 늦은 측정일 또는 오늘>
 description: null
+base_origin: null                              # footprint_centre_symmetric_axles: 뒤차축 x = -휠베이스/2 (SIM 규약)
+steer_firmware: null                           # {mode: abs_hold_8 | v3_servo, step_time_measured_s: {value: {outward_20, return_20}, source, date, note}} -> 스키마 v4
 fields:
   # ---- Q2 / Q10 / B1 차체·조향 기하
   wheelbase_m:              {q: Q2,  value: null, source: null, date: null, note: null}   # 뒤차축-앞차축(m)
@@ -53,3 +56,10 @@ fields:
   pot_adc_end_raws:         {q: Q24, value: null, source: null, date: null, note: null}   # 입력 전용: [왼쪽 끝, 가운데, 오른쪽 끝] ADC
   pot_turn_deg_end_to_end:  {q: Q24, value: null, source: null, date: null, note: null}   # 입력 전용: 끝에서 끝까지 가변저항 회전각
   steer_limit_switch:       {q: Q25, value: null, source: null, date: null, note: null}   # none / both(both는 아직 모형 없음)
+  # ---- 2026-11-16 더함: 바퀴 폭, 조향 모터 지연, LiDAR 장착(입력 전용 셋은 도구가 lidar_x_in_base_m·lidar_z_m로 바꾼다)
+  wheel_width_m:            {q: Q2,  value: null, source: null, date: null, note: null}   # 바퀴 두께(m)
+  steer_motor_tau_s:        {q: Q11, value: null, source: null, date: null, note: null}   # 조향 모터 속도 1차 지연(s)
+  lidar_y_in_base_m:        {q: Q14, value: null, source: null, date: null, note: null}   # LiDAR 좌우 위치(m, + 왼쪽)
+  lidar_behind_front_axle_m: {q: Q14, value: null, source: null, date: null, note: null}  # 입력 전용: 앞차축에서 LiDAR까지 뒤쪽 거리(m)
+  lidar_top_height_m:       {q: Q14, value: null, source: null, date: null, note: null}   # 입력 전용: 지면에서 LiDAR 꼭대기(m)
+  lidar_scan_below_top_m:   {q: Q14, value: null, source: null, date: null, note: null}   # 입력 전용: 꼭대기에서 스캔 평면까지(m)

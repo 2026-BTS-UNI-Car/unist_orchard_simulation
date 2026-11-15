@@ -3,6 +3,7 @@
 - 작성: 2026-11-13 (묶음 S3)
 - 고칠 파일은 하나다: `sim/ubts/steering/profiles/steer_spec_input.yaml`
 - 돌릴 명령도 하나다: `tools/steer_sim/apply_spec.py`
+- 2026-11-16: 실제 치수와 새 조향 보드로 첫 판 `front_steer_v1_spec_20261116`을 만들었다([`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md)).
 - 바탕 프로필: `front_steer_v0_3_placeholder`(스키마 v3, 값은 v0.2와 같다. `STEER_PROFILE_V03_KO.md`, `STEER_PROFILE_V02_KO.md`). 질문 번호는 `VEHICLE_SPEC_REQUEST_KO.md`와 같다. 기본 프로필은 아직 v0.1이다(개정 43 ② 불합격: 정지 전폭 쓸기의 THERMAL 예산).
 - 남은 자리값 충돌: THERMAL 예산(`thermal_proxy`)은 모터 정격(Q11)이 오면 정한다. 사양 입력 뒤 개정 40 ②·43 ②와 같은 정상 대본을 새 사전등록으로 다시 돈다.
 - 사양 값이 들어가도 결과는 "일부 실측 기반 SIM 결과"다. 현장 검증이 아니다. 펌웨어 쓰기, 벤치 시험, 실차 주행, Jetson 설치는 사용자가 현장에서 한다.
@@ -54,6 +55,18 @@ flowchart LR
 | `pot_adc_end_raws` | Q24 | 입력 전용: 왼쪽 끝·가운데·오른쪽 끝 ADC `[L, C, R]`(B2). 벨트 비와 `pot_center_raw`로 바뀐다 | count |
 | `pot_turn_deg_end_to_end` | Q24 | 입력 전용: 끝에서 끝까지 가변저항이 도는 각. 벨트 비로 바뀐다 | deg |
 | `steer_limit_switch` | Q25 | 양 끝 스위치가 있으면 `both`(지금은 모형이 없어 거부된다, 5절) | — |
+| `wheel_width_m` | Q2 | 바퀴 두께(2026-11-16 더함) | m |
+| `steer_motor_tau_s` | Q11 | 조향 모터 속도 1차 지연(2026-11-16 더함) | s |
+| `lidar_y_in_base_m` | Q14 | LiDAR 좌우 위치(+ 왼쪽, 2026-11-16 더함) | m |
+| `lidar_behind_front_axle_m` | Q14 | 입력 전용: 앞차축에서 LiDAR까지 뒤쪽 거리 → `lidar_x_in_base_m` = 뒤차축 x + 휠베이스 − 이 값 | m |
+| `lidar_top_height_m`, `lidar_scan_below_top_m` | Q14 | 입력 전용: 지면에서 LiDAR 꼭대기, 꼭대기에서 스캔 평면까지 → `lidar_z_m` = 앞 − 뒤(뒤가 측정이 아니면 ESTIMATED) | m |
+
+맨 위 칸(2026-11-16 더함):
+
+- `base_origin: footprint_centre_symmetric_axles` — `rear_axle_x_in_base_m` = −휠베이스 / 2(DEFINITION, SIM 규약: base 원점 = 발자국 가운데, 두 차축이 원점에 대칭).
+- `steer_firmware: {mode, step_time_measured_s}` — 후보를 스키마 v4로 만들고 그룹 K(SIM ESP 에뮬레이터의 조향 법칙: `steer_fw_mode`, 펌웨어 상수 `abs_hold_fw`, SIM 호스트 정책 `abs_hold_host`, 계단 응답 `steer_step_time_measured_s`)를 넣는다([`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md)).
+- source에 `추정`(실측 기록에 맞춘 모형 값 → ESTIMATED, note 필수)과 `자리값`(아무도 재지 않은 값 → SIM_ASSUMED)을 더했다.
+- 2026-11-16 입력은 `profiles/steer_spec_input_20261116.yaml`, 결과 프로필은 `front_steer_v1_spec_20261116`이다. 빈 판 `steer_spec_input.yaml`은 그대로 빈 판으로 둔다.
 
 벨트 비를 주는 칸(`belt_pulley_teeth_steer`, `pot_adc_end_raws`, `pot_turn_deg_end_to_end`, `pot_to_steer_ratio`)이 여럿이면 서로 5 % 안이어야 한다. 아니면 입력을 거부한다.
 
