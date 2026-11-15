@@ -6,7 +6,20 @@
 // Rover Control on every dashboard; their modules are fetched when they are wanted the first time: the tuning values
 // when their collapsed part is opened, the local grid when the live map part comes on screen (UI-16: the first open of
 // Rover Control stays as light as the drive page was). renderRoute() announces every route with "ubts:route".
-const STEER_VEHICLE = document.documentElement.dataset.vehicleKind === "front_steer";
+// A dashboard started without DASHBOARD_VEHICLE (differential) takes the steering panel when the control bridge says
+// vehicle_profile "front_steer" (the ESP32-S3 bridge, 2026-11-16): the differential pad cannot drive such a bridge (it
+// refuses left/right), so showing it would only mislead. The menu and the page groups do not change.
+const steerVehicle = () => document.documentElement.dataset.vehicleKind === "front_steer";
+
+function adoptBridgeVehicle(bridge) {
+  const profile = bridge && typeof bridge === "object" ? bridge.vehicle_profile : bridge;
+  if (profile !== "front_steer" || steerVehicle()) return false;
+  document.documentElement.dataset.vehicleKind = "front_steer";
+  document.documentElement.dataset.vehicleKindFrom = "bridge";
+  loadSteerScreens();
+  return true;
+}
+
 const steerScreens = { drive: null, auto: null, tuning: null, grid: null, pot: null, driveScreen: null };
 
 function steerPageApi() {
@@ -31,7 +44,7 @@ function loadSteerScreen(name, url, init) {
 }
 
 function loadSteerScreens(route = currentRoute()) {
-  if (STEER_VEHICLE && (route === "/rover-control" || steerScreens.drive)) {
+  if (steerVehicle() && (route === "/rover-control" || steerScreens.drive)) {
     loadSteerScreen("drive", "/static/steer/steer-drive.mjs", "initSteerDrive");
     loadSteerScreen("auto", "/static/steer/auto-panel.mjs", "initAutoPanel");
     loadSteerScreen("pot", "/static/steer/steer-sensor.mjs", "initSteerSensor");

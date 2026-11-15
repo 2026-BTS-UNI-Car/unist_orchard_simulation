@@ -193,6 +193,7 @@ function renderTelemetry(data) {
 function networkModeLabel(control) {
   if (control.ethernet_connected && control.ap_active) return "Ethernet + AP";
   if (control.transition === "wifi_scan") return "Wi-Fi 검색 중";
+  if (control.transition === "wifi_trial") return "Wi-Fi 시험 연결";
   if (control.transition === "ap_start") return "AP 전환 중";
   if (control.ap_active) return "AP";
   if (control.wifi_connected) return "Wi-Fi";
@@ -217,6 +218,7 @@ function renderNetworkMode(control) {
     { label: "AP", value: control.ap_ssid || "BTS_Jetson", sub: control.ap_address || "10.77.0.1", color: colors.blue },
     { label: "AP 접속 기기", value: control.ap_clients ?? 0, sub: countdownText, color: colors.good },
     { label: "Ethernet", value: control.ethernet_connected ? "connected" : "not connected", sub: control.last_error || control.reason || "--", color: control.ethernet_connected ? colors.good : colors.amber },
+    ...(control.link ? [wifiLinkReadout(control.link, colors)] : []),
   ]);
   const apButton = $("networkEnableApButton");
   const wifiButton = $("networkScanWifiButton");
@@ -227,6 +229,35 @@ function renderNetworkMode(control) {
     result.className = `test-result ${state.networkControl.level}`.trim();
     result.textContent = control.last_error || state.networkControl.message;
   }
+  wifiScreen?.render(control);
+}
+
+// Wi-Fi management of the Network page (static/network/wifi-manager.mjs) is fetched the first time the
+// Network page opens, so no page's first load grows (NET-03); then it follows every status (above).
+let wifiScreen = null;
+let wifiScreenLoad = null;
+
+function loadWifiScreen(route = currentRoute()) {
+  if (wifiScreen) wifiScreen.routeChanged();
+  if (route !== "/network" || wifiScreenLoad) return;
+  wifiScreenLoad = import("/static/network/wifi-manager.mjs")
+    .then((module) => {
+      wifiScreen = module.initWifiManager({ getJson, currentRoute, debugLog, telemetryFailures: () => state.telemetryFailures || 0 });
+      wifiScreen.render(state.telemetry?.network?.control || {});
+    })
+    .catch((err) => { wifiScreenLoad = null; console.warn("wifi manager", err); });
+}
+
+// The Wi-Fi link the Jetson uses now (iw dev link on the host): signal and transmit rate.
+function wifiLinkReadout(link, colors) {
+  const band = link.band ? link.band.replace("GHz", " GHz") : "";
+  const rate = Number.isFinite(Number(link.tx_mbps)) && link.tx_mbps !== null ? `송신 ${Math.round(link.tx_mbps)} Mbit/s` : "";
+  return {
+    label: "Wi-Fi 신호",
+    value: Number.isFinite(Number(link.signal_dbm)) && link.signal_dbm !== null ? `${link.signal_dbm} dBm` : "--",
+    sub: [band, rate].filter(Boolean).join(" · ") || "--",
+    color: colors.cyan,
+  };
 }
 
 async function requestNetworkMode(action) {
@@ -261,4 +292,5 @@ async function requestNetworkMode(action) {
 function initNetworkControls() {
   $("networkEnableApButton")?.addEventListener("click", () => requestNetworkMode("ap"));
   $("networkScanWifiButton")?.addEventListener("click", () => requestNetworkMode("wifi"));
+  window.addEventListener("ubts:route", (event) => loadWifiScreen(event.detail?.route));
 }

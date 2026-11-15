@@ -1,10 +1,13 @@
 
 function renderRoverControl(data) {
-  text("roverModeLabel", SIMULATION ? "시뮬레이션" : "실차");
-  text("roverControllerLabel", SIMULATION ? "Gazebo" : "ESP8266");
   const rover = data.rover || data.connection?.rover || {};
   const services = data.services || data.connection?.services || {};
   const roverBridge = services.rover_bridge || {};
+  // The ESP32-S3 'ABS-HOLD' bridge (ROVER_ESP_KIND=esp32_abs_hold) replaced the ESP8266 on the vehicle (2026-11-16).
+  const espName = roverBridge.esp_kind === "esp32_abs_hold" ? "ESP32-S3" : "ESP8266";
+  text("roverModeLabel", SIMULATION ? "시뮬레이션" : "실차");
+  text("roverControllerLabel", SIMULATION ? "Gazebo" : espName);
+  if (typeof adoptBridgeVehicle === "function") adoptBridgeVehicle(roverBridge);   // 14-steer.js
   // Recording controls use their ordered status endpoint. General telemetry
   // can arrive late and must not replace a newer START/STOP acknowledgement.
   const imuSensor = data.sensors?.imu || data.connection?.sensors?.imu || {};
@@ -20,7 +23,7 @@ function renderRoverControl(data) {
   text("roverRosState", roverBridge.ok ? "ready" : roverBridge.state || "대기");
   renderStatusRows("roverControlDetails", [
     {
-      title: SIMULATION ? "Simulation Controller" : "ESP8266 Bridge",
+      title: SIMULATION ? "Simulation Controller" : `${espName} Bridge`,
       sub: SIMULATION ? "가상 로버 수동 조종" : "수동 조종 · 단일 USB 소유자",
       ok: Boolean(roverBridge.ok),
       level: roverBridge.ok ? "ok" : "warn",

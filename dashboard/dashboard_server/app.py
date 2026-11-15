@@ -126,7 +126,7 @@ class _TeeWriter:
         self.cache_target.flush()
 
 
-DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP USB motor owner, manual lease and ROS status 기준', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
+DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP32-S3 · ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP32-S3(BTS7960 3개) 조종 브리지와 구동 안전, 옛 ESP8266 V2 조종권과 정지', 'file': 'esp_rover_control.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -183,8 +183,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == "/api/link-log":
             self._link_log()
         elif path == "/api/network/mode":
-            payload = self._read_json_body()
-            self._send_json(self.provider.set_network_mode(payload))
+            if self._network_request_allowed():
+                payload = self._read_json_body()
+                self._send_json(self.provider.set_network_mode(payload))
+        elif path.startswith("/api/network/wifi/"):
+            self._network_wifi_action(path.removeprefix("/api/network/wifi/"))
         elif path.startswith("/rover-proxy/") or path == "/rover-proxy":
             self._proxy_rover_request(parsed)
         elif path == "/api/fan/mode":
@@ -254,6 +257,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(self.provider.system())
         elif path == "/api/network":
             self._send_json(self.provider.network())
+        elif path == "/api/network/wifi":
+            wifi = getattr(self.provider, "wifi", None)
+            if wifi is None:
+                self._send_json({"ok": False, "enabled": False, "state": "disabled", "saved": [], "scan": None})
+            else:
+                self._send_json(wifi.overview(refresh_saved=parse_qs(parsed.query).get("refresh") == ["1"]))
         elif path == "/api/docker":
             self._send_json(self.provider.docker())
         elif path.startswith("/api/docker/container/"):
@@ -776,6 +785,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": False, "error": f"link_log_write_failed: {exc.strerror or exc}"}, 500)
             return
         self._send_json({"ok": True, "written": written, "dropped": len(rows) - written})
+
+    # ---- Network page: AP switch and Wi-Fi management (dashboard_server/wifi_manager.py) ----
+    NETWORK_MAX_BODY = 4096
+
+    def _network_request_allowed(self) -> bool:
+        """Changes of the Jetson's network need this page's own origin and a dashboard session."""
+        origin = self.headers.get("Origin")
+        if origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send_error(403, "Origin mismatch")
+            return False
+        if not self._ensure_session(create=False):
+            self.send_error(403, "Dashboard session required")
+            return False
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except ValueError:
+            length = -1
+        if length < 0 or length > self.NETWORK_MAX_BODY:
+            self.send_error(413, "Network request size")
+            return False
+        return True
+
+    def _network_wifi_action(self, name: str):
+        from dashboard_server.wifi_manager import http_status
+        actions = {"scan": "scan", "connect": "connect", "confirm": "confirm", "revert": "revert", "profile": "update_profile"}
+        wifi = getattr(self.provider, "wifi", None)
+        if name not in actions:
+            self.send_error(404, "Not found")
+            return
+        if not self._network_request_allowed():
+            return
+        payload = self._read_json_body()
+        if wifi is None:
+            self._send_json({"ok": False, "state": "disabled"}, 503)
+            return
+        result = wifi.scan() if name == "scan" else getattr(wifi, actions[name])(payload)
+        payload = None  # the request may hold a password; it is not kept or logged
+        self._send_json(result, http_status(result))
 
     def _send_bytes(self, body: bytes, content_type: str, filename: str | None = None):
         session_token = self._ensure_session(create=True)

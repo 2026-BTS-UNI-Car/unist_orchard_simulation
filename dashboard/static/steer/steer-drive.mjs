@@ -5,6 +5,8 @@
 // the readout and the status line. Requests go through the page's own postJson/getJson (the dashboard routes
 // /api/rover/*), the same functions as the differential panel. The STOP buttons of the page keep their own code
 // (stopRoverNow: one /api/rover/stop); here they only drop the steering lease at once.
+// The drag control (2026-11-16, bindSteerDrag): a precise angle while dragging, back to 0 when released; with an
+// absolute-target bridge (the ESP32-S3 'ABS-HOLD' firmware) A/D go to the full limit and the angle choices are hidden.
 import './steer-control-rules.js';
 
 const R = globalThis.UbtsSteerRules;
@@ -13,6 +15,12 @@ const ARMED_STATUS_MS = 50;              // armed: one status request at a time,
 const IDLE_STATUS_MS = 500;              // not armed: enough for the gauge and the device check
 const deg = (mrad) => (typeof mrad === 'number' && isFinite(mrad) ? R.mradToDeg(mrad) : null);
 const fmtDeg = (value) => (value === null ? '--' : `${value >= 0 ? '' : '−'}${Math.abs(value).toFixed(1)}°`);
+// Drag value (deg, left positive as steer_mrad) as the operator reads it.
+export const dragText = (deg) => (!deg ? '0°' : `${deg > 0 ? '왼쪽' : '오른쪽'} ${Math.abs(deg).toFixed(1)}°`);
+export const HELP_TEXT = {
+  ramp: '조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 고른 각까지 조향, C는 누르는 동안 가운데로. A/D를 놓으면 가운데로 돌아온다(정지 중에는 한 번 5°까지, ‘각 유지’를 고르면 그대로). 막대를 끌면 그 각으로, 놓으면 0°로. STOP·Esc는 언제나.',
+  absolute: '조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 누르는 동안 왼쪽·오른쪽 끝까지, 놓으면 가운데로(‘각 유지’를 고르면 그대로), C는 가운데로. 막대를 끌면 그 각으로 가고 놓으면 0°로 돌아온다. 키와 막대는 먼저 잡은 쪽만 듣는다. STOP·Esc는 언제나.',
+};
 
 // The device chip (short) and, while not armed, the explanation in the status line (controller.device()).
 export const DEVICE_TEXT = {
@@ -26,6 +34,7 @@ export const DEVICE_TEXT = {
 export function faultLabels(names) {
   const table = new Map(R.MCU_FAULTS.map(([code, label, level]) => [code, [label, level]]));
   for (const [code, label] of R.HOST_LATCHES) table.set(code, [label, 'bad']);
+  for (const [code, label, level] of R.ESP32_FAULTS || []) table.set(code, [label, level]);
   return (Array.isArray(names) ? names : []).map((code) => {
     const known = table.get(code);
     return { code: String(code), label: known ? known[0] : '기타 결함', level: known ? known[1] : 'bad' };
@@ -54,7 +63,58 @@ export function steerView(ctl, now) {
     duty: drive ? { left: drive.left, right: drive.right, en: drive.en } : null,
     deadlineMs: deadline, saturated: steering.saturated === true, faults: faultLabels(steering.faults),
     centreOff: target !== null && Math.abs(target) >= 0.5 && !ctl.centreReturn && !ctl.steeringActive(),
+    absolute: ctl.absoluteMode(), dragActive: ctl.drag.active, dragDeg: ctl.drag.active ? ctl.drag.deg : 0,
+    dragPos: dragPosition(ctl, ctl.drag.active ? ctl.drag.deg : 0),
   };
+}
+
+// Thumb position (% from the left edge) of a drag value: left steering left of the centre, per-side limits.
+export function dragPosition(ctl, deg) {
+  const lim = ctl.dragLimitDeg();
+  const side = deg >= 0 ? lim.left : lim.right;
+  return Math.max(0, Math.min(100, 50 - 50 * (side > 0 ? deg / side : 0)));
+}
+
+// The drag control. One pointer at a time with pointer capture; the value comes from the pointer's x (left of the
+// centre = left steering). Released by pointer up / cancel / lost capture and touch end / cancel; the page also calls
+// end() on blur and when the page is hidden. Uses only addEventListener, getBoundingClientRect and pointer capture, so
+// a test can drive it with a fake element.
+export function bindSteerDrag(el, ctl) {
+  let pointer = null;
+  const valueAt = (clientX) => {
+    const r = el.getBoundingClientRect();
+    const half = r.width / 2;
+    if (!(half > 0) || typeof clientX !== 'number') return 0;
+    const x = Math.max(-1, Math.min(1, (clientX - (r.left + half)) / half));
+    const lim = ctl.dragLimitDeg();
+    return x <= 0 ? -x * lim.left : -x * lim.right;
+  };
+  const end = (reason) => {
+    const id = pointer;
+    pointer = null;
+    if (id !== null) {
+      try { el.releasePointerCapture?.(id); } catch (_) { /* already released */ }
+    }
+    ctl.dragEnd(reason);
+  };
+  el.addEventListener('pointerdown', (event) => {
+    event.preventDefault?.();
+    if (pointer !== null) return;
+    if (!ctl.dragStart(valueAt(event.clientX))) return;
+    pointer = event.pointerId;
+    try { el.setPointerCapture?.(event.pointerId); } catch (_) { /* gone already: its cancel ends the drag */ }
+  });
+  el.addEventListener('pointermove', (event) => {
+    if (event.pointerId === pointer) ctl.dragMove(valueAt(event.clientX));
+  });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    el.addEventListener(name, (event) => { if (event.pointerId === pointer) end(name); });
+  }
+  for (const name of ['touchend', 'touchcancel']) {
+    el.addEventListener(name, () => { if (pointer !== null) end(name); });
+  }
+  el.addEventListener('contextmenu', (event) => event.preventDefault?.());
+  return { end: (reason) => end(reason), held: () => pointer !== null };
 }
 
 export function initSteerDrive(page) {
@@ -110,6 +170,8 @@ export function initSteerDrive(page) {
     button.addEventListener('contextmenu', (event) => event.preventDefault());
   });
   $('steerArmButton')?.addEventListener('click', () => (ctl.lease ? ctl.release() : ctl.arm()));
+  const dragEl = $('steerDrag');
+  const drag = dragEl ? bindSteerDrag(dragEl, ctl) : null;
   const slider = $('steerSpeedSlider');
   slider?.addEventListener('input', () => ctl.setSpeedCap(Number(slider.value)));
   root.querySelectorAll('[data-steer-angle]').forEach((button) => {
@@ -139,9 +201,9 @@ export function initSteerDrive(page) {
     const key = R.keyFromEvent(event);
     if (key && press[key]) press[key](false);
   });
-  window.addEventListener('blur', () => ctl.blur());
+  window.addEventListener('blur', () => { drag?.end('blur'); ctl.blur(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { if (ctl.lease) ctl.stop('page_hidden'); stopLoop(); } else startLoop();
+    if (document.hidden) { drag?.end('page_hidden'); if (ctl.lease) ctl.stop('page_hidden'); stopLoop(); } else startLoop();
   });
   for (const id of ['frameStopButton', 'roverStopButton']) {
     $(id)?.addEventListener('click', () => ctl.abandon('operator_stop'));   // their own handler sends the STOP
@@ -184,6 +246,20 @@ export function initSteerDrive(page) {
     ]);
     setText('steerSpeedValue', `${ctl.speedCapPct}%`);
     if (slider && document.activeElement !== slider && Number(slider.value) !== ctl.speedCapPct) slider.value = String(ctl.speedCapPct);
+    if (dragEl) {
+      const thumb = $('steerDragThumb');
+      if (thumb) thumb.style.left = `${v.dragPos}%`;
+      dragEl.classList.toggle('active', v.dragActive);
+      dragEl.setAttribute('aria-disabled', String(!ctl.lease));
+      // the slider value reads left to right: -20 (left) .. +20 (right)
+      const now = v.dragDeg ? -v.dragDeg : 0;
+      dragEl.setAttribute('aria-valuenow', now.toFixed(1));
+      dragEl.setAttribute('aria-valuetext', v.dragDeg ? dragText(v.dragDeg) : '가운데 0°');
+      setText('steerDragValue', v.dragActive ? dragText(v.dragDeg) : '0°');
+    }
+    const choices = $('steerAngleChoices');
+    if (choices) choices.hidden = v.absolute;
+    setText('steerHelp', v.absolute ? HELP_TEXT.absolute : HELP_TEXT.ramp);
     for (const choice of ctl.angleChoices()) {
       const button = root.querySelector(`[data-steer-angle="${choice.deg}"]`);
       if (!button) continue;

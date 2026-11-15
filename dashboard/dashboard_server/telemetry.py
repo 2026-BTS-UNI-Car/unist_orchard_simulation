@@ -25,6 +25,7 @@ from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from dashboard_server.motor_pwm import with_recorded_motor
 from dashboard_server.playback_profile import POLAR_PROFILE, point_fields
 from dashboard_server.telemetry_cache import light_timeline, TimelineLoadUnavailable
+from dashboard_server.wifi_manager import WifiManager
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "dashboard.json"
@@ -283,6 +284,8 @@ class TelemetryProvider:
         self.network_mode_helper = os.environ.get(
             "NETWORK_MODE_HELPER", "/usr/local/sbin/ubts-network-mode"
         )
+        # Wi-Fi management of the Network page; every change goes through the host helper.
+        self.wifi = WifiManager(self._network_mode_command, lambda: self.network_control_enabled)
         self.host_root = Path(os.environ.get("HOST_ROOT", "/host-root"))
         if not self.host_root.exists():
             self.host_root = Path("/")
@@ -559,9 +562,20 @@ class TelemetryProvider:
         result["requested_action"] = action
         return result
 
-    def _network_mode_command(self, command: str) -> dict[str, Any]:
-        if command not in {"status", "request-ap", "request-wifi"}:
+    # Host helper commands and their time limits in seconds. The wifi-* commands take
+    # their request as JSON on stdin (a password never goes on a command line).
+    NETWORK_HELPER_TIMEOUTS = {
+        "status": 5, "request-ap": 5, "request-wifi": 5,
+        "wifi-scan": 40, "wifi-saved": 20, "wifi-connect": 30,
+        "wifi-confirm": 8, "wifi-revert": 8, "wifi-profile": 20,
+    }
+
+    def _network_mode_command(self, command: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        if command not in self.NETWORK_HELPER_TIMEOUTS:
             return {"ok": False, "state": "bad_command"}
+        stdin_text = None
+        if command.startswith("wifi-"):
+            stdin_text = json.dumps(payload or {}, ensure_ascii=False, separators=(",", ":"))
         helper = Path(self.network_mode_helper)
         host_helper = self.host_root / str(helper).lstrip("/")
         nsenter = shutil.which("nsenter")
@@ -593,15 +607,19 @@ class TelemetryProvider:
             }
         try:
             proc = subprocess.run(
-                argv, check=False, capture_output=True, text=True, timeout=5
+                argv, check=False, capture_output=True, text=True,
+                timeout=self.NETWORK_HELPER_TIMEOUTS[command], input=stdin_text,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
+            # The exception text names the command line only, never the stdin request.
             return {
                 "ok": False,
                 "enabled": True,
                 "state": "helper_error",
-                "error": str(exc),
+                "error": f"{type(exc).__name__}: {command}",
             }
+        finally:
+            stdin_text = None
         output = (proc.stdout or "").strip().splitlines()
         try:
             result = json.loads(output[-1]) if output else {}
@@ -3424,6 +3442,9 @@ class TelemetryProvider:
             "status_topic": rover_bridge.get("status_topic"),
             "serial_open": rover_bridge.get("serial_open"),
             "last_error": rover_bridge.get("last_error"),
+            # The bridge kind: the page takes the steering panel when a front-steer bridge answers (14-steer.js).
+            "vehicle_profile": rover_bridge.get("vehicle_profile") if isinstance(rover_bridge.get("vehicle_profile"), str) else None,
+            "esp_kind": rover_bridge.get("esp_kind") if isinstance(rover_bridge.get("esp_kind"), str) else None,
         }
         recorder = self.recording_status()
         services["data_recorder"] = {

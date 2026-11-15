@@ -673,6 +673,23 @@ class SimExtensionTest(unittest.TestCase):
         provider.recorder_api_url = 'http://10.77.0.1:8790'       # a copied vehicle URL is refused
         self.assertEqual(provider.start_recording({'kind': 'both'})['error'], 'simulation_recorder_endpoint_required')
 
+    def test_wifi_manager_is_disabled_in_the_simulation(self):
+        # the Network page's Wi-Fi manager (dashboard 2026-11-16) answers 'disabled' and never reaches a host helper
+        provider = self.stack.mods['app'].DashboardHandler.provider
+        self.assertIs(provider.network_control_enabled, False)
+        self.assertEqual(provider._network_mode_command('wifi-scan', {})['state'], 'disabled')
+        status, wifi = self.page.get_json('/api/network/wifi')
+        self.assertEqual(status, 200)
+        self.assertEqual((wifi['enabled'], wifi['state'], wifi['saved']), (False, 'disabled', []))
+        self.page.get('/api/rover/status')                             # session cookie
+        for action, body in (('scan', {}), ('connect', {'ssid': 'x', 'password': 'p' * 8}), ('revert', {})):
+            status, reply = self.page.post('/api/network/wifi/' + action, body)
+            self.assertEqual(status, 503, action)
+            self.assertEqual(reply['state'], 'disabled')
+            self.assertNotIn('p' * 8, json.dumps(reply))
+        status, reply = self.page.post('/api/network/mode', {'mode': 'ap'})
+        self.assertEqual(reply['state'], 'simulation_only')
+
 
 class ExecutorRelayTest(unittest.TestCase):
     """The dashboard's relay /api/executor/* against the real executor operator page (token, Host, Origin rules)."""

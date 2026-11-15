@@ -499,6 +499,7 @@
 .rover-record-panel,
 .rover-gps-panel,
 .network-mode-panel,
+.wifi-stack,
 .fan-pwm-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -735,6 +736,19 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 .steer-gauge > .measured {
   top: var(--space-2);
   background: var(--color-text);
+}
+
+/* Drag steering (2026-11-16): a gauge to hold (.btn-hold), solid while held. */
+.steer-drag > .steer-drag-thumb {
+  inset: 50% auto auto 50%;
+  width: var(--space-6);
+  height: var(--space-6);
+  margin: -16px 0 0 -16px;
+  border-radius: var(--radius-round);
+}
+
+.steer-drag.active > i {
+  background: var(--color-on-accent);
 }
 
 /* Field tuning values (UI-12): a collapsed part of Rover Control (UI-16), a full row below 900px.
@@ -1100,6 +1114,10 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   gap: var(--space-2) var(--space-3);
 }
 
+.wifi-priority {
+  width: 96px;
+}
+
 /* ---- Fan --------------------------------------------------------------- */
 .fan-control-grid {
   display: grid;
@@ -1295,6 +1313,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   justify-content: space-between;
   gap: var(--space-3);
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* On the tinted tile the neutral badge needs the stronger fill. */
