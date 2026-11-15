@@ -229,7 +229,7 @@ stateDiagram-v2
   ready --> armed : Arm (브리지 lease)
   armed --> running : go (입력 1 s 신선, 정지, 통로 잡힘)
   armed --> ready : 기다리는 중 lease 잃음 (다시 Arm)
-  running --> paused : 회복 가능한 멈춤 (stale_lidar, stale_imu, 운영자 신호 0.5 s 끊김, 속도 상한, 과속, 예측 한도)
+  running --> paused : 회복 가능한 멈춤 (stale_lidar, stale_imu, 운영자 신호 1.0 s 끊김(R60), 속도 상한, 과속, 예측 한도)
   paused --> running : 새 go
   paused --> ended : 멈춤 3회 넘음 또는 end
   running --> ended : row_end, obstacle_ahead, corridor_lost 등
