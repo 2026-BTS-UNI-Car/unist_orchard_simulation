@@ -699,3 +699,6 @@
   Gazebo 조향 관절은 위치 제어라 펄스 사이의 되밀림은 빠른 SIM 에만 있다(`ABS_HOLD8_SIM_KO.md` 6절).
 - 시험: `sim/ubts/test_steering_stack_vehicle.py`(덮어쓰기 파일의 값 = 프로필·등록 값, 실행기 설정이 서고 제어기가 만들어짐,
   기본 compose 는 비어 있음).
+- 확인(2026-11-16, 판정 아님): 커밋 4aecbdd 에서 T1 안전 대본 71/71, 빠른 SIM nominal 은 v0.1 5/5·측정 치수 5/5 로 앞 기록과
+  trace 내용 SHA 가 같다. 이미지 wf12 사용자 스택에서 화면 확인(SIM_DASHBOARD_KO.md 9절)과 한 열 자율 3 run: 2 run 열 끝,
+  1 run 2.7 m 에서 `steering_feedback_stale`(실행기 한 틱 0.35 s 지연, 호스트 부하 꼴).

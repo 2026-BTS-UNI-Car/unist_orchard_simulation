@@ -204,3 +204,33 @@ CPU 59 ~ 67 %, WSL 1분 부하 3.6, 가용 메모리 1,970 MB).
 ## 사본에서 뺀 것 (2026-11-13)
 
 `dashboard_server/_field10/`(차동 차량 시기의 현장 SHADOW 묶음, 대시보드 작업 D-14)은 SIM 사본에 넣지 않는다. 조향 스택은 이 묶음을 부르는 옛 차동 관찰(`field10_shadow`)을 시작하지 않는다. 묶음은 해시로 고정돼 있어 고칠 수 없고, 기록 자료 경로와 이 레포가 싣지 않는 이름이 들어 있다. 뺀 목록과 까닭은 `tools/steer_sim/sync_dashboard.py` 의 `EXCLUDED` 와 `dashboard/DASHBOARD_SOURCE.json` 의 `excluded` 에 남는다. SIM 에서 옛 차동 관찰을 시작하면 import 오류가 난다(쓰지 않는 경로).
+
+## 9. 사본 feb4600 (2026-11-16)
+
+- `sync_dashboard.py --source <대시보드 레포> --commit feb4600`: 135 파일(추가 2: `dashboard_server/wifi_manager.py`,
+  `static/network/wifi-manager.mjs`, 바뀜 9). 대시보드 main 은 그 뒤 6fc1541 로 갔지만 README 와 그림만 바뀌어 사본은 feb4600 이다.
+- 들어온 것: ESP32-S3 'ABS-HOLD' 브리지용 조향(상태 `steer_control.keys == 'full_limit'`인 절대 목표 브리지에서 A/D 는 끝까지, 놓으면
+  0), 끌어서 조향 각 막대(끄는 동안 그 각, 놓으면 0°, 키와 막대는 먼저 잡은 쪽만), Network 쪽 Wi-Fi 관리(검색, 비밀번호 연결,
+  자동 연결·우선순위, 시험 연결 뒤 자동 되돌림), 브리지가 `vehicle_profile: front_steer`를 내면 조향 패널을 쓰는 규칙.
+- SIM 에서: 조향 브리지는 V3(램프 브리지)라 `full_limit`이 없다. 막대는 A/D 와 같은 램프를 따르고, 서 있을 때는 정지 계단 규칙(한 번
+  누름·끌기에 5°까지, 놓아도 한 계단만 0 쪽으로)이 그대로다. ESP32 전용 칸(펌웨어 고장 이름, `esp_kind`)은 SIM 상태에 그 값이 없어
+  나오지 않고, 제어기 이름은 "Gazebo"로 보인다.
+- Wi-Fi 관리: SIM 제공자(`dashboard_sim/ubts_sim_dashboard/provider.py`)가 `network_control_enabled`를 늘 False 로 두고
+  `_network_mode_command`를 늘 `disabled`로 답한다. 그래서 환경 변수와 상관없이 Wi-Fi 관리자는 호스트 도우미를 부르지 않는다
+  (`GET /api/network/wifi` → `enabled false, state disabled`, POST → 503 `disabled`, 시험 `test_wifi_manager_is_disabled_in_the_simulation`).
+- 이미지 `ubts-steer-sim:wf12`(측정 치수 차, 결정 R91)로 사용자 스택(127.0.0.1:18090)에서 Chrome(playwright)으로 확인(2026-11-16
+  02:51~02:55, 판정 아님, 자리값 기반 SIM 결과):
+
+| 확인 | 결과 |
+|---|---|
+| 메뉴 | 8개 그대로(Overview, Connection, System, Network, Docker, Fan Control, Rover Control, Docs) |
+| 카메라 | Gazebo 카메라 640×360, 수신 27 fps |
+| 조향 패널 | 좌우 한계 16.1°(측정 치수 프로필의 소프트 한계, v0.1 은 23.4°), 각 고르기 20°는 한계 밖이라 꺼짐, 끌기 막대 보임 |
+| 서 있을 때 끌기 | 조종 활성화 뒤 막대를 왼쪽 9.5°로 끌자 목표 4.4° → 9.4°(정지 계단 5°), 측정 9.6°. 놓자 목표 4.4°(한 계단만 돌아옴) |
+| 주행 중 끌기 | C 로 가운데(−0.5°) 뒤 W(속도 상한 20 %, duty 51)를 누른 채 왼쪽 6.5°로 끌자 2 s 안에 측정 7.0°. 놓자 목표 0.0°, 2 s 안에 측정 0.0° |
+| STOP | Esc 로 STOP, 조종 해제 |
+| Network | Wi-Fi 관리 칸이 "이 대시보드에서는 네트워크 제어가 꺼져 있습니다", 검색 버튼 비활성, API `disabled` |
+| 화면 오류 | 브라우저 콘솔 오류·경고 0 |
+
+- 첫 시도는 확인 대본 자체의 출력 인코딩 오류로 끌던 도중 끝났다(차는 SIM, 조종권은 브라우저가 닫혀 만료). 그 조종권이 남아 있던
+  동안 두 번째 시도의 조종 활성화가 `control_in_use`로 거절됐고(설계대로), Esc 뒤 세 번째 시도부터 위 결과가 나왔다.
