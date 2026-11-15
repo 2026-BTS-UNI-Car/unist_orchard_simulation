@@ -28,7 +28,8 @@ class GnssTopicTest(unittest.TestCase):
 
     def test_gnss_files_have_their_roles(self):
         self.assertEqual(ti.classify('sim/ubts/steering/gnss_sim.py')[0], ti.ROLE_PLANT)
-        for rel in ('tools/row_executor/gnss_layer.py', 'tools/row_executor/local_grid.py',
+        for rel in ('tools/row_executor/gnss_layer.py', 'tools/row_executor/gnss_rtk.py',
+                    'tools/row_executor/local_grid.py',
                     'tools/row_executor/perception_layers.py', 'tools/row_executor/perception_settings.py'):
             self.assertEqual(ti.classify(rel)[0], ti.ROLE_DECISION, rel)
         self.assertEqual(ti.classify('sim/ubts/steering/safety_scripts/perception_compare.py')[0], ti.ROLE_EVALUATOR)

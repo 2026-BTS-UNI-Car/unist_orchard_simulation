@@ -258,8 +258,9 @@ def scan_message(packet, real_format):
 def gnss_message(packet):
     """A rig GNSS packet -> the executor's GNSS message (local metres of the virtual receiver; no latitude /
     longitude in the SIM)."""
+    extra = {} if 'fix_type' not in packet else dict(fix_type=str(packet['fix_type']))    # RTK model only
     return _ns(header=_header(packet['stamp_s']), east_m=float(packet['east_m']), north_m=float(packet['north_m']),
-               hacc_m=packet['hacc_m'], fix_ok=bool(packet['fix_ok']))
+               hacc_m=packet['hacc_m'], fix_ok=bool(packet['fix_ok']), **extra)
 
 
 def imu_message(packet):

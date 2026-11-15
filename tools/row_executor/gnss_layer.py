@@ -3,7 +3,9 @@
 A general (non-RTK) GNSS fix is 4-10 m off (10/10 records: horizontal accuracy p50 5.3-10.0 m) while the row spacing is
 3.6-4.1 m and the target speed 0.40 m/s: it can not say where the vehicle is inside the aisle, which row it is in, or the
 heading at walking speed (speed accuracy p50 0.43-0.56 m/s). This layer therefore NEVER feeds the corridor estimate, the
-row end or a steering / drive command. It only checks, with wide margins, things a gross error would break:
+row end or a steering / drive command. It only checks, with wide margins, things a gross error would break (the one
+exception is mode 'weak_constraint': gnss_rtk.py takes the fixes this layer accepted and, with an RTK FIXED solution
+only, nudges the controller's lateral input by a bounded amount; it never writes into the estimator):
 
   quality gate   a fix is used only when the receiver reports a fix, the horizontal accuracy is known and <= max_hacc_m
                  and it is newer than the previous one; its age at use must stay <= max_age_s (a dropout = 'GNSS absent',
@@ -26,8 +28,8 @@ row end or a steering / drive command. It only checks, with wide margins, things
   row range      the fence: before the alignment a circle of radius row length + margin around the run's first fix;
                  after it a rectangle along the row axis (the estimator band heading when the alignment was made, else
                  the start heading): along [-margin, row length + margin], across +-margin, margin = max(fence_margin_m,
-                 fence_hacc_factor x hacc). fence_confirm consecutive accepted fixes outside trip it. Mode 'geofence'
-                 ends the run then ('gnss_geofence'); 'log_only' only reports it.
+                 fence_hacc_factor x hacc). fence_confirm consecutive accepted fixes outside trip it. Modes 'geofence'
+                 and 'weak_constraint' end the run then ('gnss_geofence'); 'log_only' only reports it.
 
 Positions are local metres (east, north) of a frame the caller chooses: LocalFrame converts latitude / longitude to
 metres about the first fix of the process (the origin stays in memory; it is never logged or exported). The summary has
@@ -291,8 +293,10 @@ class GnssLayer:
                 and float(now) - last[0] <= self.s.max_age_s)
 
     def end_reason(self):
-        """'gnss_geofence' in mode geofence once the fence tripped, else None (log_only never ends a run)."""
-        return 'gnss_geofence' if self.s.mode == 'geofence' and self.fence_tripped else None
+        """'gnss_geofence' in modes geofence / weak_constraint once the fence tripped, else None (log_only never ends
+        a run)."""
+        return ('gnss_geofence' if self.s.mode in ('geofence', 'weak_constraint') and self.fence_tripped
+                else None)
 
     def summary(self, now):
         last = self.last

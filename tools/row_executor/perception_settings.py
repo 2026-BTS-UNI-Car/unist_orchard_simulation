@@ -13,15 +13,20 @@ configurations keep their digest; both layers are OFF by default and the Runner 
   local_grid_fuse_width         also pull the band width (default False: the grid lines lie a trunk radius further out)
   local_grid_publish            put a bounded grid serialisation into the executor status (operator map)
   local_grid_publish_period_s / _publish_max_bytes   at most every period, text size cap
-  gnss_mode                     'off' | 'log_only' | 'geofence' (design open choice 4 proposes log_only in the field
-                                file; the dataclass default stays 'off' so existing configurations are unchanged)
+  gnss_mode                     'off' | 'log_only' | 'geofence' | 'weak_constraint' (design open choice 4 proposes
+                                log_only in the field file; the dataclass default stays 'off' so existing configurations
+                                are unchanged). 'weak_constraint' = 'geofence' + the RTK weak constraint (gnss_rtk.py,
+                                front_steer only; docs/steering/GNSS_RTK_KO.md)
   gnss_max_hacc_m / _max_age_s / _jump_gate_m / _fence_margin_m / _fence_confirm / _course_baseline_m /
   _course_tolerance_deg         GnssSettings
+  gnss_rtk_fix_types / _max_hacc_m / _gain / _cap_m / _rate_m_s / _hold_s / _window_m / _min_span_m / _antenna_x_m /
+  _antenna_y_m                  RtkSettings (read only in mode 'weak_constraint')
 """
 from dataclasses import dataclass
 import math
 
-GNSS_MODES = ('off', 'log_only', 'geofence')
+GNSS_MODES = ('off', 'log_only', 'geofence', 'weak_constraint')
+RTK_FIX_TYPES = ('fixed', 'float')          # the receiver solutions the RTK gate can accept (gnss_rtk.py)
 _REAL = 'real'                 # the config.py field-spec kind of a finite number
 
 
@@ -112,6 +117,52 @@ class GnssSettings:
         return p
 
 
+@dataclass(frozen=True)
+class RtkSettings:
+    """The RTK weak constraint of mode 'weak_constraint' (gnss_rtk.RtkConstraint; docs/steering/GNSS_RTK_KO.md). Every
+    value is a placeholder (SIM development value): the real receiver under canopy was never measured."""
+    fix_types: tuple = ('fixed',)    # accepted solutions; 'float' also admits a NavSatFix GBAS fix (fixed or float)
+    max_hacc_m: float = .05          # reported horizontal accuracy <= this (a FIXED solution reports about 0.01-0.03 m)
+    gain: float = .5                 # correction target = gain x the filtered RTK - LiDAR lateral disagreement ...
+    cap_m: float = .15               # ... bounded to +-cap_m (the LiDAR row line is never overridden by more)
+    rate_m_s: float = .05            # the applied correction moves at most this fast (also the fade out: no step)
+    hold_s: float = 1.5              # without a usable fix for longer the target is 0 (fade out at rate_m_s)
+    window_m: float = 20.            # learning window: the last window_m of path
+    min_span_m: float = 4.           # a line needs this much path in its learning samples
+    min_points: int = 6
+    max_rms_m: float = .05           # straight-line fit residual RMS above this: no line (curved row, bad data)
+    learn_gate_m: float = .10        # a sample farther from the active line is not learnt (a LiDAR bias is not learnt)
+    disagree_reset_m: float = 8.     # samples disagreeing over this much path: the line is dropped and relearnt
+    jump_gate_m: float = .25         # RTK innovation against the odometry-predicted position (step / wrong fix)
+    reanchor_after: int = 5          # this many consecutive mutually consistent rejected fixes: the track restarts
+    min_spread_m: float = .02        # frame check needs this LiDAR lateral spread (std) in the samples ...
+    slope_range: tuple = (.5, 1.5)   # ... and the RTK-vs-LiDAR lateral slope inside this range (a mirrored frame: -1)
+    frame_reject_after: int = 3      # consecutive failed frame checks: the constraint is refused for the run
+    innovation_beta: float = .3      # low-pass of the per-fix disagreement
+    antenna_x_m: float = 0.          # antenna in the base frame (lever arm; a constant error cancels in the learnt line)
+    antenna_y_m: float = 0.
+
+    def problems(self):
+        p = []
+        if (not isinstance(self.fix_types, tuple) or not self.fix_types or 'fixed' not in self.fix_types
+                or any(f not in RTK_FIX_TYPES for f in self.fix_types) or len(set(self.fix_types)) != len(self.fix_types)):
+            p.append('fix_types: fixed, optionally with float')
+        p += _range_problems(self, (
+            ('max_hacc_m', .005, 1.), ('gain', 0., 1.), ('cap_m', 0., .3), ('rate_m_s', .005, .2), ('hold_s', .2, 5.),
+            ('window_m', 4., 100.), ('min_span_m', 1., 50.), ('min_points', 3, 1000), ('max_rms_m', .005, .3),
+            ('learn_gate_m', .02, .5), ('disagree_reset_m', 1., 100.), ('jump_gate_m', .05, 2.),
+            ('reanchor_after', 1, 50), ('min_spread_m', .005, .2), ('frame_reject_after', 1, 50),
+            ('innovation_beta', .01, 1.), ('antenna_x_m', -2., 2.), ('antenna_y_m', -2., 2.)))
+        if p:
+            return p
+        if self.min_span_m >= self.window_m:
+            p.append('min_span_m must be below window_m')
+        lo, hi = self.slope_range
+        if not (0. < lo < 1. < hi):
+            p.append('slope_range: 0 < lo < 1 < hi')
+        return p
+
+
 def _range_problems(obj, checks):
     p = []
     for name, lo, hi in checks:
@@ -140,6 +191,10 @@ CONFIG_SPEC = {
     'gnss_mode': (str,), 'gnss_max_hacc_m': (_REAL, .5, 50.), 'gnss_max_age_s': (_REAL, .2, 10.),
     'gnss_jump_gate_m': (_REAL, .5, 50.), 'gnss_fence_margin_m': (_REAL, 2., 100.), 'gnss_fence_confirm': (int, 1, 20),
     'gnss_course_baseline_m': (_REAL, 2., 100.), 'gnss_course_tolerance_deg': (_REAL, 5., 90.),
+    'gnss_rtk_fix_types': (str,), 'gnss_rtk_max_hacc_m': (_REAL, .005, 1.), 'gnss_rtk_gain': (_REAL, 0., 1.),
+    'gnss_rtk_cap_m': (_REAL, 0., .3), 'gnss_rtk_rate_m_s': (_REAL, .005, .2), 'gnss_rtk_hold_s': (_REAL, .2, 5.),
+    'gnss_rtk_window_m': (_REAL, 4., 100.), 'gnss_rtk_min_span_m': (_REAL, 1., 50.),
+    'gnss_rtk_antenna_x_m': (_REAL, -2., 2.), 'gnss_rtk_antenna_y_m': (_REAL, -2., 2.),
 }
 
 
@@ -163,6 +218,19 @@ def gnss_settings(cfg):
                         course_tolerance_deg=float(cfg.gnss_course_tolerance_deg))
 
 
+def rtk_fix_types(text):
+    """'fixed' / 'fixed,float' -> the RtkSettings tuple (order kept, blanks dropped)."""
+    return tuple(part.strip() for part in str(text).split(',') if part.strip())
+
+
+def rtk_settings(cfg):
+    return RtkSettings(fix_types=rtk_fix_types(cfg.gnss_rtk_fix_types), max_hacc_m=float(cfg.gnss_rtk_max_hacc_m),
+                       gain=float(cfg.gnss_rtk_gain), cap_m=float(cfg.gnss_rtk_cap_m),
+                       rate_m_s=float(cfg.gnss_rtk_rate_m_s), hold_s=float(cfg.gnss_rtk_hold_s),
+                       window_m=float(cfg.gnss_rtk_window_m), min_span_m=float(cfg.gnss_rtk_min_span_m),
+                       antenna_x_m=float(cfg.gnss_rtk_antenna_x_m), antenna_y_m=float(cfg.gnss_rtk_antenna_y_m))
+
+
 def enabled(cfg):
     """True when any perception layer is on (the Runner builds PerceptionLayers only then)."""
     return bool(getattr(cfg, 'local_grid_enabled', False)) or getattr(cfg, 'gnss_mode', 'off') != 'off'
@@ -181,6 +249,10 @@ def rule_problems(cfg):
         p.append('gnss_mode: must be one of %s' % (GNSS_MODES,))
     elif cfg.gnss_mode != 'off':
         p += ['gnss: ' + text for text in gnss_settings(cfg).problems()]
+    if cfg.gnss_mode == 'weak_constraint':
+        if getattr(cfg, 'vehicle_profile', None) != 'front_steer':
+            p.append('gnss_mode weak_constraint needs vehicle_profile front_steer (the steering controller input)')
+        p += ['gnss_rtk: ' + text for text in rtk_settings(cfg).problems()]
     return p
 
 

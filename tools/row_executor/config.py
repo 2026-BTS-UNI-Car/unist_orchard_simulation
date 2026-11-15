@@ -404,7 +404,8 @@ class ExecutorConfig:
     local_grid_publish: bool = False             # bounded grid serialisation in the executor status (operator map)
     local_grid_publish_period_s: float = .5      # ... at most this often
     local_grid_publish_max_bytes: int = 16384    # ... text size cap (the bitmap is pooled until it fits)
-    gnss_mode: str = 'off'                       # 'off' | 'log_only' | 'geofence' (gnss_layer.py; never a steering input)
+    gnss_mode: str = 'off'                       # 'off' | 'log_only' | 'geofence' | 'weak_constraint' (gnss_layer.py;
+                                                 # only weak_constraint reaches the steering input, bounded: gnss_rtk.py)
     gnss_max_hacc_m: float = 10.                 # quality gate: horizontal accuracy <= this
     gnss_max_age_s: float = 2.5                  # ... and age <= this (older = GNSS absent, a normal state)
     gnss_jump_gate_m: float = 3.                 # jump rejection: innovation against the dead-reckoned last fix
@@ -412,6 +413,17 @@ class ExecutorConfig:
     gnss_fence_confirm: int = 3                  # consecutive accepted fixes outside before the fence trips
     gnss_course_baseline_m: float = 15.          # odometry path of a course window (alignment, drift)
     gnss_course_tolerance_deg: float = 45.       # course drift flag (a gross check: GNSS course is not a heading)
+    # RTK weak constraint (gnss_mode weak_constraint only; perception_settings.RtkSettings, docs/steering/GNSS_RTK_KO.md)
+    gnss_rtk_fix_types: str = 'fixed'            # 'fixed' or 'fixed,float' (a NavSatFix GBAS fix is fixed OR float)
+    gnss_rtk_max_hacc_m: float = .05             # gate: reported horizontal accuracy <= this
+    gnss_rtk_gain: float = .5                    # correction target = gain x filtered (RTK - LiDAR) lateral ...
+    gnss_rtk_cap_m: float = .15                  # ... within +-cap (never more than this off the LiDAR row line)
+    gnss_rtk_rate_m_s: float = .05               # the applied correction moves at most this fast (fade: no step)
+    gnss_rtk_hold_s: float = 1.5                 # no usable fix for longer: the correction fades to 0
+    gnss_rtk_window_m: float = 20.               # learning window of the row line (path)
+    gnss_rtk_min_span_m: float = 4.              # path a line needs before it is used
+    gnss_rtk_antenna_x_m: float = 0.             # antenna lever arm in the base frame (placeholder)
+    gnss_rtk_antenna_y_m: float = 0.
 
     # --- assisted headland turn (TurnAssist; opt-in, default DISABLED; TURN_DESIGN.txt 3.10) ------
     # With the defaults below no turn run can command any output (observe / dry runs only) and the

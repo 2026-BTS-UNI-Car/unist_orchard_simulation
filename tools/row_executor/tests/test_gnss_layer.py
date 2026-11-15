@@ -128,7 +128,7 @@ class FenceTest(unittest.TestCase):
 
 class SettingsAndAdapterTest(unittest.TestCase):
     def test_settings(self):
-        self.assertEqual(GNSS_MODES, ('off', 'log_only', 'geofence'))
+        self.assertEqual(GNSS_MODES, ('off', 'log_only', 'geofence', 'weak_constraint'))
         self.assertEqual(GnssSettings(mode='log_only').problems(), [])
         self.assertTrue(GnssSettings(mode='weak').problems())
         self.assertTrue(GnssSettings(mode='log_only', max_hacc_m=0.).problems())

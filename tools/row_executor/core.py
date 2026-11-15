@@ -168,6 +168,12 @@ Perception layers (design v2 V2-3 / V2-1 3, PC-07 / PC-12; perception_layers.py,
   GNSS          with gnss_mode 'log_only' / 'geofence' feed_gnss() takes the fixes; they never reach the estimator or a
                 command. 'geofence' ENDS a row run ('gnss_geofence') when confirmed fixes leave the row rectangle (wide
                 margins); 'log_only' only reports. Summary block 'gnss'.
+  RTK           gnss_mode 'weak_constraint' (front_steer only; gnss_rtk.py, docs/steering/GNSS_RTK_KO.md) = 'geofence' +
+                the RTK weak constraint: with an RTK FIXED fix (gated) the steering controller's snapshot gets
+                lateral_offset + u, u bounded (cap), rate-limited (fade out without a step) and 0 until a run-local row
+                line and the frame check exist. Only the controller input changes: the estimator, the geometry guard,
+                the logged snapshot and every stop rule keep the raw LiDAR values. While u is 0 the controller gets the
+                same snapshot object (commands bit-identical). Summary block 'gnss' -> 'rtk'.
 """
 import collections
 from dataclasses import dataclass, field
@@ -1315,7 +1321,7 @@ class Runner:
                 self._end(reason)
                 return self._decision(0, 0, s)
         if self.perception is not None:
-            self.perception.tick(now, self.estimator)
+            self.perception.tick(now, self.estimator, s)
             reason = self.perception.end_reason() if self.run_kind == 'row' else None
             if reason is not None:
                 self._prev_hold = hold
@@ -1447,7 +1453,9 @@ class Runner:
             if why is not None:
                 self._end(why)
                 return self._decision(0, 0, s)
-        command = self.controller.step(now - self._controller_t0, s)
+        # gnss_mode weak_constraint: the controller (only it) sees the bounded RTK lateral correction (gnss_rtk.py)
+        ctrl_s = s if self.perception is None else self.perception.controller_snapshot(s)
+        command = self.controller.step(now - self._controller_t0, ctrl_s)
         self.last_command = command
         if self.single_row is not None:
             self._sr_collect(self.controller)

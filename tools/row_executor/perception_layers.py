@@ -10,19 +10,24 @@ gnss_mode != 'off'); with both off nothing here runs and the Runner is bit-ident
                              est.on_corridor_observation(stamp, lateral, heading, width or None, quality, 'local_grid')
                              (the estimator's own gates decide; a refused observation changes nothing)
   on_gnss(t, msg, est)       a GNSS message received at executor time t (gnss_layer.fix_from_message)
-  tick(now, est, snapshot)   once per Runner tick: the GNSS layer's pose bookkeeping
-  end_reason()               'gnss_geofence' (mode geofence, fence tripped) or None
-  summary(now, est)          {'local_grid': ..., 'gnss': ...} blocks of the Runner summary (proc_ms = wall clock)
+  tick(now, est, snapshot)   once per Runner tick: the GNSS layer's pose bookkeeping; mode weak_constraint: the RTK
+                             constraint's pending fixes and its rate-limited correction (gnss_rtk.py)
+  controller_snapshot(s)     the snapshot the controller gets: s itself, or (weak_constraint, correction not 0) a copy
+                             with the bounded RTK lateral correction
+  end_reason()               'gnss_geofence' (mode geofence / weak_constraint, fence tripped) or None
+  summary(now, est)          {'local_grid': ..., 'gnss': ...} blocks of the Runner summary (proc_ms = wall clock); the
+                             'gnss' block gets 'rtk' in mode weak_constraint
   export(now, est)           the bounded grid serialisation for the operator map (rate-limited), or None
 
 The grid sees the estimator only through its public outputs (base_pose, odom_valid, config.lidar_x_in_base_m, the band
-heading of the snapshot); the GNSS layer never writes into the estimator.
+heading of the snapshot); the GNSS layer and the RTK constraint never write into the estimator.
 """
 import math
 import time
 
 from . import perception_settings as PS
 from .gnss_layer import GnssLayer, LocalFrame, fix_from_message
+from .gnss_rtk import RtkConstraint, fix_type_from_message
 from .local_grid import SOURCE_NAME, LocalGrid
 
 
@@ -36,6 +41,8 @@ class PerceptionLayers:
         self.publish_max_bytes = int(cfg.local_grid_publish_max_bytes)
         self.gnss_settings = PS.gnss_settings(cfg) if cfg.gnss_mode != 'off' else None
         self.gnss = None if self.gnss_settings is None else GnssLayer(self.gnss_settings)
+        # RTK weak constraint (mode weak_constraint only; None otherwise and nothing below calls it)
+        self.rtk = RtkConstraint(PS.rtk_settings(cfg)) if cfg.gnss_mode == 'weak_constraint' else None
         self.frame = LocalFrame()           # latitude / longitude -> local metres (origin private, never exported)
         self.grid = None
         self.fusion = {}                    # outcome -> count of the fused observations of this run
@@ -51,6 +58,8 @@ class PerceptionLayers:
         self._band_heading = None
         if self.gnss is not None:
             self.gnss.new_run(row_length_m)
+        if self.rtk is not None:
+            self.rtk.new_run()
 
     # --- inputs --------------------------------------------------------------------------------------------------
     def on_scan(self, est, stamp, ranges, angle_min, increment):
@@ -84,11 +93,23 @@ class PerceptionLayers:
             return 'unreadable'
         base = None if est is None else est.base_pose(float(t))
         band = None if est is None or est.band is None else float(est.band.heading)
-        return self.gnss.on_fix(t, fix[0], fix[1], fix[2], fix[3], base, band)
+        if self.rtk is None:
+            return self.gnss.on_fix(t, fix[0], fix[1], fix[2], fix[3], base, band)
+        flags = sum(self.gnss.flags.values())
+        outcome = self.gnss.on_fix(t, fix[0], fix[1], fix[2], fix[3], base, band)
+        self.rtk.on_fix(t, fix[0], fix[1], fix[2], fix_type_from_message(msg), outcome,
+                        sum(self.gnss.flags.values()) > flags)
+        return outcome
 
-    def tick(self, now, est):
+    def tick(self, now, est, snapshot=None):
         if self.gnss is not None and est is not None:
             self.gnss.note_pose(est.base_pose(float(now)))
+        if self.rtk is not None and est is not None and snapshot is not None:
+            self.rtk.tick(now, snapshot, est.base_pose(float(now)))
+
+    def controller_snapshot(self, s):
+        """The controller's snapshot (weak_constraint: lateral_offset + the bounded RTK correction; otherwise s)."""
+        return s if self.rtk is None else self.rtk.apply(s)
 
     # --- outputs -------------------------------------------------------------------------------------------------
     def end_reason(self):
@@ -116,6 +137,8 @@ class PerceptionLayers:
             block = self.gnss.summary(now)
             if self.gnss_unreadable:
                 block['unreadable'] = self.gnss_unreadable
+            if self.rtk is not None:
+                block['rtk'] = self.rtk.summary(now)
             out['gnss'] = block
         return out
 
