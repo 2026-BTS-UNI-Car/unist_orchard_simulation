@@ -49,14 +49,14 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 
 비워 둔 값(현장에서 잴 때까지 null/false, 그래서 MOTOR 는 설정 검사에서 거절): C2 `breakaway_duty_pct`, C3 `v_measured_m_s`, C7 `measured_stop_distance_m`,
 B5 `steer_measured_rate_*`(GO 문턱 결정과 함께; 5.09 °/s 는 문턱 8 °/s 에 걸린다), B2/B3 `steer_range_measured`·`steer_wheel_soft_margin_deg`, B4 `steer_min_pwm_pct`, F1 `steer_zero_offset_deg`,
-B0 `steer_polarity_checked`. `steer_esp32_require_fw_watchdog` 는 true(보드 펌웨어에 구동 감시가 없어 MOTOR Arm 이 거절된다. 패치를 넣거나 결정으로 false).
+B0 `steer_polarity_checked`. `steer_esp32_require_fw_watchdog` 는 true. 2026-11-16 보드에 구동 감시 패치를 써서 브리지 상태의 `drive.firmware_watchdog_ms` 가 300 이다(이 점검은 통과).
 
 ## 4. 안전 규칙이 실차 보드에서 어떻게 지켜지나, 남는 것
 
 | 위험 | V3 에서 막던 것 | ESP32 에서 막는 것 | 남는 것 |
 | --- | --- | --- | --- |
 | 실행기가 죽음·멈춤 | 브리지 입력 기한 0.75 s + MCU C TTL 300 ms | 브리지 입력 기한 0.75 s(→ STOP)와 브리지 자체 구동 TTL 0.75 s. 실행기 감시견(0.35 s)이 살아 있으면 구동 0 | MCU 쪽 300 ms TTL 이 없어 끊긴 뒤 멈춤까지 최대 약 0.75~0.85 s(가짜 보드: 0.85 s 한도 안) |
-| 브리지가 죽음 | MCU watchdog 500 ms + C TTL | 브리지 SIGTERM/atexit 는 STOP(시험). SIGKILL·멈춤은 없음 | **펌웨어가 마지막 구동을 계속한다.** 펌웨어 구동 감시 패치(대시보드 기록 `runs/esp32_bridge_20261116/firmware_watchdog/`) 전에는 물리 비상정지. 그래서 Arm 기본은 감시 필요 |
+| 브리지가 죽음 | MCU watchdog 500 ms + C TTL | 브리지 SIGTERM/atexit 는 STOP(시험). SIGKILL·멈춤은 없음 | 원본 펌웨어는 마지막 구동을 계속했다. 2026-11-16 보드에 쓴 구동 감시(300 ms)가 멈춘다(실제 보드에서는 아직 재지 않음). Arm 기본은 감시 필요, 물리 비상정지는 그대로 마지막 수단 |
 | 운영자 화면 끊김 | 실행기 heartbeat 1.0 s → 일시정지(구동 0), 재출발 없음 | 같다(시험: 1.15 s 안에 `2 S`/`3 S`, 다시 이어져도 구동 없음) | — |
 | STOP | op stop → 다음 틱 STOP, 확인·재전송 | op stop → 브리지 다음 단계(20 ms)에 STOP, 확인될 때까지 다시 씀, 0.6 s 넘으면 `stop_unconfirmed` 래치 | — |
 | 조향이 안 따라옴 | MCU TRACK + 호스트 래치 | 어댑터 추종 감시(3°, 2 s) | 문턱은 자리값, 차에서 재지 않음. 펄스 사이 되밀림(외란)은 SIM 에서도 넓은 조건 실패 원인(`STEER_FOLLOW_REALDIMS_RESULT_KO.md`) |

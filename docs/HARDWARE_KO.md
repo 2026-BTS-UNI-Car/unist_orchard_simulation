@@ -36,7 +36,7 @@
 |---|---|---|
 | 상위 컴퓨터 | NVIDIA Jetson Orin Nano Super 개발 키트(aarch64, Ubuntu 22.04 / JetPack 6 계열). 센서 드라이버는 ROS 2 Iron 컨테이너 | 설정(과거 설치 기록) |
 | 하위 보드(2026-11-16~) | ESP32-S3 하나, 네이티브 USB(USB JTAG/serial)로 Jetson USB-C에 연결(Jetson `/dev/ttyACM*`, 115200 줄 단위 글자 명령). BTS7960 세 개(조향, 왼쪽 구동, 오른쪽 구동)를 같은 보드에서 돌린다 | 사용자·Jetson 확인(2026-11-16) |
-| 보드 펌웨어(실기) | `ABS-HOLD-8-REBOUND-LIMITS`(`BTS7960_Serial_Control.ino`, 이 저장소 밖). 명령: `ANGLE n`(절대 조향, −왼쪽/+오른쪽, ±20 명령도), `STATUS`, `STOP`, `n F pwm` / `n R pwm` / `n S`(모터 번호 1~3, 방향, PWM 0~255), `POT`, `CENTER`·`LEFT n`·`RIGHT n`. 조향 수동 명령은 1초 한도, ANGLE 유지는 보정마다 구동 1초 한도. 구동 모터(2, 3)는 명령이 끊겨도 서는 장치가 없다 | 펌웨어 소스(2026-11-16) |
+| 보드 펌웨어(실기) | `ABS-HOLD-8-REBOUND-LIMITS`(`BTS7960_Serial_Control.ino`, 이 저장소 밖). 명령: `ANGLE n`(절대 조향, −왼쪽/+오른쪽, ±20 명령도), `STATUS`, `STOP`, `n F pwm` / `n R pwm` / `n S`(모터 번호 1~3, 방향, PWM 0~255), `POT`, `CENTER`·`LEFT n`·`RIGHT n`. 조향 수동 명령은 1초 한도, ANGLE 유지는 보정마다 구동 1초 한도. 원본은 구동 모터(2, 3)가 명령이 끊겨도 서는 장치가 없었고, 2026-11-16 사용자 승인으로 구동 감시 패치(구동 명령·`HB` 가 300 ms 없으면 2·3 정지, FW 줄 `DRIVE_WD=300`)를 보드 app0 에 썼다(모터 전원 끈 채, 16 MB 전체 백업 뒤) | 펌웨어 소스(2026-11-16), 보드 STATUS(2026-11-16) |
 | 옛 하위 보드(2026-11-15까지) | ESP8266 NodeMCU 계열(USB 직렬 115200, CP2102). 뺐다 | 사용자 |
 | SIM 펌웨어 | 조향 펌웨어 V3(`firmware/ubts_steer_v3/`). 실기에 쓴 적이 없다. SIM은 PC용 흉내 층으로 이 소스를 돌리며 직렬 규약·ARM·TTL·STOP·구동 껍데기로 쓴다. 프로필 `steer_fw_mode abs_hold_8`이면 조향 법칙만 실기 펌웨어의 펄스 유지로 바꾼다([`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md)) | 펌웨어 |
 | SIM 실행 | Windows Docker Desktop + WSL2, ROS 2 Jazzy, Gazebo Harmonic(gz-sim 8). 스택 메모리 예산 6 GiB | 설정 |
