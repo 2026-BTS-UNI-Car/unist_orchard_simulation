@@ -26,10 +26,16 @@ Quality per scan: OK (>= ok_match pairs on both lane rows, residual RMS <= ok_rm
 jump_m), WEAK (>= 1 pair, otherwise), LOST (no pair: the pose is the prediction), REJECTED (a solution farther than
 reject_jump_m from the prediction: the prediction is kept). Only OK and WEAK poses are measurements.
 
-Limits: a pole map is periodic along the row; the start along-row position must be known to better than half the
-landmark spacing (0.75 m at 1.5 m) or the solution can lock one spacing off (the row ends break the period). Scan
-motion during one revolution (0.1 s) is not corrected. Landmarks that are not in the map are ignored only when they
-are farther than the gate from every map landmark.
+The start search and along_check() score a pose by the clusters near map landmarks minus the map landmarks that
+should be seen (lidar distance <= check_range_m) but have no cluster; that term separates poses one landmark spacing
+apart near the row ends. along_check() scores the whole trajectory moved by -1, 0, +1 spacing and reports 'suspect'
+when the solved one is not clearly the best.
+
+Limits: a pole map is periodic along the row; when no row end (or other irregular structure) is in view near the start,
+a start along-row error above about half the spacing can lock the solution one spacing off (along_check() reports it;
+the lateral and heading values are not affected, the row end error e is). Scan motion during one revolution (0.1 s) is
+not corrected. Landmarks that are not in the map are ignored only when they are farther than the gate from every map
+landmark. Occlusion is not modelled (hence the short check range).
 """
 from __future__ import annotations
 
@@ -41,8 +47,9 @@ OK, WEAK, LOST, REJECTED, NONE = 1, 2, 3, 4, 0
 QUALITY_NAMES = {OK: 'ok', WEAK: 'weak', LOST: 'lost', REJECTED: 'rejected', NONE: 'none'}
 DEFAULTS = dict(min_range_m=.30, max_range_m=15., body_margin_m=.10, cluster_gap_m=.10, cluster_min_points=3,
                 cluster_max_extent_m=.60, gate_init_m=.50, gate_m=.25, outlier_m=.10, ok_match=4, ok_rms_m=.05,
-                jump_m=.30, reject_jump_m=.75, speed_alpha=.5, init_along_m=.6, init_lateral_m=.4, init_yaw_deg=8.,
-                init_step_m=.1, init_step_deg=2., init_score_m=.20, relock_after_s=1.0, max_dt_s=1.0)
+                jump_m=.30, reject_jump_m=.75, speed_alpha=.5, init_along_m=1.0, init_lateral_m=.5, init_yaw_deg=10.,
+                init_step_m=.1, init_step_deg=2., init_score_m=.20, relock_after_s=1.0, max_dt_s=1.0,
+                check_range_m=8., along_check_every=2)
 
 
 def wrap(a):
@@ -204,6 +211,15 @@ class Imu:
                                                                                          for v in self.up])
 
 
+def landmark_spacing(refmap):
+    """Median along-row gap between neighbouring landmarks of the lane rows, or None (fewer than 4 gaps)."""
+    gaps = []
+    for row in refmap.lane_rows:
+        along = sorted(refmap.to_row(lm[2], lm[3], 0.)[0] for lm in refmap.landmarks if lm[1] == row)
+        gaps += [b - a for a, b in zip(along, along[1:]) if b - a > .05]
+    return float(np.median(gaps)) if len(gaps) >= 4 else None
+
+
 class Localiser:
     def __init__(self, refmap, vehicle, config=None):
         self.cfg = dict(DEFAULTS, **(config or {}))
@@ -212,6 +228,8 @@ class Localiser:
         self.lm, self.side = refmap.landmark_array()
         if len(self.lm) < 2:
             raise ValueError('localisation needs a landmark map (>= 2 landmarks); this map has %d' % len(self.lm))
+        self.search_radius = float(np.median(self.lm[:, 2]))
+        self.spacing = landmark_spacing(refmap)
 
     # --- one scan ------------------------------------------------------------------------------------------------
     def _centres(self, cl, radius):
@@ -233,15 +251,31 @@ class Localiser:
         ci = np.array(sorted(chosen.values()), dtype=int)
         return ci, best[ci], dist[ci]
 
+    def _expected(self, pose):
+        """Mask of the map landmarks that a scan from this pose should see (lidar distance within
+        [min_range_m + 0.2, check_range_m]); occlusion is not modelled, hence the short check range."""
+        c, s = math.cos(pose[2]), math.sin(pose[2])
+        lx = pose[0] + self.vehicle.lidar_x * c - self.vehicle.lidar_y * s
+        ly = pose[1] + self.vehicle.lidar_x * s + self.vehicle.lidar_y * c
+        d = np.hypot(self.lm[:, 0] - lx, self.lm[:, 1] - ly)
+        return (d >= self.cfg['min_range_m'] + .2) & (d <= self.cfg['check_range_m'])
+
     def _score(self, centres, pose):
+        """Soft count of clusters near a map landmark minus the expected landmarks without a cluster (the second
+        term separates poses one landmark spacing apart near the row ends)."""
+        if not len(centres):
+            return 0.
         world = transform(centres, pose)
-        d = np.hypot(world[:, None, 0] - self.lm[None, :, 0], world[:, None, 1] - self.lm[None, :, 1]).min(axis=1)
-        return float(np.sum(np.clip(1. - d / self.cfg['init_score_m'], 0., None)))
+        dm = np.hypot(world[:, None, 0] - self.lm[None, :, 0], world[:, None, 1] - self.lm[None, :, 1])
+        matched = float(np.sum(np.clip(1. - dm.min(axis=1) / self.cfg['init_score_m'], 0., None)))
+        expected = self._expected(pose)
+        missing = int(np.count_nonzero(dm[:, expected].min(axis=0) > self.cfg['gate_m'])) if np.any(expected) else 0
+        return matched - missing
 
     def search(self, cl, centre_pose):
         """Grid search around centre_pose (map frame) for the pose with the best soft match count."""
         cfg = self.cfg
-        centres = self._centres(cl, [self.map.default_radius_m] * len(cl))
+        centres = self._centres(cl, [self.search_radius] * len(cl))
         x0, y0, th0 = centre_pose
         axis = self.map.geometry['axis_rad']
         ca, sa = math.cos(axis), math.sin(axis)
@@ -317,6 +351,7 @@ class Localiser:
         n = len(t_all)
         out = {k: np.full(n, np.nan) for k in ('x', 'y', 'yaw', 'rms_m', 'jump_m', 'pred_x', 'pred_y', 'pred_yaw')}
         out.update({k: np.zeros(n, dtype=int) for k in ('quality', 'n_clusters', 'n_match', 'sides')})
+        centres_store = [np.zeros((0, 2))] * n
         pose, t_prev, speed, yaw_rate = None, None, 0., 0.
         last_fix_t, init = None, None
         for i in range(n):
@@ -324,6 +359,7 @@ class Localiser:
             pts, rr = geo.points(scans['ranges'][i], cfg)
             cl = clusters(pts, rr, geo.inc, cfg)
             out['n_clusters'][i] = len(cl)
+            centres_store[i] = self._centres(cl, [self.search_radius] * len(cl))
             if pose is None:
                 if len(cl) < 3:
                     continue
@@ -377,7 +413,31 @@ class Localiser:
         out['t'] = t_all
         out['init'] = init
         out['imu'] = gyro.describe()
+        out['_centres'] = centres_store
+        out['along_check'] = self.along_check(out)
         return out
+
+    def along_check(self, traj):
+        """Scores of the whole trajectory moved by -1, 0, +1 landmark spacing along the row: a pole map is periodic
+        along the row, so a solution one spacing off fits the middle of the row as well as the right one; the row
+        ends (and an irregular map) tell them apart. suspect = the trajectory as solved is not clearly the best."""
+        if self.spacing is None:
+            return dict(spacing_m=None, suspect=None, note='fewer than 4 landmark gaps in the lane rows')
+        axis = self.map.geometry['axis_rad']
+        ca, sa = math.cos(axis), math.sin(axis)
+        meas = np.flatnonzero((traj['quality'] == OK) | (traj['quality'] == WEAK))[::max(1, int(self.cfg['along_check_every']))]
+        scores = {}
+        for k in (-1, 0, 1):
+            total = 0.
+            for i in meas:
+                pose = (traj['x'][i] + k * self.spacing * ca, traj['y'][i] + k * self.spacing * sa, traj['yaw'][i])
+                total += self._score(traj['_centres'][i], pose)
+            scores[k] = round(total, 3)
+        best = max(scores, key=lambda k: (scores[k], -abs(k)))
+        margin = scores[0] - max(scores[-1], scores[1])
+        return dict(spacing_m=round(self.spacing, 4), scans=int(len(meas)), scores={str(k): v for k, v in scores.items()},
+                    best_shift=best, margin=round(margin, 3),
+                    suspect=bool(best != 0 or margin < max(5., .01 * abs(scores[0]))))
 
 
 def summary(traj, interval=None):

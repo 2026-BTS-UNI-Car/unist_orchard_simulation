@@ -273,6 +273,16 @@ class LocaliseTests(Temp):
         err = np.hypot(traj['x'] - x, traj['y'] - y)
         self.assertLess(float(np.max(err)), .01)
 
+    def test_along_check_flags_one_spacing(self):
+        traj, (t, x, y, yaw) = self._run(start_error=(L.SPACING, 0., 0.), duration=20.)
+        self.assertAlmostEqual(float(np.median(traj['x'] - x)), L.SPACING, delta=.01)
+        check = traj['along_check']
+        self.assertTrue(check['suspect'])
+        self.assertEqual(check['best_shift'], -1)
+        good, _ = self._run(duration=20.)
+        self.assertFalse(good['along_check']['suspect'])
+        self.assertEqual(good['along_check']['best_shift'], 0)
+
     def test_no_landmarks_is_lost(self):
         far = RM.RefMap([('a', 'r', 100., -1., .1, 'p'), ('b', 'r', 110., -1., .1, 'p'), ('c', 'l', 100., 1., .1, 'p'),
                          ('d', 'l', 110., 1., .1, 'p')])
@@ -332,6 +342,16 @@ class EvaluateTests(Temp):
             svg = fh.read().decode('utf-8')
         self.assertIn('상세', svg)
         self.assertIn('전체 관측 범위', svg)
+
+    def test_along_alias_rerun(self):
+        map_path, exe, run, (t, x, y, yaw, v) = self._folder()
+        doc = L.map_doc(start_pose=(L.SPACING, 0., 0.))
+        shifted = L.write_json(os.path.join(self.dir, 'map_shifted_start.json'), doc)
+        rep = EV.evaluate(shifted, exe, run, None)
+        self.assertEqual(rep['localisation']['along_rerun']['kept'], 'rerun')
+        self.assertTrue(any(w.startswith('along_alias_rerun') for w in rep['warnings']))
+        traj = rep['_trajectory']
+        self.assertLess(float(np.max(np.hypot(traj['x'] - x, traj['y'] - y))), .01)
 
     def test_sidecar_wall_clock(self):
         if not os.path.isdir(os.path.join(L.TOOLS, 'field_calib')):

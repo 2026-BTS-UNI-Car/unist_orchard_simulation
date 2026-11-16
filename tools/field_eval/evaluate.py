@@ -124,10 +124,25 @@ def evaluate(map_path, executor_path, scans_path=None, out_dir=None, vehicle_fil
     tick_t = ticks['t'] + shift
     if scans_path is not None:
         loc = LOC.Localiser(refmap, vehicle, loc_config)
-        traj = loc.run(scans, imu, start_pose or refmap.start_pose, None if drive is None else drive[0])
+        start = start_pose or refmap.start_pose
+        traj = loc.run(scans, imu, start, None if drive is None else drive[0])
+        rerun = None
+        check = traj['along_check']
+        if start is not None and check.get('suspect') and check.get('best_shift') not in (0, None):
+            # one landmark spacing off: run again from the start moved by the better shift, keep the better run
+            axis = refmap.geometry['axis_rad']
+            k = check['best_shift'] * check['spacing_m']
+            start2 = (start[0] + k * math.cos(axis), start[1] + k * math.sin(axis), start[2])
+            traj2 = loc.run(scans, imu, start2, None if drive is None else drive[0])
+            kept = 'rerun' if traj2['along_check']['scores']['0'] > check['scores']['0'] else 'first'
+            rerun = dict(first_start=list(start), rerun_start=list(start2), first_check=check,
+                         rerun_check=traj2['along_check'], kept=kept)
+            if kept == 'rerun':
+                traj = traj2
         loc_info = dict(method='landmark map: clusters -> circle centres -> nearest-landmark association -> '
                                'weighted SE(2) least squares; IMU yaw-rate prediction',
-                        config=loc.cfg, init=traj['init'], imu=traj['imu'],
+                        config=loc.cfg, init=traj['init'], imu=traj['imu'], along_check=traj['along_check'],
+                        along_rerun=rerun,
                         overall=LOC.summary(traj), in_drive=None if drive is None else LOC.summary(traj, drive))
     elif trajectory_csv is not None:
         traj = read_trajectory_csv(trajectory_csv)
@@ -150,11 +165,31 @@ def evaluate(map_path, executor_path, scans_path=None, out_dir=None, vehicle_fil
         est, est_series = MET.estimate_error(refmap, traj['t'], traj['x'], traj['y'], traj['yaw'], valid,
                                              dict(t=tick_t, lat=ticks['lat'], head=ticks['head']), drive)
     kind = result_kind or (SIM_KIND if inputs.get('scans', {}).get('source') == 'fsim' else FIELD_KIND)
+    warnings = list(inputs.get('scans', {}).get('warnings') or [])
+    if drive is None:
+        warnings.append('no_drive_command: the run has no tick with T > 0')
+    if loc_info is not None:
+        inside = loc_info['in_drive'] or loc_info['overall']
+        if (inside.get('ok_fraction') or 0.) < .9:
+            warnings.append('localisation_ok_below_90pct: %s' % inside.get('ok_fraction'))
+        if (inside.get('measured_fraction') or 0.) < .98:
+            warnings.append('localisation_unmeasured_scans: measured fraction %s' % inside.get('measured_fraction'))
+        if loc_info['along_rerun'] is not None:
+            warnings.append('along_alias_rerun: the first solution was one landmark spacing off along the row; kept '
+                            'the %s run (localisation.along_rerun)' % loc_info['along_rerun']['kept'])
+        if loc_info['along_check'].get('suspect'):
+            warnings.append('along_alias_suspect: %s' % json.dumps(loc_info['along_check'], sort_keys=True))
+        if loc_info['init'] is None:
+            warnings.append('localisation_never_started')
+    if time_base == 'wall' and executor.wall_offset_spread_s > .05:
+        warnings.append('executor_wall_clock_spread_s: %.3f' % executor.wall_offset_spread_s)
+    if executor.bad_lines:
+        warnings.append('executor_bad_lines: %d' % executor.bad_lines)
     report = dict(schema=SCHEMA, result_kind=kind, inputs=inputs, config_digest=executor.config_digests,
                   executor=executor.describe(), vehicle=dict(vehicle.describe(), origin=vehicle_origin),
                   map=refmap.describe(), time=dict(base=time_base, executor_to_source_shift_s=shift,
                                                    drive_interval_executor_s=drive_exec, drive_interval_s=drive),
-                  localisation=loc_info, settle_m=settle_m,
+                  localisation=loc_info, settle_m=settle_m, warnings=warnings,
                   reference_metrics=reference, limits_steer_follow_v1=MET.against_limits(reference),
                   executor_estimate_error=est,
                   definitions=dict(lateral='footprint centre to the reference centre line (left positive)',
