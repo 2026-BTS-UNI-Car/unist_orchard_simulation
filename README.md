@@ -311,9 +311,8 @@ SIM에서 정했고, 바꿀 때마다 현장 조정 파일의 기록과 설정 d
 3. 구동 보정: 출발 duty, duty→속도, 정지 거리(C2·C3·C7).
 4. 실행기 SHADOW로 실제 행에서 사람이 몰며 추정만 확인한 뒤, 낮은 속도로 한 행 자율주행.
 
-실차에서 기준 중심선 대비 주행 궤적(횡오차)을 재는 도구와 절차는 아직 없다. 제안(계획): 실내에서는 줄자로 표시한 중심선과 바닥 자국,
-과수원에서는 측량한 줄기 위치로 만든 중심선과 RTK 궤적을 기준으로 삼고, 지도 기반 LiDAR 위치 추정으로 교차 확인한다
-([`FIELD_EVAL_METHOD_KO.md`](docs/steering/FIELD_EVAL_METHOD_KO.md)).
+실차 횡오차를 기둥·줄기 지도 기반 LiDAR 위치 추정으로 재는 오프라인 도구 `tools/field_eval/`가 있다(빠른 SIM 참값과만 비교, 실차 기록 미확인).
+기준선·바닥 자국·줄기 측량·RTK 절차는 계획이다([`FIELD_EVAL_METHOD_KO.md`](docs/steering/FIELD_EVAL_METHOD_KO.md)).
 
 **현재 한계.**
 
