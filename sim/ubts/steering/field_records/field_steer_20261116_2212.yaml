@@ -1,0 +1,93 @@
+# 현장 조향 측정 기록 field_steer_20261116_2212 (차량 ESP32-S3 보드, 2026-11-16 밤)
+# 앞바퀴를 땅에서 띄운 채(차체 받침), 조향만, 구동 0 에서 잰 값이다. 주행 결과가 아니고 땅에 닿은 조향의 값도 아니다.
+# 이 파일은 버전 파일이다. 고치지 않는다. 새 측정은 새 파일 field_steer_<YYYYMMDD>_<HHMM>.yaml 로 더한다.
+# 실행기 차량 설정 생성기(steering.vehicle_executor_config, steering.field_steer_record)는 measured_at 이 가장 늦은 기록을 쓰고
+# 옛 기록은 그대로 둔다(docs/steering/EXECUTOR_ESP32_KO.md 3절).
+# 출처 태그: MEASURED_<YYYYMMDD>_LIFTED 바퀴 든 정지 상태의 현장 측정, FIRMWARE 펌웨어 소스·STATUS 줄, FIRMWARE_NVS 보드 NVS 에 저장된 값,
+# USER_VISUAL 사용자가 눈으로 확인, ESTIMATED 근거에서 추정, USER_DECISION 사용자 결정, DEFINITION 정의(계산 규칙), NOT_MEASURED 아직 하지 않음.
+schema: ubts.field_steer_record.v1
+record_id: field_steer_20261116_2212
+vehicle: ubts_orchard_rover
+measured_at: '2026-11-16T22:12:00+09:00'
+result_kind: field_lifted_standstill
+conditions:
+  wheels: lifted
+  vehicle_motion: standstill
+  steering_only: true
+  drive_pwm_cap: 0
+  pot_capacitor: true
+  note: 사용자가 차체를 받쳐 앞바퀴를 띄우고 가변저항에 축전기를 단 뒤(22:04 전) 원격으로 잼. 브리지 구동 PWM 상한 0, 구동 명령 없음. 사용자는 차 옆에서 눈으로 확인
+  logs: 레포 밖 작업 기록 runs/steer_runtime_cal_20261116/logs/(cal_find_left.log, cal_find_right.log, cal_set.log, steer_after_cal.log),
+    runs/steer_test_20261116/pot_noise_after_cap.json
+values:
+  firmware:
+    value: {name: ABS-HOLD-8-REBOUND-LIMITS, cal_runtime: true, drive_watchdog_ms: 300, target_tol_counts: 10, restart_tol_counts: 16,
+      guard_right: 1300, guard_left: 2500}
+    provenance: FIRMWARE
+    source: 'STATUS 줄 "FW: ABS-HOLD-8-REBOUND-LIMITS F=RIGHT POT_DECREASES DRIVE_WD=300 CAL_RUNTIME=1", "GUARD=1300..2500"(cal_set.log 22:11).
+      실시간 보정 펌웨어 소스의 STEER_TARGET_TOLERANCE 10, STEER_RESTART_TOLERANCE 16(원본과 같음). 22:06 app0 에 씀(사용자 허락)'
+  esp32_cal:
+    value: {right: 1469, center: 1900, left: 2463, max_command: 20}
+    provenance: FIRMWARE_NVS
+    source: 'CAL SET LEFT 2463, CAL SET RIGHT 1469, CAL SAVE -> "CAL: RIGHT=1469 CENTER=1900 LEFT=2463 MAX_COMMAND=20 STORE=NVS"(cal_set.log).
+      양쪽 끝(end_left, end_right)에서 30 count 안쪽. CENTER 1900 은 바꾸지 않음. 명령 +-20 = 이 표시'
+  end_left:
+    value: {pot: 2493, stop_reason: GUARD, pulses: 7, start_pot: 1943}
+    provenance: MEASURED_20261116_LIFTED
+    source: CAL FIND LEFT 1943 -> 2493, 펄스 7번(구동 0.7 s), 하드 한계 2500 앞에서 GUARD 로 멈춤(cal_find_left.log). 펌웨어는 끝을 못 찾았다고 했지만
+      사용자가 눈으로 이것이 왼쪽 물리 최대라고 확인함(USER_VISUAL, "최대야")
+  end_right:
+    value: {pot: 1439, stop_reason: REBOUND, pulses: 14, start_pot: 2501}
+    provenance: MEASURED_20261116_LIFTED
+    source: CAL FIND RIGHT 2501 -> 1439, 펄스 14번(구동 1.4 s), 되밀림(REBOUND)으로 멈춤(cal_find_right.log)
+  center_straight:
+    value: {command_deg: 0, pot_min: 1891, pot_max: 1894, wheels_straight: true}
+    provenance: USER_VISUAL
+    source: 보정 뒤 명령 0 에서 가변저항 1891~1894(steer_after_cal.log 세 번), 사용자가 앞바퀴가 곧다고 눈으로 확인("곧았었어"). 각도계 측정이 아니라 0점 오차(F1)는
+      미측정
+  step_response:
+    value:
+      tolerance_command_deg: 1.5
+      steps:
+      - {from: 0, to: 10, reached_s: 1.63}
+      - {from: 10, to: 20, reached_s: 1.78}
+      - {from: 20, to: 0, reached_s: 3.22}
+      - {from: 0, to: -10, reached_s: 1.45}
+      - {from: -10, to: -20, reached_s: 1.29}
+      - {from: -20, to: 0, reached_s: 2.59}
+    provenance: MEASURED_20261116_LIFTED
+    source: steer_step(브리지 op steer, throttle 0) 계단. 눈금은 브리지 명령도(+ 왼쪽, +-20 = CAL 표시), reached_s 는 목표의 1.5 명령도 안에 든 시각.
+      결함 0, 끝 값 +19.66 / -19.89(steer_after_cal.log). 바퀴 든 정지 상태라 땅에 닿은 조향이나 주행 중 조향 속도가 아니다
+  pot_noise_rest:
+    value: {samples: 266, seconds: 30, min: 1851, max: 1867, p2p: 16, stdev: 2.98, median: 1863}
+    provenance: MEASURED_20261116_LIFTED
+    source: 축전기 단 뒤 정지·모터 꺼짐에서 브리지 status 의 steering.raw(펌웨어 중앙값 필터 뒤 값)를 약 10 Hz 로 30 s(pot_noise_after_cap.json, 22:03,
+      실시간 보정 펌웨어를 쓰기 전 같은 보드와 가변저항)
+  mark_angle_deg:
+    value: 18.8
+    provenance: ESTIMATED
+    source: 가변저항이 선형이고 두 끝(end_left 2493, end_right 1439)이 사용자가 말한 물리 한계 약 20 도라고 보면 명령 20 은 오른쪽 20 x 431 / 461 = 18.70,
+      왼쪽 20 x 563 / 593 = 18.99, 평균 약 18.8 도. 각도계로 재지 않음(B3). 20 도가 바퀴각이면(프로필 steer_mech_limit_deg 의 해석, Ackermann 0.5 는
+      SPEC_PENDING) 등가각 끝은 18.83 도라 이 값은 약 17.7 도가 된다
+  polarity_checked:
+    value: false
+    provenance: NOT_MEASURED
+    source: 왼쪽 명령에 바퀴가 왼쪽으로 도는지(B0)를 사용자가 아직 확인하지 않음
+  range_measured:
+    value: false
+    provenance: NOT_MEASURED
+    source: 각도계로 잰 조향 범위(B2/B3) 없음. 끝은 가변저항 값과 사용자 눈으로만 앎
+  drive_direction_verified:
+    value: false
+    provenance: NOT_MEASURED
+    source: 사용자가 앞뒤 구동을 금지함. 구동 방향, C2 출발 duty, C3 속도, C7 정지 거리 모두 미측정
+derive:
+  rate_rule:
+    value: slowest_full_range_step
+    provenance: DEFINITION
+    source: 측정 조향 속도 = 전 범위(명령 0 <-> +-20) 계단 가운데 가장 느린 것의 평균 속도(20 / 3.22 s = 6.21 명령도/s). 10 명령도 계단은 고정 지연 비중이 커서
+      쓰지 않음(같은 식으로 5.6~7.8 명령도/s, +10 -> +20 이 5.6 으로 더 느림)
+  rate_fraction:
+    value: 0.8
+    provenance: USER_DECISION
+    source: todo 0.00 다-6(2026-11-16 04:10) 실행기 조향 GO 문턱과 변화율 한도는 첫 조향 시험에서 잰 조향 속도의 0.8 배 이하
