@@ -19,7 +19,7 @@
 
 | 실행기가 기대한 것(V3) | ESP32 브리지 | 어댑터 / 실행기 |
 | --- | --- | --- |
-| `steer_mrad` = 등가 바퀴각(왼쪽 +) | `steer_mrad` = 펌웨어 명령 눈금(왼쪽 +, ±20 명령도 = ±349), 브리지가 `ANGLE = −도`로 보냄 | 등가 ↔ 명령 눈금을 `steer_esp32_mark_deg`(명령 20의 등가각)로 바꾼다: 명령도 = −등가도 × 20 / mark. SIM 과 같은 식(ABS_HOLD8_SIM 3.3절). mark 는 가장 새 현장 조향 기록의 값(2026-11-16 밤 18.8°, 추정. 3.2절), 각도계 측정(B3)이 생기면 새 기록으로 바꾼다. 측정각도 거꾸로 바꿔 실행기에 준다 |
+| `steer_mrad` = 등가 바퀴각(왼쪽 +) | `steer_mrad` = 펌웨어 명령 눈금(왼쪽 +, ±20 명령도 = ±349), 브리지가 `ANGLE = −도`로 보냄 | 등가 ↔ 명령 눈금을 `steer_esp32_mark_deg`(명령 20의 등가각)로 바꾼다: 명령도 = −등가도 × 20 / mark. SIM 과 같은 식(ABS_HOLD8_SIM 3.3절). mark 는 가장 새 현장 조향 기록의 값(2026-11-16 23:21 기록 18.9°, 추정. 3.3절), 각도계 측정(B3)이 생기면 새 기록으로 바꾼다. 측정각도 거꾸로 바꿔 실행기에 준다 |
 | C 줄 20 Hz, MCU 서보 | 새 ANGLE 마다 펌웨어가 300 ms 기다리고 1000 ms 보정 예산을 다시 시작 | SIM 호스트 정책(`abs_hold_host`)을 어댑터가 한다: 새 목표는 마지막 것과 1 명령도 넘게 다르고, 마지막 뒤 1.0 s 가 지났거나 보드가 목표에 닿았거나(10 count) 유지가 없을 때만. 그 뒤 브리지 규칙(1 명령도 단위, 0.5 s 간격, 20° 넘는 이동은 나눔)이 따른다 |
 | 취소 뒤 같은 ANGLE 다시 보냄(SIM 정책) | 취소된 목표는 요청이 바뀔 때까지 다시 보내지 않음 | 그대로 둔다(브리지 규칙이 더 보수적). 대신 아래 추종 감시가 남은 오차를 잡는다. SIM 과 다른 점 |
 | Arm 전 점검: 펌웨어 V3, `cal_id`, `simulated`, 극성 기록 | `firmware` `ABS-HOLD-8-REBOUND-LIMITS`, CAL 줄, `drive.direction_verified`, `drive.firmware_watchdog_ms` | `esp32_arm_precheck`: 상태 ok·연결, `esp_kind`, 펌웨어 이름, front_steer, 브리지 한계 349, **구동 방향 확인됨**, **펌웨어 구동 감시**(설정 `steer_esp32_require_fw_watchdog`, 기본 true), 보정됨, **CAL 줄 = 설정 `steer_esp32_cal`**(cal_id 대신), 결함 없음, 상태 신선(0.3 s), 측정각 유한, STOP 확인, 아무도 lease 없음, 정지, 스냅샷 2 s 안. 거절이면 arm 을 보내지 않는다 |
@@ -42,14 +42,18 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 
 ### 3.1 현장 조향 기록 (`sim/ubts/steering/field_records/`)
 
-- 파일 하나가 현장 측정 한 번이다: `field_steer_<YYYYMMDD>_<HHMM>.yaml`, 스키마 `ubts.field_steer_record.v1`, 읽기·검사
+- 파일 하나가 현장 측정 한 번이다: `field_steer_<YYYYMMDD>_<HHMM>.yaml`, 스키마 `ubts.field_steer_record.v1` 또는 v2, 읽기·검사
   `sim/ubts/steering/field_steer_record.py`. 값마다 출처 태그(`MEASURED_<날짜>_LIFTED` 바퀴 든 정지 측정, `FIRMWARE`, `FIRMWARE_NVS` 보드 NVS
   저장 값, `USER_VISUAL` 사용자 눈 확인, `ESTIMATED`, `USER_DECISION`, `DEFINITION`, `NOT_MEASURED`)와 근거를 적고, 측정 조건(바퀴 든 채/땅,
   정지, 구동 상한, 가변저항 축전기)을 적는다.
 - 버전 파일이다. 커밋한 기록은 고치지 않고, 다시 재면 새 파일을 더한다. 생성기는 `measured_at`이 가장 늦은 기록을 쓰고 옛 기록은 그대로
   둔다. 파일 이름의 날짜·시각은 `measured_at`(오프셋 포함)과 같아야 하고, 같은 순간의 기록 둘은 거절한다.
 - 검사: 펌웨어 이름이 실행기가 기대하는 `ABS-HOLD-8-REBOUND-LIMITS`, 명령 눈금 ±20, CAL 이 RIGHT < CENTER < LEFT 이고 펌웨어 하드 한계와
-  찾은 끝 안쪽, 전 범위(명령 0 ↔ ±20) 계단이 하나 이상, 확인 안 한 항목(false)은 `NOT_MEASURED`.
+  찾은 끝 안쪽, 속도 규칙에 맞는 계단(전 범위 계단 규칙이면 그런 계단이 하나 이상), 확인 안 한 항목(false)은 `NOT_MEASURED`.
+- 스키마 v2(SMOOTH 펌웨어부터)가 더하는 것: 펌웨어 정체(앱 sha256, FW 줄의 이름 뒤 낱말; `DRIVE_WD`·`CAL_RUNTIME` 낱말과 값이 맞아야 함),
+  가운데 한계(CENTER 가 그 안), 유지 방식(pulse / smooth; smooth 면 `SMOOTH=1` 과 SM 값이 있어야 하고 정지·재시작 허용은 SM STOP_TOL·
+  RESTART_TOL), 계단 응답의 시간 정의(목표 허용 안 도달 / 펌웨어 DRIVE_MS)·눈금(브리지 명령도, + 왼쪽)·최종 오차, 극성 증거(펌웨어 부호
+  낱말 POT_DECREASES 와 맞아야 함; `polarity_checked`는 따로). 속도 규칙에 `slowest_per_full_range`(모든 계단을 20 명령도당 시간으로)를 더했다.
 - 새 기록 반영: 기록 파일을 더한다 → `python -B -m steering.vehicle_executor_config --check ../../tools/row_executor/config.vehicle_esp32_shadow.json`
   (sim/ubts)이 다르다고 알린다 → `--out <새 파일>`로 쓴 것을 레포 파일과 바꾼다 → `python -B tools/row_executor/write_sha256sums.py` → 시험.
   `--sources`는 값마다 출처(기록 id·sha256 포함)를 보인다. `--no-field-record`는 프로필만으로 만든다(11/16 오전 판과 같은 바이트).
@@ -57,7 +61,7 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
   서는 규칙(변화율 한도·GO 문턱 ≤ 0.8 × 측정 속도, 보드 명령 눈금으로도 같음; 극성·범위 확인 false; 구동 값 null; 펌웨어 감시 있음;
   소프트 한계가 브리지 범위 안). 기록이 극성(B0)이나 범위(B2/B3) 확인을 담으면 그 규칙 시험을 일부러 고친다.
 
-### 3.2 첫 기록 `field_steer_20261116_2212` (2026-11-16 밤)
+### 3.2 기록 1 `field_steer_20261116_2212` (2026-11-16 22:12, 펄스 유지. 지금은 옛 기록)
 
 조건: 사용자가 차체를 받쳐 **앞바퀴를 띄움**, 정지, 조향만, 브리지 구동 PWM 상한 0(구동 명령 없음), 가변저항에 축전기를 단 뒤.
 펌웨어 `ABS-HOLD-8-REBOUND-LIMITS F=RIGHT POT_DECREASES DRIVE_WD=300 CAL_RUNTIME=1`(실시간 보정판, 22:06 app0 에 씀, 사용자 허락).
@@ -73,34 +77,64 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | 가변저항 잡음 (정지) | 1851~1867 (p2p 16), 표준편차 3.0, 266 표본 / 30 s | 축전기 단 뒤, 모터 꺼짐, 브리지 상태의 raw(펌웨어 중앙값 필터 뒤) 약 10 Hz | MEASURED_20261116_LIFTED |
 | 명령 20 의 등가각 (mark) | 18.8° | 가변저항이 선형이고 두 끝이 약 20° 라고 보면 20 × 431 / 461 = 18.70°(오른쪽), 20 × 563 / 593 = 18.99°(왼쪽)의 평균 | ESTIMATED |
 
-### 3.3 설정 값 (생성기 출력)
+### 3.3 기록 2 `field_steer_20261116_2321` (2026-11-16 23:21, SMOOTH 펌웨어 r5. 지금 쓰는 기록)
+
+조건: 앞바퀴를 띄움, 정지, 조향만(Jetson 에서 보드 직렬로 조향 명령만, 구동 명령 없음), 가변저항 축전기 그대로, 가변저항 GND 는 ESP32 GND 핀.
+배터리 상태는 모름: 같은 끝에서 끝 움직임(PWM 80)이 22:54 에 1.92 s, 23:06 에 2.49 s 로 느려졌다. 시각은 직렬 기록의 시각(Jetson·PC 시계)이다.
+**바퀴 든 정지 상태의 현장 측정이며 주행 결과가 아니다.** 스키마 v2(펌웨어 정체, 유지 방식, 극성 증거를 더함).
+
+| 무엇 | 값 | 어떻게 | 태그 |
+| --- | --- | --- | --- |
+| 펌웨어 | `FW: ABS-HOLD-8-REBOUND-LIMITS F=RIGHT POT_DECREASES DRIVE_WD=300 CAL_RUNTIME=1 SMOOTH=1`, 앱 sha256 `f448b2db…` (r5) | 이름은 그대로, `SMOOTH=1` 이 새 낱말. SM 줄 MODE=SMOOTH PWM_MIN 60, PWM_MAX 80, SLOW 200, STOP_TOL 6, RESTART_TOL 16, RAMP 12, SETTLE_MS 120, STALL_MS 200, BOOST 15, MAX_RUN_MS 5000, BRAKE_MS 40, QUIET_MS 15, QUIET_US 1500 을 23:22 에 NVS 저장. 하드 한계 1300..2600, 가운데 한계 1850..2150 | FIRMWARE |
+| 왼쪽 끝 | 가변저항 2543 | 끝 찾기(22:38) 100 ms 펄스 1911 → 2543 되밀림(REBOUND). 60 ms 펄스 두 번은 2551·2549 무진척(NO_PROGRESS). 앞 기록의 2493 은 하드 한계 2500 에 막힌 자리였다 | MEASURED_20261116_LIFTED |
+| 오른쪽 끝 | 1445 | 60 ms 펄스 1525 → 1445 되밀림(앞 기록 1439) | MEASURED_20261116_LIFTED |
+| CAL (보드 NVS) | RIGHT 1475 / CENTER 2017 / LEFT 2513, MAX_COMMAND 20 | 22:52 `CAL SET`·`CAL SAVE`(r2), r5 에서도 같은 줄. 오른쪽·왼쪽은 끝(1445, 가장 안쪽 2543)에서 30 count 안쪽 | FIRMWARE_NVS |
+| 가운데 | 2017 | 사용자 눈: 2006(왼쪽에서 옴)·2029(마지막에 왼쪽에서 옴) 둘 다 곧음 → 그 가운데. 2009(오른쪽에서 옴)는 "오른쪽으로 대략 1도 이하"(유격일 수 있음, 크기 미측정) | USER_VISUAL |
+| 계단 응답 (명령도, + 왼쪽, 한 번의 연속 구동 시간 DRIVE_MS) | 0→+20 1.439 s(처음 움직임), +20→−20 2.127 s, −20→+20 2.431 s, +20→0 1.087 s, 0→−10 0.591 s, −10→0 0.703 s, 0→+10 0.543 s, +10→0 0.655 s. 모두 한 번의 구동, 최종 오차 8 count 안, 취소 0 | r5 SMOOTH(PWM_MAX 80). 보드 ANGLE 은 + 오른쪽이라 부호를 바꿔 적음(보드 ANGLE −20 = +20). DRIVE_MS 에는 호스트 지연·120 ms 정착·40 ms 제동이 빠진다 | MEASURED_20261116_LIFTED |
+| 달리는 동안 가변저항 | 조용한 읽기 값의 10 ms 변화 최대 20 count(946 쌍), 원값이 조용한 읽기와 40 count 넘게 다른 표본 19 / 954(2.0 %) | r5 는 달리는 동안 15 ms 마다 조향 드라이버를 1.5 ms 끄고 5번 읽은 중앙값을 위치로 쓴다 | MEASURED_20261116_LIFTED |
+| 가변저항 잡음 (정지) | 거른 값 2017~2031(p2p 14), 표준편차 1.17, 601 표본 / 6 s. 원값 1885~2075, 표준편차 11.9, 중앙값에서 40 count 넘게 벗어난 표본 10 | 23:07 r4 TRACE 10 ms, 모터 꺼짐. 기록 1(브리지 상태 약 10 Hz, 30 s)과 표본 방식이 다르다 | MEASURED_20261116_LIFTED |
+| 명령 20 의 등가각 (mark) | 18.9° | 끝이 약 20° 라고 보면 20 × 542 / 572 = 18.95°(오른쪽), 20 × 496 / 526 = 18.86°(왼쪽)의 평균 | ESTIMATED |
+| 극성 증거 | 가변저항이 클수록 바퀴가 왼쪽 | 사용자 눈: 1913 은 오른쪽으로 틀어짐, 2009 는 조금 오른쪽, 2006·2029 는 곧음. 펌웨어 부호 POT_DECREASES(오른쪽으로 갈수록 준다)와 같다. 계단의 모든 ANGLE 이 한 번에 수렴해 모터 방향과 가변저항 방향도 맞는다 | USER_VISUAL |
+
+### 3.4 설정 값 (생성기 출력, 가장 새 기록 = 기록 2)
 
 | 값 | 설정 | 출처 |
 | --- | --- | --- |
 | 휠베이스 | 0.657 | 프로필 MEASURED_20261116 |
-| 소프트 한계 | 281 mrad (16.14°, 명령 약 17.2 명령도) | 프로필 조향 한계 20°(측정) − 소프트 여유(CONFIG) |
-| CAL | [1469, 1900, 2463, 20] | 기록 FIRMWARE_NVS. Arm 전 점검에서 브리지가 보고하는 CAL 줄과 같아야 한다 |
-| mark | 18.8° | 기록 ESTIMATED |
-| 측정 조향 속도 (주행·정지 둘 다) | 5.838 °/s (등가 바퀴각) | 18.8° / 3.22 s(가장 느린 전 범위 계단 +20 → 0), 0.001 내림. 명령 눈금으로는 20 / 3.22 = 6.21 명령도/s |
-| 변화율 한도 (주행·정지) | 4.67 °/s | 0.8 × 측정 속도(사용자 규칙 todo 다-6, 내림). 보드에는 4.67 × 20 / 18.8 = 4.97 명령도/s ≤ 0.8 × 6.21 |
-| GO 문턱 `steer_rate_min_deg_s` | 4.67 °/s | 같은 규칙. 측정 5.838 ≥ 4.67 이라 조향 속도 GO 는 통과한다(예전 자리값 8 은 버림) |
-| 데드밴드 | 0.436° | 펌웨어 목표 허용 10 count ÷ 21.55 count/명령도(count 가 적은 오른쪽) × 18.8 / 20 |
+| 소프트 한계 | 281 mrad (16.14°, 약 17.1 명령도) | 프로필 조향 한계 20°(측정) − 소프트 여유(CONFIG) |
+| CAL | [1475, 2017, 2513, 20] | 기록 FIRMWARE_NVS. Arm 전 점검에서 브리지가 보고하는 CAL 줄과 같아야 한다 |
+| mark | 18.9° | 기록 ESTIMATED |
+| 측정 조향 속도 (주행·정지 둘 다) | 13.134 °/s (등가 바퀴각) | 18.9° / 1.439 s(규칙 slowest_per_full_range: 모든 계단을 20 명령도당 시간으로 바꾼 것 가운데 가장 느린 것 = 처음 움직임 0 → +20), 0.001 내림. 명령 눈금으로 20 / 1.439 = 13.90 명령도/s |
+| 변화율 한도 (주행·정지) | 10.507 °/s | 0.8 × 측정 속도(사용자 규칙 todo 다-6, 내림). 보드에는 10.507 × 20 / 18.9 = 11.12 명령도/s ≤ 0.8 × 13.90 |
+| GO 문턱 `steer_rate_min_deg_s` | 10.507 °/s | 같은 규칙. 측정 13.134 ≥ 10.507 이라 조향 속도 GO 는 통과한다 |
+| 데드밴드 | 0.229° | 부드러운 유지의 정지 허용 STOP_TOL 6 count ÷ 24.8 count/명령도(count 가 적은 왼쪽) × 18.9 / 20 |
 | LiDAR | x 0.1185(측정), yaw 179.08(ESTIMATED) | 프로필 |
 | 몸체 | 1.22 × 0.70 | SPEC_PENDING |
 
-- 단위: 조정 메모의 "측정 6.2 °/s, 한도·문턱 4.9 °/s"는 **명령도** 기준이다. 실행기는 등가 바퀴각으로 명령하고 어댑터가 mark 로 명령도로
-  바꾸므로, 같은 0.8 규칙을 보드에서 지키려면 등가각으로 바꿔야 한다(한도를 4.9 등가 °/s 로 두면 보드에서 5.21 명령도/s = 측정의 0.84 배).
-  11/16 오전 생성기도 같은 식(mark / 계단 시간)으로 등가각 속도를 냈다. mark 가 바뀌면 속도·한도도 같이 바뀐다.
+- 기록 1 로 만든 값(펄스 유지): CAL [1469, 1900, 2463, 20], mark 18.8°, 측정 5.838 °/s(18.8° / 3.22 s, 전 범위 계단 기준), 한도·문턱
+  4.67 °/s, 데드밴드 0.436°(목표 허용 10 count). 기록 2 가 이 값을 대신한다(기록 1 파일은 그대로).
+- 단위: 실행기는 등가 바퀴각으로 명령하고 어댑터가 mark 로 명령도로 바꾸므로, 측정 속도·한도·문턱은 등가 바퀴각이다(명령도 기준 값에
+  mark / 20 을 곱한 것). 그래야 사용자 0.8 규칙이 보드 눈금에서도 선다. mark 가 바뀌면 속도·한도도 같이 바뀐다.
 - 비워 둔 값과 아직 없는 것(그래서 MOTOR 는 설정 검사에서 거절, SHADOW 상태 'unknown'):
-  - 극성 B0: 왼쪽 명령에 바퀴가 왼쪽으로 도는지 사용자가 아직 확인하지 않음 → `steer_polarity_checked` false.
-  - 각도계 범위 B2/B3: mark 18.8° 는 추정이다. 20° 가 바퀴각이면(프로필 `steer_mech_limit_deg`의 해석, Ackermann 0.5 는 SPEC_PENDING) 등가각
-    끝은 18.83°라 mark 는 약 17.7° 다. → `steer_range_measured` false, `steer_wheel_soft_margin_deg` null.
-  - 0점 오차 F1: 눈 확인(1891~1894)뿐 → `steer_zero_offset_deg` null. 조향 시작 PWM B4 → `steer_min_pwm_pct` null.
-  - 조향 속도의 조건: 바퀴를 띄운 정지 값을 주행 중 값에도 넣었다. 땅에 닿으면(특히 정지 중) 더 느릴 수 있다. 10 명령도 계단은 같은 식으로
-    5.6~7.8 명령도/s 이고 +10 → +20(5.6)은 기준으로 쓴 전 범위 계단보다 느리다. 기준(전 범위 계단 가운데 가장 느린 것)은 정의다.
-  - 구동 방향, C2 `breakaway_duty_pct`, C3 `v_measured_m_s`, C7 `measured_stop_distance_m`: 사용자가 앞뒤 구동을 금지해 하지 않음 → null,
-    브리지 `direction_verified` false 라 Arm 도 거절된다.
+  - 극성 B0 → `steer_polarity_checked` false. 설계 3.9 의 B0 는 바퀴를 띄우고 낮은 PWM 으로 양쪽을 조금씩 움직여 가변저항과 바퀴가 기대
+    방향으로 가는지 보고, 조향 EN 차단이 출력을 끊는지도 보는 확인이다. 기록 2 의 눈 확인은 그 일부(가변저항 증가 = 바퀴 왼쪽)를 받치고
+    폐루프 수렴은 모터와 가변저항 방향이 맞음을 보이지만, 왼쪽 명령에 바퀴가 왼쪽으로 도는 것을 직접 본 확인과 EN 차단 확인이 없어 B0 통과로
+    적지 않는다. 증거는 기록의 `polarity_evidence`에 남긴다.
+  - 각도계 범위 B2/B3: mark 18.9° 는 추정이다. 왼쪽 끝을 60 ms 스캔의 2551 로 보면 왼쪽 18.58°. 20° 가 바퀴각이면(프로필 `steer_mech_limit_deg`의
+    해석, Ackermann 0.5 는 SPEC_PENDING) 등가각 끝은 18.83°라 mark 는 약 17.8° 다. → `steer_range_measured` false, `steer_wheel_soft_margin_deg` null.
+  - 0점 오차 F1: 눈 확인(2006·2029 곧음, 오른쪽에서 다가온 2009 는 1° 이하 오른쪽)뿐이고 다가온 방향에 따른 차이(유격) 크기는 모른다
+    → `steer_zero_offset_deg` null. 조향 시작 PWM B4 → `steer_min_pwm_pct` null.
+  - 조향 속도의 조건: 바퀴를 띄운 정지 값을 주행 중 값에도 넣었다. 땅에 닿으면 더 느리다. 배터리에 따라 같은 움직임이 30 % 느려진 적이
+    있다(1.92 → 2.49 s). DRIVE_MS 는 구동 시간만이라 호스트 지연·정착·제동이 빠진다. 그래서 한도·문턱 10.507 °/s 는 땅에서 잰 값으로
+    바꾸기 전까지 MOTOR 에 쓸 근거가 약하다.
+  - 구동 방향, C2 `breakaway_duty_pct`, C3 `v_measured_m_s`, C7 `measured_stop_distance_m`: 미측정 → null, 브리지 `direction_verified` false 라
+    Arm 도 거절된다.
+- 어댑터의 ANGLE 정책(새 목표는 1 명령도 넘게 다르고, 1.0 s 지났거나 보드가 닿았을 때)은 펄스 유지용 SIM 정책 그대로다. SMOOTH 에서는
+  보드가 목표에 바로 닿아 다음 목표가 곧 나가므로(가짜 보드에서 1 명령도마다 하나) 더 촘촘한 추종은 브리지(0.2 s, 0.25 명령도)가 허용해도
+  실행기 쪽에서는 쓰지 않는다. 바꾸지 않았다.
 - `steer_esp32_require_fw_watchdog` 는 true. 보드 펌웨어가 `DRIVE_WD=300`을 보고해 브리지 상태의 `drive.firmware_watchdog_ms` 가 300 이다.
+  실행기는 펌웨어 이름(`ABS-HOLD-8-REBOUND-LIMITS`)만 보고 FW 줄의 다른 낱말(`SMOOTH=1` 등)은 보지 않는다. 브리지(대시보드 da39e8a 부터)가
+  `SMOOTH=1`을 읽어 간격·단위를 고른다.
 - 보드 NVS 의 표시가 지워지거나 읽히지 않으면 펌웨어는 기본 표시 1681 / 1900 / 2180(STORE=DEFAULT)으로 돌아간다. 그때 CAL 줄이 설정과
   달라 Arm 은 `calibration_mismatch`로 거절된다(가짜 보드 시험). 보정을 다시 하면 새 기록과 새 설정이 필요하다.
 - Jetson 의 설정은 이 변경으로 바뀌지 않는다. 설치는 대시보드 레포의 실행기 묶음 절차로 따로 한다.
@@ -117,7 +151,7 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | 조향이 먹지 않음(미끄럼) | 호스트 래치(자이로) | 어댑터가 같은 규칙 | 차에서 재지 않음 |
 | 가변저항 고장 | MCU POT_* 결함 | 브리지 `pot_invalid`(STATUS INVALID, 취소 INVALID POT) → 정지, 실행기 steering_feedback_invalid | 펌웨어의 고장 감지는 V3 보다 적다(급변·잡음 감시 없음) |
 | 보드 리셋 | boot_id, n 역행 | 배너로 `mcu_reset_detected` 래치(브리지) | 리셋이 늘 배너를 내는지는 한 번만 봄 |
-| 구동 방향·조향 눈금 틀림 | 보정 기록(cal_id, 극성) | Arm 에 방향 확인과 CAL 줄(현장 기록의 NVS 표시) 필요 | CAL 은 2026-11-16 밤 바퀴 든 보정으로 잡았다. 극성(B0)은 사용자 확인 전, 눈금(B3)은 추정(각도계 없음), 구동 방향은 안 함 |
+| 구동 방향·조향 눈금 틀림 | 보정 기록(cal_id, 극성) | Arm 에 방향 확인과 CAL 줄(현장 기록의 NVS 표시) 필요 | CAL 은 2026-11-16 밤 바퀴 든 보정으로 잡았다. 극성은 눈 확인 증거만 있고 B0 절차(직접 확인, EN 차단)는 안 함, 눈금(B3)은 추정(각도계 없음), 구동 방향은 안 함 |
 | 실행기 없이 움직임 | SHADOW 는 소켓을 만들지 않음 | 같다 + Jetson SHADOW 설치는 `/run/ubts-rover`를 마운트하지 않음 | — |
 
 ## 5. Jetson 실행 환경
@@ -131,9 +165,9 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | 시험 | 내용 | 환경 |
 | --- | --- | --- |
 | `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
-| `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(실시간 보정판, NVS 에 설정의 CAL 표시; 대시보드 1463c8b 이후), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수, 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
+| `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(차의 보드: 실시간 보정 SMOOTH 판, FW 줄 `SMOOTH=1`, NVS 에 설정의 CAL 표시; 대시보드 da39e8a 이후, 옛 가짜 보드면 건너뜀), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, `SMOOTH=1` 펌웨어(구동 감시 낱말 있음·없음)에서 Arm, 부호·눈금을 SMOOTH 와 펄스 유지(SM OFF) 둘 다에서, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수, 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
 | `tests/test_esp32_executor_linux.py` | 실시간: 실행기 → 실제 Unix 소켓 → **브리지 프로세스**(`python -m scripts.esp32_steer_bridge`, 실제 USB 전송 코드, 가짜 udev) → pty 의 가짜 펌웨어. go 뒤 구동·왼쪽 ANGLE, 화면 STOP 0.2 s 안 구동 0, 실행기 멈춤 1.0 s 안 구동 0, 브리지 SIGTERM → 구동 0 · run 끝 | Linux + `UBTS_DASH_DIR` |
-| `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값, 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 null; 감시; 브리지 범위), 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 18가지 거절, 속도 내림, 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
+| `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값(속도 규칙은 시험에서 따로 계산), 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 null; 감시; 브리지 범위), 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 거절(두 스키마 공통 20가지 + v2 12가지, 기록마다), 속도 내림, SMOOTH 기록(SMOOTH=1 받아들임, 정지 허용 = STOP_TOL, 극성 증거는 B0 아님), 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
 
 결과(2026-11-16, 이 브랜치): 7절.
 
