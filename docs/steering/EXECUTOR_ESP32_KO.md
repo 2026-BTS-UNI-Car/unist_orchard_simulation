@@ -197,3 +197,11 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
   모두 가짜 보드이며 차에서 확인한 것이 아니다.
 - SIM 은 바뀌지 않는다: 브랜치 머리(f3f00b4)를 잠금 세션에서 돌려 첫 세션의 main bde5474 결과와 비교했다. T1 71/71, 직렬·trace digest 71/71 같음.
   nominal v0.1·v1 각 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기 기록은 시간 칸과 tuning.file 만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
+
+SMOOTH 정책(2026-11-17, 브랜치 executor-smooth-policy-20261117, 작업 기록 `steering-sim-20261108/runs/executor_kit_20261116/NOTES_KO.txt`):
+- 시험: Windows 실행기 시험 전체 619 통과 35 건너뜀(ESP32 끝단은 대시보드 41937bf 작업 트리), WSL Python 3.10.12 ESP32 시험 42 통과(Linux 실시간
+  끝단 3 포함), sim/ubts 관련 시험 102 통과 1 건너뜀. 끝단 시험의 SMOOTH 가짜 보드에서 왼쪽 100 mrad 경사(2.5 s)에 목표 변경 14 번(시험 하한 8,
+  펄스 유지는 6 이하), ANGLE 은 0.25 명령도 단위·0.2 s 이상 간격. 모두 가짜 보드이며 차에서 확인한 것이 아니다.
+- SIM 은 바뀌지 않는다(SIM 은 이 어댑터를 지나지 않는다): 커밋 dad6a93 을 잠금 세션에서 돌려 5ce700f 와 같은 코드(f3f00b4, 문서 커밋 하나 차이)의
+  결과와 비교했다. T1 71/71(A17, A22), 직렬·trace digest 71/71 같음. nominal v0.1·v1 각 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기 기록은
+  시간 칸(ms, loop_ms, scan.proc_ms)과 tuning.file 만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
