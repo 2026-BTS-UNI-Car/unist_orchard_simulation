@@ -688,6 +688,15 @@ class SteerBridgeClient(BridgeClient):
 #     host policy (profile abs_hold_host, native abs_hold8.cc host_policy) before the bridge: a new target only when it
 #     differs by the deadband and the last one is older than min_interval_s, or the board reached it / has no hold.
 #     The bridge's own rules (1 command deg quantum, 0.5 s minimum interval, no repeat of a cancelled target) follow.
+#   * the SMOOTH hold (2026-11-16 firmware r5 on the vehicle, SM MODE=SMOOTH; dashboard bridge da39e8a or later reports
+#     it as steering.smooth: firmware True = FW token SMOOTH=1, mode 'SMOOTH' = the board's SM line): the board drives
+#     continuously to a target and takes a new target in the same direction over without stopping (60 ms rest only
+#     when the direction reverses); no 300 ms settle and no 1000 ms budget per target. Lifted-wheel test on the vehicle
+#     (runs/steer_smooth_20261116, 2026-11-16 23:20): 9 moves, each one continuous drive, final error +-8 counts, no
+#     correction drive or cancel. The pulse policy (1 command deg, 1 s) would make the executor's steering stop and
+#     go there, so under a status with both values the adapter uses ESP32_SMOOTH_POLICY: the bridge's angle quantum
+#     (0.25 command deg under SMOOTH), deadband 0.25 command deg, a new target at most every 0.2 s (the bridge's own
+#     SMOOTH interval). A pulse hold, an unknown mode or an older bridge without the block keep ESP32_POLICY.
 #   * monitors the board lacks (V3: MCU TRACK / POT faults, host latches steering_not_following, steering_ineffective):
 #     the adapter keeps steering_not_following (|requested target - measured| > ESP32_TRACK error for its duration) and
 #     steering_ineffective (gyro against v tan(delta) / L, the V3 rule, fed by the executor's op motion, which the ESP32
@@ -702,6 +711,7 @@ ESP32_FIRMWARE = 'ABS-HOLD-8-REBOUND-LIMITS'
 ESP32_COMMAND_LIMIT_DEG = 20.
 ESP32_BRIDGE_LIMIT_MRAD = 349
 ESP32_POLICY = dict(step_deg=.5, deadband_deg=1., min_interval_s=1., poll_s=.2)   # profile abs_hold_host (SIM proposal)
+ESP32_SMOOTH_POLICY = dict(step_deg=.25, deadband_deg=.25, min_interval_s=.2, poll_s=.2)   # SMOOTH hold (see above)
 ESP32_TARGET_TOL_COUNTS = 10                       # firmware target tolerance (abs_hold_fw target_tol_counts)
 ESP32_TRACK = dict(error_deg=3., duration_s=2.)    # steering_not_following [placeholder: V3 3 deg / 1.5 s + one ANGLE]
 ESP32_INEFFECTIVE = dict(min_speed_m_s=.2, min_steer_deg=3., rate_error_deg_s=3., rate_error_frac=.5, duration_s=1.5,
@@ -724,6 +734,14 @@ def _quantize(value, quantum):
 
 def _finite(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def esp32_smooth_hold(steering):
+    """True when an ESP32 bridge steering block says the board runs the SMOOTH hold: steering.smooth.firmware True (FW
+    token SMOOTH=1) and steering.smooth.mode 'SMOOTH' (its SM line). Anything else (pulse hold, no SM line yet, a bridge
+    older than da39e8a without the block) is False: the pulse policy."""
+    smooth = steering.get('smooth') if isinstance(steering, dict) else None
+    return isinstance(smooth, dict) and smooth.get('firmware') is True and smooth.get('mode') == 'SMOOTH'
 
 
 class Esp32AbsHoldAdapter:
@@ -755,15 +773,21 @@ class Esp32AbsHoldAdapter:
         self.sent_at = self.poll_at = None
         self.latches = {}               # adapter latches until the next accepted arm (operator re-arm)
         self.track_since = self.ineffective_since = None
-        self.board = None               # (t, command_equiv_deg, pot, target_pot, hold, quantum, requested_cmd)
+        self.board = None               # (t, command_equiv_deg, pot, target_pot, hold, quantum, requested_cmd, smooth)
         self.stop_sent = self.stop_confirmed = 0
         self._stop = None               # (reason, wall time) of the last op stop that went through here
         self.counts = dict(drives=0, target_changes=0, held_by_policy=0, motion=0, motion_ignored=0, normalised=0,
-                           info_events=0, own_stops=0)
+                           info_events=0, own_stops=0, smooth_drives=0)
 
     @classmethod
     def from_config(cls, cfg, inner, clock=time.monotonic, wall=time.time):
         return cls(inner, mark_deg=cfg.steer_esp32_mark_deg, wheelbase_m=cfg.steer_wheelbase_m, clock=clock, wall=wall)
+
+    def policy_name(self):
+        """The ANGLE policy of the next drive: 'smooth' (ESP32_SMOOTH_POLICY) when the last bridge status said SMOOTH
+        hold, else 'pulse' (ESP32_POLICY)."""
+        board = self.board
+        return 'smooth' if board is not None and board[7] else 'pulse'
 
     # --- units ----------------------------------------------------------------------------------------------------
     def command_deg_of(self, steer_mrad):
@@ -798,24 +822,30 @@ class Esp32AbsHoldAdapter:
         return response
 
     def _policy(self, steer_mrad):
-        """The SIM host policy (native abs_hold8.cc host_policy) on the executor's target; returns the bridge value."""
+        """The SIM host policy (native abs_hold8.cc host_policy) on the executor's target; returns the bridge value.
+        ESP32_SMOOTH_POLICY while the last bridge status said SMOOTH hold, else ESP32_POLICY (comment above them)."""
         now = self.clock()
         with self._lock:
             self.counts['drives'] += 1
             board = self.board
-            quantum = max(ESP32_POLICY['step_deg'], board[5] if board is not None and _finite(board[5]) else 1.)
+            smooth = board is not None and board[7]
+            policy = ESP32_SMOOTH_POLICY if smooth else ESP32_POLICY
+            if smooth:
+                self.counts['smooth_drives'] += 1
+            fallback = policy['step_deg'] if smooth else 1.          # a status without the bridge's quantum
+            quantum = max(policy['step_deg'], board[5] if board is not None and _finite(board[5]) else fallback)
             want = _quantize(self.command_deg_of(steer_mrad), quantum)
             if self.sent_cmd is None:
                 self.sent_cmd, self.sent_at, self.poll_at = want, now, now
                 self.counts['target_changes'] += 1
-            elif now - self.poll_at >= ESP32_POLICY['poll_s'] - 1e-9:
+            elif now - self.poll_at >= policy['poll_s'] - 1e-9:
                 self.poll_at = now
                 hold = bool(board[4]) if board is not None else False
                 reached = (board is not None and hold and type(board[2]) is int and type(board[3]) is int
                            and abs(board[3] - board[2]) <= ESP32_TARGET_TOL_COUNTS)
                 idle = board is not None and (not hold or reached)
-                if abs(want - self.sent_cmd) >= ESP32_POLICY['deadband_deg'] - 1e-9:
-                    if now - self.sent_at >= ESP32_POLICY['min_interval_s'] - 1e-9 or idle:
+                if abs(want - self.sent_cmd) >= policy['deadband_deg'] - 1e-9:
+                    if now - self.sent_at >= policy['min_interval_s'] - 1e-9 or idle:
                         self.sent_cmd, self.sent_at = want, now
                         self.counts['target_changes'] += 1
                     else:
@@ -935,7 +965,8 @@ class Esp32AbsHoldAdapter:
             self.counts['normalised'] += 1
             self.counts['info_events'] += len(info)
             self.board = (now, measured_cmd, steering.get('raw'), steering.get('target_pot'),
-                          bool(steering.get('hold')), control.get('angle_quantum_deg'), requested_cmd)
+                          bool(steering.get('hold')), control.get('angle_quantum_deg'), requested_cmd,
+                          esp32_smooth_hold(steering))
             if requested_cmd is None and self.sent_cmd is not None and armed:
                 requested_cmd = self.sent_cmd
             fire = self._track(now, measured_cmd, requested_cmd, armed)
@@ -963,6 +994,7 @@ class Esp32AbsHoldAdapter:
                                         arm_state='confirmed' if armed else (host.get('arm_state') or 'none'),
                                         counters=dict(stop_sent=self.stop_sent, stop_confirmed=self.stop_confirmed))
             out['esp32_adapter'] = dict(scale=round(self.scale, 6), mark_deg=self.mark_deg, holding=self.holding,
+                                        policy=self.policy_name(),
                                         policy_target_command_deg=self.sent_cmd, latches=sorted(latches),
                                         counts=dict(self.counts))
         return out
@@ -1074,6 +1106,7 @@ class Esp32SteerBridgeClient(SteerBridgeClient):
         out = super().snapshot()
         out.update(bridge_kind=ESP32_KIND, adapter=dict(scale=round(self.adapter.scale, 6),
                                                         holding=self.adapter.holding,
+                                                        policy=self.adapter.policy_name(),
                                                         latches=sorted(self.adapter.latches),
                                                         counts=dict(self.adapter.counts)))
         return out

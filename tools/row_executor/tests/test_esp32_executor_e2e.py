@@ -12,7 +12,7 @@ dashboard da39e8a or later; skipped with an older fake) with the configured CAL 
 field steering record).
 Checked: no drive line before an armed run's go, the arm precheck (drive direction verified, firmware drive watchdog,
 the CAL line: another configured line or a board whose NVS marks were lost is refused), the steering sign and scale
-(executor left + -> firmware ANGLE -, measured back), the ANGLE policy, the page STOP, the operator heartbeat loss (drive 0, no restart), the executor stopping (the bridge input deadline), the steering
+(executor left + -> firmware ANGLE -, measured back), the ANGLE policy (SMOOTH hold and pulse hold), the page STOP, the operator heartbeat loss (drive 0, no restart), the executor stopping (the bridge input deadline), the steering
 not-following latch, an invalid potentiometer and that op motion never reaches the bridge.
 Test numbers only (the motor values are test values, not field measurements); no plant: the scene is static.
 """
@@ -29,7 +29,8 @@ from dataclasses import replace
 import rowexec_testlib as L
 from row_executor import config as C
 from row_executor import executor_main as M
-from row_executor.bridge_client import ARMED, ESP32_POLICY, LATCHED, Esp32AbsHoldAdapter, Esp32SteerBridgeClient
+from row_executor.bridge_client import (ARMED, ESP32_SMOOTH_POLICY, LATCHED, Esp32AbsHoldAdapter,
+                                        Esp32SteerBridgeClient)
 from row_executor.core import ACTIVE, ENDED, PAUSED, Runner
 from test_executor_loop import imu_msg, scan_msg
 from test_steer_executor import SCENE
@@ -354,12 +355,23 @@ class Driving(unittest.TestCase):
         self.assertAlmostEqual(measured, goal, delta=25.)                        # back in equivalent mrad, + left
         adapter = rig.loop.esp32
         if pulse_hold:
-            self.assertLessEqual(adapter.counts['target_changes'], 4 + 2)        # about one target per second
+            # the pulse hold (SM OFF, FW token SMOOTH=0): ESP32_POLICY, whole command degrees, about one target a second
+            self.assertEqual((adapter.policy_name(), adapter.counts['smooth_drives']), ('pulse', 0))
+            self.assertLessEqual(adapter.counts['target_changes'], 4 + 2)
+            self.assertTrue(all(a == round(a) for a in angles), angles)
         else:
-            # the smooth hold reaches each target at once, so the policy's 'board reached it' lets the next target go
-            # as soon as it differs by the deadband: at most one per deadband of the ramp, plus the first one
-            ramp = int(abs(expected) / ESP32_POLICY['deadband_deg'])
-            self.assertLessEqual(adapter.counts['target_changes'], 1 + ramp + 1)
+            # the SMOOTH hold (FW token SMOOTH=1, SM MODE=SMOOTH): ESP32_SMOOTH_POLICY follows the 2.5 s ramp in the
+            # bridge's 0.25 command deg steps, a new target at most every 0.2 s (the bridge writes ANGLE no faster)
+            self.assertEqual(rig.bridge.request({'op': 'status'})['steering']['smooth']['mode'], 'SMOOTH')
+            self.assertEqual(adapter.policy_name(), 'smooth')
+            self.assertGreater(adapter.counts['smooth_drives'], 0)
+            ramp = int(abs(expected) / ESP32_SMOOTH_POLICY['deadband_deg'])
+            self.assertTrue(8 <= adapter.counts['target_changes'] <= 1 + ramp + 1, adapter.counts)
+            self.assertTrue(all(abs(a / .25 - round(a / .25)) < 1e-9 for a in angles), angles)
+            self.assertTrue(any(a != round(a) for a in angles), angles)               # finer than whole degrees
+            times = [ms for ms, _ in rig.board_lines(None, 'ANGLE')]
+            gaps = [b - a for a, b in zip(times, times[1:])]
+            self.assertTrue(gaps and min(gaps) >= 1000 * ESP32_SMOOTH_POLICY['min_interval_s'] - 20, gaps)
         self.assertEqual(rig.loop.runner.state, ACTIVE)
         self.assertNotIn('motion', rig.socket.ops)                               # op motion stays in the executor
 

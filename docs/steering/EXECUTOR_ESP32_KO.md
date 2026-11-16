@@ -20,7 +20,7 @@
 | 실행기가 기대한 것(V3) | ESP32 브리지 | 어댑터 / 실행기 |
 | --- | --- | --- |
 | `steer_mrad` = 등가 바퀴각(왼쪽 +) | `steer_mrad` = 펌웨어 명령 눈금(왼쪽 +, ±20 명령도 = ±349), 브리지가 `ANGLE = −도`로 보냄 | 등가 ↔ 명령 눈금을 `steer_esp32_mark_deg`(명령 20의 등가각)로 바꾼다: 명령도 = −등가도 × 20 / mark. SIM 과 같은 식(ABS_HOLD8_SIM 3.3절). mark 는 가장 새 현장 조향 기록의 값(2026-11-16 23:21 기록 18.9°, 추정. 3.3절), 각도계 측정(B3)이 생기면 새 기록으로 바꾼다. 측정각도 거꾸로 바꿔 실행기에 준다 |
-| C 줄 20 Hz, MCU 서보 | 새 ANGLE 마다 펌웨어가 300 ms 기다리고 1000 ms 보정 예산을 다시 시작 | SIM 호스트 정책(`abs_hold_host`)을 어댑터가 한다: 새 목표는 마지막 것과 1 명령도 넘게 다르고, 마지막 뒤 1.0 s 가 지났거나 보드가 목표에 닿았거나(10 count) 유지가 없을 때만. 그 뒤 브리지 규칙(1 명령도 단위, 0.5 s 간격, 20° 넘는 이동은 나눔)이 따른다 |
+| C 줄 20 Hz, MCU 서보 | 새 ANGLE 마다 펌웨어가 300 ms 기다리고 1000 ms 보정 예산을 다시 시작 | SIM 호스트 정책(`abs_hold_host`)을 어댑터가 한다: 새 목표는 마지막 것과 1 명령도 넘게 다르고, 마지막 뒤 1.0 s 가 지났거나 보드가 목표에 닿았거나(10 count) 유지가 없을 때만. 그 뒤 브리지 규칙(1 명령도 단위, 0.5 s 간격, 20° 넘는 이동은 나눔)이 따른다. **SMOOTH 유지**(브리지 상태 `steering.smooth.firmware` true = FW `SMOOTH=1`, `mode` `SMOOTH` = SM 줄)에서는 `ESP32_SMOOTH_POLICY`: 브리지 단위(0.25 명령도), 데드밴드 0.25 명령도, 0.2 s 간격(3.4절) |
 | 취소 뒤 같은 ANGLE 다시 보냄(SIM 정책) | 취소된 목표는 요청이 바뀔 때까지 다시 보내지 않음 | 그대로 둔다(브리지 규칙이 더 보수적). 대신 아래 추종 감시가 남은 오차를 잡는다. SIM 과 다른 점 |
 | Arm 전 점검: 펌웨어 V3, `cal_id`, `simulated`, 극성 기록 | `firmware` `ABS-HOLD-8-REBOUND-LIMITS`, CAL 줄, `drive.direction_verified`, `drive.firmware_watchdog_ms` | `esp32_arm_precheck`: 상태 ok·연결, `esp_kind`, 펌웨어 이름, front_steer, 브리지 한계 349, **구동 방향 확인됨**, **펌웨어 구동 감시**(설정 `steer_esp32_require_fw_watchdog`, 기본 true), 보정됨, **CAL 줄 = 설정 `steer_esp32_cal`**(cal_id 대신), 결함 없음, 상태 신선(0.3 s), 측정각 유한, STOP 확인, 아무도 lease 없음, 정지, 스냅샷 2 s 안. 거절이면 arm 을 보내지 않는다 |
 | MCU ARM 확인(`arm_state` confirmed) | MCU ARM 없음(`arm_state` armed) | 브리지가 armed 이면 `confirmed`로 바꿔 보인다(그때부터 결함을 센다) |
@@ -129,9 +129,14 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
     바꾸기 전까지 MOTOR 에 쓸 근거가 약하다.
   - 구동 방향, C2 `breakaway_duty_pct`, C3 `v_measured_m_s`, C7 `measured_stop_distance_m`: 미측정 → null, 브리지 `direction_verified` false 라
     Arm 도 거절된다.
-- 어댑터의 ANGLE 정책(새 목표는 1 명령도 넘게 다르고, 1.0 s 지났거나 보드가 닿았을 때)은 펄스 유지용 SIM 정책 그대로다. SMOOTH 에서는
-  보드가 목표에 바로 닿아 다음 목표가 곧 나가므로(가짜 보드에서 1 명령도마다 하나) 더 촘촘한 추종은 브리지(0.2 s, 0.25 명령도)가 허용해도
-  실행기 쪽에서는 쓰지 않는다. 바꾸지 않았다.
+- 어댑터의 ANGLE 정책은 브리지 상태를 보고 고른다(2026-11-17). 브리지가 SMOOTH 유지(`steering.smooth.firmware` true 이고 `mode` `SMOOTH`)를
+  알리면 `ESP32_SMOOTH_POLICY`: 브리지의 단위(SMOOTH 에서 0.25 명령도), 데드밴드 0.25 명령도, 새 목표는 0.2 s 마다 한 번까지(브리지의 SMOOTH
+  간격과 같음). 까닭: r5 SMOOTH 펌웨어는 목표까지 한 번에 이어 구동하고 같은 방향의 새 목표를 멈추지 않고 이어받는다(방향이 바뀔 때만 60 ms
+  쉼; 목표마다 300 ms 정착·1000 ms 예산이 없다). 2026-11-16 23:20 차체를 띄운 시험에서 9 움직임 모두 한 번의 연속 구동, 최종 오차 ±8 count,
+  보정 구동·취소 0(`runs/steer_smooth_20261116`). 펄스 정책(1 명령도, 1 s)이면 실행기 조향이 끊겼다 이어지는 꼴이 된다.
+  펄스 유지(SM OFF, `SMOOTH=0`), SM 줄을 아직 못 받음, 옛 브리지(smooth 블록 없음)는 펄스 유지용 SIM 정책(`ESP32_POLICY`, 1 명령도, 1.0 s)
+  그대로다. 고른 정책은 어댑터 상태 `esp32_adapter.policy`·클라이언트 스냅샷 `adapter.policy`(`smooth`/`pulse`)와 계수 `smooth_drives`로
+  보인다. SHADOW 실행기는 브리지에 붙지 않으므로 이 값은 MOTOR 에서만 생긴다. 땅에 닿은 차에서는 아직 재지 않았다.
 - `steer_esp32_require_fw_watchdog` 는 true. 보드 펌웨어가 `DRIVE_WD=300`을 보고해 브리지 상태의 `drive.firmware_watchdog_ms` 가 300 이다.
   실행기는 펌웨어 이름(`ABS-HOLD-8-REBOUND-LIMITS`)만 보고 FW 줄의 다른 낱말(`SMOOTH=1` 등)은 보지 않는다. 브리지(대시보드 da39e8a 부터)가
   `SMOOTH=1`을 읽어 간격·단위를 고른다.
@@ -164,8 +169,8 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 
 | 시험 | 내용 | 환경 |
 | --- | --- | --- |
-| `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, SMOOTH 브리지 상태(SMOOTH=1/0) 통과, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
-| `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(차의 보드: 실시간 보정 SMOOTH 판, FW 줄 `SMOOTH=1`, NVS 에 설정의 CAL 표시; 대시보드 da39e8a 이후, 옛 가짜 보드면 건너뜀), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, `SMOOTH=1` 펌웨어(구동 감시 낱말 있음·없음)에서 Arm, 부호·눈금을 SMOOTH 와 펄스 유지(SM OFF) 둘 다에서, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수, 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
+| `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표; SMOOTH 상태면 0.25 명령도·0.2 s, SMOOTH 꺼짐·SM 줄 없음·옛 브리지면 펄스 정책, 브리지 단위, 상태·스냅샷의 정책 이름), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, SMOOTH 브리지 상태(SMOOTH=1/0) 통과, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
+| `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(차의 보드: 실시간 보정 SMOOTH 판, FW 줄 `SMOOTH=1`, NVS 에 설정의 CAL 표시; 대시보드 da39e8a 이후, 옛 가짜 보드면 건너뜀), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, `SMOOTH=1` 펌웨어(구동 감시 낱말 있음·없음)에서 Arm, 부호·눈금을 SMOOTH 와 펄스 유지(SM OFF) 둘 다에서, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수(SMOOTH: 정책 smooth, 0.25 명령도 단위, ANGLE 간격 0.2 s 이상; 펄스: 정책 pulse, 정수 명령도, 약 1 s 에 하나), 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
 | `tests/test_esp32_executor_linux.py` | 실시간: 실행기 → 실제 Unix 소켓 → **브리지 프로세스**(`python -m scripts.esp32_steer_bridge`, 실제 USB 전송 코드, 가짜 udev) → pty 의 가짜 펌웨어. go 뒤 구동·왼쪽 ANGLE, 화면 STOP 0.2 s 안 구동 0, 실행기 멈춤 1.0 s 안 구동 0, 브리지 SIGTERM → 구동 0 · run 끝 | Linux + `UBTS_DASH_DIR` |
 | `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값(속도 규칙은 시험에서 따로 계산), 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 null; 감시; 브리지 범위), 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 거절(두 스키마 공통 20가지 + v2 12가지, 기록마다), 속도 내림, SMOOTH 기록(SMOOTH=1 받아들임, 정지 허용 = STOP_TOL, 극성 증거는 B0 아님), 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
 

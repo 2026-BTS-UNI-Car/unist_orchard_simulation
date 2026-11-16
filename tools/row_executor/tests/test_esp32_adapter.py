@@ -8,8 +8,9 @@ from dataclasses import replace
 
 import rowexec_testlib as L  # noqa: F401  (path setup)
 from row_executor import config as C
-from row_executor.bridge_client import (ESP32_INEFFECTIVE, ESP32_POLICY, ESP32_TRACK, Esp32AbsHoldAdapter,
-                                        Esp32SteerBridgeClient, LATCHED, esp32_arm_precheck, steer_arm_precheck)
+from row_executor.bridge_client import (ESP32_INEFFECTIVE, ESP32_POLICY, ESP32_SMOOTH_POLICY, ESP32_TRACK,
+                                        Esp32AbsHoldAdapter, Esp32SteerBridgeClient, LATCHED, esp32_arm_precheck,
+                                        esp32_smooth_hold, steer_arm_precheck)
 
 PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAL = dict(right=1681, center=1900, left=2180, max_command=20)
@@ -33,6 +34,16 @@ def esp_status(cmd=0., pot=1900, target_pot=None, hold=False, armed=False, fault
                                      target_command_deg=target_cmd),
                   drive=dict(direction_verified=direction_verified, firmware_watchdog_ms=watchdog))
     status.update(over)
+    return status
+
+
+def smooth_status(mode='SMOOTH', firmware=True, quantum=.25, **kw):
+    """An ESP32 bridge status of the SMOOTH firmware (dashboard da39e8a or later): steer_control with the bridge's
+    pacing and steering.smooth (firmware = FW token SMOOTH, mode = the board's SM line)."""
+    status = esp_status(steer_control=dict(kind='esp32_abs_hold', angle_quantum_deg=quantum,
+                                           angle_min_interval_ms=200 if firmware else 500, smooth=firmware), **kw)
+    status['steering']['smooth'] = dict(firmware=firmware, mode=mode, params=None, store='NVS', age_s=0.,
+                                        last_reply=None, data_lines=0)
     return status
 
 
@@ -130,6 +141,90 @@ class Policy(unittest.TestCase):
         clock.t += .2
         self.drive(a, bridge, 120)
         self.assertEqual(bridge.requests[-1]['steer_mrad'], a.bridge_mrad_of(round(a.command_deg_of(120))))
+
+    def ramp(self, a, bridge, status, clock, seconds=4., rate_mrad_s=50.):
+        """The executor's 10 Hz drives on a steering ramp (left) while the board holds a target it has not reached
+        (its measured angle follows the last target, so the tracking rule stays quiet); returns the target changes
+        [(t, command deg)] the adapter let through."""
+        a(dict(op='arm', owner='o', vehicle_profile='front_steer'))
+        sent, steer = [], 0.
+        for _ in range(int(round(seconds / .1))):
+            followed = a.sent_cmd or 0.
+            bridge.status = dict(status, steering=dict(status['steering'], command_equiv_deg=followed,
+                                                       measured_mrad=int(round(-math.radians(followed) * 1000))))
+            a(dict(op='status'))                                    # the client's status poll: the adapter's board
+            self.drive(a, bridge, int(round(steer)))
+            self.assertEqual(bridge.requests[-1]['steer_mrad'], a.bridge_mrad_of(a.sent_cmd))
+            sent.append((clock.t, a.sent_cmd))
+            steer += rate_mrad_s * .1
+            clock.t += .1
+        return [sent[0]] + [b for a_, b in zip(sent, sent[1:]) if a_[1] != b[1]]
+
+    def test_smooth_hold_status(self):
+        good = dict(firmware=True, mode='SMOOTH', params=None, store='NVS')
+        self.assertTrue(esp32_smooth_hold(dict(smooth=good)))
+        for block in (dict(good, mode='PULSE'), dict(good, firmware=False), dict(good, firmware=None),
+                      dict(good, mode=None), dict(good, firmware='true'), dict(mode='SMOOTH'), None, 'SMOOTH'):
+            self.assertFalse(esp32_smooth_hold(dict(smooth=block)), block)
+        self.assertFalse(esp32_smooth_hold({}))                     # a bridge older than da39e8a: no smooth block
+        self.assertFalse(esp32_smooth_hold(None))
+
+    def test_smooth_policy_follows_the_ramp_in_quarter_degrees(self):
+        clock, bridge = Clock(), FakeBridge()
+        a = adapter(bridge, clock)
+        changes = self.ramp(a, bridge, smooth_status(armed=True, hold=True, pot=1900, target_pot=1990), clock)
+        gaps = [b[0] - a_[0] for a_, b in zip(changes, changes[1:])]
+        self.assertTrue(all(g >= ESP32_SMOOTH_POLICY['min_interval_s'] - 1e-6 for g in gaps), gaps)
+        self.assertGreaterEqual(len(changes), 15)                   # about one target per 0.2 s over 4 s (pulse: 4)
+        steps = [abs(b[1] - a_[1]) for a_, b in zip(changes, changes[1:])]
+        self.assertTrue(all(st >= ESP32_SMOOTH_POLICY['deadband_deg'] - 1e-9 for st in steps), steps)
+        self.assertTrue(all(abs(c / .25 - round(c / .25)) < 1e-9 and c <= 0 for _, c in changes), changes)
+        self.assertTrue(any(abs(c - round(c)) > 1e-9 for _, c in changes), changes)   # finer than whole degrees
+        self.assertEqual(a.policy_name(), 'smooth')
+        self.assertEqual(a.counts['smooth_drives'], a.counts['drives'])
+        self.assertEqual(a.normalise(bridge.status)['esp32_adapter']['policy'], 'smooth')
+
+    def test_pulse_policy_when_smooth_is_off_or_missing(self):
+        held = dict(armed=True, hold=True, pot=1900, target_pot=1990)
+        cases = {'smooth_off': (smooth_status(mode='PULSE', firmware=False, quantum=1., **held), 1.),
+                 'sm_line_not_yet': (smooth_status(mode=None, **held), .5),     # SMOOTH=1, no SM line: still pulse
+                 'old_bridge': (esp_status(**held), 1.)}
+        for name, (status, quantum) in cases.items():
+            with self.subTest(name):
+                clock, bridge = Clock(), FakeBridge()
+                a = adapter(bridge, clock)
+                changes = self.ramp(a, bridge, status, clock)
+                gaps = [b[0] - a_[0] for a_, b in zip(changes, changes[1:])]
+                self.assertTrue(all(g >= ESP32_POLICY['min_interval_s'] - 1e-6 for g in gaps), gaps)
+                self.assertTrue(3 <= len(changes) <= 5, changes)
+                self.assertTrue(all(abs(c / quantum - round(c / quantum)) < 1e-9 for _, c in changes), changes)
+                self.assertEqual((a.policy_name(), a.counts['smooth_drives']), ('pulse', 0))
+                self.assertEqual(a.normalise(bridge.status)['esp32_adapter']['policy'], 'pulse')
+
+    def test_policy_follows_the_status_and_the_snapshot_shows_it(self):
+        a = adapter()
+        self.assertEqual(a.policy_name(), 'pulse')                  # no status yet
+        a.normalise(smooth_status())
+        self.assertEqual(a.policy_name(), 'smooth')
+        a.normalise(smooth_status(mode='PULSE', firmware=False, quantum=1.))   # an operator's 'SM OFF'
+        self.assertEqual(a.policy_name(), 'pulse')
+        client = Esp32SteerBridgeClient(a, limit_left_mrad=280, limit_right_mrad=280, expect_cal=None)
+        a.normalise(smooth_status())
+        snap = client.snapshot()
+        self.assertEqual(snap['adapter']['policy'], 'smooth')
+        self.assertIn('smooth_drives', snap['adapter']['counts'])
+
+    def test_smooth_quantum_is_the_bridges(self):
+        for status, want in ((smooth_status(armed=True), -6.5),    # -6.43 command deg in 0.25 steps
+                             (esp_status(armed=True), -6.)):        # pulse: the bridge's 1 deg quantum
+            bridge = FakeBridge()
+            a = adapter(bridge)
+            a(dict(op='arm', owner='o', vehicle_profile='front_steer'))
+            bridge.status = status
+            a(dict(op='status'))
+            self.drive(a, bridge, 100)
+            self.assertAlmostEqual(a.command_deg_of(100), -6.4265, places=3)
+            self.assertEqual(a.sent_cmd, want)
 
     def test_motion_never_reaches_the_bridge(self):
         bridge = FakeBridge()
