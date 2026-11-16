@@ -142,3 +142,12 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 결과와 Jetson 설치 상태는 작업 기록(`steering-sim-20261108/runs/jetson_autonomy_20261116/NOTES_KO.txt`)과 대시보드 레포
 `deploy/jetson_row_executor/README_KO.md`에 적는다. 남은 일: 현장 첫 조향 시험(B0, B2/B3, B5, F1, 구동 방향), 구동 측정(C2, C3, C7), GO 문턱과 펌웨어
 감시 결정, 그 뒤 MOTOR 설정(대시보드 레포 `docs/FIELD_STEER_AUTONOMY_TEST_KO.md`). 어댑터의 정책·감시 수치는 SIM 이 아닌 가짜 보드로만 확인했다(SIM T1 은 V3 링크 위의 abs_hold8 흉내라 이 어댑터를 지나지 않는다).
+
+2026-11-16 밤 현장 조향 기록 반영(브랜치 field-steer-config-20261116, 작업 기록 `steering-sim-20261108/runs/field_steer_config_20261116/NOTES_KO.txt`):
+- 시험: Windows Python 3.13 실행기 시험 전체 611 통과 35 건너뜀(ESP32 끝단은 대시보드 1463c8b 작업 트리로), WSL Python 3.10.12·numpy 1.21.5
+  에서 ESP32 시험 34 통과(Linux 실시간 끝단 3 포함), sim/ubts 관련 시험 121 통과 1 건너뜀. 모두 가짜 보드이며 차에서 확인한 것이 아니다.
+- SIM 은 바뀌지 않는다(SIM 은 현장 기록과 차량 설정을 읽지 않는다). main bde5474 와 이 브랜치에서 같은 잠금 세션으로: T1 안전 대본 둘 다 71/71,
+  직렬·trace digest 71/71 같음. 빠른 SIM nominal(자리값 v0.1 5 run, 측정 치수 v1 5 run) 둘 다 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기
+  기록은 시간 칸(ms, loop_ms, scan.proc_ms)과 tuning.file(트리 경로)만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
+- 남은 일: 극성 확인(B0), 각도계 범위(B2/B3)로 mark 확정, 땅에 닿은 조향 속도, 0점(F1), 구동 방향과 C2/C3/C7. 끝 찾기·유지 방식을 다시 하면
+  새 기록 파일을 더하고 설정을 다시 만든다(3.1절). Jetson 의 실행기 설정은 따로 설치해야 바뀐다.
