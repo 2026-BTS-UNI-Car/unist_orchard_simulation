@@ -164,7 +164,7 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 
 | 시험 | 내용 | 환경 |
 | --- | --- | --- |
-| `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
+| `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, SMOOTH 브리지 상태(SMOOTH=1/0) 통과, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
 | `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(차의 보드: 실시간 보정 SMOOTH 판, FW 줄 `SMOOTH=1`, NVS 에 설정의 CAL 표시; 대시보드 da39e8a 이후, 옛 가짜 보드면 건너뜀), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, `SMOOTH=1` 펌웨어(구동 감시 낱말 있음·없음)에서 Arm, 부호·눈금을 SMOOTH 와 펄스 유지(SM OFF) 둘 다에서, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수, 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
 | `tests/test_esp32_executor_linux.py` | 실시간: 실행기 → 실제 Unix 소켓 → **브리지 프로세스**(`python -m scripts.esp32_steer_bridge`, 실제 USB 전송 코드, 가짜 udev) → pty 의 가짜 펌웨어. go 뒤 구동·왼쪽 ANGLE, 화면 STOP 0.2 s 안 구동 0, 실행기 멈춤 1.0 s 안 구동 0, 브리지 SIGTERM → 구동 0 · run 끝 | Linux + `UBTS_DASH_DIR` |
 | `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값(속도 규칙은 시험에서 따로 계산), 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 null; 감시; 브리지 범위), 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 거절(두 스키마 공통 20가지 + v2 12가지, 기록마다), 속도 내림, SMOOTH 기록(SMOOTH=1 받아들임, 정지 허용 = STOP_TOL, 극성 증거는 B0 아님), 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
@@ -185,3 +185,10 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
   기록은 시간 칸(ms, loop_ms, scan.proc_ms)과 tuning.file(트리 경로)만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
 - 남은 일: 극성 확인(B0), 각도계 범위(B2/B3)로 mark 확정, 땅에 닿은 조향 속도, 0점(F1), 구동 방향과 C2/C3/C7. 끝 찾기·유지 방식을 다시 하면
   새 기록 파일을 더하고 설정을 다시 만든다(3.1절). Jetson 의 실행기 설정은 따로 설치해야 바뀐다.
+
+두 번째 기록(SMOOTH 펌웨어 r5, `field_steer_20261116_2321`) 반영, 같은 브랜치:
+- 시험: Windows 실행기 시험 전체 614 통과 35 건너뜀(ESP32 끝단은 대시보드 da39e8a 작업 트리, 가짜 보드 = 실시간 보정 SMOOTH 판), 대시보드 없이
+  unittest 649 통과(49 건너뜀). WSL Python 3.10.12 ESP32 시험 37 통과(Linux 실시간 끝단 3 포함). sim/ubts 관련 시험 122 통과 1 건너뜀.
+  모두 가짜 보드이며 차에서 확인한 것이 아니다.
+- SIM 은 바뀌지 않는다: 브랜치 머리(f3f00b4)를 잠금 세션에서 돌려 첫 세션의 main bde5474 결과와 비교했다. T1 71/71, 직렬·trace digest 71/71 같음.
+  nominal v0.1·v1 각 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기 기록은 시간 칸과 tuning.file 만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
