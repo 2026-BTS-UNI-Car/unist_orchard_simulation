@@ -1,35 +1,44 @@
 """The vehicle executor configuration for the ESP32-S3 bridge (Jetson, 2026-11-16; docs/steering/EXECUTOR_ESP32_KO.md).
 
-vehicle_config(profile) builds the row executor configuration (tools/row_executor/config.ExecutorConfig) the Jetson kit
-installs: front_steer, single-row mode, SHADOW (motor_output_enabled false), the vehicle control socket
+vehicle_config(profile, record=NEWEST) builds the row executor configuration (tools/row_executor/config.ExecutorConfig)
+the Jetson kit installs: front_steer, single-row mode, SHADOW (motor_output_enabled false), the vehicle control socket
 /run/ubts-rover/control.sock, the operator page on 127.0.0.1 (only the dashboard on the same host reaches it), the
-ESP32-S3 bridge (steer_bridge_kind esp32_abs_hold) and the values of the measured profile. A value goes in only when
-its source is a measurement, the firmware or a definition; every field measurement that is still missing stays null
-(the executor reports it as 'unknown' and refuses motor output until it is measured):
+ESP32-S3 bridge (steer_bridge_kind esp32_abs_hold), the vehicle values of the measured profile and the board values of
+the newest field steering record (steering.field_steer_record: field_records/field_steer_<YYYYMMDD>_<HHMM>.yaml, the
+latest measured_at wins, older records are kept). A value goes in only when its source is a measurement, the firmware,
+the board's NVS, a user decision or a definition; every field measurement that is still missing stays null / false (the
+executor reports it as 'unknown' and refuses motor output until it is measured):
 
   from the profile front_steer_v1_spec_20261116 (provenance in brackets)
     steer_wheelbase_m               wheelbase_m [MEASURED_20261116]
     steer_limit_*_mrad              the host profile soft limit (steering limit 20 deg per wheel [MEASURED_20261116]
                                     minus the soft margin [CONFIG]) = 281 mrad
-    steer_rate_limit_*_deg_s        0.8 x the board's step response 0 -> 20 (steer_step_time_measured_s
-                                    [MEASURED_20261116], abs_hold.executor_values) = 4.075 deg/s. The rate itself
-                                    (steer_measured_rate_*) stays null: the steering GO rule (>= steer_rate_min_deg_s 8,
-                                    a placeholder) refuses 5.09 deg/s and the threshold is an open decision (the SIM
-                                    re-check used 4.0, PREREG_STEER_FOLLOW_REALDIMS_KO.md)
-    steer_servo_deadband_deg        the firmware target tolerance 10 counts [FIRMWARE] in equivalent degrees
-    steer_esp32_cal                 the firmware CAL line RIGHT / CENTER / LEFT / MAX_COMMAND [FIRMWARE]
-    steer_esp32_mark_deg            the equivalent angle of the command 20 = mechanical limit - 1 deg [SIM_ASSUMED; the
-                                    field B3 measurement replaces it]
     lidar_x_in_base_m               [MEASURED_20261116]; lidar_yaw_offset_deg [ESTIMATED, the 10/10 mount value]
     footprint_length_m / _width_m   [SPEC_PENDING, the catalogue values]
     steer_rotation_centre_x_m       rear_axle_x_in_base_m [DEFINITION]
+  from the newest field record (field_steer_record.executor_values; the first one, field_steer_20261116_2212: front
+  wheels lifted, standstill, steering only, drive 0, a capacitor on the potentiometer; not a driving result)
+    steer_esp32_cal                 the CAL line saved in the board's NVS [FIRMWARE_NVS]
+    steer_esp32_mark_deg            equivalent wheel angle of the command 20 [ESTIMATED from the pot ends and the
+                                    user's ~20 deg; no angle meter]
+    steer_measured_rate_*_deg_s     mark / the slowest full-range step time [MEASURED_<date>_LIFTED], equivalent deg/s
+    steer_rate_limit_*_deg_s        0.8 x the measured rate [USER_DECISION, todo 0.00 da-6], rounded down
+    steer_rate_min_deg_s            the same (the steering GO threshold, at most 0.8 x the measured rate)
+    steer_servo_deadband_deg        the firmware target tolerance 10 counts [FIRMWARE] in equivalent degrees (CAL, mark)
+    steer_polarity_checked          the record's B0 flag (false: not checked yet)
+    steer_range_measured            the record's B2 / B3 flag (false: no angle meter)
   left null (unknown until measured in the field): breakaway_duty_pct (C2), v_measured_m_s (C3),
-    measured_stop_distance_m (C7), steer_measured_rate_*_deg_s (B5 + the GO threshold decision), steer_range_measured
-    (B2 / B3), steer_wheel_soft_margin_deg, steer_min_pwm_pct (B4), steer_zero_offset_deg (F1), steer_polarity_checked
-    (B0); steer_esp32_require_fw_watchdog stays true (the board firmware of 2026-11-16 has no drive watchdog).
+    measured_stop_distance_m (C7), steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg
+    (F1); steer_esp32_require_fw_watchdog stays true (the board firmware reports DRIVE_WD=300 since 2026-11-16).
+  Without a record (--no-field-record, record=None) the board values come from the profile as before the field record:
+    steer_esp32_cal = the profile's abs_hold_fw CAL [FIRMWARE, the original marks], steer_esp32_mark_deg = the SIM
+    mechanical limit - 1 deg [SIM_ASSUMED], steer_rate_limit_* = 0.8 x the board step response of the profile
+    (steer_step_time_measured_s), steer_measured_rate_* null, steer_rate_min_deg_s the placeholder 8, the deadband from
+    the profile's CAL.
 
 CLI (from sim/ubts): python -B -m steering.vehicle_executor_config --out <file> [--profile <yaml>] [--tuning-file PATH]
---check <file> compares a written file with the generator (exit 1 when it differs).
+[--record <yaml> | --no-field-record] [--sources]. --check <file> compares a written file with the generator (exit 1 when
+it differs).
 """
 from __future__ import annotations
 
@@ -45,6 +54,7 @@ BIND_HOST = '127.0.0.1'
 BIND_PORT = 8097
 DEFAULT_TUNING_FILE = '/var/lib/row_executor/field_tuning.json'   # the kit's writable copy (the package default bytes)
 REPO = Path(__file__).resolve().parents[3]
+NEWEST = 'newest'                     # vehicle_values(record=NEWEST): the newest field steering record
 
 
 def _row_executor_config():
@@ -60,9 +70,21 @@ def load(profile_path=None):
     return load_profile(Path(profile_path) if profile_path else PROFILES_DIR / (PROFILE_ID + '.yaml'))
 
 
-def vehicle_values(profile, tuning_file=DEFAULT_TUNING_FILE):
-    """The ExecutorConfig fields of the vehicle configuration (module docstring) and their sources."""
+def field_record(record=NEWEST):
+    """The field steering record to use: NEWEST (the latest measured_at), None (no record), a path or a loaded record."""
+    from . import field_steer_record as FSR
+    if record is None or isinstance(record, FSR.FieldSteerRecord):
+        return record
+    if isinstance(record, str) and record == NEWEST:
+        return FSR.newest()
+    return FSR.load(record)
+
+
+def vehicle_values(profile, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):
+    """The ExecutorConfig fields of the vehicle configuration (module docstring) and their sources. record: NEWEST (the
+    newest field steering record), None (the profile only, as before the field record), a path or a loaded record."""
     from . import abs_hold
+    from . import field_steer_record as FSR
     from . import host_profile_export as hpe
     XC = _row_executor_config()
     value = profile.value
@@ -102,33 +124,56 @@ def vehicle_values(profile, tuning_file=DEFAULT_TUNING_FILE):
         unmeasured='breakaway_duty_pct, v_measured_m_s, measured_stop_distance_m, steer_measured_rate_*, '
                    'steer_range_measured, steer_wheel_soft_margin_deg, steer_min_pwm_pct, steer_zero_offset_deg, '
                    'steer_polarity_checked: null / false until measured in the field')
+    record = field_record(record)
+    if record is None:
+        sources['field_record'] = None
+        return values, sources
+    from row_executor.bridge_client import ESP32_FIRMWARE
+    board, board_sources = FSR.executor_values(record, firmware_name=ESP32_FIRMWARE,
+                                               command_limit_deg=XC.ESP32_COMMAND_LIMIT_DEG)
+    values.update(board)
+    sources.update(board_sources)
+    sources['steer_rate_limit_standstill_deg_s'] = sources['steer_rate_limit_deg_s']
+    sources['steer_rate_min_deg_s'] = sources['steer_rate_limit_deg_s']
+    sources['steer_measured_rate_standstill_deg_s'] = sources['steer_measured_rate_deg_s']
+    sources['unmeasured'] = ('breakaway_duty_pct (C2), v_measured_m_s (C3), measured_stop_distance_m (C7), '
+                             'steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg (F1): '
+                             'null until measured in the field; drive direction not verified; %s'
+                             % ', '.join('%s %s' % (name, values[name]) for name in
+                                         ('steer_polarity_checked', 'steer_range_measured')))
     return values, sources
 
 
-def vehicle_config(profile=None, tuning_file=DEFAULT_TUNING_FILE):
+def vehicle_config(profile=None, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):
     XC = _row_executor_config()
-    values, _ = vehicle_values(profile or load(), tuning_file)
+    values, _ = vehicle_values(profile or load(), tuning_file, record)
     return replace(XC.ExecutorConfig(), **values).validate()
 
 
-def render(profile=None, tuning_file=DEFAULT_TUNING_FILE):
+def render(profile=None, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):
     XC = _row_executor_config()
-    return XC.dumps(vehicle_config(profile, tuning_file))
+    return XC.dumps(vehicle_config(profile, tuning_file, record))
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument('--profile', default=None)
     p.add_argument('--tuning-file', default=DEFAULT_TUNING_FILE)
+    which = p.add_mutually_exclusive_group()
+    which.add_argument('--record', default=NEWEST,
+                       help='field steering record file (default: the newest one in steering/field_records/)')
+    which.add_argument('--no-field-record', dest='record', action='store_const', const=None,
+                       help='build from the profile only (the board values as before the field record)')
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--out')
     group.add_argument('--check')
     p.add_argument('--sources', action='store_true', help='print the value sources as JSON')
     args = p.parse_args(argv)
     profile = load(args.profile)
-    text = render(profile, args.tuning_file)
+    record = field_record(args.record)
+    text = render(profile, args.tuning_file, record)
     if args.sources:
-        print(json.dumps(vehicle_values(profile, args.tuning_file)[1], indent=1, sort_keys=True))
+        print(json.dumps(vehicle_values(profile, args.tuning_file, record)[1], indent=1, sort_keys=True))
     if args.check:
         same = Path(args.check).read_bytes() == text.encode('utf-8')
         print('%s: %s' % (args.check, 'same as the generator' if same else 'DIFFERS from the generator'))

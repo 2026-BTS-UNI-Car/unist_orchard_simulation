@@ -298,7 +298,10 @@ class Config(unittest.TestCase):
         self.assertTrue(problems(steer_bridge_kind='other'))
         self.assertTrue(problems(steer_esp32_mark_deg=None))
         self.assertTrue(problems(steer_wheelbase_m=None))
-        self.assertTrue(problems(steer_limit_left_mrad=330))             # 330 x 1.12 command mrad > 349
+        beyond = int(C.ESP32_BRIDGE_LIMIT_MRAD / C.esp32_scale(cfg)) + 1   # the first soft limit past +-20 command deg
+        self.assertTrue(problems(steer_limit_left_mrad=beyond))
+        self.assertTrue(problems(steer_limit_right_mrad=beyond))
+        self.assertEqual(problems(steer_limit_left_mrad=beyond - 1, steer_limit_right_mrad=beyond - 1), [])
         self.assertTrue(problems(steer_allow_sim=True))
         self.assertTrue(C.esp32_rule_problems(replace(cfg, steer_bridge_kind='v3')))   # esp32 keys without the kind
         self.assertEqual(C.steer_fault_reason(['pot_invalid']), 'steering_feedback_invalid')

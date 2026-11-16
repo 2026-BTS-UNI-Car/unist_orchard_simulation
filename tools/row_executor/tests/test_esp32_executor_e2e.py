@@ -7,14 +7,17 @@ Needs the dashboard repository with the ESP32 bridge: UBTS_DASH_DIR=<dashboard c
 skipped otherwise. Every request and reply goes through JSON as on the control socket. The bridge handles queued
 requests in its 20 ms step like its loop thread. Run alone (it imports the dashboard's 'scripts' package):
     UBTS_DASH_DIR=<dashboard> python -B -m pytest -q -p no:cacheprovider tools/row_executor/tests/test_esp32_executor_e2e.py
-Checked: no drive line before an armed run's go, the arm precheck (drive direction verified, firmware drive watchdog),
-the steering sign and scale (executor left + -> firmware ANGLE -, measured back), the ANGLE policy, the page STOP, the
-operator heartbeat loss (drive 0, no restart), the executor stopping (the bridge input deadline), the steering
+The fake board runs the runtime-calibration firmware (cal_runtime, dashboard 1463c8b or later) with the configured CAL
+marks in its NVS, as the vehicle's board since 2026-11-16 (the marks of the newest field steering record).
+Checked: no drive line before an armed run's go, the arm precheck (drive direction verified, firmware drive watchdog,
+the CAL line: another configured line or a board whose NVS marks were lost is refused), the steering sign and scale
+(executor left + -> firmware ANGLE -, measured back), the ANGLE policy, the page STOP, the operator heartbeat loss (drive 0, no restart), the executor stopping (the bridge input deadline), the steering
 not-following latch, an invalid potentiometer and that op motion never reaches the bridge.
 Test numbers only (the motor values are test values, not field measurements); no plant: the scene is static.
 """
 import concurrent.futures
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -33,16 +36,17 @@ from test_steer_executor import SCENE
 SESSION = 'esp32-screen-0001'
 WALL0 = 1.7e9
 PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Test numbers for the motor side (not field values): the vehicle config of the kit plus feasible motor values.
+# Test numbers for what the field has not measured yet (not field values): the vehicle config of the kit (its board
+# values, the CAL marks and the steering rates, from the newest field steering record) plus feasible motor values.
 MOTOR_TEST = dict(motor_output_enabled=True, tuning_file=None, breakaway_duty_pct=20, v_measured_m_s=.42,
-                  measured_stop_distance_m=.2, steer_measured_rate_deg_s=5.094,
-                  steer_measured_rate_standstill_deg_s=5.094, steer_rate_min_deg_s=4.0, steer_range_measured=True,
+                  measured_stop_distance_m=.2, steer_range_measured=True,
                   steer_wheel_soft_margin_deg=3., steer_min_pwm_pct=10., steer_zero_offset_deg=0.,
                   steer_polarity_checked=True, steer_esp32_require_fw_watchdog=False)
 
 
 def dashboard():
-    """(esp32_abs_hold, esp32_steer_bridge, fake_esp32) of the dashboard checkout, or a skip reason."""
+    """(esp32_abs_hold, esp32_steer_bridge, fake_esp32) of the dashboard checkout, or a skip reason (also when its fake
+    board has no runtime calibration: the vehicle's marks live in the board's NVS)."""
     try:
         root = L.dash_dir()
     except RuntimeError as exc:
@@ -54,6 +58,8 @@ def dashboard():
     spec = importlib.util.spec_from_file_location('ubts_dash_fake_esp32', os.path.join(root, 'tests', 'fake_esp32.py'))
     fake = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fake)
+    if 'cal_runtime' not in inspect.signature(fake.FakeEsp32).parameters:
+        return None, '%s: tests/fake_esp32.py has no cal_runtime (needs the dashboard 1463c8b or later)' % root
     return (esp, bridge, fake), None
 
 
@@ -65,6 +71,13 @@ def vehicle_config(**over):
     values = dict(MOTOR_TEST)
     values.update(over)
     return replace(cfg, **values).validate()
+
+
+def board_options(cal=None):
+    """FakeEsp32 options of the vehicle's board: the runtime-calibration firmware with the CAL marks (default: the
+    committed vehicle configuration's steer_esp32_cal) saved in its NVS."""
+    right, center, left, _ = cal or C.load_config(os.path.join(PACKAGE, 'config.vehicle_esp32_shadow.json')).steer_esp32_cal
+    return dict(cal_runtime=True, nvs=dict(right=right, center=center, left=left, ver=1))
 
 
 class Clock:
@@ -136,7 +149,7 @@ class Esp32Rig:
         esp, bridge_mod, fake_mod = DASH
         self.fake_mod = fake_mod
         self.clock = Clock()
-        options = dict(pot=float(fake_mod.CENTER))
+        options = dict(pot=float(fake_mod.CENTER), **board_options())
         options.update(fake_options or {})
         self.fake = fake_mod.FakeEsp32(self.clock, **options)
         self.tr = fake_mod.FakeTransport(self.fake)
@@ -256,9 +269,29 @@ class ArmAndStart(unittest.TestCase):
         self.assertTrue(rig.request('arm')['ok'])
 
     def test_arm_needs_the_configured_cal_line(self):
-        rig = Esp32Rig(cfg=vehicle_config(steer_esp32_cal=(1680, 1900, 2180, 20)))
+        right, center, left, full = vehicle_config().steer_esp32_cal
+        rig = Esp32Rig(cfg=vehicle_config(steer_esp32_cal=(right - 1, center, left, full)))
         rig.request('start', row_len_m=None)
         self.assertEqual(rig.request('arm')['error'], 'arm_precheck:calibration_mismatch')
+        self.assertEqual(rig.board_lines(prefix='ANGLE'), [])
+
+    def test_arm_with_the_board_cal_from_nvs(self):
+        rig = Esp32Rig()
+        status = rig.bridge.request({'op': 'status'})
+        board = status['steering']['cal']
+        self.assertEqual(tuple(board[k] for k in ('right', 'center', 'left', 'max_command')),
+                         tuple(rig.cfg.steer_esp32_cal))
+        self.assertEqual(board.get('store'), 'NVS')
+        rig.request('start', row_len_m=None)
+        self.assertTrue(rig.request('arm')['ok'])
+
+    def test_arm_refused_when_the_board_lost_its_nvs_marks(self):
+        rig = Esp32Rig(fake_options=dict(nvs={}))          # the firmware falls back to its built-in default marks
+        status = rig.bridge.request({'op': 'status'})
+        self.assertEqual(status['steering']['cal'].get('store'), 'DEFAULT')
+        rig.request('start', row_len_m=None)
+        self.assertEqual(rig.request('arm')['error'], 'arm_precheck:calibration_mismatch')
+        self.assertEqual(rig.drive_lines(), [])
 
 
 @unittest.skipIf(DASH is None, SKIP or '')
@@ -275,7 +308,7 @@ class Driving(unittest.TestCase):
         angles = [float(line.split()[1]) for _, line in rig.board_lines(None, 'ANGLE')]
         self.assertTrue(angles and all(a <= 0 for a in angles), angles)        # left = firmware minus
         scale = 20. / rig.cfg.steer_esp32_mark_deg
-        expected = -math.degrees(goal / 1000.) * scale                          # -6.43 command deg
+        expected = -math.degrees(goal / 1000.) * scale                          # command deg = -eq deg x 20 / mark
         self.assertAlmostEqual(angles[-1], round(expected), delta=.01)
         self.assertGreater(rig.fake.pot, rig.fake_mod.CENTER + 40)              # the pot moved to the left
         measured = rig.loop.runner.steer_monitor.measured_mrad()
@@ -364,7 +397,9 @@ class AdapterOnly(unittest.TestCase):
         cfg = vehicle_config()
         adapter = Esp32AbsHoldAdapter.from_config(cfg, lambda request: {'ok': True})
         client = Esp32SteerBridgeClient.from_config(cfg, adapter)
-        self.assertEqual((client.limit_left_mrad, client.expect_cal), (281, (1681, 1900, 2180, 20)))
+        self.assertIsNotNone(cfg.steer_esp32_cal)
+        self.assertEqual((client.limit_left_mrad, client.expect_cal), (281, tuple(cfg.steer_esp32_cal)))
+        self.assertEqual(client.require_fw_watchdog, cfg.steer_esp32_require_fw_watchdog)
 
 
 if __name__ == '__main__':
