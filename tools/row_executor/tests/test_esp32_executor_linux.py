@@ -4,8 +4,8 @@ transport code with a fake udev identity, flock, TIOCEXCL, termios) -> a pty who
 firmware (dashboard tests/fake_esp32.py) in a thread (docs/steering/EXECUTOR_ESP32_KO.md 6).
 
 Needs Linux (pty, Unix sockets) and UBTS_DASH_DIR=<dashboard checkout with scripts/esp32_steer_bridge.py>; skipped
-otherwise. The fake board runs the runtime-calibration firmware with the configured CAL marks in its NVS (the vehicle's
-board, test_esp32_executor_e2e.board_options). Checked: arm -> go drives the board and steers to the left with a
+otherwise. The fake board is the vehicle's board: the runtime-calibration SMOOTH firmware with the configured CAL marks
+in its NVS (test_esp32_executor_e2e.board_options; dashboard da39e8a or later). Checked: arm -> go drives the board and steers to the left with a
 negative ANGLE; the page STOP zeroes the drive and ends the run operator_stop; when the executor stops stepping
 (killed) the bridge's input deadline zeroes the drive; SIGTERM of the bridge zeroes the drive and the executor ends
 the run on the lost socket. Test numbers only; static scene.
@@ -13,7 +13,6 @@ Run alone (it imports the dashboard's 'scripts' package):
     UBTS_DASH_DIR=<dashboard> python3 -B -m pytest -q -p no:cacheprovider tools/row_executor/tests/test_esp32_executor_linux.py
 """
 import importlib.util
-import inspect
 import os
 import signal
 import subprocess
@@ -28,7 +27,7 @@ import rowexec_testlib as L
 from row_executor import executor_main as M
 from row_executor.bridge_client import LATCHED
 from row_executor.core import ACTIVE, ENDED, Runner
-from test_esp32_executor_e2e import SESSION, Steady, board_options, vehicle_config
+from test_esp32_executor_e2e import SESSION, Steady, board_options, fake_board_problem, vehicle_config
 from test_executor_loop import imu_msg, scan_msg
 from test_steer_executor import SCENE
 
@@ -47,8 +46,9 @@ def dashboard():
     spec = importlib.util.spec_from_file_location('ubts_dash_fake_esp32_rt', os.path.join(root, 'tests', 'fake_esp32.py'))
     fake = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fake)
-    if 'cal_runtime' not in inspect.signature(fake.FakeEsp32).parameters:
-        return None, None, '%s: tests/fake_esp32.py has no cal_runtime (needs the dashboard 1463c8b or later)' % root
+    problem = fake_board_problem(fake, root)
+    if problem:
+        return None, None, problem
     return root, fake, None
 
 
@@ -64,7 +64,7 @@ class PtyBoard:
         self.master, self.slave = pty.openpty()
         tty.setraw(self.master)
         self.path = os.ttyname(self.slave)
-        self.fake = FAKE.FakeEsp32(time.monotonic, reset_on_open=False, pot=float(FAKE.CENTER), **board_options())
+        self.fake = FAKE.FakeEsp32(time.monotonic, reset_on_open=False, **board_options())
         self.fake.boot()
         self.fake.out.clear()
         self.lock = threading.Lock()
@@ -227,7 +227,7 @@ class RealTime(unittest.TestCase):
         time.sleep(2.)
         angles = [line for _, line in self.board.received() if line.startswith('ANGLE')]
         self.assertTrue(angles and all(float(a.split()[1]) <= 0 for a in angles), angles)   # left = firmware minus
-        self.assertGreater(self.board.fake.pot, FAKE.CENTER + 20)
+        self.assertGreater(self.board.fake.pot, vehicle_config().steer_esp32_cal[1] + 20)
         t0 = time.monotonic()
         reply = ex.loop.emergency_stop('operator_page')
         self.assertTrue(reply['stop_sent'])

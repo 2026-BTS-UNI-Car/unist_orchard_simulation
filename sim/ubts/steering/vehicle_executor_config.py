@@ -16,15 +16,18 @@ executor reports it as 'unknown' and refuses motor output until it is measured):
     lidar_x_in_base_m               [MEASURED_20261116]; lidar_yaw_offset_deg [ESTIMATED, the 10/10 mount value]
     footprint_length_m / _width_m   [SPEC_PENDING, the catalogue values]
     steer_rotation_centre_x_m       rear_axle_x_in_base_m [DEFINITION]
-  from the newest field record (field_steer_record.executor_values; the first one, field_steer_20261116_2212: front
-  wheels lifted, standstill, steering only, drive 0, a capacitor on the potentiometer; not a driving result)
+  from the newest field record (field_steer_record.executor_values; field_steer_20261116_2212 the pulse hold, then
+  field_steer_20261116_2321 the SMOOTH firmware r5: front wheels lifted, standstill, steering only, drive 0, a
+  capacitor on the potentiometer; not a driving result)
     steer_esp32_cal                 the CAL line saved in the board's NVS [FIRMWARE_NVS]
     steer_esp32_mark_deg            equivalent wheel angle of the command 20 [ESTIMATED from the pot ends and the
                                     user's ~20 deg; no angle meter]
-    steer_measured_rate_*_deg_s     mark / the slowest full-range step time [MEASURED_<date>_LIFTED], equivalent deg/s
+    steer_measured_rate_*_deg_s     mark / the slowest step time per 20 command deg (the record's rate_rule)
+                                    [MEASURED_<date>_LIFTED], equivalent deg/s
     steer_rate_limit_*_deg_s        0.8 x the measured rate [USER_DECISION, todo 0.00 da-6], rounded down
     steer_rate_min_deg_s            the same (the steering GO threshold, at most 0.8 x the measured rate)
-    steer_servo_deadband_deg        the firmware target tolerance 10 counts [FIRMWARE] in equivalent degrees (CAL, mark)
+    steer_servo_deadband_deg        the firmware stop tolerance [FIRMWARE] (pulse hold 10 counts, smooth hold SM
+                                    STOP_TOL) in equivalent degrees (CAL, mark)
     steer_polarity_checked          the record's B0 flag (false: not checked yet)
     steer_range_measured            the record's B2 / B3 flag (false: no angle meter)
   left null (unknown until measured in the field): breakaway_duty_pct (C2), v_measured_m_s (C3),

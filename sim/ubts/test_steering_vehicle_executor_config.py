@@ -50,9 +50,13 @@ def shifted_doc(record, hours, **cal):
     return doc
 
 
-def slowest_full_step_s(record):
+def rate_seconds(record):
+    """Seconds per max_command command degrees by the record's rate_rule (written out here, not the module's code)."""
     full = record.value('esp32_cal')['max_command']
-    return max(s['reached_s'] for s in record.value('step_response')['steps'] if abs(s['to'] - s['from']) == full)
+    steps = record.value('step_response')['steps']
+    if record.value('rate_rule') == 'slowest_full_range_step':
+        return max(s['reached_s'] for s in steps if abs(s['to'] - s['from']) == full)
+    return max(s['reached_s'] * full / abs(s['to'] - s['from']) for s in steps)
 
 
 class VehicleExecutorConfig(unittest.TestCase):
@@ -79,7 +83,7 @@ class VehicleExecutorConfig(unittest.TestCase):
         mark = record.value('mark_angle_deg')
         self.assertEqual(cfg.steer_esp32_cal, (cal['right'], cal['center'], cal['left'], cal['max_command']))
         self.assertEqual(cfg.steer_esp32_mark_deg, mark)
-        self.assertAlmostEqual(cfg.steer_measured_rate_deg_s, mark / slowest_full_step_s(record), delta=1e-3)
+        self.assertAlmostEqual(cfg.steer_measured_rate_deg_s, mark / rate_seconds(record), delta=1e-3)
         self.assertEqual(cfg.steer_measured_rate_standstill_deg_s, cfg.steer_measured_rate_deg_s)
         self.assertAlmostEqual(cfg.steer_rate_limit_deg_s, record.value('rate_fraction') * cfg.steer_measured_rate_deg_s,
                                delta=1e-3)
@@ -102,7 +106,7 @@ class VehicleExecutorConfig(unittest.TestCase):
         self.assertLessEqual(cfg.steer_rate_limit_standstill_deg_s, cfg.steer_rate_limit_deg_s)
         self.assertGreaterEqual(measured, cfg.steer_rate_min_deg_s)                            # GO rate rule passes
         # the same rule on the board's command scale (the adapter converts with the same mark angle)
-        board_rate = record.value('esp32_cal')['max_command'] / slowest_full_step_s(record)
+        board_rate = record.value('esp32_cal')['max_command'] / rate_seconds(record)
         self.assertLessEqual(cfg.steer_rate_limit_deg_s * XC.esp32_scale(cfg), fraction * board_rate + 1e-9)
         # not confirmed yet: polarity (B0), range with an angle meter (B2 / B3), drive direction; drive values null
         self.assertIs(cfg.steer_polarity_checked, False)
@@ -198,60 +202,115 @@ class NewestRecordWins(unittest.TestCase):
 
 
 class RecordValidation(unittest.TestCase):
+    """Every committed record (schema v1 and v2) passes; each change below is refused, for every record."""
+
     def setUp(self):
-        self.base = FSR.newest()
         self.dir = tempfile.mkdtemp(prefix='field_records_bad_')
         self.addCleanup(shutil.rmtree, self.dir, True)
 
-    def check(self, doc):
-        path = write_record(self.dir, doc, stem=self.base.record_id)
+    def check(self, doc, stem):
+        path = write_record(self.dir, doc, stem=stem)
         return FSR.executor_values(FSR.load(path), firmware_name=FIRMWARE, command_limit_deg=20.)
 
-    def test_the_committed_record_passes(self):
-        self.check(yaml.safe_load(self.base.path.read_bytes()))
-        with self.assertRaises(FSR.RecordError):                    # another command scale than the executor's
-            FSR.executor_values(self.base, firmware_name=FIRMWARE, command_limit_deg=30.)
+    def each_record(self):
+        for record in FSR.records():
+            with self.subTest(record=record.record_id):
+                yield record, yaml.safe_load(record.path.read_bytes())
+
+    def test_the_committed_records_pass(self):
+        for record, doc in self.each_record():
+            self.check(doc, record.record_id)
+            with self.assertRaises(FSR.RecordError):                    # another command scale than the executor's
+                FSR.executor_values(record, firmware_name=FIRMWARE, command_limit_deg=30.)
 
     def test_refusals(self):
         def v(name):
             return lambda doc: doc['values'][name]
-        cases = [
+
+        def fw(doc):
+            return doc['values']['firmware']['value']
+        common = [
             lambda doc: v('mark_angle_deg')(doc).update(provenance='MEASURED'),                 # unknown tag
             lambda doc: v('mark_angle_deg')(doc).update(provenance='MEASURED_20261131_LIFTED'),  # no such date
             lambda doc: v('mark_angle_deg')(doc).update(source=''),
             lambda doc: v('mark_angle_deg')(doc).update(value=60.),
             lambda doc: v('esp32_cal')(doc)['value'].update(left=v('end_left')(doc)['value']['pot'] + 1),  # outside end
-            lambda doc: v('esp32_cal')(doc)['value'].update(right=2000),                         # order
-            lambda doc: v('esp32_cal')(doc)['value'].update(left=2600),                          # beyond the guard
+            lambda doc: v('esp32_cal')(doc)['value'].update(right=v('esp32_cal')(doc)['value']['center'] + 1),  # order
+            lambda doc: v('esp32_cal')(doc)['value'].update(left=fw(doc)['guard_left'] + 1),     # beyond the guard
             lambda doc: v('polarity_checked')(doc).update(value=True),                           # true but NOT_MEASURED
             lambda doc: v('range_measured')(doc).update(provenance='USER_VISUAL'),               # false needs NOT_MEASURED
-            lambda doc: v('step_response')(doc)['value'].update(steps=[{'from': 0, 'to': 10, 'reached_s': 1.6}]),
+            lambda doc: (v('step_response')(doc)['value'].update(steps=[{'from': 0, 'to': 10, 'reached_s': 1.6}]),
+                         doc['derive']['rate_rule'].update(value='slowest_full_range_step')),    # no full-range step
+            lambda doc: v('step_response')(doc)['value']['steps'].append({'from': 5, 'to': 5, 'reached_s': 1.}),
             lambda doc: v('pot_noise_rest')(doc)['value'].update(p2p=3),
             lambda doc: doc['derive']['rate_fraction'].update(value=1.2),
             lambda doc: doc['derive']['rate_rule'].update(value='mean_of_all'),
             lambda doc: doc.update(measured_at='2026-11-16T22:13:00+09:00'),                     # file name differs
-            lambda doc: doc.update(measured_at='2026-11-16T22:12:00'),                           # no offset
+            lambda doc: doc.update(measured_at=doc['measured_at'][:19]),                          # no offset
             lambda doc: doc['conditions'].update(wheels='ground'),                               # kind lifted
             lambda doc: doc.update(extra=1),
-            lambda doc: v('firmware')(doc)['value'].update(name='OTHER-FW'),                     # executor expects
+            lambda doc: doc.update(schema='ubts.field_steer_record.v9'),
+            lambda doc: fw(doc).update(name='OTHER-FW'),                                         # executor expects
         ]
-        for i, change in enumerate(cases):
-            with self.subTest(case=i):
-                doc = yaml.safe_load(self.base.path.read_bytes())
+        v2_only = [
+            lambda doc: fw(doc).update(fw_tokens=[t for t in fw(doc)['fw_tokens'] if t != 'SMOOTH=1']),  # no token
+            lambda doc: fw(doc).update(target_tol_counts=10),                                    # not the SM STOP_TOL
+            lambda doc: fw(doc).update(drive_watchdog_ms=500),                                   # not DRIVE_WD=300
+            lambda doc: fw(doc).update(center_guard=[1800, 2000]),                               # CENTER outside
+            lambda doc: fw(doc).update(app_sha256='F448'),
+            lambda doc: fw(doc).update(hold_mode='servo'),
+            lambda doc: fw(doc).pop('sm'),
+            lambda doc: v('step_response')(doc)['value'].update(scale='firmware_angle_right_plus'),
+            lambda doc: v('step_response')(doc)['value'].update(timing='guess'),
+            lambda doc: v('polarity_evidence')(doc)['value'].update(pot_increases_toward='right'),  # against the FW sign
+            lambda doc: v('polarity_evidence')(doc)['value'].update(observations=[]),
+            lambda doc: doc['values'].pop('polarity_evidence'),
+        ]
+        refused = 0
+        for record, base in self.each_record():
+            cases = common + (v2_only if base['schema'] == FSR.SCHEMA_V2 else [])
+            for i, change in enumerate(cases):
+                doc = yaml.safe_load(record.path.read_bytes())
                 change(doc)
-                with self.assertRaises(FSR.RecordError):
-                    self.check(doc)
+                with self.assertRaises(FSR.RecordError, msg='case %d' % i):
+                    self.check(doc, record.record_id)
+                refused += 1
+        self.assertGreaterEqual(refused, len(common) * 2 + len(v2_only))   # both schemas were exercised
 
     def test_rates_are_rounded_down(self):
-        doc = yaml.safe_load(self.base.path.read_bytes())
-        for step in doc['values']['step_response']['value']['steps']:
-            if abs(step['to'] - step['from']) == 20:
-                step['reached_s'] = 3.0
-        doc['values']['mark_angle_deg']['value'] = 17.999
-        values, _ = self.check(doc)
-        self.assertEqual(values['steer_measured_rate_deg_s'], math.floor(17.999 / 3.0 * 1000) / 1000)
-        self.assertLessEqual(values['steer_rate_limit_deg_s'], .8 * values['steer_measured_rate_deg_s'])
-        self.assertEqual(values['steer_rate_min_deg_s'], values['steer_rate_limit_deg_s'])
+        for record, doc in self.each_record():
+            for step in doc['values']['step_response']['value']['steps']:
+                if abs(step['to'] - step['from']) == 20:
+                    step['reached_s'] = 3.0
+            doc['values']['mark_angle_deg']['value'] = 17.999
+            values, _ = self.check(doc, record.record_id)
+            self.assertEqual(values['steer_measured_rate_deg_s'], math.floor(17.999 / 3.0 * 1000) / 1000)
+            self.assertLessEqual(values['steer_rate_limit_deg_s'], .8 * values['steer_measured_rate_deg_s'])
+            self.assertEqual(values['steer_rate_min_deg_s'], values['steer_rate_limit_deg_s'])
+
+
+class SmoothFirmwareRecord(unittest.TestCase):
+    """The SMOOTH firmware (FW line word SMOOTH=1, same firmware name) is a board the executor accepts: its records load,
+    their values reach the configuration, and the stop tolerance of the smooth hold is the SM STOP_TOL."""
+
+    def test_smooth_records(self):
+        smooth = [r for r in FSR.records() if r.schema == FSR.SCHEMA_V2 and r.value('firmware')['hold_mode'] == 'smooth']
+        self.assertTrue(smooth)                                          # records are never removed
+        XC = V._row_executor_config()
+        from row_executor import bridge_client as B
+        for record in smooth:
+            fw = record.value('firmware')
+            self.assertIn('SMOOTH=1', fw['fw_tokens'])
+            self.assertEqual(fw['name'], B.ESP32_FIRMWARE)
+            self.assertEqual(fw['target_tol_counts'], fw['sm']['STOP_TOL'])
+            evidence = record.value('polarity_evidence')
+            self.assertEqual(evidence['pot_increases_toward'], 'left')     # POT_DECREASES toward the right
+            self.assertIs(record.value('polarity_checked'), False)          # evidence is not the B0 check
+            values, sources = FSR.executor_values(record, firmware_name=B.ESP32_FIRMWARE,
+                                                  command_limit_deg=XC.ESP32_COMMAND_LIMIT_DEG)
+            cfg = V.vehicle_config(record=record)
+            self.assertEqual(cfg.steer_esp32_cal, values['steer_esp32_cal'])
+            self.assertIn('smooth hold', sources['steer_servo_deadband_deg'])
 
 
 class ShadowLoop(unittest.TestCase):

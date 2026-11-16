@@ -7,8 +7,9 @@ Needs the dashboard repository with the ESP32 bridge: UBTS_DASH_DIR=<dashboard c
 skipped otherwise. Every request and reply goes through JSON as on the control socket. The bridge handles queued
 requests in its 20 ms step like its loop thread. Run alone (it imports the dashboard's 'scripts' package):
     UBTS_DASH_DIR=<dashboard> python -B -m pytest -q -p no:cacheprovider tools/row_executor/tests/test_esp32_executor_e2e.py
-The fake board runs the runtime-calibration firmware (cal_runtime, dashboard 1463c8b or later) with the configured CAL
-marks in its NVS, as the vehicle's board since 2026-11-16 (the marks of the newest field steering record).
+The fake board is the vehicle's board (board_options): the runtime-calibration SMOOTH firmware (FW line word SMOOTH=1,
+dashboard da39e8a or later; skipped with an older fake) with the configured CAL marks in its NVS (the marks of the newest
+field steering record).
 Checked: no drive line before an armed run's go, the arm precheck (drive direction verified, firmware drive watchdog,
 the CAL line: another configured line or a board whose NVS marks were lost is refused), the steering sign and scale
 (executor left + -> firmware ANGLE -, measured back), the ANGLE policy, the page STOP, the operator heartbeat loss (drive 0, no restart), the executor stopping (the bridge input deadline), the steering
@@ -28,7 +29,7 @@ from dataclasses import replace
 import rowexec_testlib as L
 from row_executor import config as C
 from row_executor import executor_main as M
-from row_executor.bridge_client import ARMED, LATCHED, Esp32AbsHoldAdapter, Esp32SteerBridgeClient
+from row_executor.bridge_client import ARMED, ESP32_POLICY, LATCHED, Esp32AbsHoldAdapter, Esp32SteerBridgeClient
 from row_executor.core import ACTIVE, ENDED, PAUSED, Runner
 from test_executor_loop import imu_msg, scan_msg
 from test_steer_executor import SCENE
@@ -36,6 +37,7 @@ from test_steer_executor import SCENE
 SESSION = 'esp32-screen-0001'
 WALL0 = 1.7e9
 PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BOARD_FIRMWARE_OPTIONS = ('cal_runtime', 'smooth')   # FakeEsp32 options the vehicle board needs (board_options)
 # Test numbers for what the field has not measured yet (not field values): the vehicle config of the kit (its board
 # values, the CAL marks and the steering rates, from the newest field steering record) plus feasible motor values.
 MOTOR_TEST = dict(motor_output_enabled=True, tuning_file=None, breakaway_duty_pct=20, v_measured_m_s=.42,
@@ -58,9 +60,20 @@ def dashboard():
     spec = importlib.util.spec_from_file_location('ubts_dash_fake_esp32', os.path.join(root, 'tests', 'fake_esp32.py'))
     fake = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fake)
-    if 'cal_runtime' not in inspect.signature(fake.FakeEsp32).parameters:
-        return None, '%s: tests/fake_esp32.py has no cal_runtime (needs the dashboard 1463c8b or later)' % root
+    problem = fake_board_problem(fake, root)
+    if problem:
+        return None, problem
     return (esp, bridge, fake), None
+
+
+def fake_board_problem(fake, root):
+    """Why the dashboard's fake board cannot be the vehicle's board (None when it can): it needs the runtime
+    calibration and the SMOOTH firmware (dashboard da39e8a or later)."""
+    params = inspect.signature(fake.FakeEsp32).parameters
+    if not all(name in params for name in BOARD_FIRMWARE_OPTIONS):
+        return ('%s: tests/fake_esp32.py has no %s (the vehicle board: dashboard da39e8a or later)'
+                % (root, ' / '.join(BOARD_FIRMWARE_OPTIONS)))
+    return None
 
 
 DASH, SKIP = dashboard()
@@ -74,10 +87,11 @@ def vehicle_config(**over):
 
 
 def board_options(cal=None):
-    """FakeEsp32 options of the vehicle's board: the runtime-calibration firmware with the CAL marks (default: the
-    committed vehicle configuration's steer_esp32_cal) saved in its NVS."""
+    """FakeEsp32 options of the vehicle's board: the runtime-calibration SMOOTH firmware (FW line SMOOTH=1) with the CAL
+    marks (default: the committed vehicle configuration's steer_esp32_cal) saved in its NVS, the wheels at the centre
+    mark."""
     right, center, left, _ = cal or C.load_config(os.path.join(PACKAGE, 'config.vehicle_esp32_shadow.json')).steer_esp32_cal
-    return dict(cal_runtime=True, nvs=dict(right=right, center=center, left=left, ver=1))
+    return dict(cal_runtime=True, smooth=True, nvs=dict(right=right, center=center, left=left, ver=1), pot=float(center))
 
 
 class Clock:
@@ -145,13 +159,16 @@ class Lockstep:
 class Esp32Rig:
     """ExecutorLoop (front_steer MOTOR, one_press, ESP32 bridge) + the dashboard ESP32 bridge + the fake board."""
 
-    def __init__(self, cfg=None, controller=None, direction_verified=True, fake_options=None, **motor_options):
+    def __init__(self, cfg=None, controller=None, direction_verified=True, fake_options=None, pulse_hold=False,
+                 **motor_options):
         esp, bridge_mod, fake_mod = DASH
         self.fake_mod = fake_mod
         self.clock = Clock()
-        options = dict(pot=float(fake_mod.CENTER), **board_options())
+        options = board_options()
         options.update(fake_options or {})
         self.fake = fake_mod.FakeEsp32(self.clock, **options)
+        if pulse_hold:                     # 'SM OFF' + 'SM SAVE' on the same firmware: FW line SMOOTH=0 at the next boot
+            self.fake.sm_saved = (False, dict(fake_mod.SM_DEFAULTS))
         self.tr = fake_mod.FakeTransport(self.fake)
         self.motor = esp.Esp32SteerMotor(self.tr, self.clock, direction_verified=direction_verified, **motor_options)
         self.bridge = bridge_mod.Esp32Bridge(self.motor, self.clock, wall_clock=lambda: WALL0 + self.clock.t)
@@ -285,6 +302,21 @@ class ArmAndStart(unittest.TestCase):
         rig.request('start', row_len_m=None)
         self.assertTrue(rig.request('arm')['ok'])
 
+    def test_smooth_firmware_is_accepted(self):
+        rig = Esp32Rig()
+        self.assertTrue(rig.fake.smooth_fw)
+        status = rig.bridge.request({'op': 'status'})
+        self.assertEqual(status['firmware'], 'ABS-HOLD-8-REBOUND-LIMITS')       # the name the executor checks
+        self.assertIs(status['steering']['smooth']['firmware'], True)           # the bridge read SMOOTH=1
+        self.assertEqual(status['drive']['firmware_watchdog_ms'], None)          # this fake: no DRIVE_WD word
+        rig.request('start', row_len_m=None)
+        self.assertTrue(rig.request('arm')['ok'])
+        # with the drive watchdog word too (the vehicle's FW line: DRIVE_WD=300 CAL_RUNTIME=1 SMOOTH=1), watchdog required
+        rig = Esp32Rig(cfg=vehicle_config(steer_esp32_require_fw_watchdog=True), fake_options=dict(drive_watchdog_ms=300))
+        self.assertIs(rig.bridge.request({'op': 'status'})['steering']['smooth']['firmware'], True)
+        rig.request('start', row_len_m=None)
+        self.assertTrue(rig.request('arm')['ok'])
+
     def test_arm_refused_when_the_board_lost_its_nvs_marks(self):
         rig = Esp32Rig(fake_options=dict(nvs={}))          # the firmware falls back to its built-in default marks
         status = rig.bridge.request({'op': 'status'})
@@ -297,8 +329,15 @@ class ArmAndStart(unittest.TestCase):
 @unittest.skipIf(DASH is None, SKIP or '')
 class Driving(unittest.TestCase):
     def test_drive_steering_sign_and_scale(self):
+        self.sign_and_scale(pulse_hold=False)
+
+    def test_drive_steering_sign_and_scale_pulse_hold(self):
+        self.sign_and_scale(pulse_hold=True)
+
+    def sign_and_scale(self, pulse_hold):
         goal = 100                                        # equivalent mrad, + left (5.73 deg)
-        rig = Esp32Rig(controller=Steady(throttle=30, goal_mrad=goal, rate_mrad_s=40.))
+        rig = Esp32Rig(controller=Steady(throttle=30, goal_mrad=goal, rate_mrad_s=40.), pulse_hold=pulse_hold)
+        self.assertIs(rig.bridge.request({'op': 'status'})['steering']['smooth']['firmware'], not pulse_hold)
         rig.running(self)
         rig.run(3.5)                                      # (the static scene ends a run after about 6 s: no response)
         drives = rig.drive_lines()                        # a drive value is written when it changes
@@ -310,11 +349,17 @@ class Driving(unittest.TestCase):
         scale = 20. / rig.cfg.steer_esp32_mark_deg
         expected = -math.degrees(goal / 1000.) * scale                          # command deg = -eq deg x 20 / mark
         self.assertAlmostEqual(angles[-1], round(expected), delta=.01)
-        self.assertGreater(rig.fake.pot, rig.fake_mod.CENTER + 40)              # the pot moved to the left
+        self.assertGreater(rig.fake.pot, rig.cfg.steer_esp32_cal[1] + 40)       # the pot moved to the left
         measured = rig.loop.runner.steer_monitor.measured_mrad()
         self.assertAlmostEqual(measured, goal, delta=25.)                        # back in equivalent mrad, + left
         adapter = rig.loop.esp32
-        self.assertLessEqual(adapter.counts['target_changes'], 4 + 2)            # about one target per second
+        if pulse_hold:
+            self.assertLessEqual(adapter.counts['target_changes'], 4 + 2)        # about one target per second
+        else:
+            # the smooth hold reaches each target at once, so the policy's 'board reached it' lets the next target go
+            # as soon as it differs by the deadband: at most one per deadband of the ramp, plus the first one
+            ramp = int(abs(expected) / ESP32_POLICY['deadband_deg'])
+            self.assertLessEqual(adapter.counts['target_changes'], 1 + ramp + 1)
         self.assertEqual(rig.loop.runner.state, ACTIVE)
         self.assertNotIn('motion', rig.socket.ops)                               # op motion stays in the executor
 

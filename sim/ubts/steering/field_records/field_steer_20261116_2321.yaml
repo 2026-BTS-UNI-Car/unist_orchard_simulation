@@ -1,0 +1,133 @@
+# 현장 조향 측정 기록 field_steer_20261116_2321 (차량 ESP32-S3 보드, 2026-11-16 밤, SMOOTH 펌웨어 r5)
+# 앞바퀴를 땅에서 띄운 채(차체 받침), 조향만, 구동 0 에서 잰 값이다. 주행 결과가 아니고 땅에 닿은 조향의 값도 아니다.
+# 이 파일은 버전 파일이다. 고치지 않는다. 앞 기록 field_steer_20261116_2212 를 대신한다(그 파일은 그대로 둔다).
+# 시각은 직렬 기록의 시각(Jetson·PC 시계, KST)이다: 끝 찾기 22:38, 가운데 눈 확인 22:40~22:50, CAL SET·CAL SAVE 22:52(펌웨어 r2),
+# r5 쓰기와 r5 계단 응답 23:21, SM SMOOTH 저장 23:22. measured_at 은 r5 계단 응답의 시각이다.
+# 출처 태그: MEASURED_<YYYYMMDD>_LIFTED 바퀴 든 정지 상태의 현장 측정, FIRMWARE 펌웨어 소스·STATUS 줄, FIRMWARE_NVS 보드 NVS 에 저장된 값,
+# USER_VISUAL 사용자가 눈으로 확인, ESTIMATED 근거에서 추정, USER_DECISION 사용자 결정, DEFINITION 정의(계산 규칙), NOT_MEASURED 아직 하지 않음.
+schema: ubts.field_steer_record.v2
+record_id: field_steer_20261116_2321
+vehicle: ubts_orchard_rover
+measured_at: '2026-11-16T23:21:00+09:00'
+result_kind: field_lifted_standstill
+conditions:
+  wheels: lifted
+  vehicle_motion: standstill
+  steering_only: true
+  drive_pwm_cap: 0
+  pot_capacitor: true
+  battery: 모름. 같은 끝에서 끝 움직임(PWM 80)이 22:54 에 1.92 s, 23:06 에 2.49 s 로 느려졌다(배터리 전압 저하나 접지·배선 접촉 의심, 확인 안 함)
+  note: 차체를 받쳐 앞바퀴를 띄우고, Jetson 에서 보드 직렬로 조향 명령만 보냄(구동 명령 없음, drive_pwm_cap 0 = 이 측정 동안 구동 PWM 0). 사용자가 차 옆에서
+    눈으로 봄. 가변저항 축전기는 22:04 전에 단 그대로, 가변저항 GND 는 ESP32 GND 핀(사용자)
+  logs: 레포 밖 작업 기록 runs/steer_smooth_20261116/(NOTES_KO.txt, logs/find_summary.txt, logs/smooth_find.log, logs/flash_r2_and_cal.log,
+    logs/smooth_r4_rest.log, logs/smooth_r5_sweep.log, fw/build_r5/)
+values:
+  firmware:
+    value:
+      name: ABS-HOLD-8-REBOUND-LIMITS
+      cal_runtime: true
+      drive_watchdog_ms: 300
+      target_tol_counts: 6
+      restart_tol_counts: 16
+      guard_right: 1300
+      guard_left: 2600
+      app_sha256: f448b2db81efcde4e54570bb06c79c1e6ba5a3ce29672a45793aedf244c5f9ac
+      fw_tokens: [F=RIGHT, POT_DECREASES, DRIVE_WD=300, CAL_RUNTIME=1, SMOOTH=1]
+      center_guard: [1850, 2150]
+      hold_mode: smooth
+      sm: {PWM_MIN: 60, PWM_MAX: 80, SLOW: 200, STOP_TOL: 6, RESTART_TOL: 16, RAMP: 12, SETTLE_MS: 120, STALL_MS: 200, BOOST: 15,
+        MAX_RUN_MS: 5000, BRAKE_MS: 40, QUIET_MS: 15, QUIET_US: 1500}
+    provenance: FIRMWARE
+    source: 'STATUS 줄 "FW: ABS-HOLD-8-REBOUND-LIMITS F=RIGHT POT_DECREASES DRIVE_WD=300 CAL_RUNTIME=1 SMOOTH=1", "GUARD=1300..2600"(smooth_r5_sweep.log
+      23:21). 이름은 그대로이고 SMOOTH=1 이 새 낱말. 앱 sha256 은 r5 빌드(fw/build_r5/smooth_r5_app.bin); 보드가 r5 라는 증거는 TRACE 머리의 quiet 칸(r5 에서
+      더함). SM 줄(MODE=SMOOTH)은 23:21 SM ON(STORE=UNSAVED) 뒤 23:22 SM SAVE 로 NVS 에 저장(조정 쪽 기록). 부드러운 유지는 STOP_TOL 6 안에서 서고
+      RESTART_TOL 16 에서 다시 간다(그래서 target_tol_counts 6, restart_tol_counts 16). 가운데 한계 1850..2150 은 r2 부터'
+  esp32_cal:
+    value: {right: 1475, center: 2017, left: 2513, max_command: 20}
+    provenance: FIRMWARE_NVS
+    source: 'CAL SET CENTER 2017, CAL SET RIGHT 1475, CAL SET LEFT 2513, CAL SAVE -> "CAL: RIGHT=1475 CENTER=2017 LEFT=2513 MAX_COMMAND=20 STORE=NVS"
+      (flash_r2_and_cal.log 22:52, 펌웨어 r2), r5 에서도 같은 줄(smooth_r5_sweep.log 23:21). 표시 = 찾은 끝(end_left 2543, end_right 1445)에서 30 count
+      안쪽, 가운데 = center_straight'
+  end_left:
+    value: {pot: 2543, stop_reason: REBOUND, pulses: 9, pulse_ms: 100, start_pot: 1911, other_scans: [{pot: 2551, stop_reason: NO_PROGRESS,
+          pulse_ms: 60}, {pot: 2549, stop_reason: NO_PROGRESS, pulse_ms: 60}]}
+    provenance: MEASURED_20261116_LIFTED
+    source: CAL FIND LEFT(22:38) 100 ms 펄스 1911 -> 2543 REBOUND, 60 ms 펄스 두 번 2551, 2549 NO_PROGRESS(펄스당 진척 48 -> 34 -> 30 -> 10 -> 4 -> 0, 약 2537
+      부터 걸림). 표시는 가장 안쪽 2543 에서 30 count 안쪽. 앞 기록의 2493 은 하드 한계 2500 에 막힌 자리였다(find_summary.txt)
+  end_right:
+    value: {pot: 1445, stop_reason: REBOUND, pulses: 3, pulse_ms: 60, start_pot: 1525, earlier_record_pot: 1439}
+    provenance: MEASURED_20261116_LIFTED
+    source: CAL FIND RIGHT(22:38) 60 ms 펄스 1525 -> 1445 REBOUND. 그 앞 1573 에서 시작한 한 번은 첫 펄스에 119 count 되튐으로 바로 멈춰 쓰지 않음.
+      앞 기록은 1439(find_summary.txt)
+  center_straight:
+    value: {command_deg: 0, pot_min: 2006, pot_max: 2029, wheels_straight: true, center_mark: 2017}
+    provenance: USER_VISUAL
+    source: 사용자 눈 확인(22:40~22:50) 2006(왼쪽에서 다가옴) 곧음, 2029(마지막에 왼쪽에서 다가옴) 곧음 -> 가운데 2017 = 두 값의 가운데. 2009(오른쪽에서
+      다가옴)는 "오른쪽으로 대략 1도 이하"로 보임(유격일 수 있음, 크기 미측정). 각도계 측정이 아니라 0점 오차(F1)는 미측정
+  step_response:
+    value:
+      timing: firmware_drive_ms
+      scale: bridge_command_deg_left_plus
+      final_error_counts: 8
+      steps:
+      - {from: 0, to: 20, reached_s: 1.439}
+      - {from: 20, to: -20, reached_s: 2.127}
+      - {from: -20, to: 20, reached_s: 2.431}
+      - {from: 20, to: 0, reached_s: 1.087}
+      - {from: 0, to: -10, reached_s: 0.591}
+      - {from: -10, to: 0, reached_s: 0.703}
+      - {from: 0, to: 10, reached_s: 0.543}
+      - {from: 10, to: 0, reached_s: 0.655}
+    provenance: MEASURED_20261116_LIFTED
+    source: r5 SMOOTH 계단(smooth_r5_sweep.log 23:21, PWM_MAX 80). 보드 ANGLE 은 + 오른쪽이라 여기서는 부호를 바꿔 + 왼쪽(브리지 명령도)으로 적음(보드 ANGLE -20
+      = +20). reached_s = 한 번의 연속 구동 시간(QUIET 줄 DRIVE_MS; 호스트 지연·120 ms 정착·40 ms 제동은 빠짐). 모든 움직임이 한 번에 끝남, 최종 오차 8 count
+      안, 취소 0. 첫 움직임(0 -> +20)은 정지에서 시작. 달리는 동안 조용한 읽기 값의 10 ms 변화 최대 20 count(946 쌍), 원값과 조용한 읽기의 차가 40 count
+      넘은 표본 19 / 954(2.0 %). 바퀴 든 정지 상태라 땅에 닿은 조향이나 주행 중 조향 속도가 아니다
+  pot_noise_rest:
+    value: {samples: 601, seconds: 6, min: 2017, max: 2031, p2p: 14, stdev: 1.17, median: 2026, raw_min: 1885, raw_max: 2075, raw_stdev: 11.92,
+      raw_over40_samples: 10}
+    provenance: MEASURED_20261116_LIFTED
+    source: smooth_r4_rest.log(23:07, 펌웨어 r4, SMOOTH=1, CAL 1475/2017/2513) TRACE 10 ms 6 s, 모터 꺼짐. min..stdev 는 펌웨어가 위치로 쓰는 거른 값,
+      raw_* 는 거르기 전 ADC 값(중앙값에서 40 count 넘게 벗어난 표본 10 / 601). 앞 기록(브리지 상태 약 10 Hz 30 s)과 표본 방식이 다르다
+  mark_angle_deg:
+    value: 18.9
+    provenance: ESTIMATED
+    source: 가변저항이 선형이고 두 끝(end_right 1445, end_left 2543)이 사용자가 말한 물리 한계 약 20 도라고 보면 명령 20 은 오른쪽 20 x 542 / 572 = 18.95,
+      왼쪽 20 x 496 / 526 = 18.86, 평균 약 18.9 도. 각도계로 재지 않음(B3). 왼쪽 끝을 60 ms 스캔의 2551 로 보면 왼쪽 18.58. 20 도가 바퀴각이면(프로필
+      steer_mech_limit_deg 의 해석, Ackermann 0.5 는 SPEC_PENDING) 등가각 끝은 18.83 도라 이 값은 약 17.8 도가 된다
+  polarity_checked:
+    value: false
+    provenance: NOT_MEASURED
+    source: B0(설계 3.9, 바퀴 든 채 낮은 PWM 으로 양쪽 조금씩 움직여 가변저항과 바퀴가 기대 방향으로 가는지, 조향 EN 차단이 출력을 끊는지)를 그 절차로 하지
+      않음. 아래 polarity_evidence 는 그 일부(가변저항 증가 = 바퀴 왼쪽)를 받치는 눈 확인이지만, 왼쪽 명령에 바퀴가 왼쪽으로 도는 것을 직접 본 확인과 EN 차단
+      확인은 없다
+  polarity_evidence:
+    value:
+      pot_increases_toward: left
+      observations:
+      - {pot: 1913, seen: right_of_straight}
+      - {pot: 2009, seen: about_1_deg_or_less_right, approached_from: right}
+      - {pot: 2006, seen: straight, approached_from: left}
+      - {pot: 2029, seen: straight, approached_from: left}
+    provenance: USER_VISUAL
+    source: 사용자 눈 확인(22:45 "지금이 정 중앙은 아니야. 오른쪽으로 조금 틀어져있는 상태임" at 1913, 22:40~22:50 의 가운데 확인). 가변저항이 클수록 바퀴가
+      왼쪽 -> 펌웨어 부호 POT_DECREASES(오른쪽으로 갈수록 준다)와 같다. 또 r5 계단의 모든 ANGLE 이 한 번의 구동으로 목표에 닿아 모터 방향과 가변저항 방향이
+      맞는다(폐루프가 수렴). 2009 와 2029 의 차이는 유격일 수 있다
+  range_measured:
+    value: false
+    provenance: NOT_MEASURED
+    source: 각도계로 잰 조향 범위(B2/B3) 없음. 끝은 가변저항 값과 사용자 눈으로만 앎
+  drive_direction_verified:
+    value: false
+    provenance: NOT_MEASURED
+    source: 구동 방향, C2 출발 duty, C3 속도, C7 정지 거리 모두 미측정(이 측정 동안 구동 명령 없음)
+derive:
+  rate_rule:
+    value: slowest_per_full_range
+    provenance: DEFINITION
+    source: 측정 조향 속도 = 모든 계단을 20 명령도당 시간으로 바꾼 것(시간 x 20 / |이동|) 가운데 가장 느린 것. 첫 움직임 0 -> +20 의 1.439 s(13.9 명령도/s).
+      끝에서 끝은 20 명령도당 1.064 / 1.216 s, 10 명령도 계단은 1.09~1.41 s
+  rate_fraction:
+    value: 0.8
+    provenance: USER_DECISION
+    source: todo 0.00 다-6(2026-11-16 04:10) 실행기 조향 GO 문턱과 변화율 한도는 첫 조향 시험에서 잰 조향 속도의 0.8 배 이하

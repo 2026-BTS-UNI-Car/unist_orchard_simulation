@@ -218,6 +218,17 @@ class Precheck(unittest.TestCase):
                                             limit_left_mrad=281, limit_right_mrad=281, now=100.5),
                          'firmware_v3_required')
 
+    def test_smooth_firmware_status_passes(self):
+        # the bridge of the SMOOTH firmware (FW line word SMOOTH=1): the same firmware name, a smooth block in the
+        # steering status and finer pacing; the executor's checks do not depend on it
+        status = esp_status(watchdog=300, steer_control=dict(kind='esp32_abs_hold', angle_quantum_deg=.25,
+                                                             angle_min_interval_ms=200, smooth=True))
+        status['steering']['smooth'] = dict(firmware=True, mode='SMOOTH', params=dict(STOP_TOL=6, RESTART_TOL=16),
+                                            store='NVS', age_s=0., last_reply=None, data_lines=0)
+        self.assertIsNone(self.check(status, require_fw_watchdog=True))
+        status['steering']['smooth'] = dict(firmware=False, mode='PULSE', params=None, store='NVS')   # SMOOTH=0
+        self.assertIsNone(self.check(status, require_fw_watchdog=True))
+
     def test_each_rule(self):
         cases = [
             (dict(ok=False), {}, 'status_not_ok'),
