@@ -3,7 +3,9 @@
 - 작성: 2026-11-16 (작업 jetson-autonomy). 대상: 2026-11-16 차에 달린 ESP32-S3 보드(펌웨어 `ABS-HOLD-8-REBOUND-LIMITS`, BTS7960 3개)와
   그 Jetson 브리지(대시보드 레포 `scripts/esp32_steer_bridge.py`, `ROVER_ESP_KIND=esp32_abs_hold`).
 - 앞 문서: [`EXECUTOR_STEER_KO.md`](EXECUTOR_STEER_KO.md)(V3 브리지와 실행기), [`HOST_BRIDGE_V3_KO.md`](HOST_BRIDGE_V3_KO.md), [`OPERATOR_API_KO.md`](OPERATOR_API_KO.md),
-  [`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md)(새 보드 펌웨어의 SIM 흉내와 SIM 호스트 정책).
+  [`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md)(새 보드 펌웨어의 SIM 흉내와 SIM 호스트 정책), [`SMOOTH_R5_SIM_KO.md`](SMOOTH_R5_SIM_KO.md)
+  (2026-11-17: 차에 저장된 SMOOTH 유지 r5 의 SIM 흉내 `smooth_r5`, 보드 보정·SM 값의 프로필 `front_steer_v2_field_20261116`, 이 문서 3.4절의
+  SMOOTH 정책과 같은 0.25 명령도·0.2 s SIM 호스트 정책).
 - 수치는 자리값, SIM 제안, 또는 2026-11-16 보드 시험 값이다. 가짜 보드로 확인한 것이며 차에서 확인하지 않았다.
 - 고침 2026-11-16 밤(작업 field-steer-config): 차량 설정의 보드 값(CAL, 명령 눈금, 조향 속도)을 **현장 조향 기록**에서 읽는다(3절).
   그 값은 앞바퀴를 띄운 정지 상태에서 조향만 움직여 잰 현장 측정이다. 주행 결과가 아니다.

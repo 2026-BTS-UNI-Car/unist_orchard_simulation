@@ -140,7 +140,8 @@ struct ExtConfig {
   double push_sd_nm, push_corr_length_m;                             // pushing torque (OU in distance)
 };
 
-// Optional startup block "steer_law" (vehicle profile schema v4, steer_fw_mode abs_hold_8; firmware mode only):
+// Optional startup block "steer_law" with kind abs_hold_8 (vehicle profile schema v4, steer_fw_mode abs_hold_8;
+// firmware mode only):
 // the steering law of the real board firmware ABS-HOLD-8-REBOUND-LIMITS replaces the V3 servo law (abs_hold8.h).
 // Absent: the V3 law runs and the session is bit-identical to one without the block. Counts of a 12-bit ADC, ms.
 struct LawConfig {
@@ -182,6 +183,70 @@ struct LawConfig {
   int host_min_interval_ms, host_poll_ms;
 };
 
+// Optional startup block "steer_law" with kind smooth_r5 (vehicle profile schema v5, steer_fw_mode smooth_r5;
+// firmware mode only): the SMOOTH hold of the board firmware r5 replaces the V3 servo law (smooth_r5.h). Counts of a
+// 12-bit ADC, ms. The defaults are the firmware's compile-time defaults (SM_DEFAULTS) and constants.
+struct SmoothLawConfig {
+  SmoothLawConfig()
+      : present(false),
+        cal_right(1681),
+        cal_center(1900),
+        cal_left(2180),
+        command_max_deg(20.0),
+        pwm_min(60),
+        pwm_max(100),
+        slow(120),
+        stop_tol(6),
+        restart_tol(16),
+        ramp(12),
+        settle_ms(120),
+        stall_ms(200),
+        boost(15),
+        max_run_ms(5000),
+        brake_ms(40),
+        quiet_ms(15),
+        quiet_us(1500),
+        progress_counts(4),
+        max_runs(4),
+        reverse_pause_ms(60),
+        ramp_tick_ms(10),
+        rebound_max(20),
+        rebound_window_ms(100),
+        guard(15),
+        sample_ms(5),
+        median_of(5),
+        pair_tol(20),
+        stale_ms(100),
+        slew_min(10),
+        slew_per_ms(2),
+        hard_right_min(1300),
+        hard_left_max(2600),
+        limit_margin(100),
+        adc_powered_offset(0),
+        adc_burst_counts(0),
+        adc_burst_ms(0),
+        adc_burst_period_ms(0),
+        host_step_deg(0.25),
+        host_deadband_deg(0.25),
+        host_min_interval_ms(200),
+        host_poll_ms(200) {}
+  bool present;
+  int cal_right, cal_center, cal_left;
+  double command_max_deg;
+  // SM parameters (NVS steer_sm)
+  int pwm_min, pwm_max, slow, stop_tol, restart_tol, ramp, settle_ms, stall_ms, boost, max_run_ms, brake_ms, quiet_ms,
+      quiet_us;
+  // compile-time constants of the smooth hold
+  int progress_counts, max_runs, reverse_pause_ms, ramp_tick_ms, rebound_max, rebound_window_ms, guard;
+  // potentiometer filter (readPotValue, r4 slew limit) and validity window
+  int sample_ms, median_of, pair_tol, stale_ms, slew_min, slew_per_ms, hard_right_min, hard_left_max, limit_margin;
+  // SIM ADC path placeholders while the steering driver is powered (0 = off)
+  int adc_powered_offset, adc_burst_counts, adc_burst_ms, adc_burst_period_ms;
+  // SIM host ANGLE policy
+  double host_step_deg, host_deadband_deg;
+  int host_min_interval_ms, host_poll_ms;
+};
+
 struct Config {
   Config() : protocol(1), mode(0), seed(0), tick_hz(0), mcu_baud(0) {}
   int protocol;  // 1 or 2 (startup protocol string; frame header version)
@@ -197,7 +262,8 @@ struct Config {
   ExtConfig ext;         // optional steer_ext block
   uint32_t mcu_baud;     // v2 firmware mode: mcu.baud (checked against the compiled firmware baud)
   FirmwareConfig fw;     // v2 firmware mode
-  LawConfig law;         // optional steer_law block (firmware mode)
+  LawConfig law;         // optional steer_law block (firmware mode), kind abs_hold_8
+  SmoothLawConfig smooth;  // optional steer_law block (firmware mode), kind smooth_r5
 };
 
 class ConfigError : public std::runtime_error {

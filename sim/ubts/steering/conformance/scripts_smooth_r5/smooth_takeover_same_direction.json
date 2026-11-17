@@ -1,0 +1,1063 @@
+{
+ "schema": "ubts.steer_conformance.v1",
+ "name": "smooth_takeover_same_direction",
+ "spec": [
+  "r5.updateSmoothHold",
+  "r5.moveSteeringToAngle",
+  "r5.readPotValue",
+  "SMOOTH_R5_SIM_KO"
+ ],
+ "description": "같은 방향 새 목표 이어받기. 틱 210 에 ANGLE -12.00(목표 2315)으로 왼쪽 구동 중, 틱 320 부터 S 900 -> 틱 410 에 ANGLE -18.00(목표 2463). 구동 중 같은 방향이고 STOP_TOL 보다 멀어 멈추지 않고 이어받는다(smRuns 1, 구동 시간 한도 다시 시작): 틱 403..416(두 조용한 읽기 사이) PWM 80 그대로, EN 끔 없음. 이어받지 않으면 410 에 멈추고 PWM 60 으로 다시 출발한다. 대본 ADC 는 230 부터 4 틱에 1 raw.",
+ "setup": {
+  "boot_seed": 1,
+  "chip_id": "5A1B2C",
+  "profile": "front_steer_v2_field_20261116",
+  "eeprom": {
+   "record": {
+    "cal_id": 7,
+    "raw_l": 842,
+    "raw_c": 512,
+    "raw_r": 181,
+    "soft_l": 935,
+    "soft_r": -935,
+    "pol_ok": 1,
+    "mdir": 1,
+    "params": {
+     "svhz": 1000
+    }
+   }
+  },
+  "adc": {
+   "mode": "script",
+   "raw": 512
+  }
+ },
+ "inputs": [
+  {
+   "tick": 10,
+   "text": "ARM {boot}*{crc}\n"
+  },
+  {
+   "tick": 20,
+   "text": "C 1 300 0 0 600*{crc}\n"
+  },
+  {
+   "tick": 120,
+   "text": "C 2 300 0 0 600*{crc}\n"
+  },
+  {
+   "tick": 220,
+   "text": "C 3 300 0 0 600*{crc}\n"
+  },
+  {
+   "tick": 320,
+   "text": "C 4 300 0 0 900*{crc}\n"
+  },
+  {
+   "tick": 420,
+   "text": "C 5 300 0 0 900*{crc}\n"
+  },
+  {
+   "tick": 520,
+   "text": "C 6 300 0 0 900*{crc}\n"
+  },
+  {
+   "tick": 620,
+   "text": "C 7 300 0 0 900*{crc}\n"
+  },
+  {
+   "tick": 720,
+   "text": "C 8 300 0 0 900*{crc}\n"
+  },
+  {
+   "tick": 820,
+   "text": "C 9 300 0 0 900*{crc}\n"
+  }
+ ],
+ "events": [
+  {
+   "tick": 230,
+   "kind": "adc_set",
+   "raw": 513
+  },
+  {
+   "tick": 234,
+   "kind": "adc_set",
+   "raw": 514
+  },
+  {
+   "tick": 238,
+   "kind": "adc_set",
+   "raw": 515
+  },
+  {
+   "tick": 242,
+   "kind": "adc_set",
+   "raw": 516
+  },
+  {
+   "tick": 246,
+   "kind": "adc_set",
+   "raw": 517
+  },
+  {
+   "tick": 250,
+   "kind": "adc_set",
+   "raw": 518
+  },
+  {
+   "tick": 254,
+   "kind": "adc_set",
+   "raw": 519
+  },
+  {
+   "tick": 258,
+   "kind": "adc_set",
+   "raw": 520
+  },
+  {
+   "tick": 262,
+   "kind": "adc_set",
+   "raw": 521
+  },
+  {
+   "tick": 266,
+   "kind": "adc_set",
+   "raw": 522
+  },
+  {
+   "tick": 270,
+   "kind": "adc_set",
+   "raw": 523
+  },
+  {
+   "tick": 274,
+   "kind": "adc_set",
+   "raw": 524
+  },
+  {
+   "tick": 278,
+   "kind": "adc_set",
+   "raw": 525
+  },
+  {
+   "tick": 282,
+   "kind": "adc_set",
+   "raw": 526
+  },
+  {
+   "tick": 286,
+   "kind": "adc_set",
+   "raw": 527
+  },
+  {
+   "tick": 290,
+   "kind": "adc_set",
+   "raw": 528
+  },
+  {
+   "tick": 294,
+   "kind": "adc_set",
+   "raw": 529
+  },
+  {
+   "tick": 298,
+   "kind": "adc_set",
+   "raw": 530
+  },
+  {
+   "tick": 302,
+   "kind": "adc_set",
+   "raw": 531
+  },
+  {
+   "tick": 306,
+   "kind": "adc_set",
+   "raw": 532
+  },
+  {
+   "tick": 310,
+   "kind": "adc_set",
+   "raw": 533
+  },
+  {
+   "tick": 314,
+   "kind": "adc_set",
+   "raw": 534
+  },
+  {
+   "tick": 318,
+   "kind": "adc_set",
+   "raw": 535
+  },
+  {
+   "tick": 322,
+   "kind": "adc_set",
+   "raw": 536
+  },
+  {
+   "tick": 326,
+   "kind": "adc_set",
+   "raw": 537
+  },
+  {
+   "tick": 330,
+   "kind": "adc_set",
+   "raw": 538
+  },
+  {
+   "tick": 334,
+   "kind": "adc_set",
+   "raw": 539
+  },
+  {
+   "tick": 338,
+   "kind": "adc_set",
+   "raw": 540
+  },
+  {
+   "tick": 342,
+   "kind": "adc_set",
+   "raw": 541
+  },
+  {
+   "tick": 346,
+   "kind": "adc_set",
+   "raw": 542
+  },
+  {
+   "tick": 350,
+   "kind": "adc_set",
+   "raw": 543
+  },
+  {
+   "tick": 354,
+   "kind": "adc_set",
+   "raw": 544
+  },
+  {
+   "tick": 358,
+   "kind": "adc_set",
+   "raw": 545
+  },
+  {
+   "tick": 362,
+   "kind": "adc_set",
+   "raw": 546
+  },
+  {
+   "tick": 366,
+   "kind": "adc_set",
+   "raw": 547
+  },
+  {
+   "tick": 370,
+   "kind": "adc_set",
+   "raw": 548
+  },
+  {
+   "tick": 374,
+   "kind": "adc_set",
+   "raw": 549
+  },
+  {
+   "tick": 378,
+   "kind": "adc_set",
+   "raw": 550
+  },
+  {
+   "tick": 382,
+   "kind": "adc_set",
+   "raw": 551
+  },
+  {
+   "tick": 386,
+   "kind": "adc_set",
+   "raw": 552
+  },
+  {
+   "tick": 390,
+   "kind": "adc_set",
+   "raw": 553
+  },
+  {
+   "tick": 394,
+   "kind": "adc_set",
+   "raw": 554
+  },
+  {
+   "tick": 398,
+   "kind": "adc_set",
+   "raw": 555
+  },
+  {
+   "tick": 402,
+   "kind": "adc_set",
+   "raw": 556
+  },
+  {
+   "tick": 406,
+   "kind": "adc_set",
+   "raw": 557
+  },
+  {
+   "tick": 410,
+   "kind": "adc_set",
+   "raw": 558
+  },
+  {
+   "tick": 414,
+   "kind": "adc_set",
+   "raw": 559
+  },
+  {
+   "tick": 418,
+   "kind": "adc_set",
+   "raw": 560
+  },
+  {
+   "tick": 422,
+   "kind": "adc_set",
+   "raw": 561
+  },
+  {
+   "tick": 426,
+   "kind": "adc_set",
+   "raw": 562
+  },
+  {
+   "tick": 430,
+   "kind": "adc_set",
+   "raw": 563
+  },
+  {
+   "tick": 434,
+   "kind": "adc_set",
+   "raw": 564
+  },
+  {
+   "tick": 438,
+   "kind": "adc_set",
+   "raw": 565
+  },
+  {
+   "tick": 442,
+   "kind": "adc_set",
+   "raw": 566
+  },
+  {
+   "tick": 446,
+   "kind": "adc_set",
+   "raw": 567
+  },
+  {
+   "tick": 450,
+   "kind": "adc_set",
+   "raw": 568
+  },
+  {
+   "tick": 454,
+   "kind": "adc_set",
+   "raw": 569
+  },
+  {
+   "tick": 458,
+   "kind": "adc_set",
+   "raw": 570
+  },
+  {
+   "tick": 462,
+   "kind": "adc_set",
+   "raw": 571
+  },
+  {
+   "tick": 466,
+   "kind": "adc_set",
+   "raw": 572
+  },
+  {
+   "tick": 470,
+   "kind": "adc_set",
+   "raw": 573
+  },
+  {
+   "tick": 474,
+   "kind": "adc_set",
+   "raw": 574
+  },
+  {
+   "tick": 478,
+   "kind": "adc_set",
+   "raw": 575
+  },
+  {
+   "tick": 482,
+   "kind": "adc_set",
+   "raw": 576
+  },
+  {
+   "tick": 486,
+   "kind": "adc_set",
+   "raw": 577
+  },
+  {
+   "tick": 490,
+   "kind": "adc_set",
+   "raw": 578
+  },
+  {
+   "tick": 494,
+   "kind": "adc_set",
+   "raw": 579
+  },
+  {
+   "tick": 498,
+   "kind": "adc_set",
+   "raw": 580
+  },
+  {
+   "tick": 502,
+   "kind": "adc_set",
+   "raw": 581
+  },
+  {
+   "tick": 506,
+   "kind": "adc_set",
+   "raw": 582
+  },
+  {
+   "tick": 510,
+   "kind": "adc_set",
+   "raw": 583
+  },
+  {
+   "tick": 514,
+   "kind": "adc_set",
+   "raw": 584
+  },
+  {
+   "tick": 518,
+   "kind": "adc_set",
+   "raw": 585
+  },
+  {
+   "tick": 522,
+   "kind": "adc_set",
+   "raw": 586
+  },
+  {
+   "tick": 526,
+   "kind": "adc_set",
+   "raw": 587
+  },
+  {
+   "tick": 530,
+   "kind": "adc_set",
+   "raw": 588
+  },
+  {
+   "tick": 534,
+   "kind": "adc_set",
+   "raw": 589
+  },
+  {
+   "tick": 538,
+   "kind": "adc_set",
+   "raw": 590
+  },
+  {
+   "tick": 542,
+   "kind": "adc_set",
+   "raw": 591
+  },
+  {
+   "tick": 546,
+   "kind": "adc_set",
+   "raw": 592
+  },
+  {
+   "tick": 550,
+   "kind": "adc_set",
+   "raw": 593
+  },
+  {
+   "tick": 554,
+   "kind": "adc_set",
+   "raw": 594
+  },
+  {
+   "tick": 558,
+   "kind": "adc_set",
+   "raw": 595
+  },
+  {
+   "tick": 562,
+   "kind": "adc_set",
+   "raw": 596
+  },
+  {
+   "tick": 566,
+   "kind": "adc_set",
+   "raw": 597
+  },
+  {
+   "tick": 570,
+   "kind": "adc_set",
+   "raw": 598
+  },
+  {
+   "tick": 574,
+   "kind": "adc_set",
+   "raw": 599
+  },
+  {
+   "tick": 578,
+   "kind": "adc_set",
+   "raw": 600
+  },
+  {
+   "tick": 582,
+   "kind": "adc_set",
+   "raw": 601
+  },
+  {
+   "tick": 586,
+   "kind": "adc_set",
+   "raw": 602
+  },
+  {
+   "tick": 590,
+   "kind": "adc_set",
+   "raw": 603
+  },
+  {
+   "tick": 594,
+   "kind": "adc_set",
+   "raw": 604
+  },
+  {
+   "tick": 598,
+   "kind": "adc_set",
+   "raw": 605
+  },
+  {
+   "tick": 602,
+   "kind": "adc_set",
+   "raw": 606
+  },
+  {
+   "tick": 606,
+   "kind": "adc_set",
+   "raw": 607
+  },
+  {
+   "tick": 610,
+   "kind": "adc_set",
+   "raw": 608
+  },
+  {
+   "tick": 614,
+   "kind": "adc_set",
+   "raw": 609
+  },
+  {
+   "tick": 618,
+   "kind": "adc_set",
+   "raw": 610
+  },
+  {
+   "tick": 622,
+   "kind": "adc_set",
+   "raw": 611
+  },
+  {
+   "tick": 626,
+   "kind": "adc_set",
+   "raw": 612
+  },
+  {
+   "tick": 630,
+   "kind": "adc_set",
+   "raw": 613
+  },
+  {
+   "tick": 634,
+   "kind": "adc_set",
+   "raw": 614
+  },
+  {
+   "tick": 638,
+   "kind": "adc_set",
+   "raw": 615
+  },
+  {
+   "tick": 642,
+   "kind": "adc_set",
+   "raw": 616
+  },
+  {
+   "tick": 646,
+   "kind": "adc_set",
+   "raw": 617
+  },
+  {
+   "tick": 650,
+   "kind": "adc_set",
+   "raw": 618
+  },
+  {
+   "tick": 654,
+   "kind": "adc_set",
+   "raw": 619
+  },
+  {
+   "tick": 658,
+   "kind": "adc_set",
+   "raw": 620
+  },
+  {
+   "tick": 662,
+   "kind": "adc_set",
+   "raw": 621
+  },
+  {
+   "tick": 666,
+   "kind": "adc_set",
+   "raw": 622
+  },
+  {
+   "tick": 670,
+   "kind": "adc_set",
+   "raw": 623
+  },
+  {
+   "tick": 674,
+   "kind": "adc_set",
+   "raw": 624
+  },
+  {
+   "tick": 678,
+   "kind": "adc_set",
+   "raw": 625
+  },
+  {
+   "tick": 682,
+   "kind": "adc_set",
+   "raw": 626
+  },
+  {
+   "tick": 686,
+   "kind": "adc_set",
+   "raw": 627
+  },
+  {
+   "tick": 690,
+   "kind": "adc_set",
+   "raw": 628
+  },
+  {
+   "tick": 694,
+   "kind": "adc_set",
+   "raw": 629
+  },
+  {
+   "tick": 698,
+   "kind": "adc_set",
+   "raw": 630
+  },
+  {
+   "tick": 702,
+   "kind": "adc_set",
+   "raw": 631
+  },
+  {
+   "tick": 706,
+   "kind": "adc_set",
+   "raw": 632
+  },
+  {
+   "tick": 710,
+   "kind": "adc_set",
+   "raw": 633
+  },
+  {
+   "tick": 714,
+   "kind": "adc_set",
+   "raw": 634
+  },
+  {
+   "tick": 718,
+   "kind": "adc_set",
+   "raw": 635
+  },
+  {
+   "tick": 722,
+   "kind": "adc_set",
+   "raw": 636
+  },
+  {
+   "tick": 726,
+   "kind": "adc_set",
+   "raw": 637
+  },
+  {
+   "tick": 730,
+   "kind": "adc_set",
+   "raw": 638
+  },
+  {
+   "tick": 734,
+   "kind": "adc_set",
+   "raw": 639
+  },
+  {
+   "tick": 738,
+   "kind": "adc_set",
+   "raw": 640
+  },
+  {
+   "tick": 742,
+   "kind": "adc_set",
+   "raw": 641
+  },
+  {
+   "tick": 746,
+   "kind": "adc_set",
+   "raw": 642
+  },
+  {
+   "tick": 750,
+   "kind": "adc_set",
+   "raw": 643
+  },
+  {
+   "tick": 754,
+   "kind": "adc_set",
+   "raw": 644
+  },
+  {
+   "tick": 758,
+   "kind": "adc_set",
+   "raw": 645
+  },
+  {
+   "tick": 762,
+   "kind": "adc_set",
+   "raw": 646
+  },
+  {
+   "tick": 766,
+   "kind": "adc_set",
+   "raw": 647
+  },
+  {
+   "tick": 770,
+   "kind": "adc_set",
+   "raw": 648
+  },
+  {
+   "tick": 774,
+   "kind": "adc_set",
+   "raw": 649
+  },
+  {
+   "tick": 778,
+   "kind": "adc_set",
+   "raw": 650
+  },
+  {
+   "tick": 782,
+   "kind": "adc_set",
+   "raw": 651
+  },
+  {
+   "tick": 786,
+   "kind": "adc_set",
+   "raw": 652
+  },
+  {
+   "tick": 790,
+   "kind": "adc_set",
+   "raw": 653
+  },
+  {
+   "tick": 794,
+   "kind": "adc_set",
+   "raw": 654
+  },
+  {
+   "tick": 798,
+   "kind": "adc_set",
+   "raw": 655
+  },
+  {
+   "tick": 802,
+   "kind": "adc_set",
+   "raw": 656
+  },
+  {
+   "tick": 806,
+   "kind": "adc_set",
+   "raw": 657
+  },
+  {
+   "tick": 810,
+   "kind": "adc_set",
+   "raw": 658
+  },
+  {
+   "tick": 814,
+   "kind": "adc_set",
+   "raw": 659
+  },
+  {
+   "tick": 818,
+   "kind": "adc_set",
+   "raw": 660
+  },
+  {
+   "tick": 822,
+   "kind": "adc_set",
+   "raw": 661
+  },
+  {
+   "tick": 826,
+   "kind": "adc_set",
+   "raw": 662
+  },
+  {
+   "tick": 830,
+   "kind": "adc_set",
+   "raw": 663
+  },
+  {
+   "tick": 834,
+   "kind": "adc_set",
+   "raw": 664
+  },
+  {
+   "tick": 838,
+   "kind": "adc_set",
+   "raw": 665
+  },
+  {
+   "tick": 842,
+   "kind": "adc_set",
+   "raw": 666
+  },
+  {
+   "tick": 846,
+   "kind": "adc_set",
+   "raw": 667
+  },
+  {
+   "tick": 850,
+   "kind": "adc_set",
+   "raw": 668
+  },
+  {
+   "tick": 854,
+   "kind": "adc_set",
+   "raw": 669
+  },
+  {
+   "tick": 858,
+   "kind": "adc_set",
+   "raw": 670
+  },
+  {
+   "tick": 862,
+   "kind": "adc_set",
+   "raw": 671
+  },
+  {
+   "tick": 866,
+   "kind": "adc_set",
+   "raw": 672
+  },
+  {
+   "tick": 870,
+   "kind": "adc_set",
+   "raw": 673
+  },
+  {
+   "tick": 874,
+   "kind": "adc_set",
+   "raw": 674
+  },
+  {
+   "tick": 878,
+   "kind": "adc_set",
+   "raw": 675
+  },
+  {
+   "tick": 882,
+   "kind": "adc_set",
+   "raw": 676
+  },
+  {
+   "tick": 886,
+   "kind": "adc_set",
+   "raw": 677
+  },
+  {
+   "tick": 890,
+   "kind": "adc_set",
+   "raw": 678
+  },
+  {
+   "tick": 894,
+   "kind": "adc_set",
+   "raw": 679
+  },
+  {
+   "tick": 898,
+   "kind": "adc_set",
+   "raw": 680
+  }
+ ],
+ "expect": [
+  {
+   "type": "line",
+   "id": "banner",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"
+  },
+  {
+   "type": "line",
+   "id": "cal",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 cal id=7 crc={any} left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_401",
+   "channel": "steer_en",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_401",
+   "channel": "steer_pwm",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_402",
+   "channel": "steer_en",
+   "tick": 402,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_402",
+   "channel": "steer_pwm",
+   "tick": 402,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_417",
+   "channel": "steer_en",
+   "tick": 417,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_417",
+   "channel": "steer_pwm",
+   "tick": 417,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_418",
+   "channel": "steer_en",
+   "tick": 418,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_418",
+   "channel": "steer_pwm",
+   "tick": 418,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_433",
+   "channel": "steer_en",
+   "tick": 433,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_433",
+   "channel": "steer_pwm",
+   "tick": 433,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_en_434",
+   "channel": "steer_en",
+   "tick": 434,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "around_takeover_steer_pwm_434",
+   "channel": "steer_pwm",
+   "tick": 434,
+   "to": 80
+  },
+  {
+   "type": "pins_window",
+   "id": "no_stop_at_takeover",
+   "window": [
+    403,
+    416
+   ],
+   "steer_en": 1,
+   "steer_pwm": 80
+  },
+  {
+   "type": "status",
+   "id": "cmd_angle_m12",
+   "tick": 400,
+   "fields": {
+    "cmd": 600,
+    "fl": "0000"
+   }
+  },
+  {
+   "type": "status",
+   "id": "cmd_angle_m18",
+   "tick": 450,
+   "fields": {
+    "cmd": 900,
+    "fl": "0000"
+   }
+  },
+  {
+   "type": "no_line",
+   "id": "no_v3_faults_or_refusals",
+   "window": [
+    0,
+    900
+   ],
+   "kinds": [
+    "N",
+    "F",
+    "W",
+    "A",
+    "P"
+   ]
+  }
+ ],
+ "end": {
+  "tick": 900
+ }
+}

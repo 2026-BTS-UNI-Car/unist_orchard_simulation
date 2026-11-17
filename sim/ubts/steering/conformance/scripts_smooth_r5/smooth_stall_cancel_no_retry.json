@@ -1,0 +1,384 @@
+{
+ "schema": "ubts.steer_conformance.v1",
+ "name": "smooth_stall_cancel_no_retry",
+ "spec": [
+  "r5.updateSmoothHold",
+  "r5.moveSteeringToAngle",
+  "r5.readPotValue",
+  "SMOOTH_R5_SIM_KO"
+ ],
+ "description": "STALL 취소와 다시 보내지 않음. ADC 가 그대로(바퀴가 막힘)라 진척 4 count 가 없다. PWM 은 램프로 220 에 72, 230 에 PWM_MAX 80; STALL_MS 200 뒤(틱 410) PWM 이 이미 PWM_MAX 라 바닥을 올리지 않고 취소(STALL, no force retry). 호스트는 같은 요청을 다시 보내지 않는다(610 의 poll). 요청이 바뀌면(틱 650 부터 S 510 -> ANGLE -10.25, 목표 2271) 810 에 다시 출발하고 1010 에 다시 STALL. SIM 만의 차이: 목표에 1 s 넘게 닿지 못하면 V3 TRACK 감시가 걸린다(틱 1210, 실기 보드에는 없고 실행기의 steering_not_following 이 2 s 에 비슷한 일을 한다). 그래서 대본은 1200 에 끝난다.",
+ "setup": {
+  "boot_seed": 1,
+  "chip_id": "5A1B2C",
+  "profile": "front_steer_v2_field_20261116",
+  "eeprom": {
+   "record": {
+    "cal_id": 7,
+    "raw_l": 842,
+    "raw_c": 512,
+    "raw_r": 181,
+    "soft_l": 935,
+    "soft_r": -935,
+    "pol_ok": 1,
+    "mdir": 1,
+    "params": {
+     "svhz": 1000
+    }
+   }
+  },
+  "adc": {
+   "mode": "script",
+   "raw": 512
+  }
+ },
+ "inputs": [
+  {
+   "tick": 10,
+   "text": "ARM {boot}*{crc}\n"
+  },
+  {
+   "tick": 20,
+   "text": "C 1 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 120,
+   "text": "C 2 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 220,
+   "text": "C 3 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 320,
+   "text": "C 4 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 420,
+   "text": "C 5 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 520,
+   "text": "C 6 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 620,
+   "text": "C 7 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 720,
+   "text": "C 8 300 0 0 510*{crc}\n"
+  },
+  {
+   "tick": 820,
+   "text": "C 9 300 0 0 510*{crc}\n"
+  },
+  {
+   "tick": 920,
+   "text": "C 10 300 0 0 510*{crc}\n"
+  },
+  {
+   "tick": 1020,
+   "text": "C 11 300 0 0 510*{crc}\n"
+  },
+  {
+   "tick": 1120,
+   "text": "C 12 300 0 0 510*{crc}\n"
+  }
+ ],
+ "events": [],
+ "expect": [
+  {
+   "type": "line",
+   "id": "banner",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"
+  },
+  {
+   "type": "line",
+   "id": "cal",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 cal id=7 crc={any} left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_210",
+   "channel": "steer_en",
+   "tick": 210,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_210",
+   "channel": "steer_pwm",
+   "tick": 210,
+   "to": 60
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_220",
+   "channel": "steer_pwm",
+   "tick": 220,
+   "to": 72
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_225",
+   "channel": "steer_en",
+   "tick": 225,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_225",
+   "channel": "steer_pwm",
+   "tick": 225,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_226",
+   "channel": "steer_en",
+   "tick": 226,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_226",
+   "channel": "steer_pwm",
+   "tick": 226,
+   "to": 72
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_230",
+   "channel": "steer_pwm",
+   "tick": 230,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_241",
+   "channel": "steer_en",
+   "tick": 241,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_241",
+   "channel": "steer_pwm",
+   "tick": 241,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_242",
+   "channel": "steer_en",
+   "tick": 242,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_242",
+   "channel": "steer_pwm",
+   "tick": 242,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_401",
+   "channel": "steer_en",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_401",
+   "channel": "steer_pwm",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_402",
+   "channel": "steer_en",
+   "tick": 402,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_402",
+   "channel": "steer_pwm",
+   "tick": 402,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_410",
+   "channel": "steer_en",
+   "tick": 410,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_410",
+   "channel": "steer_pwm",
+   "tick": 410,
+   "to": 0
+  },
+  {
+   "type": "pins_window",
+   "id": "no_force_retry",
+   "window": [
+    410,
+    809
+   ],
+   "steer_en": 0,
+   "steer_pwm": 0
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_en_810",
+   "channel": "steer_en",
+   "tick": 810,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_pwm_810",
+   "channel": "steer_pwm",
+   "tick": 810,
+   "to": 60
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_pwm_820",
+   "channel": "steer_pwm",
+   "tick": 820,
+   "to": 72
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_en_825",
+   "channel": "steer_en",
+   "tick": 825,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_pwm_825",
+   "channel": "steer_pwm",
+   "tick": 825,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_en_826",
+   "channel": "steer_en",
+   "tick": 826,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_pwm_826",
+   "channel": "steer_pwm",
+   "tick": 826,
+   "to": 72
+  },
+  {
+   "type": "change",
+   "id": "restart_steer_pwm_830",
+   "channel": "steer_pwm",
+   "tick": 830,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_en_1001",
+   "channel": "steer_en",
+   "tick": 1001,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_pwm_1001",
+   "channel": "steer_pwm",
+   "tick": 1001,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_en_1002",
+   "channel": "steer_en",
+   "tick": 1002,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_pwm_1002",
+   "channel": "steer_pwm",
+   "tick": 1002,
+   "to": 80
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_en_1010",
+   "channel": "steer_en",
+   "tick": 1010,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_again_steer_pwm_1010",
+   "channel": "steer_pwm",
+   "tick": 1010,
+   "to": 0
+  },
+  {
+   "type": "pins_window",
+   "id": "cancelled_again",
+   "window": [
+    1010,
+    1200
+   ],
+   "steer_en": 0,
+   "steer_pwm": 0
+  },
+  {
+   "type": "status",
+   "id": "cmd_blocked",
+   "tick": 750,
+   "fields": {
+    "cmd": 500,
+    "fl": "0000"
+   }
+  },
+  {
+   "type": "status",
+   "id": "cmd_new_request",
+   "tick": 850,
+   "fields": {
+    "cmd": 513,
+    "fl": "0000"
+   }
+  },
+  {
+   "type": "no_line",
+   "id": "no_v3_faults_or_refusals",
+   "window": [
+    0,
+    1200
+   ],
+   "kinds": [
+    "N",
+    "F",
+    "W",
+    "A",
+    "P"
+   ]
+  }
+ ],
+ "end": {
+  "tick": 1200
+ }
+}

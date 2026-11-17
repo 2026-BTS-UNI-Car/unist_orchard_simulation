@@ -56,6 +56,13 @@ Schema v4 (ubts.vehicle_profile.v4, profile front_steer_v1_spec_20261116 and lat
 constants (abs_hold_fw), the host ANGLE policy of the SIM (abs_hold_host) and the measured step times
 (steer_step_time_measured_s; docs/steering/ABS_HOLD8_SIM_KO.md). v2 and v3 files keep loading unchanged.
 
+Schema v5 (ubts.vehicle_profile.v5, profile front_steer_v2_field_20261116 and later): the v4 parameters plus group L
+(V5_PARAMETER_GROUPS: the SMOOTH hold of the board firmware r5). steer_fw_mode may also be smooth_r5: the SIM ESP
+emulator runs the SMOOTH hold (native/smooth_r5.cc) with the firmware's SM values and constants (smooth_fw), the SIM
+host ANGLE policy of the SMOOTH bridge (smooth_host), the SIM ADC path placeholders (smooth_adc_sim) and the measured
+step times of the SMOOTH hold (smooth_step_time_measured_s; docs/steering/SMOOTH_R5_SIM_KO.md). smooth_r5 needs a v5
+file; v2, v3 and v4 files keep loading unchanged (a v4 file still allows only v3_servo and abs_hold_8).
+
 Pure Python + PyYAML (safe loader only). No numpy.
 """
 from __future__ import annotations
@@ -76,8 +83,10 @@ from . import geometry
 SCHEMA = 'ubts.vehicle_profile.v2'
 SCHEMA_V3 = 'ubts.vehicle_profile.v3'
 SCHEMA_V4 = 'ubts.vehicle_profile.v4'
-SCHEMAS = (SCHEMA, SCHEMA_V3, SCHEMA_V4)
-STEER_FW_MODES = ('v3_servo', 'abs_hold_8')
+SCHEMA_V5 = 'ubts.vehicle_profile.v5'
+SCHEMAS = (SCHEMA, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5)
+STEER_FW_MODES = ('v3_servo', 'abs_hold_8')                    # schema v4
+STEER_FW_MODES_V5 = STEER_FW_MODES + ('smooth_r5',)           # schema v5
 MARK_HALF_WIDTH_MIN = 50      # counts between the centre mark and each end mark (fw_eeprom.MARK_WINDOW_SPAN_MIN)
 MARK_INSET_DEG = 1.0          # calibration marks at the equivalent mechanical limit - 1 deg (LOCKSTEP 11.11)
 PROFILES_DIR = Path(__file__).resolve().parent / 'profiles'
@@ -174,8 +183,15 @@ V4_PARAMETER_GROUPS = (
 )
 PARAMETER_GROUPS_V4 = PARAMETER_GROUPS_V3 + V4_PARAMETER_GROUPS
 PARAMETER_NAMES_V4 = tuple(name for _, names in PARAMETER_GROUPS_V4 for name in names)
-NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3, SCHEMA_V4: PARAMETER_NAMES_V4}
-GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V4 for name in names}
+# Schema v5 group L (2026-11-17): the SMOOTH hold of the board firmware r5 (steer_fw_mode smooth_r5).
+V5_PARAMETER_GROUPS = (
+    ('L_steer_firmware_smooth', ('smooth_fw', 'smooth_host', 'smooth_adc_sim', 'smooth_step_time_measured_s')),
+)
+PARAMETER_GROUPS_V5 = PARAMETER_GROUPS_V4 + V5_PARAMETER_GROUPS
+PARAMETER_NAMES_V5 = tuple(name for _, names in PARAMETER_GROUPS_V5 for name in names)
+NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3, SCHEMA_V4: PARAMETER_NAMES_V4,
+                   SCHEMA_V5: PARAMETER_NAMES_V5}
+GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V5 for name in names}
 # Keys of the abs_hold_fw mapping: the constants of BTS7960_Serial_Control.ino (ABS-HOLD-8-REBOUND-LIMITS), counts of
 # the board's 12-bit ADC and milliseconds. The SIM emulator (native/abs_hold8.cc) uses every key.
 ABS_HOLD_FW_KEYS = (
@@ -185,6 +201,24 @@ ABS_HOLD_FW_KEYS = (
     'median_of', 'pair_tol_counts', 'stale_ms', 'limit_margin_counts')
 ABS_HOLD_FW_FLOAT_KEYS = ('command_max_deg',)
 ABS_HOLD_HOST_KEYS = ('step_deg', 'deadband_deg', 'min_interval_ms', 'poll_ms')
+# Keys of the smooth_fw mapping (schema v5): the board calibration (CAL), the SM parameters of the r5 firmware (NVS
+# steer_sm; SM line names in lower case) and its compile-time constants of the smooth hold and the potentiometer
+# filter, counts of the board's 12-bit ADC and milliseconds. The SIM emulator (native/smooth_r5.cc) uses every key.
+SMOOTH_FW_KEYS = (
+    'cal_right', 'cal_center', 'cal_left', 'command_max_deg',
+    'pwm_min', 'pwm_max', 'slow_counts', 'stop_tol_counts', 'restart_tol_counts', 'ramp_per_tick', 'settle_ms',
+    'stall_ms', 'boost', 'max_run_ms', 'brake_ms', 'quiet_ms', 'quiet_us',
+    'progress_counts', 'max_runs', 'reverse_pause_ms', 'ramp_tick_ms', 'rebound_max_counts', 'rebound_window_ms',
+    'guard_counts', 'sample_ms', 'median_of', 'pair_tol_counts', 'stale_ms', 'slew_min_counts', 'slew_counts_per_ms',
+    'hard_right_min', 'hard_left_max', 'limit_margin_counts')
+SMOOTH_FW_FLOAT_KEYS = ('command_max_deg',)
+# The SM parameter ranges of the firmware (SM_LIMITS; SM SET refuses values outside them).
+SMOOTH_SM_LIMITS = dict(pwm_min=(20, 150), pwm_max=(40, 160), slow_counts=(20, 400), stop_tol_counts=(3, 30),
+                        restart_tol_counts=(5, 60), ramp_per_tick=(1, 100), settle_ms=(40, 1000), stall_ms=(80, 1000),
+                        boost=(1, 60), max_run_ms=(300, 8000), brake_ms=(0, 200), quiet_ms=(0, 50),
+                        quiet_us=(200, 3000))
+SMOOTH_HOST_KEYS = ABS_HOLD_HOST_KEYS
+SMOOTH_ADC_SIM_KEYS = ('powered_offset_counts', 'burst_counts', 'burst_ms', 'burst_period_ms')
 
 # Names the steered plant (F-SIM SteeredPlant, P1/P2) reads; geometry.PROFILE_NAMES come on top.
 PLANT_PROFILE_NAMES = (
@@ -272,6 +306,11 @@ SHAPES = {
     'abs_hold_fw': {key: (NUMBER if key in ABS_HOLD_FW_FLOAT_KEYS else INTEGER) for key in ABS_HOLD_FW_KEYS},
     'abs_hold_host': {'step_deg': NUMBER, 'deadband_deg': NUMBER, 'min_interval_ms': INTEGER, 'poll_ms': INTEGER},
     'steer_step_time_measured_s': _keys(NUMBER, 'outward_20', 'return_20'),
+    # schema v5
+    'smooth_fw': {key: (NUMBER if key in SMOOTH_FW_FLOAT_KEYS else INTEGER) for key in SMOOTH_FW_KEYS},
+    'smooth_host': {'step_deg': NUMBER, 'deadband_deg': NUMBER, 'min_interval_ms': INTEGER, 'poll_ms': INTEGER},
+    'smooth_adc_sim': _keys(INTEGER, *SMOOTH_ADC_SIM_KEYS),
+    'smooth_step_time_measured_s': _keys(NUMBER, 'outward_20', 'return_20'),
 }
 
 
@@ -729,10 +768,11 @@ def _semantic_checks_v3(values, strict_pot=True):
                            'belt ratio' % (half, MARK_HALF_WIDTH_MIN))
 
 
-def _semantic_checks_v4(values):
-    """Schema v4 checks: the firmware law constants keep the order the firmware relies on."""
-    if values['steer_fw_mode'] not in STEER_FW_MODES:
-        raise ProfileError('out_of_range', 'steer_fw_mode', 'one of %s' % ', '.join(STEER_FW_MODES))
+def _semantic_checks_v4(values, modes=STEER_FW_MODES):
+    """Schema v4 checks: the firmware law constants keep the order the firmware relies on. modes: the steer_fw_mode
+    values of the schema (v5 adds smooth_r5)."""
+    if values['steer_fw_mode'] not in modes:
+        raise ProfileError('out_of_range', 'steer_fw_mode', 'one of %s' % ', '.join(modes))
     fw = values['abs_hold_fw']
     if not 0 < fw['cal_right'] < fw['cal_center'] < fw['cal_left'] < 4096:
         raise ProfileError('bad_value', 'abs_hold_fw', 'need 0 < cal_right < cal_center < cal_left < 4096 (12-bit ADC, '
@@ -754,9 +794,55 @@ def _semantic_checks_v4(values):
         raise ProfileError('bad_value', 'steer_step_time_measured_s', 'step times must be > 0')
 
 
+def _semantic_checks_v5(values):
+    """Schema v5 checks: the SMOOTH r5 constants keep the firmware's ranges and order (SM_LIMITS, smProblem) and the
+    board calibration is the one of abs_hold_fw (one board, two holds: SM ON / SM OFF)."""
+    fw = values['smooth_fw']
+    for key, (lo, hi) in SMOOTH_SM_LIMITS.items():
+        if not lo <= fw[key] <= hi:
+            raise ProfileError('bad_value', 'smooth_fw', '%s %s outside the firmware range %d..%d' % (key, fw[key], lo,
+                                                                                                    hi))
+    if fw['pwm_min'] > fw['pwm_max']:
+        raise ProfileError('bad_value', 'smooth_fw', 'need pwm_min <= pwm_max (PWM_MIN ABOVE PWM_MAX)')
+    if fw['restart_tol_counts'] <= fw['stop_tol_counts']:
+        raise ProfileError('bad_value', 'smooth_fw', 'need restart_tol_counts > stop_tol_counts (RESTART_TOL NOT ABOVE '
+                                                     'STOP_TOL)')
+    if not fw['hard_right_min'] <= fw['cal_right'] < fw['cal_center'] < fw['cal_left'] <= fw['hard_left_max'] < 4096:
+        raise ProfileError('bad_value', 'smooth_fw', 'need hard_right_min <= cal_right < cal_center < cal_left <= '
+                                                     'hard_left_max < 4096 (12-bit ADC, the pot value falls toward the '
+                                                     'right)')
+    if fw['median_of'] % 2 != 1 or not 1 <= fw['median_of'] <= 9 or fw['sample_ms'] <= 0 or \
+            fw['stale_ms'] <= fw['sample_ms']:
+        raise ProfileError('bad_value', 'smooth_fw', 'need an odd median_of 1..9 and 0 < sample_ms < stale_ms')
+    if fw['rebound_window_ms'] > fw['settle_ms'] or fw['ramp_tick_ms'] <= 0 or fw['max_runs'] < 1:
+        raise ProfileError('bad_value', 'smooth_fw', 'need rebound_window_ms <= settle_ms, ramp_tick_ms > 0, '
+                                                     'max_runs >= 1')
+    pulse = values['abs_hold_fw']
+    if (fw['cal_right'], fw['cal_center'], fw['cal_left'], fw['command_max_deg']) != \
+            (pulse['cal_right'], pulse['cal_center'], pulse['cal_left'], pulse['command_max_deg']):
+        raise ProfileError('bad_value', 'smooth_fw', 'the calibration (cal_right, cal_center, cal_left, '
+                                                     'command_max_deg) must equal abs_hold_fw (the same board)')
+    host = values['smooth_host']
+    if not 0. < host['step_deg'] <= host['deadband_deg'] or host['min_interval_ms'] < host['poll_ms'] or \
+            host['poll_ms'] <= 0:
+        raise ProfileError('bad_value', 'smooth_host', 'need 0 < step_deg <= deadband_deg and 0 < poll_ms <= '
+                                                       'min_interval_ms')
+    adc = values['smooth_adc_sim']
+    if adc['burst_counts'] and not 0 < adc['burst_ms'] <= adc['burst_period_ms']:
+        raise ProfileError('bad_value', 'smooth_adc_sim', 'burst_counts needs 0 < burst_ms <= burst_period_ms')
+    timing = values['smooth_step_time_measured_s']
+    if not (timing['return_20'] > 0. and timing['outward_20'] > 0.):
+        raise ProfileError('bad_value', 'smooth_step_time_measured_s', 'step times must be > 0')
+
+
 def abs_hold_mode(profile):
     """True when the profile runs the ABS-HOLD-8 pulse law in the SIM ESP emulator (schema v4, steer_fw_mode)."""
     return profile.has('steer_fw_mode') and profile.value('steer_fw_mode') == 'abs_hold_8'
+
+
+def smooth_hold_mode(profile):
+    """True when the profile runs the SMOOTH r5 hold in the SIM ESP emulator (schema v5, steer_fw_mode smooth_r5)."""
+    return profile.has('smooth_fw') and profile.value('steer_fw_mode') == 'smooth_r5'
 
 
 # --- consistency warnings ----------------------------------------------------------------------------------------
@@ -885,7 +971,7 @@ class VehicleProfile:
 
     @property
     def schema_version(self):
-        return {SCHEMA_V3: 3, SCHEMA_V4: 4}.get(self.schema, 2)
+        return {SCHEMA_V3: 3, SCHEMA_V4: 4, SCHEMA_V5: 5}.get(self.schema, 2)
 
     def _record(self, name):
         try:
@@ -1145,7 +1231,9 @@ def _finish_records(records, derived_bounds=True):
     if 'belt_type' in records:
         _semantic_checks_v3(resolved, strict_pot=derived_bounds)
     if 'steer_fw_mode' in records:
-        _semantic_checks_v4(resolved)
+        _semantic_checks_v4(resolved, STEER_FW_MODES_V5 if 'smooth_fw' in records else STEER_FW_MODES)
+    if 'smooth_fw' in records:
+        _semantic_checks_v5(resolved)
     computing = set()
 
     def get(name):

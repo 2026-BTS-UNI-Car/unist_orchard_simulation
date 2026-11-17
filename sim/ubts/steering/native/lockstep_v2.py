@@ -17,6 +17,7 @@ import struct
 from typing import Optional, Tuple
 
 from .. import abs_hold
+from .. import smooth_hold
 from .. import backend_api as ba
 
 PROTOCOL_V2 = 'ubts.steer_lockstep.v2'
@@ -131,13 +132,16 @@ def firmware_startup_config(profile, seed, firmware=None, injections=(), mcu_tic
     protocol v2 and the 'firmware' block (firmware_block(**firmware)); startup_overrides is a merge patch applied
     last (conformance scripts). The native reads mcu.baud only; the other mcu values reach the firmware through
     the EEPROM image (fw_eeprom). A schema v4 profile in steer_fw_mode abs_hold_8 adds the block 'steer_law' (the
-    ABS-HOLD-8 law replaces the V3 servo law; abs_hold.py); every other profile gives the same object as before."""
+    ABS-HOLD-8 law replaces the V3 servo law; abs_hold.py), a schema v5 profile in steer_fw_mode smooth_r5 adds it with
+    kind smooth_r5 (the SMOOTH r5 law; smooth_hold.py); every other profile gives the same object as before."""
     config = ba.native_startup_config(profile, seed, mode='firmware',
                                       mcu_tick_hz=MCU_TICK_HZ if mcu_tick_hz is None else mcu_tick_hz,
                                       injections=injections)
     config['protocol'] = PROTOCOL_V2
     config['firmware'] = firmware_block(**(firmware or {}))
     law = abs_hold.startup_block(profile)
+    if law is None:
+        law = smooth_hold.startup_block(profile)   # schema v5, steer_fw_mode smooth_r5 (smooth_hold.py)
     if law is not None:
         config['steer_law'] = law
     if startup_overrides:

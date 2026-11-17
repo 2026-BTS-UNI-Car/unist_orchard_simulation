@@ -3,6 +3,10 @@
 - 작성: 2026-11-09 (P3 적합성 작업)
 - 근거: `ESP_PROTOCOL_V3_DRAFT_KO.md`(이하 "규격") 13절과 14절, `LOCKSTEP_PROTOCOL_KO.md` 11절(lockstep v2 firmware 모드), 설계 8.3 P3, 부록 C, `SIM_ACCEPTANCE_KO.md` A19(MCU 부분)·A20, `DECISIONS_KO.md` R1.
 - 위치: 대본 `sim/ubts/steering/conformance/scripts/*.json`(92개), 실행기 `sim/ubts/steering/conformance/run_conformance.py`, 시험 `sim/ubts/test_steering_conformance.py`.
+- 2026-11-17: 차 보드의 SMOOTH 유지 r5 흉내(`steer_fw_mode smooth_r5`)용 대본 11개를 따로 둔다: `sim/ubts/steering/conformance/scripts_smooth_r5/`
+  (프로필 `front_steer_v2_field_20261116`, `--scripts-dir` 로 돌림, 시험 `sim/ubts/test_steering_smooth_conformance.py` 가 두 전송으로 돌린다).
+  기본 폴더의 V3 대본 92개는 그대로다. 실행기는 법칙 블록이 있는 프로필에서만 시작 줄에 `steer_law` 를 더한다(V3 대본의 시작 줄은 같다).
+  내용: [`SMOOTH_R5_SIM_KO.md`](SMOOTH_R5_SIM_KO.md) 6절.
 - 모든 수치는 자리값이다. 대본 통과는 자리값 기반 SIM 결과다. 현장 검증이 아니다. 실기에서는 아무것도 돌리지 않았다.
 - 2026-11-09 P3 통합: 9절의 열린 문제를 규격 12.1절 결정(48~65)으로 정했고, 그 결정을 고정하는 대본 5개를 더했다(`bench_framing_error_early_brake`, `cfg_svhz_runtime`, `cal_erase_twice`, `crc_burst_stop_special`, `c_nocrc_shows_q`). 같은 대본을 패키지 코덱(`FirmwareSteeringBackend`)으로도 돌리는 두 번째 전송을 더했다(3절 `--transport backend`). 결과는 7절.
 - 2026-11-09 fix_p3: 검토 결과(RF-01~RF-11)를 규격 12.1절 결정(66~73)으로 고치고, 그 결정을 고정하는 대본 5개를 더했다(`fault_drv_stuck_default`, `polarity_latch_needs_pol_check`, `rx_overflow_drops_oldest`, `servo_lag_with_progress_no_track`, `thermal_blocks_jog_and_pol`). 옛 대본 85개는 바꾸지 않았다. 결과는 7절 끝.

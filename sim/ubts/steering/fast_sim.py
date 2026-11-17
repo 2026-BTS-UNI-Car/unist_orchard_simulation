@@ -145,6 +145,7 @@ IDENTITY_FILES = (
     'steering/drive.py', 'steering/backend_api.py', 'steering/l0_servo.py', 'steering/actuator_link.py',
     'steering/steered_plant.py', 'steering/scene_spec.py', 'steering/maneuvers.py', 'steering/flat_world.py',
     'steering/fast_sim.py', 'steering/native/__init__.py', 'steering/native/build.py', 'steering/native/lockstep_v2.py',
+    'steering/abs_hold.py', 'steering/smooth_hold.py',   # imported by lockstep_v2 (the board steering laws)
     'closed_loop/__init__.py', 'closed_loop/harness.py', 'closed_loop/world.py', 'closed_loop/estimator.py',
     'closed_loop/actuator_prior.py', 'closed_loop/controllers.py', 'closed_loop/raster_corridor.py',
     'closed_loop/external_paths.py',

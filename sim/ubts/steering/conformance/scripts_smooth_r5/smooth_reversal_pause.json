@@ -1,0 +1,485 @@
+{
+ "schema": "ubts.steer_conformance.v1",
+ "name": "smooth_reversal_pause",
+ "spec": [
+  "r5.updateSmoothHold",
+  "r5.moveSteeringToAngle",
+  "r5.readPotValue",
+  "SMOOTH_R5_SIM_KO"
+ ],
+ "description": "방향 바꿈 쉼. 왼쪽 구동(ANGLE -10.00) 중 틱 410 에 ANGLE +10.00(목표 2017 - 271 = 1746): 모터를 멈추고(EN 끔) 드라이버가 꺼진 뒤 SM_REVERSE_PAUSE_MS 60 이 지난 틱 470 에 오른쪽(PWM -60)으로 출발. 대본 ADC 는 230..400 만 움직이고 그 뒤 그대로라 오른쪽 구동은 200 ms 진척 없음 + PWM_MAX 80 에서 STALL 취소(틱 670).",
+ "setup": {
+  "boot_seed": 1,
+  "chip_id": "5A1B2C",
+  "profile": "front_steer_v2_field_20261116",
+  "eeprom": {
+   "record": {
+    "cal_id": 7,
+    "raw_l": 842,
+    "raw_c": 512,
+    "raw_r": 181,
+    "soft_l": 935,
+    "soft_r": -935,
+    "pol_ok": 1,
+    "mdir": 1,
+    "params": {
+     "svhz": 1000
+    }
+   }
+  },
+  "adc": {
+   "mode": "script",
+   "raw": 512
+  }
+ },
+ "inputs": [
+  {
+   "tick": 10,
+   "text": "ARM {boot}*{crc}\n"
+  },
+  {
+   "tick": 20,
+   "text": "C 1 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 120,
+   "text": "C 2 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 220,
+   "text": "C 3 300 0 0 500*{crc}\n"
+  },
+  {
+   "tick": 320,
+   "text": "C 4 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 420,
+   "text": "C 5 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 520,
+   "text": "C 6 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 620,
+   "text": "C 7 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 720,
+   "text": "C 8 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 820,
+   "text": "C 9 300 0 0 -500*{crc}\n"
+  },
+  {
+   "tick": 920,
+   "text": "C 10 300 0 0 -500*{crc}\n"
+  }
+ ],
+ "events": [
+  {
+   "tick": 230,
+   "kind": "adc_set",
+   "raw": 513
+  },
+  {
+   "tick": 234,
+   "kind": "adc_set",
+   "raw": 514
+  },
+  {
+   "tick": 238,
+   "kind": "adc_set",
+   "raw": 515
+  },
+  {
+   "tick": 242,
+   "kind": "adc_set",
+   "raw": 516
+  },
+  {
+   "tick": 246,
+   "kind": "adc_set",
+   "raw": 517
+  },
+  {
+   "tick": 250,
+   "kind": "adc_set",
+   "raw": 518
+  },
+  {
+   "tick": 254,
+   "kind": "adc_set",
+   "raw": 519
+  },
+  {
+   "tick": 258,
+   "kind": "adc_set",
+   "raw": 520
+  },
+  {
+   "tick": 262,
+   "kind": "adc_set",
+   "raw": 521
+  },
+  {
+   "tick": 266,
+   "kind": "adc_set",
+   "raw": 522
+  },
+  {
+   "tick": 270,
+   "kind": "adc_set",
+   "raw": 523
+  },
+  {
+   "tick": 274,
+   "kind": "adc_set",
+   "raw": 524
+  },
+  {
+   "tick": 278,
+   "kind": "adc_set",
+   "raw": 525
+  },
+  {
+   "tick": 282,
+   "kind": "adc_set",
+   "raw": 526
+  },
+  {
+   "tick": 286,
+   "kind": "adc_set",
+   "raw": 527
+  },
+  {
+   "tick": 290,
+   "kind": "adc_set",
+   "raw": 528
+  },
+  {
+   "tick": 294,
+   "kind": "adc_set",
+   "raw": 529
+  },
+  {
+   "tick": 298,
+   "kind": "adc_set",
+   "raw": 530
+  },
+  {
+   "tick": 302,
+   "kind": "adc_set",
+   "raw": 531
+  },
+  {
+   "tick": 306,
+   "kind": "adc_set",
+   "raw": 532
+  },
+  {
+   "tick": 310,
+   "kind": "adc_set",
+   "raw": 533
+  },
+  {
+   "tick": 314,
+   "kind": "adc_set",
+   "raw": 534
+  },
+  {
+   "tick": 318,
+   "kind": "adc_set",
+   "raw": 535
+  },
+  {
+   "tick": 322,
+   "kind": "adc_set",
+   "raw": 536
+  },
+  {
+   "tick": 326,
+   "kind": "adc_set",
+   "raw": 537
+  },
+  {
+   "tick": 330,
+   "kind": "adc_set",
+   "raw": 538
+  },
+  {
+   "tick": 334,
+   "kind": "adc_set",
+   "raw": 539
+  },
+  {
+   "tick": 338,
+   "kind": "adc_set",
+   "raw": 540
+  },
+  {
+   "tick": 342,
+   "kind": "adc_set",
+   "raw": 541
+  },
+  {
+   "tick": 346,
+   "kind": "adc_set",
+   "raw": 542
+  },
+  {
+   "tick": 350,
+   "kind": "adc_set",
+   "raw": 543
+  },
+  {
+   "tick": 354,
+   "kind": "adc_set",
+   "raw": 544
+  },
+  {
+   "tick": 358,
+   "kind": "adc_set",
+   "raw": 545
+  },
+  {
+   "tick": 362,
+   "kind": "adc_set",
+   "raw": 546
+  },
+  {
+   "tick": 366,
+   "kind": "adc_set",
+   "raw": 547
+  },
+  {
+   "tick": 370,
+   "kind": "adc_set",
+   "raw": 548
+  },
+  {
+   "tick": 374,
+   "kind": "adc_set",
+   "raw": 549
+  },
+  {
+   "tick": 378,
+   "kind": "adc_set",
+   "raw": 550
+  },
+  {
+   "tick": 382,
+   "kind": "adc_set",
+   "raw": 551
+  },
+  {
+   "tick": 386,
+   "kind": "adc_set",
+   "raw": 552
+  },
+  {
+   "tick": 390,
+   "kind": "adc_set",
+   "raw": 553
+  },
+  {
+   "tick": 394,
+   "kind": "adc_set",
+   "raw": 554
+  }
+ ],
+ "expect": [
+  {
+   "type": "line",
+   "id": "banner",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"
+  },
+  {
+   "type": "line",
+   "id": "cal",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 cal id=7 crc={any} left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_401",
+   "channel": "steer_en",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_401",
+   "channel": "steer_pwm",
+   "tick": 401,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_402",
+   "channel": "steer_en",
+   "tick": 402,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_402",
+   "channel": "steer_pwm",
+   "tick": 402,
+   "to": 78
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_410",
+   "channel": "steer_en",
+   "tick": 410,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_410",
+   "channel": "steer_pwm",
+   "tick": 410,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_470",
+   "channel": "steer_en",
+   "tick": 470,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_470",
+   "channel": "steer_pwm",
+   "tick": 470,
+   "to": -60
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_480",
+   "channel": "steer_pwm",
+   "tick": 480,
+   "to": -72
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_485",
+   "channel": "steer_en",
+   "tick": 485,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_485",
+   "channel": "steer_pwm",
+   "tick": 485,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_en_486",
+   "channel": "steer_en",
+   "tick": 486,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_486",
+   "channel": "steer_pwm",
+   "tick": 486,
+   "to": -72
+  },
+  {
+   "type": "change",
+   "id": "reversal_steer_pwm_490",
+   "channel": "steer_pwm",
+   "tick": 490,
+   "to": -80
+  },
+  {
+   "type": "pins_window",
+   "id": "off_60ms",
+   "window": [
+    410,
+    469
+   ],
+   "steer_en": 0,
+   "steer_pwm": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_661",
+   "channel": "steer_en",
+   "tick": 661,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_661",
+   "channel": "steer_pwm",
+   "tick": 661,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_662",
+   "channel": "steer_en",
+   "tick": 662,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_662",
+   "channel": "steer_pwm",
+   "tick": 662,
+   "to": -80
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_en_670",
+   "channel": "steer_en",
+   "tick": 670,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "stall_steer_pwm_670",
+   "channel": "steer_pwm",
+   "tick": 670,
+   "to": 0
+  },
+  {
+   "type": "pins_window",
+   "id": "after_stall",
+   "window": [
+    670,
+    1000
+   ],
+   "steer_en": 0,
+   "steer_pwm": 0
+  },
+  {
+   "type": "no_line",
+   "id": "no_v3_faults_or_refusals",
+   "window": [
+    0,
+    1000
+   ],
+   "kinds": [
+    "N",
+    "F",
+    "W",
+    "A",
+    "P"
+   ]
+  }
+ ],
+ "end": {
+  "tick": 1000
+ }
+}

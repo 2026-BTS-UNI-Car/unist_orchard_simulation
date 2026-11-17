@@ -1,0 +1,517 @@
+{
+ "schema": "ubts.steer_conformance.v1",
+ "name": "smooth_floor_boost_heavy",
+ "spec": [
+  "r5.updateSmoothHold",
+  "r5.moveSteeringToAngle",
+  "r5.readPotValue",
+  "SMOOTH_R5_SIM_KO"
+ ],
+ "description": "무거운 짐: 바닥 PWM 올리기. ANGLE -3.00(목표 2017 + lroundf(74.4) = 2091), 처음부터 SLOW 구역이라 PWM 은 60 + round(20 x 68/200) = 67. ADC 는 440 까지 그대로(PWM 67 로는 안 움직이는 짐), 틱 410 STALL_MS 200 진척 없음 + PWM 67 < PWM_MAX 라 바닥 60 -> 75(BOOST 15), 420 에 PWM 77. 그 뒤 ADC 가 움직여(440 부터 4 틱에 1 raw) 진척이 생겨 취소 없이 목표에 닿고 제동.",
+ "setup": {
+  "boot_seed": 1,
+  "chip_id": "5A1B2C",
+  "profile": "front_steer_v2_field_20261116",
+  "eeprom": {
+   "record": {
+    "cal_id": 7,
+    "raw_l": 842,
+    "raw_c": 512,
+    "raw_r": 181,
+    "soft_l": 935,
+    "soft_r": -935,
+    "pol_ok": 1,
+    "mdir": 1,
+    "params": {
+     "svhz": 1000
+    }
+   }
+  },
+  "adc": {
+   "mode": "script",
+   "raw": 512
+  }
+ },
+ "inputs": [
+  {
+   "tick": 10,
+   "text": "ARM {boot}*{crc}\n"
+  },
+  {
+   "tick": 20,
+   "text": "C 1 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 120,
+   "text": "C 2 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 220,
+   "text": "C 3 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 320,
+   "text": "C 4 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 420,
+   "text": "C 5 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 520,
+   "text": "C 6 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 620,
+   "text": "C 7 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 720,
+   "text": "C 8 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 820,
+   "text": "C 9 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 920,
+   "text": "C 10 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 1020,
+   "text": "C 11 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 1120,
+   "text": "C 12 300 0 0 150*{crc}\n"
+  },
+  {
+   "tick": 1220,
+   "text": "C 13 300 0 0 150*{crc}\n"
+  }
+ ],
+ "events": [
+  {
+   "tick": 440,
+   "kind": "adc_set",
+   "raw": 513
+  },
+  {
+   "tick": 444,
+   "kind": "adc_set",
+   "raw": 514
+  },
+  {
+   "tick": 448,
+   "kind": "adc_set",
+   "raw": 515
+  },
+  {
+   "tick": 452,
+   "kind": "adc_set",
+   "raw": 516
+  },
+  {
+   "tick": 456,
+   "kind": "adc_set",
+   "raw": 517
+  },
+  {
+   "tick": 460,
+   "kind": "adc_set",
+   "raw": 518
+  },
+  {
+   "tick": 464,
+   "kind": "adc_set",
+   "raw": 519
+  },
+  {
+   "tick": 468,
+   "kind": "adc_set",
+   "raw": 520
+  },
+  {
+   "tick": 472,
+   "kind": "adc_set",
+   "raw": 521
+  },
+  {
+   "tick": 476,
+   "kind": "adc_set",
+   "raw": 522
+  },
+  {
+   "tick": 480,
+   "kind": "adc_set",
+   "raw": 523
+  },
+  {
+   "tick": 484,
+   "kind": "adc_set",
+   "raw": 524
+  },
+  {
+   "tick": 488,
+   "kind": "adc_set",
+   "raw": 525
+  },
+  {
+   "tick": 492,
+   "kind": "adc_set",
+   "raw": 526
+  },
+  {
+   "tick": 496,
+   "kind": "adc_set",
+   "raw": 527
+  },
+  {
+   "tick": 500,
+   "kind": "adc_set",
+   "raw": 528
+  },
+  {
+   "tick": 504,
+   "kind": "adc_set",
+   "raw": 529
+  },
+  {
+   "tick": 508,
+   "kind": "adc_set",
+   "raw": 530
+  },
+  {
+   "tick": 512,
+   "kind": "adc_set",
+   "raw": 531
+  },
+  {
+   "tick": 516,
+   "kind": "adc_set",
+   "raw": 532
+  },
+  {
+   "tick": 520,
+   "kind": "adc_set",
+   "raw": 533
+  },
+  {
+   "tick": 524,
+   "kind": "adc_set",
+   "raw": 534
+  },
+  {
+   "tick": 528,
+   "kind": "adc_set",
+   "raw": 535
+  },
+  {
+   "tick": 532,
+   "kind": "adc_set",
+   "raw": 536
+  },
+  {
+   "tick": 536,
+   "kind": "adc_set",
+   "raw": 537
+  },
+  {
+   "tick": 540,
+   "kind": "adc_set",
+   "raw": 538
+  },
+  {
+   "tick": 544,
+   "kind": "adc_set",
+   "raw": 539
+  },
+  {
+   "tick": 548,
+   "kind": "adc_set",
+   "raw": 540
+  },
+  {
+   "tick": 552,
+   "kind": "adc_set",
+   "raw": 541
+  },
+  {
+   "tick": 556,
+   "kind": "adc_set",
+   "raw": 542
+  },
+  {
+   "tick": 560,
+   "kind": "adc_set",
+   "raw": 543
+  },
+  {
+   "tick": 564,
+   "kind": "adc_set",
+   "raw": 544
+  },
+  {
+   "tick": 568,
+   "kind": "adc_set",
+   "raw": 545
+  },
+  {
+   "tick": 572,
+   "kind": "adc_set",
+   "raw": 546
+  },
+  {
+   "tick": 576,
+   "kind": "adc_set",
+   "raw": 547
+  },
+  {
+   "tick": 580,
+   "kind": "adc_set",
+   "raw": 548
+  },
+  {
+   "tick": 584,
+   "kind": "adc_set",
+   "raw": 549
+  },
+  {
+   "tick": 588,
+   "kind": "adc_set",
+   "raw": 550
+  },
+  {
+   "tick": 592,
+   "kind": "adc_set",
+   "raw": 551
+  },
+  {
+   "tick": 596,
+   "kind": "adc_set",
+   "raw": 552
+  },
+  {
+   "tick": 600,
+   "kind": "adc_set",
+   "raw": 553
+  },
+  {
+   "tick": 604,
+   "kind": "adc_set",
+   "raw": 554
+  },
+  {
+   "tick": 608,
+   "kind": "adc_set",
+   "raw": 555
+  },
+  {
+   "tick": 612,
+   "kind": "adc_set",
+   "raw": 556
+  },
+  {
+   "tick": 616,
+   "kind": "adc_set",
+   "raw": 557
+  },
+  {
+   "tick": 620,
+   "kind": "adc_set",
+   "raw": 558
+  },
+  {
+   "tick": 624,
+   "kind": "adc_set",
+   "raw": 559
+  },
+  {
+   "tick": 628,
+   "kind": "adc_set",
+   "raw": 560
+  }
+ ],
+ "expect": [
+  {
+   "type": "line",
+   "id": "banner",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 hello proto=3 build={any} dev=5A1B2C boot={boot} rst=power_on hw=front_steer_v0 out=drive2,steer1 cal=7 sim=1 wd=500 ttl=300 st=20 drop=0*{crc}"
+  },
+  {
+   "type": "line",
+   "id": "cal",
+   "tick": 0,
+   "text": "UBTS_STEER_V3 cal id=7 crc={any} left=842 center=512 right=181 soft=935,-935 pol=ok mdir=1 caldirty=0 cfgdirty=0*{crc}"
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_210",
+   "channel": "steer_en",
+   "tick": 210,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_210",
+   "channel": "steer_pwm",
+   "tick": 210,
+   "to": 60
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_220",
+   "channel": "steer_pwm",
+   "tick": 220,
+   "to": 67
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_225",
+   "channel": "steer_en",
+   "tick": 225,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_225",
+   "channel": "steer_pwm",
+   "tick": 225,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "start_steer_en_226",
+   "channel": "steer_en",
+   "tick": 226,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "start_steer_pwm_226",
+   "channel": "steer_pwm",
+   "tick": 226,
+   "to": 67
+  },
+  {
+   "type": "change",
+   "id": "boost_steer_pwm_410",
+   "channel": "steer_pwm",
+   "tick": 410,
+   "to": 77
+  },
+  {
+   "type": "change",
+   "id": "boost_steer_en_417",
+   "channel": "steer_en",
+   "tick": 417,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "boost_steer_pwm_417",
+   "channel": "steer_pwm",
+   "tick": 417,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "boost_steer_en_418",
+   "channel": "steer_en",
+   "tick": 418,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "boost_steer_pwm_418",
+   "channel": "steer_pwm",
+   "tick": 418,
+   "to": 77
+  },
+  {
+   "type": "change",
+   "id": "end_steer_en_609",
+   "channel": "steer_en",
+   "tick": 609,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "end_steer_pwm_609",
+   "channel": "steer_pwm",
+   "tick": 609,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "end_steer_en_610",
+   "channel": "steer_en",
+   "tick": 610,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "end_steer_pwm_610",
+   "channel": "steer_pwm",
+   "tick": 610,
+   "to": 75
+  },
+  {
+   "type": "change",
+   "id": "end_steer_en_625",
+   "channel": "steer_en",
+   "tick": 625,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "end_steer_pwm_625",
+   "channel": "steer_pwm",
+   "tick": 625,
+   "to": 0
+  },
+  {
+   "type": "change",
+   "id": "end_steer_en_626",
+   "channel": "steer_en",
+   "tick": 626,
+   "to": 1
+  },
+  {
+   "type": "change",
+   "id": "end_steer_en_666",
+   "channel": "steer_en",
+   "tick": 666,
+   "to": 0
+  },
+  {
+   "type": "pins_window",
+   "id": "held",
+   "window": [
+    667,
+    1300
+   ],
+   "steer_en": 0,
+   "steer_pwm": 0
+  },
+  {
+   "type": "no_line",
+   "id": "no_v3_faults_or_refusals",
+   "window": [
+    0,
+    1300
+   ],
+   "kinds": [
+    "N",
+    "F",
+    "W",
+    "A",
+    "P"
+   ]
+  }
+ ],
+ "end": {
+  "tick": 1300
+ }
+}

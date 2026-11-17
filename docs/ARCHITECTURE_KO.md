@@ -187,7 +187,8 @@ flowchart LR
 ```
 
 [도식] 구현 상태: 안쪽 루프는 프로필의 `steer_fw_mode`로 고른다. v0.x 프로필은 V3 서보, `front_steer_v1_spec_20261116`(실제 치수,
-2026-11-16)은 실기 보드 펌웨어의 펄스 유지 흉내(`sim/ubts/steering/native/abs_hold8.cc`)다. 바깥 루프 **구현됨**
+2026-11-16)은 실기 보드 펌웨어의 펄스 유지 흉내(`sim/ubts/steering/native/abs_hold8.cc`), `front_steer_v2_field_20261116`(2026-11-17)은
+그 보드의 SMOOTH 유지 r5 흉내(`sim/ubts/steering/native/smooth_r5.cc`)다. 바깥 루프 **구현됨**
 (`sim/ubts/closed_loop/steer_control.py`, 기본 제어기 `row_follow`). 요레이트 안쪽 루프 이득
 `k_r`은 걸이만 있고 0이다. ESP 위치 루프는 펌웨어 V3로 **구현됨**(SIM에서 네이티브 빌드로 돔). 서보 이득·데드밴드·최소 PWM 등은
 프로필 v0.1~v0.3의 자리값이다. 외란 아래 직진 유지(ST-11)에서 ESP 위치 루프만으로는 이어지는 힘을 다 되돌리지 못해, 직진 유지는
@@ -258,3 +259,4 @@ stateDiagram-v2
 | 핀(D8·D5·D3·D0 구동, D6·D7 조향 PWM, D2 조향 EN, A0 가변저항) | ESP 규격 8.3절(배치 A안, 옛 ESP8266 설계) |
 | ESP32-S3, BTS7960 1·2·3, `ANGLE`·`STATUS`·`STOP`·`n F pwm`, GPIO6 | 실기 펌웨어 `BTS7960_Serial_Control.ino`(레포 밖), [`HARDWARE_KO.md`](HARDWARE_KO.md) 6.1절 |
 | 조향 법칙 `abs_hold_8`, ANGLE 눈금 대응 | `sim/ubts/steering/native/abs_hold8.cc`, `sim/ubts/steering/abs_hold.py`, [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md) |
+| 조향 법칙 `smooth_r5`(SM 값, 조용한 읽기, SIM 호스트 0.25°·200 ms) | `sim/ubts/steering/native/smooth_r5.cc`, `sim/ubts/steering/smooth_hold.py`, [`SMOOTH_R5_SIM_KO.md`](steering/SMOOTH_R5_SIM_KO.md) |

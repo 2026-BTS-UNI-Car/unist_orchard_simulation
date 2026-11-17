@@ -53,11 +53,13 @@ import uuid
 NATIVE_DIR = Path(__file__).resolve().parent
 SOURCES = ('steer_json.cc', 'steer_config.cc', 'steer_geometry.cc', 'actuator.cc', 'potentiometer.cc',
            'steer_model.cc', 'fw_session.cc', 'fw_sketch.cc', 'arduino_shim/sim_mcu.cc', 'abs_hold8.cc',
-           'lockstep_main.cc')
+           'smooth_r5.cc', 'lockstep_main.cc')
 HEADERS = ('steer_json.h', 'steer_config.h', 'steer_geometry.h', 'steer_rng.h', 'steer_wire.h', 'actuator.h',
            'potentiometer.h', 'steer_model.h', 'fw_session.h', 'arduino_shim/Arduino.h', 'arduino_shim/EEPROM.h',
-           'arduino_shim/ESP8266WiFi.h', 'arduino_shim/user_interface.h', 'arduino_shim/sim_mcu.h', 'abs_hold8.h')
-FIRMWARE_ONLY_SOURCES = ('fw_session.cc', 'fw_sketch.cc', 'arduino_shim/sim_mcu.cc', 'abs_hold8.cc')   # need the firmware
+           'arduino_shim/ESP8266WiFi.h', 'arduino_shim/user_interface.h', 'arduino_shim/sim_mcu.h', 'abs_hold8.h',
+           'smooth_r5.h')
+FIRMWARE_ONLY_SOURCES = ('fw_session.cc', 'fw_sketch.cc', 'arduino_shim/sim_mcu.cc', 'abs_hold8.cc',
+                         'smooth_r5.cc')   # need the firmware
 ABSENT_SOURCE = 'fw_session_absent.cc'   # replaces FIRMWARE_ONLY_SOURCES when the firmware sources are missing
 SHIM_DIR = NATIVE_DIR / 'arduino_shim'
 # firmware/ubts_steer_v3 of this work tree (repository-relative: sim/ubts/steering/native -> the tree root)
@@ -70,9 +72,10 @@ FIRMWARE_SKETCH = 'ubts_steer_v3.ino'                 # compiled through fw_sket
 UNIT_TEST_SOURCES = ('fw_unit_test.cc', 'fw_sketch.cc', 'arduino_shim/sim_mcu.cc')
 PROGRAM = 'ubts_steer_native'
 UNIT_TEST_PROGRAM = 'ubts_steer_fw_unit'
-RECIPE_VERSION = 5   # 2: Windows targets link with -Wl,--no-insert-timestamp; 3: firmware sources and shim;
+RECIPE_VERSION = 6   # 2: Windows targets link with -Wl,--no-insert-timestamp; 3: firmware sources and shim;
                      # 4: without firmware mode when the firmware sources are missing (fw_session_absent.cc);
                      # 5: abs_hold8.cc (optional SIM steering law of the startup block steer_law)
+                     # 6: smooth_r5.cc (the SMOOTH r5 law of the same block, kind smooth_r5)
 ENV_CXX = 'UBTS_STEER_CXX'
 ENV_BUILD_DIR = 'UBTS_STEER_BUILD_DIR'
 ENV_EXTRA_FLAGS = 'UBTS_STEER_CXXFLAGS'

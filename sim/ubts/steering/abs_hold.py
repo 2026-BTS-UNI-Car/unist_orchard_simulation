@@ -97,9 +97,12 @@ def executor_values(profile):
     the real board, not the motor's rate at full PWM): the outward effective rate for moving and standstill (the
     measurement was taken standing; the slower direction), and the firmware target tolerance as the servo deadband
     (the band where the board stops correcting; V3 db), on the side with fewer counts per degree, in equivalent
-    degrees. The restart tolerance (the V3 re-push) is reported too. None for a V3 profile."""
+    degrees. The restart tolerance (the V3 re-push) is reported too. A profile in steer_fw_mode smooth_r5 (schema v5)
+    gives the values of its SMOOTH hold (smooth_hold.executor_values; both callers, the SIM executor configuration of
+    sim_in_loop_steer and exec_container_main, take the board's values from here). None for a V3 profile."""
     if not active(profile):
-        return None
+        from . import smooth_hold
+        return smooth_hold.executor_values(profile)
     outward, back = effective_rates_deg_s(profile)
     right, left = counts_per_command_deg(profile)
     fw = profile.value('abs_hold_fw')

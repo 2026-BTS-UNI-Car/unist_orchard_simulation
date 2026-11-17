@@ -57,6 +57,9 @@ SCHEMA = 'ubts.steer_conformance.v1'
 RESULT_SCHEMA = 'ubts.steer_conformance_result.v1'
 LOCKSTEP_PROTOCOL = 'ubts.steer_lockstep.v2'
 SCRIPTS_DIR = Path(__file__).resolve().parent / 'scripts'
+# SMOOTH r5 steering-law scripts (profile front_steer_v2_field_20261116; docs/steering/SMOOTH_R5_SIM_KO.md). Run them
+# with --scripts-dir; the default folder above keeps the 92 V3 scripts.
+SMOOTH_SCRIPTS_DIR = Path(__file__).resolve().parent / 'scripts_smooth_r5'
 DEFAULT_PROFILE = 'front_steer_v0_1_placeholder'
 DEFAULT_STEP_TICKS = 10
 DEFAULT_CHECK_STEP_TICKS = 7
@@ -1169,6 +1172,12 @@ def startup_config(script, expect_build=None):
         boot_garbage_hex=setup['boot_garbage_hex'].upper(), adc_mode=adc['mode'],
         adc_script_raw=adc.get('raw', 512), motor_power=setup['motor_power'], report_adc=setup['report_adc'],
         report_servo=False)   # servo evaluation channels (LOCKSTEP 11.6) are not part of a bench script
+    # A profile with a board steering law (schema v4 abs_hold_8, schema v5 smooth_r5) adds its block 'steer_law', as
+    # native/lockstep_v2.firmware_startup_config does; every V3 profile (all 92 V3 scripts) gives the object as before.
+    from .. import abs_hold, smooth_hold
+    law = abs_hold.startup_block(profile) or smooth_hold.startup_block(profile)
+    if law is not None:
+        config['steer_law'] = law
     return merge_patch(config, setup['startup_overrides'])
 
 

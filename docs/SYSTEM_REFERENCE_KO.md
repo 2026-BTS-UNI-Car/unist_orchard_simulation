@@ -37,6 +37,8 @@ README의 각 절을 코드 기준으로 자세히 적은 문서다. 값은 2026
 - 에뮬레이터: `/clock` 하나 = Gazebo 한 걸음. MCU 펌웨어(`firmware/ubts_steer_v3`, `UBTS_STEER_SIM=1` 네이티브 빌드)가 1 ms 틱으로 돈다.
   MCU 상태 줄 기본 20 Hz, 링크 감시 500 ms, 명령 유효시간(TTL) 최대 300 ms, 서보 500 Hz(코드, `fw_params.cpp`, `fw_link.cpp`).
 - 측정 치수 프로필(`steer_fw_mode: abs_hold_8`)은 서보 법칙만 실차 보드의 펄스 유지 흉내로 바꾸고, 링크·arm·TTL·감시·STOP은 V3 그대로다.
+  현장 프로필 `front_steer_v2_field_20261116`(`steer_fw_mode: smooth_r5`, 2026-11-17)은 같은 자리에 그 보드의 SMOOTH 유지 r5 흉내를 끼우고
+  서보 격자를 1000 Hz 로 둔다([`SMOOTH_R5_SIM_KO.md`](steering/SMOOTH_R5_SIM_KO.md)).
   실차 ESP32-S3 펌웨어의 구동 감시(300 ms, 2026-11-16 보드에 씀)는 SIM에 짝이 없다.
 - 제어 소켓 `control.sock`(Unix 소켓): 연결 하나에 JSON 한 줄(≤ 4096 B), 답 한 줄.
   - 요청: `arm {owner, vehicle_profile}`, `drive {owner, lease, ticket, seq = 앞 + 1, deadman, throttle 0~100, steer_mrad}`, `keepalive`,

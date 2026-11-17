@@ -115,6 +115,9 @@ Jetson에서의 처리 시간은 아직 재지 않았다. 대시보드 중계 �
 50 또는 80 ms 주고 300 ms 쉰 뒤 가변저항 값으로 다시 판정하는 펄스 유지 방식이다. SIM은 이 법칙을 `sim/ubts/steering/native/abs_hold8.cc`로
 흉내 낸다. 펄스 사이에 드라이버가 놓여 외력에 밀리는 효과는 빠른 SIM에만 있다(Gazebo 조향 관절은 위치 제어).
 자세히: [`ABS_HOLD8_SIM_KO.md`](docs/steering/ABS_HOLD8_SIM_KO.md), 하드웨어 표 [`HARDWARE_KO.md`](docs/HARDWARE_KO.md).
+2026-11-16 밤부터 보드는 같은 소스의 SMOOTH 유지 r5(한 번의 연속 구동, 램프·감속 구역, 끝 제동, 구동 중 조용한 읽기)를 쓴다. SIM은 이것을
+`sim/ubts/steering/native/smooth_r5.cc`(`steer_fw_mode smooth_r5`)로 흉내 내고, 보드 보정·SM 값을 넣은 프로필 `front_steer_v2_field_20261116`이
+고른다(등록 판정과 화면용 스택은 아직 예전 프로필): [`SMOOTH_R5_SIM_KO.md`](docs/steering/SMOOTH_R5_SIM_KO.md).
 
 | 비스듬히 | 옆 | 위(오른쪽이 앞) |
 |---|---|---|

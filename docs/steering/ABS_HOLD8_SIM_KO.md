@@ -131,3 +131,10 @@ SIM 실행기 설정(`sim_in_loop_steer.steer_executor_config`, G-SIM `exec_cont
 python -B tools/steer_sim/apply_spec.py --spec sim/ubts/steering/profiles/steer_spec_input_20261116.yaml --out <저장소 밖>
 cd sim/ubts && python -B -m pytest -q -p no:cacheprovider test_steering_abs_hold.py test_steering_apply_spec.py
 ```
+
+## 9. 다음 펌웨어: SMOOTH r5 (2026-11-17)
+
+2026-11-16 밤 차 보드는 같은 소스의 SMOOTH 유지 r5 로 바뀌었다(SM MODE=SMOOTH 를 NVS 에 저장, 보정 1475/2017/2513). SIM 은 이 법칙을 같은 걸이에
+`native/smooth_r5.cc`(`steer_fw_mode smooth_r5`, 스키마 v5)로 끼우고, 새 프로필 `front_steer_v2_field_20261116` 이 그것을 고른다. 이 문서의 펄스 유지
+흉내와 v1 프로필은 바뀌지 않았다(펄스 유지는 v2 프로필에서도 `steer_fw_mode abs_hold_8` 덮어쓰기로 고를 수 있다: r5 의 SM OFF). 자세히:
+[`SMOOTH_R5_SIM_KO.md`](SMOOTH_R5_SIM_KO.md).

@@ -4,6 +4,9 @@
 - 고칠 파일은 하나다: `sim/ubts/steering/profiles/steer_spec_input.yaml`
 - 돌릴 명령도 하나다: `tools/steer_sim/apply_spec.py`
 - 2026-11-16: 실제 치수와 새 조향 보드로 첫 판 `front_steer_v1_spec_20261116`을 만들었다([`ABS_HOLD8_SIM_KO.md`](ABS_HOLD8_SIM_KO.md)).
+- 2026-11-17: 펌웨어 모형만 바뀐 판 `front_steer_v2_field_20261116`(스키마 v5, SMOOTH r5)은 이 도구가 아니라 v1 파일에서 바꾼 칸만 고쳐 만들었다
+  (사양 칸은 v1 과 같다; [`SMOOTH_R5_SIM_KO.md`](SMOOTH_R5_SIM_KO.md) 5절). 사양이 오면 이 도구로 새 판을 만들고, SMOOTH 묶음(L)은 그 뒤에 같은
+  방법으로 옮긴다.
 - 바탕 프로필: `front_steer_v0_3_placeholder`(스키마 v3, 값은 v0.2와 같다. `STEER_PROFILE_V03_KO.md`, `STEER_PROFILE_V02_KO.md`). 질문 번호는 `VEHICLE_SPEC_REQUEST_KO.md`와 같다. 기본 프로필은 아직 v0.1이다(개정 43 ② 불합격: 정지 전폭 쓸기의 THERMAL 예산).
 - 남은 자리값 충돌: THERMAL 예산(`thermal_proxy`)은 모터 정격(Q11)이 오면 정한다. 사양 입력 뒤 개정 40 ②·43 ②와 같은 정상 대본을 새 사전등록으로 다시 돈다.
 - 사양 값이 들어가도 결과는 "일부 실측 기반 SIM 결과"다. 현장 검증이 아니다. 펌웨어 쓰기, 벤치 시험, 실차 주행, Jetson 설치는 사용자가 현장에서 한다.

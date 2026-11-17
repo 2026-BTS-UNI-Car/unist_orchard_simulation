@@ -99,6 +99,18 @@ class ObjectView {
 
   ObjectView object(const char *name) const { return ObjectView(doc_, child(name), key_path(name)); }
 
+  // True when the object has the key with this string value (no error otherwise).
+  bool has_string(const char *name, const char *value) const {
+    const json::Node &node = doc_.node(index_);
+    for (size_t i = 0; i < node.keys.size(); ++i) {
+      if (node.keys[i] == name) {
+        const json::Node &n = doc_.node(node.items[i]);
+        return n.kind == json::kString && n.text == value;
+      }
+    }
+    return false;
+  }
+
   const json::Document &doc() const { return doc_; }
 
  private:
@@ -454,6 +466,79 @@ void parse_law(const ObjectView &b, LawConfig *out) {
   if (out->short_ms > out->long_ms) throw ConfigError("steer_law: need pulse_short_ms <= pulse_long_ms");
 }
 
+// Optional block "steer_law" with kind smooth_r5 (profile schema v5, firmware mode only; smooth_r5.h). Every key is
+// required. The SM parameter ranges are the firmware's SM_LIMITS (SM SET refuses values outside them).
+void parse_smooth_law(const ObjectView &b, SmoothLawConfig *out) {
+  static const char *const keys[] = {
+      "kind",              "cal_right",          "cal_center",          "cal_left",          "command_max_deg",
+      "pwm_min",           "pwm_max",            "slow_counts",         "stop_tol_counts",   "restart_tol_counts",
+      "ramp_per_tick",     "settle_ms",          "stall_ms",            "boost",             "max_run_ms",
+      "brake_ms",          "quiet_ms",           "quiet_us",            "progress_counts",   "max_runs",
+      "reverse_pause_ms",  "ramp_tick_ms",       "rebound_max_counts",  "rebound_window_ms", "guard_counts",
+      "sample_ms",         "median_of",          "pair_tol_counts",     "stale_ms",          "slew_min_counts",
+      "slew_counts_per_ms", "hard_right_min",    "hard_left_max",       "limit_margin_counts",
+      "adc_powered_offset_counts", "adc_burst_counts", "adc_burst_ms",  "adc_burst_period_ms",
+      "host_step_deg",     "host_deadband_deg",  "host_min_interval_ms", "host_poll_ms"};
+  b.require_keys(keys, sizeof keys / sizeof keys[0]);
+  out->present = true;
+  out->cal_right = static_cast<int>(b.integer("cal_right", 1, 4095));
+  out->cal_center = static_cast<int>(b.integer("cal_center", 1, 4095));
+  out->cal_left = static_cast<int>(b.integer("cal_left", 1, 4095));
+  if (!(out->cal_right < out->cal_center && out->cal_center < out->cal_left)) {
+    throw ConfigError("steer_law: need cal_right < cal_center < cal_left");
+  }
+  out->command_max_deg = b.number("command_max_deg", 1.0, 90.0);
+  out->pwm_min = static_cast<int>(b.integer("pwm_min", 20, 150));
+  out->pwm_max = static_cast<int>(b.integer("pwm_max", 40, 160));
+  out->slow = static_cast<int>(b.integer("slow_counts", 20, 400));
+  out->stop_tol = static_cast<int>(b.integer("stop_tol_counts", 3, 30));
+  out->restart_tol = static_cast<int>(b.integer("restart_tol_counts", 5, 60));
+  out->ramp = static_cast<int>(b.integer("ramp_per_tick", 1, 100));
+  out->settle_ms = static_cast<int>(b.integer("settle_ms", 40, 1000));
+  out->stall_ms = static_cast<int>(b.integer("stall_ms", 80, 1000));
+  out->boost = static_cast<int>(b.integer("boost", 1, 60));
+  out->max_run_ms = static_cast<int>(b.integer("max_run_ms", 300, 8000));
+  out->brake_ms = static_cast<int>(b.integer("brake_ms", 0, 200));
+  out->quiet_ms = static_cast<int>(b.integer("quiet_ms", 0, 50));
+  out->quiet_us = static_cast<int>(b.integer("quiet_us", 200, 3000));
+  if (out->pwm_min > out->pwm_max) throw ConfigError("steer_law: need pwm_min <= pwm_max (PWM_MIN ABOVE PWM_MAX)");
+  if (out->restart_tol <= out->stop_tol) {
+    throw ConfigError("steer_law: need restart_tol_counts > stop_tol_counts (RESTART_TOL NOT ABOVE STOP_TOL)");
+  }
+  out->progress_counts = static_cast<int>(b.integer("progress_counts", 1, 4095));
+  out->max_runs = static_cast<int>(b.integer("max_runs", 1, 255));
+  out->reverse_pause_ms = static_cast<int>(b.integer("reverse_pause_ms", 0, 10000));
+  out->ramp_tick_ms = static_cast<int>(b.integer("ramp_tick_ms", 1, 1000));
+  out->rebound_max = static_cast<int>(b.integer("rebound_max_counts", 1, 4095));
+  out->rebound_window_ms = static_cast<int>(b.integer("rebound_window_ms", 0, 10000));
+  out->guard = static_cast<int>(b.integer("guard_counts", 0, 4095));
+  out->sample_ms = static_cast<int>(b.integer("sample_ms", 1, 1000));
+  out->median_of = static_cast<int>(b.integer("median_of", 1, 9));
+  if (out->median_of % 2 != 1) throw ConfigError(b.key_path("median_of") + ": must be odd");
+  out->pair_tol = static_cast<int>(b.integer("pair_tol_counts", 0, 4095));
+  out->stale_ms = static_cast<int>(b.integer("stale_ms", 1, 10000));
+  out->slew_min = static_cast<int>(b.integer("slew_min_counts", 0, 4095));
+  out->slew_per_ms = static_cast<int>(b.integer("slew_counts_per_ms", 0, 4095));
+  out->hard_right_min = static_cast<int>(b.integer("hard_right_min", 1, 4095));
+  out->hard_left_max = static_cast<int>(b.integer("hard_left_max", 1, 4095));
+  out->limit_margin = static_cast<int>(b.integer("limit_margin_counts", 0, 4095));
+  if (!(out->hard_right_min <= out->cal_right && out->cal_left <= out->hard_left_max)) {
+    throw ConfigError("steer_law: need hard_right_min <= cal_right and cal_left <= hard_left_max");
+  }
+  out->adc_powered_offset = static_cast<int>(b.integer("adc_powered_offset_counts", -4095, 4095));
+  out->adc_burst_counts = static_cast<int>(b.integer("adc_burst_counts", -4095, 4095));
+  out->adc_burst_ms = static_cast<int>(b.integer("adc_burst_ms", 0, 100000));
+  out->adc_burst_period_ms = static_cast<int>(b.integer("adc_burst_period_ms", 0, 100000));
+  if (out->adc_burst_counts != 0 && !(out->adc_burst_period_ms > 0 && out->adc_burst_ms > 0 &&
+                                      out->adc_burst_ms <= out->adc_burst_period_ms)) {
+    throw ConfigError("steer_law: adc_burst_counts needs 0 < adc_burst_ms <= adc_burst_period_ms");
+  }
+  out->host_step_deg = b.number("host_step_deg", 0.0, 90.0, true);
+  out->host_deadband_deg = b.number("host_deadband_deg", 0.0, 90.0);
+  out->host_min_interval_ms = static_cast<int>(b.integer("host_min_interval_ms", 1, 100000));
+  out->host_poll_ms = static_cast<int>(b.integer("host_poll_ms", 1, 100000));
+}
+
 const char *const kProtocolV1 = "ubts.steer_lockstep.v1";
 const char *const kProtocolV2 = "ubts.steer_lockstep.v2";
 
@@ -646,12 +731,21 @@ Config parse_config(const std::string &line) {
         }
         cfg.mcu_baud = static_cast<uint32_t>(value);
         parse_firmware(top.object("firmware"), cfg.geometry, &cfg.fw);
-        if (has_law) parse_law(top.object("steer_law"), &cfg.law);
+        if (has_law) {
+          const ObjectView law = top.object("steer_law");
+          if (law.has_string("kind", "smooth_r5")) {
+            parse_smooth_law(law, &cfg.smooth);  // profile schema v5, steer_fw_mode smooth_r5
+          } else {
+            parse_law(law, &cfg.law);  // every other block: the abs_hold_8 rules and messages as before
+          }
+        }
       } else if (firmware.kind != json::kNull) {
         throw ConfigError("firmware: must be null unless the mode is firmware");
       }
     }
-    if (has_law && !cfg.law.present) throw ConfigError("steer_law: only in mode firmware (protocol v2)");
+    if (has_law && !cfg.law.present && !cfg.smooth.present) {
+      throw ConfigError("steer_law: only in mode firmware (protocol v2)");
+    }
     return cfg;
   } catch (const json::ParseError &e) {
     throw ConfigError(std::string("startup line is not valid JSON: ") + e.what());
