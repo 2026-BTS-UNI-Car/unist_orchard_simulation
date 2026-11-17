@@ -32,7 +32,7 @@ COMMITTED = V.REPO / 'tools' / 'row_executor' / 'config.vehicle_esp32_shadow.jso
 FIRMWARE = 'ABS-HOLD-8-REBOUND-LIMITS'
 DRIVE = ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
 STILL_OPEN = ('rolling_breakaway_duty_pct', 'measured_yaw_at_max_diff_deg_s', 'steer_wheel_soft_margin_deg',
-              'steer_min_pwm_pct', 'steer_zero_offset_deg')
+              'steer_min_pwm_pct')
 
 
 def newest_full():
@@ -108,6 +108,8 @@ class VehicleExecutorConfig(unittest.TestCase):
         self.assertEqual(cfg.steer_range_measured, record.value('range_measured'))
         for name in DRIVE:                                       # the drive values: the record's, else null
             self.assertEqual(getattr(cfg, name), drive_value(record, name), name)
+        self.assertEqual(cfg.steer_zero_offset_deg,               # F1: the record's (an estimate so far), else null
+                         record.value('zero_offset_deg') if record.has('zero_offset_deg') else None)
         if record.has('v_measured_m_s'):
             self.assertEqual(record.value('v_measured_m_s')['duty_pct'], cfg.base_duty_pct)   # C3 = speed at base duty
 
@@ -132,6 +134,8 @@ class VehicleExecutorConfig(unittest.TestCase):
         self.assertIs(record.value('drive_direction_verified'), False)
         for name in STILL_OPEN:
             self.assertIsNone(getattr(cfg, name), name)
+        if cfg.steer_zero_offset_deg is not None:                # F1 inside the steering GO rule
+            self.assertLessEqual(abs(cfg.steer_zero_offset_deg), XC.STEER_GO_ZERO_OFFSET_MAX_DEG)
         # the stop model: only stop-model keys, none looser than the defaults, at v_measured at least the measured C7
         d = XC.STOP_MODEL_DEFAULTS
         self.assertLessEqual(set(cfg.controller_overrides), set(d))
@@ -374,26 +378,32 @@ class RecordValidation(unittest.TestCase):
             lambda doc: v('polarity_evidence')(doc)['value'].update(observations=[]),
             lambda doc: doc['values'].pop('polarity_evidence'),
         ]
-        v3_cases = [
-            lambda doc: doc['values']['breakaway_duty_pct'].update(value=34.5),
-            lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=55, speed_m_s=3.)),
-            lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=45, speed_m_s=.4)),  # not base duty
-            lambda doc: doc['values']['measured_stop_distance_m'].update(value=-1.),
-            lambda doc: doc['values']['measured_stop_distance_m'].update(provenance='OCTOBER'),
-            lambda doc: doc['values']['breakaway_duty_pct'].update(source=''),
+        v3_common = [
             lambda doc: doc.update(base_record='field_steer_20200101_0000'),
             lambda doc: doc.update(base_record=doc['record_id']),
             lambda doc: doc.update(result_kind='field_lifted_standstill'),
-            lambda doc: doc['conditions'].pop('drive_source'),
+            lambda doc: doc['conditions'].pop(FSR.V3_REQUIRED_CONDITIONS[doc['result_kind']][0]),
             lambda doc: doc['values'].update(colour=dict(value=1, provenance='DEFINITION', source='x')),
             lambda doc: doc.update(values={}),
-            lambda doc: doc.update(measured_at='2026-11-17T09:13:00+09:00'),                 # file name differs
+            lambda doc: doc.update(measured_at='2026-11-17T23:13:00+09:00'),                 # file name differs
             lambda doc: doc.update(extra=1),
+            lambda doc: next(iter(doc['values'].values())).update(provenance='OCTOBER'),
+            lambda doc: next(iter(doc['values'].values())).update(source=''),
         ]
-        refused = 0
+        v3_by_value = {
+            'breakaway_duty_pct': [lambda doc: doc['values']['breakaway_duty_pct'].update(value=34.5)],
+            'v_measured_m_s': [
+                lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=55, speed_m_s=3.)),
+                lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=45, speed_m_s=.4))],  # base duty
+            'measured_stop_distance_m': [lambda doc: doc['values']['measured_stop_distance_m'].update(value=-1.)],
+            'zero_offset_deg': [lambda doc: doc['values']['zero_offset_deg'].update(value=9.),
+                                lambda doc: doc['values']['zero_offset_deg'].update(value='straight')],
+        }
+        refused, schemas = 0, set()
         for record, base in self.each_record():
+            schemas.add(base['schema'])
             if base['schema'] == FSR.SCHEMA_V3:
-                cases = v3_cases
+                cases = v3_common + [c for name in base['values'] for c in v3_by_value.get(name, [])]
             else:
                 cases = common + (v2_only if base['schema'] == FSR.SCHEMA_V2 else [])
             for i, change in enumerate(cases):
@@ -402,7 +412,8 @@ class RecordValidation(unittest.TestCase):
                 with self.assertRaises(FSR.RecordError, msg='case %d' % i):
                     self.check(doc, record.record_id)
                 refused += 1
-        self.assertGreaterEqual(refused, len(common) * 2 + len(v2_only) + len(v3_cases))   # every schema exercised
+        self.assertEqual(schemas, set(FSR.SCHEMAS))                                     # every schema exercised
+        self.assertGreaterEqual(refused, len(common) * 2 + len(v2_only) + len(v3_common))
 
     def test_rates_are_rounded_down(self):
         for record, doc in self.each_record():

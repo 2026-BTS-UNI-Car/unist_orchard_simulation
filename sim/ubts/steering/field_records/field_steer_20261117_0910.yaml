@@ -1,0 +1,22 @@
+# 현장 기록 보충 field_steer_20261117_0910 (조향 0점 오차 F1 추정)
+# 사용자 결정(2026-11-17 아침, "추천대로"): 조향 0점 오차를 0 으로 추정해 둔다. 땅에서 첫 직진 주행으로 잰 값으로 바꾼다.
+# 이 파일은 버전 파일이다. 고치지 않는다. 스키마 v3(보충 기록): base_record(field_steer_20261117_0855, 그 기반 field_steer_20261116_2321)의 값을
+# 그대로 쓰고 여기 적은 값만 더한다. measured_at 은 이 값을 실행기에 쓰기로 한 시각이다. 주행 결과가 아니다.
+# 출처 태그 ESTIMATED_USER_VISUAL_CENTRE: 사용자가 눈으로 곧다고 본 위치로 잡은 가운데 표시에서 나온 추정(각도 측정 아님).
+schema: ubts.field_steer_record.v3
+record_id: field_steer_20261117_0910
+vehicle: ubts_orchard_rover
+measured_at: '2026-11-17T09:10:00+09:00'
+base_record: field_steer_20261117_0855
+result_kind: field_estimate
+conditions:
+  basis: 기록 2(field_steer_20261116_2321)의 가운데 표시 2017 = 사용자가 곧다고 본 2006(왼쪽에서 다가옴)과 2029(왼쪽에서 다가옴)의 가운데. 바퀴 든 정지, 눈 확인
+  replace_by: 땅에서 첫 직진 주행(명령 0 으로 곧게 가는지, 잰 편류로 0점 오차 F1 을 구함)
+  note: 각도계로 재지 않았다. B2/B3(각도 범위, 각도 앱), B0(극성), B4(조향 시작 PWM)는 모터 전원을 켜고 따로 잰다
+values:
+  zero_offset_deg:
+    value: 0.0
+    provenance: ESTIMATED_USER_VISUAL_CENTRE
+    source: 가운데 2017 은 곧게 보인 두 위치 2006·2029 의 가운데라 0 으로 둔다. 두 위치 차의 절반 11.5 count 는 왼쪽 24.8 count/명령도, 명령 20 = 18.9 도(추정)로
+      약 0.44 도, 오른쪽 27.1 count/명령도로 약 0.40 도 -> 불확실성 약 +-0.4 도. 오른쪽에서 다가온 2009 는 "오른쪽으로 대략 1도 이하"로 보였다(유격일 수
+      있음, 크기 미측정). 실행기 조향 GO 규칙(|0점 오차| <= 1.5 도) 안

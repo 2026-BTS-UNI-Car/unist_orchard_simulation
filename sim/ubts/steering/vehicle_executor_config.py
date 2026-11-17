@@ -37,9 +37,12 @@ executor reports it as 'unknown' and refuses motor output until it is measured):
                                     that the stop model at v_measured is at least C7 (config rule S6). It is the
                                     executor's stop model (that rule, the backstop expected_rest_m report); the row_follow
                                     steering controller keeps its own stop model (SteerFollowConfig)
+  from the supplement field_steer_20261117_<HHMM> over field_steer_20261117_0855 [ESTIMATED_USER_VISUAL_CENTRE, the
+  user's decision of 2026-11-17]: steer_zero_offset_deg (F1) 0.0, the centre set by eye (about +-0.4 deg), until a
+  straight run on the ground measures it
   left null (unknown until measured in the field): steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4),
-    steer_zero_offset_deg (F1), rolling_breakaway_duty_pct (C3b); steer_esp32_require_fw_watchdog stays true (the board
-    firmware reports DRIVE_WD=300 since 2026-11-16).
+  rolling_breakaway_duty_pct (C3b); steer_esp32_require_fw_watchdog stays true (the board firmware reports DRIVE_WD=300
+  since 2026-11-16).
   Without a record (--no-field-record, record=None) the board values come from the profile as before the field record:
     steer_esp32_cal = the profile's abs_hold_fw CAL [FIRMWARE, the original marks], steer_esp32_mark_deg = the SIM
     mechanical limit - 1 deg [SIM_ASSUMED], steer_rate_limit_* = 0.8 x the board step response of the profile
@@ -158,11 +161,10 @@ def vehicle_values(profile, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):
             'report); the row_follow steering controller keeps its own stop model (SteerFollowConfig)'
             % (XC.STOP_MODEL_DEFAULTS['stop_decel_m_s2'], overrides['stop_decel_m_s2'], values['v_measured_m_s'],
                values['measured_stop_distance_m']))
-    open_items = [name for name in ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
-                  if name not in values]
-    sources['unmeasured'] = ('%ssteer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg (F1),'
-                             ' rolling_breakaway_duty_pct (C3b): null until measured in the field; drive direction not '
-                             'verified on this vehicle; %s'
+    open_items = [name for name in ('breakaway_duty_pct (C2)', 'v_measured_m_s (C3)', 'measured_stop_distance_m (C7)',
+                                    'steer_zero_offset_deg (F1)') if name.split()[0] not in values]
+    sources['unmeasured'] = ('%ssteer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), rolling_breakaway_duty_pct '
+                             '(C3b): null until measured in the field; drive direction not verified on this vehicle; %s'
                              % (''.join(name + ', ' for name in open_items),
                                 ', '.join('%s %s' % (name, values[name]) for name in
                                           ('steer_polarity_checked', 'steer_range_measured'))))

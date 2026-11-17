@@ -18,10 +18,11 @@ keep loading unchanged. The firmware name must stay the executor's (bridge_clien
 as SMOOTH=1 are accepted.
 
 Schema v3 (from field_steer_20261117_0855) is a supplement record: base_record names an older record of the same vehicle
-in the same folder, and the file carries only the values it adds or replaces (any v2 value name, and the drive
-measurements breakaway_duty_pct (C2), v_measured_m_s (C3: {duty_pct, speed_m_s}) and measured_stop_distance_m (C7)),
-with its own result_kind (field_drive_pre_steering) and conditions (where the values come from, the vehicle then and
-now). The merged values are validated as one record; origin(name) tells which record a value comes from. Tag
+in the same folder (a supplement may rest on another supplement), and the file carries only the values it adds or
+replaces (any v2 value name, the drive measurements breakaway_duty_pct (C2), v_measured_m_s (C3: {duty_pct, speed_m_s})
+and measured_stop_distance_m (C7), and zero_offset_deg (F1)), with its own result_kind and conditions
+(field_drive_pre_steering: where the values come from, the vehicle then and now; field_estimate: the basis and what
+replaces it). The merged values are validated as one record; origin(name) tells which record a value comes from. Tag
 FIELD_OCT2026_PRE_STEERING: the 2026-10-03 / 10-10 drive records of the same drive motors before the steering unit.
 
 executor_values(record) turns a record into the row executor fields of the vehicle configuration
@@ -45,9 +46,10 @@ executor_values(record) turns a record into the row executor fields of the vehic
   breakaway_duty_pct                   breakaway_duty_pct (C2), when the record (chain) has it
   v_measured_m_s                       v_measured_m_s.speed_m_s (C3), only when measured at the executor's base duty
   measured_stop_distance_m             measured_stop_distance_m (C7)
+  steer_zero_offset_deg                zero_offset_deg (F1, + left), when the record (chain) has it
 
-Nothing else comes from a record: the zero offset (F1), the steering start PWM (B4), the per-wheel soft margin and the
-rolling threshold (C3b) stay with the generator (null until measured). Pure Python + PyYAML (safe loader).
+Nothing else comes from a record: the steering start PWM (B4), the per-wheel soft margin and the rolling threshold (C3b)
+stay with the generator (null until measured). Pure Python + PyYAML (safe loader).
 """
 from __future__ import annotations
 
@@ -70,7 +72,8 @@ VEHICLE = 'ubts_orchard_rover'
 NAME = re.compile(r'field_steer_(\d{8})_(\d{4})\Z')
 MEASURED_LIFTED = re.compile(r'MEASURED_(\d{4})(\d{2})(\d{2})_LIFTED\Z')
 PLAIN_TAGS = ('FIRMWARE', 'FIRMWARE_NVS', 'USER_VISUAL', 'ESTIMATED', 'USER_DECISION', 'DEFINITION', 'NOT_MEASURED',
-              'FIELD_OCT2026_PRE_STEERING')   # the 2026-10-03 / 10-10 drive records, before the steering unit
+              'FIELD_OCT2026_PRE_STEERING',   # the 2026-10-03 / 10-10 drive records, before the steering unit
+              'ESTIMATED_USER_VISUAL_CENTRE')  # an estimate from the centre the user set by eye (no angle measurement)
 RESULT_KINDS = ('field_lifted_standstill',)
 RATE_RULES = ('slowest_full_range_step', 'slowest_per_full_range')
 HOLD_MODES = ('pulse', 'smooth')
@@ -86,9 +89,13 @@ FW_KEYS = ('name', 'cal_runtime', 'drive_watchdog_ms', 'target_tol_counts', 'res
            'guard_left')
 FW_KEYS_V2 = FW_KEYS + ('app_sha256', 'fw_tokens', 'center_guard', 'hold_mode', 'sm')
 DRIVE_KEYS = ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
+SUPPLEMENT_KEYS = DRIVE_KEYS + ('zero_offset_deg',)       # zero_offset_deg: F1, the steering zero offset [deg]
+ZERO_OFFSET_MAX_DEG = 5.
 V3_TOP_KEYS = ('schema', 'record_id', 'vehicle', 'measured_at', 'base_record', 'result_kind', 'conditions', 'values')
-V3_RESULT_KINDS = ('field_drive_pre_steering',)
-V3_CONDITION_KEYS = ('drive_source', 'vehicle_then', 'vehicle_now', 'battery', 'note', 'logs')
+V3_REQUIRED_CONDITIONS = {'field_drive_pre_steering': ('drive_source', 'vehicle_then', 'vehicle_now'),
+                          'field_estimate': ('basis', 'replace_by')}
+V3_RESULT_KINDS = tuple(V3_REQUIRED_CONDITIONS)
+V3_CONDITION_KEYS = ('drive_source', 'vehicle_then', 'vehicle_now', 'basis', 'replace_by', 'battery', 'note', 'logs')
 DERIVE_KEYS = ('rate_rule', 'rate_fraction')
 FLAGS = ('polarity_checked', 'range_measured', 'drive_direction_verified')
 
@@ -186,10 +193,11 @@ def _merged(base_doc, own):
     m = dict(base_doc)
     origin = dict(base_doc.get('origin') or {name: base_doc['record_id'] for name in base_doc['values']})
     origin.update({name: own['record_id'] for name in own['values']})
+    supplements = dict(base_doc.get('supplements') or {})
+    supplements[own['record_id']] = dict(result_kind=own['result_kind'], conditions=own['conditions'])
     m.update(schema=own['schema'], record_id=own['record_id'], measured_at=own['measured_at'],
              base_record=own['base_record'], full_schema=base_doc.get('full_schema', base_doc['schema']),
-             values=dict(base_doc['values'], **own['values']), origin=origin,
-             drive_conditions=own['conditions'], drive_result_kind=own['result_kind'])
+             values=dict(base_doc['values'], **own['values']), origin=origin, supplements=supplements)
     return m
 
 
@@ -275,11 +283,13 @@ def _v3_problems(stem, doc):
     if doc['result_kind'] not in V3_RESULT_KINDS:
         p.append('result_kind (schema v3): one of %s' % (V3_RESULT_KINDS,))
     cond = doc['conditions']
+    need = V3_REQUIRED_CONDITIONS.get(doc['result_kind'], ())
     if not isinstance(cond, dict) or not set(cond) <= set(V3_CONDITION_KEYS) or \
-            not all(isinstance(cond.get(k), str) and cond[k] for k in ('drive_source', 'vehicle_then', 'vehicle_now')):
-        p.append('conditions (schema v3): drive_source, vehicle_then, vehicle_now texts (+ battery, note, logs)')
+            not all(isinstance(cond.get(k), str) and cond[k] for k in need):
+        p.append('conditions (schema v3, %s): %s texts (+ the other keys of %s)'
+                 % (doc['result_kind'], ', '.join(need), V3_CONDITION_KEYS))
     values = doc['values']
-    allowed = VALUE_KEYS_V2 + DRIVE_KEYS
+    allowed = VALUE_KEYS_V2 + SUPPLEMENT_KEYS
     if not isinstance(values, dict) or not values or not set(values) <= set(allowed):
         return p + ['values (schema v3): one or more of %s' % (allowed,)]
     for name, entry in values.items():
@@ -303,6 +313,10 @@ def _drive_problems(values):
         x = values['measured_stop_distance_m']['value']
         if not (_real(x) and .05 <= x <= 5.):
             p.append('measured_stop_distance_m: a number 0.05..5 (m)')
+    if 'zero_offset_deg' in values:
+        x = values['zero_offset_deg']['value']
+        if not (_real(x) and abs(x) <= ZERO_OFFSET_MAX_DEG):
+            p.append('zero_offset_deg: a number within +-%g (deg, + left)' % ZERO_OFFSET_MAX_DEG)
     return p
 
 
@@ -552,11 +566,15 @@ def executor_values(record, firmware_name=None, command_limit_deg=None, base_dut
                                     counts_per_command_deg, full),
         steer_polarity_checked='%s polarity_checked [%s]' % (o('polarity_checked'), record.provenance('polarity_checked')),
         steer_range_measured='%s range_measured [%s]' % (o('range_measured'), record.provenance('range_measured')))
-    note = ' (%s)' % record.doc['drive_result_kind'] if record.doc.get('drive_result_kind') else ''
+    supplements = record.doc.get('supplements') or {}
+
+    def note(name):
+        kind = (supplements.get(o(name)) or {}).get('result_kind')
+        return ' (%s)' % kind if kind else ''
     if record.has('breakaway_duty_pct'):
         values['breakaway_duty_pct'] = int(record.value('breakaway_duty_pct'))
         sources['breakaway_duty_pct'] = '%s breakaway_duty_pct [%s]%s' % (
-            o('breakaway_duty_pct'), record.provenance('breakaway_duty_pct'), note)
+            o('breakaway_duty_pct'), record.provenance('breakaway_duty_pct'), note('breakaway_duty_pct'))
     if record.has('v_measured_m_s'):
         c3 = record.value('v_measured_m_s')
         if base_duty_pct is not None and int(c3['duty_pct']) != int(base_duty_pct):
@@ -564,9 +582,14 @@ def executor_values(record, firmware_name=None, command_limit_deg=None, base_dut
                               'the base duty)' % (o('v_measured_m_s'), c3['duty_pct'], base_duty_pct))
         values['v_measured_m_s'] = float(c3['speed_m_s'])
         sources['v_measured_m_s'] = '%s v_measured_m_s at %d %% [%s]%s' % (
-            o('v_measured_m_s'), c3['duty_pct'], record.provenance('v_measured_m_s'), note)
+            o('v_measured_m_s'), c3['duty_pct'], record.provenance('v_measured_m_s'), note('v_measured_m_s'))
     if record.has('measured_stop_distance_m'):
         values['measured_stop_distance_m'] = float(record.value('measured_stop_distance_m'))
         sources['measured_stop_distance_m'] = '%s measured_stop_distance_m [%s]%s' % (
-            o('measured_stop_distance_m'), record.provenance('measured_stop_distance_m'), note)
+            o('measured_stop_distance_m'), record.provenance('measured_stop_distance_m'),
+            note('measured_stop_distance_m'))
+    if record.has('zero_offset_deg'):
+        values['steer_zero_offset_deg'] = float(record.value('zero_offset_deg'))
+        sources['steer_zero_offset_deg'] = '%s zero_offset_deg [%s]%s' % (
+            o('zero_offset_deg'), record.provenance('zero_offset_deg'), note('zero_offset_deg'))
     return values, sources
