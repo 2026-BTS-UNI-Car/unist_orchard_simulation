@@ -49,6 +49,7 @@ docs/provenance/IMPORT_NOTES_KO.md 의 '의도적으로 바꾼 파일' 에 적�
     Cartographer ROS (Copyright The Cartographer Authors, Apache-2.0) 의 확률 격자 값·좌표 의미를 따르며
     상위 프로젝트의 C++ 실행 코드나 바이너리는 싣지 않습니다. 고지 dashboard/static/native-probability/NOTICE,
     전문 dashboard/static/native-probability/LICENSE
+    (2026-11-13 대시보드 사본을 바꿀 때(커밋 65e2a60) 이 폴더는 빠져 지금 트리에는 없다. 옛 커밋에 대한 고지로 남긴다.)
 각 파일의 출처 주소와 sha256 은 dashboard/static/vendor/gps-map-vendors.json 과
 dashboard/static/vendor/hls/provenance.json 에 있습니다.
 

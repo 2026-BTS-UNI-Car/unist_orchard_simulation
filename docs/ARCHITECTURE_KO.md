@@ -8,6 +8,9 @@
 - 2026-11-16 고침: 실차의 하위 보드가 ESP32-S3 하나(BTS7960 세 개, 펌웨어 ABS-HOLD-8-REBOUND-LIMITS)로 바뀌었다(1.1절). 2026-11-15까지의
   설계(ESP8266 + 펌웨어 V3)는 1.2절에 그대로 남긴다. SIM은 V3 직렬 규약을 그대로 쓰고 조향 법칙만 새 보드의 것으로 흉내 낼 수 있다
   (4절, [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md)).
+- 2026-11-17 고침: 1.1절을 지금 차에 맞췄다. 보드는 2026-11-16 밤부터 같은 소스의 SMOOTH 유지 r5 로 조향을 붙잡고 구동 감시(300 ms)를 쓴 판이다
+  ([`HARDWARE_KO.md`](HARDWARE_KO.md) 2절, [`SMOOTH_R5_SIM_KO.md`](steering/SMOOTH_R5_SIM_KO.md)). 새 보드용 Jetson 브리지는 대시보드 저장소에 있다
+  ([`EXECUTOR_ESP32_KO.md`](steering/EXECUTOR_ESP32_KO.md)).
 
 ## 1. 시스템 구성 (실차)
 
@@ -24,12 +27,12 @@ flowchart LR
   subgraph JET["Jetson Orin Nano"]
     DRV["ROS 2 센서 드라이버<br/>/scan · /imu/data_raw · /gps/fix"]
     EXE["실행기 (20 Hz)<br/>추정기 L0~L3 + 열 추종 제어기<br/>운영자 HTTP"]
-    BR["새 보드용 조향 브리지<br/>(대시보드 저장소, 작업 중)"]
+    BR["새 보드용 조향 브리지<br/>(대시보드 저장소)"]
     DB["대시보드 서버<br/>수동 조종 · 자율 시작/STOP"]
   end
-  subgraph ESP["ESP32-S3 (펌웨어 ABS-HOLD-8-REBOUND-LIMITS)"]
-    HOLD["조향 절대 각 유지<br/>PWM 100 펄스 50/80 ms → 300 ms 끔<br/>→ 조용한 가변저항 값으로 판정"]
-    MAN["수동 모터 명령<br/>n F/R pwm · n S · STOP"]
+  subgraph ESP["ESP32-S3 (펌웨어 ABS-HOLD-8-REBOUND-LIMITS, SMOOTH r5)"]
+    HOLD["조향 절대 각 유지 (SMOOTH r5)<br/>한 번의 연속 구동 · 감속 · 끝 제동<br/>→ 구동 중 조용한 가변저항 읽기"]
+    MAN["수동 모터 명령<br/>n F/R pwm · n S · STOP<br/>구동 감시 300 ms (HB)"]
   end
   subgraph ACT["BTS7960 드라이버 3개"]
     D1["1 조향<br/>일반 DC 모터"]
@@ -56,9 +59,11 @@ flowchart LR
   POT --> HOLD
 ```
 
-[도식] 구현 상태: 보드·드라이버·펌웨어는 **실기에 있음**(사용자, 2026-11-16 Jetson에서 STATUS 응답만 확인, 움직임 없음). 새 보드용
-Jetson 브리지는 **작업 중**(대시보드 저장소). 펌웨어 명령과 규칙은 [`HARDWARE_KO.md`](HARDWARE_KO.md) 2절·6.1절. 실기 펌웨어는 구동 명령이
-끊겨도 서는 장치가 없어 호스트 쪽에서 막아야 한다. SIM은 이 보드를 V3 규약 위의 흉내로 돈다(2절, 4절).
+[도식] 구현 상태: 보드·드라이버·펌웨어는 **실기에 있음**(사용자, 2026-11-16). 처음 펌웨어는 PWM 100 펄스 50/80 ms 뒤 300 ms 끄고
+판정하는 펄스 유지였고, 같은 날 밤 SMOOTH 유지 r5 로 바꿨다(보정은 보드 NVS, 앞바퀴를 띄운 정지 측정). 새 보드용 Jetson 브리지는 대시보드
+저장소에 있고, 실행기는 SHADOW 로 설치되어 조종 출력을 보내지 않는다([`EXECUTOR_ESP32_KO.md`](steering/EXECUTOR_ESP32_KO.md)). 펌웨어 명령과
+규칙은 [`HARDWARE_KO.md`](HARDWARE_KO.md) 2절·6.1절. 원본 펌웨어는 구동 명령이 끊겨도 서는 장치가 없었고, 2026-11-16 구동 감시(300 ms)를 보드에
+썼다. 호스트 쪽 정지 장치(브리지 입력 기한, 실행기 감시견)도 그대로 둔다. SIM은 이 보드를 V3 규약 위의 흉내로 돈다(2절, 4절).
 
 ### 1.2 2026-11-15까지의 설계 (ESP8266 + 펌웨어 V3, 기록)
 

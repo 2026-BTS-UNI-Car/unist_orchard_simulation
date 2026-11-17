@@ -21,6 +21,7 @@
 `dashboard/static/native-probability/` 는 이 팀이 쓴 선택 구성요소(Apache-2.0)이며, Cartographer 와 Cartographer ROS
 (Copyright The Cartographer Authors, Apache-2.0) 의 확률 격자 값·좌표 의미를 따릅니다. 상위 프로젝트의 실행 코드나
 바이너리는 들어 있지 않습니다. 고지와 전문은 그 폴더의 `NOTICE`, `LICENSE` 입니다.
+2026-11-13 대시보드 사본을 바꿀 때(커밋 65e2a60) 이 폴더는 빠져 지금 트리에는 없다. 옛 커밋에 대한 고지로 남긴다.
 
 ## 이 저장소에 없는 것
 

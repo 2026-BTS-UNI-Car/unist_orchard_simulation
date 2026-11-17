@@ -1,7 +1,7 @@
 # 문서 색인
 
 이 저장소의 문서가 어디에 있는지와, 지금 기준인 문서와 지난 단계의 기록을 나눠 적었다. 처음이면 1절 순서대로 읽는다.
-모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13, DOC-09)
+모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13, DOC-09. 2026-11-17 고침: 그 뒤 생긴 문서와 빠진 문서를 더함)
 
 ## 1. 처음 읽을 것
 
@@ -27,6 +27,8 @@
 | [`DECISIONS_KO.md`](steering/DECISIONS_KO.md) | 결정 기록 |
 | [`SIM_ACCEPTANCE_KO.md`](steering/SIM_ACCEPTANCE_KO.md) | SIM 자체 합격 검사 A1~A26과 개정(측정 전 등록) |
 | [`PREREG_STEER_FOLLOW_KO.md`](steering/PREREG_STEER_FOLLOW_KO.md), [`PREREG_STEER_FOLLOW_GSIM_KO.md`](steering/PREREG_STEER_FOLLOW_GSIM_KO.md) | 열 추종 판정의 사전등록(빠른 SIM, Gazebo) |
+| [`PREREG_STEER_FOLLOW_V2_KO.md`](steering/PREREG_STEER_FOLLOW_V2_KO.md) | 넓은 조건 열 추종 판정의 사전등록(`steer_follow_wide_v2`, 빠른 SIM 큰 조건 행렬) |
+| [`PREREG_STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL_KO.md), [`…FINAL3`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL3_KO.md), [`…FINAL4`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL4_KO.md), [`…FINAL5`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL5_KO.md), [`…FINAL6`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL6_KO.md), [`…FINAL7`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL7_KO.md), [`…FINAL8B`](steering/PREREG_STEER_FOLLOW_GSIM_FINAL8B_KO.md) | Gazebo 최종 확인의 단계별 사전등록(최종 이미지 wf5, 3~7단계 wf6~wf10, 8b단계 wf11). 결과는 `STEER_FOLLOW_GSIM_FINAL_KO.md` |
 
 규약과 실행
 
@@ -42,6 +44,7 @@
 | [`SIM_DASHBOARD_KO.md`](steering/SIM_DASHBOARD_KO.md) | SIM 대시보드(대시보드 저장소 사본 + SIM 확장) |
 | [`FIELD_TUNING_KO.md`](steering/FIELD_TUNING_KO.md) | 현장 조정 파일(기본·고급·잠금 묶음) |
 | [`PATHS_KO.md`](steering/PATHS_KO.md) | 저장소 밖 자료의 경로 설정 |
+| [`FIELD_EVAL_METHOD_KO.md`](steering/FIELD_EVAL_METHOD_KO.md) | 실차 주행 평가 방법(계획)과 오프라인 평가 도구 `tools/field_eval/`(빠른 SIM 기록으로만 확인, 실차 기록으로는 아직 안 돌림) |
 
 추정기 층과 모형
 
@@ -56,6 +59,7 @@
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |
 | [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md), [`PREREG_STEER_FOLLOW_REALDIMS_KO.md`](steering/PREREG_STEER_FOLLOW_REALDIMS_KO.md), [`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) | 2026-11-16 실제 치수 프로필과 새 조향 보드 펌웨어(ESP32-S3, ABS-HOLD-8) 흉내, 그 프로필로 열 추종 다시 재기의 사전등록과 결과 |
+| [`SMOOTH_R5_SIM_KO.md`](steering/SMOOTH_R5_SIM_KO.md), [`PREREG_STEER_FOLLOW_SMOOTH_KO.md`](steering/PREREG_STEER_FOLLOW_SMOOTH_KO.md), [`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](steering/STEER_FOLLOW_SMOOTH_RESULT_KO.md) | 2026-11-16 밤부터 차 조향 보드가 쓰는 SMOOTH 유지 r5 의 흉내(`steer_fw_mode smooth_r5`)와 현장 프로필 `front_steer_v2_field_20261116`, 그 프로필로 열 추종 재기의 사전등록과 결과(2026-11-17) |
 
 결과
 
@@ -63,8 +67,11 @@
 |---|---|
 | [`STEER_FOLLOW_RESULT_KO.md`](steering/STEER_FOLLOW_RESULT_KO.md) | 열 추종, 빠른 SIM 15회 |
 | [`STEER_FOLLOW_GSIM_RESULT_KO.md`](steering/STEER_FOLLOW_GSIM_RESULT_KO.md) | 열 추종, Gazebo 4회 |
+| [`STEER_FOLLOW_WIDE_RESULT_KO.md`](steering/STEER_FOLLOW_WIDE_RESULT_KO.md) | 넓은 조건 열 추종(`steer_follow_wide_v2`, 빠른 SIM 55조건 × 5 seed) |
 | [`GSIM_GAPS_RESULT_KO.md`](steering/GSIM_GAPS_RESULT_KO.md) | Gazebo 빈틈 정리(A17·A19·A25·A23·A18, 열 끝 e, 빠뜨린 틱) |
-| [`STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/STEER_FOLLOW_GSIM_FINAL_KO.md) | 최종 이미지 wf5 의 Gazebo 확인(열 추종 4 run, 화면, A17(G), A25, PW-08) |
+| [`STEER_FOLLOW_GSIM_FINAL_KO.md`](steering/STEER_FOLLOW_GSIM_FINAL_KO.md) | 최종 이미지 wf5 의 Gazebo 확인(열 추종 4 run, 화면, A17(G), A25, PW-08), 이어서 3~7단계(wf6~wf10), 하지 않은 8단계, 8b단계(wf11) |
+| [`GSIM_MEDIA_KO.md`](steering/GSIM_MEDIA_KO.md) | Gazebo 매체: 열 추종·복귀·GNSS 끊김·열 끝 정지 영상과 그림(판정 아님) |
+| [`EXECUTOR_PERF_KO.md`](steering/EXECUTOR_PERF_KO.md) | 실행기 처리 시간(늦은 틱과 조향 상태 나이, 이 PC에서 잰 값) |
 | [`STEER_HOLD_RESULT_KO.md`](steering/STEER_HOLD_RESULT_KO.md) | 외란 아래 직진 유지 |
 | [`TIMING_BASELINE_KO.md`](steering/TIMING_BASELINE_KO.md), [`REPLAY_BASELINE_KO.md`](steering/REPLAY_BASELINE_KO.md) | 지연·비용 기준선, 10/10 기록 재생 기준선 |
 
@@ -92,3 +99,6 @@
 | [`assets/ASSETS.json`](assets/ASSETS.json) | README 그림·GIF의 매니페스트(출처, 크기, 해시, 눈으로 본 기록) |
 | `steering/figures/` | 결과 문서의 그래프·영상 |
 | [`../third_party/README.md`](../third_party/README.md), [`../NOTICE`](../NOTICE) | 원본 프로젝트와 제3자 구성요소 고지 |
+| [`../dashboard/UPSTREAM.md`](../dashboard/UPSTREAM.md) | 대시보드 사본의 출처(대시보드 저장소 커밋, 파일별 해시, `sync_dashboard.py`) |
+| [`../ros2_ws/src/orchard_gazebo/README.md`](../ros2_ws/src/orchard_gazebo/README.md) | 과수원 월드 생성기 안내(원본 프로젝트에서 가져온 고정 파일) |
+| [`../tools/row_executor/NATIVE_NAVIGATION_KO.md`](../tools/row_executor/NATIVE_NAVIGATION_KO.md) | 실행기 폴더의 옛 메모: 10/10 응답 모델 폐루프와 native navigation 계약(옛 저장소에서 바이트 그대로, [`EXECUTOR_IMPORT_KO.md`](steering/EXECUTOR_IMPORT_KO.md)) |
