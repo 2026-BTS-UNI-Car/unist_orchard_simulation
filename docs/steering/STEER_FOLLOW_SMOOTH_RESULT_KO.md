@@ -3,8 +3,8 @@
 - 작성: 2026-11-17 (작업 sim-smooth-model). 모형과 프로필: [`SMOOTH_R5_SIM_KO.md`](SMOOTH_R5_SIM_KO.md). 사전등록:
   [`PREREG_STEER_FOLLOW_SMOOTH_KO.md`](PREREG_STEER_FOLLOW_SMOOTH_KO.md)(커밋 f67b495, 판정 run 전). 기계가 읽는 결과: `STEER_FOLLOW_SMOOTH_RESULT.json`.
 - 모든 수치는 **자리값 기반 SIM 결과**다. 현장 성능이 아니다. 측정한 코드: 브랜치 HEAD 41ca526(모형 783df78 + 사전등록 f67b495 + 문서, main aa7f2f4 위).
-- **작업 중(WIP)**: 브랜치를 main b8fef2e 위로 옮겼다(같은 내용의 커밋 e228693, eb45a01, 8122eb1; 충돌 없음, 조향 시험 1,347 통과 28 건너뜀).
-  b8fef2e 대비 동일성(T1 71 기록, nominal 두 프로필)과 등록 matrix 15 의 재확인은 아직 하지 않았다. 그 전에는 main 에 넣지 않는다.
+- **main b8fef2e 위로 옮긴 뒤 재확인(2026-11-17, 잠금 세션 3)**: 같은 내용의 커밋 e228693, eb45a01, 8122eb1(충돌 없음, 조향 시험 1,347 통과 28 건너뜀). b8fef2e 대비 T1 71/71 통과·직렬과 trace 71/71 같음(실행기 기록은 시간 칸만 다름), nominal v0.1·v1 각 5/5 같음(네이티브 빌드 id 만 다름),
+  등록 matrix 15/15 가 판정 run(41ca526)과 설정·직렬·trace·실행기 기록까지 같다. 기록 `runs/sim_smooth_model_20261117/measure/rebased/`, `logs/locked_rebased_run3.out`.
 - 측정은 무거운 측정 잠금 안에서 했고, 시작 전 호스트 부하 확인을 통과했다(전체 CPU 30 s 평균 20.5 %, E 등급 평균 24.4 %, `STACK_OPERATIONS_KO.md` 2.1).
   기록 폴더(레포 밖) `steering-sim-20261108/runs/sim_smooth_model_20261117/`(measure/, logs/, NOTES_KO.txt).
 
