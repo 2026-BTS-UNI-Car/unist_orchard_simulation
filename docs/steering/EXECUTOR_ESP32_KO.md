@@ -20,7 +20,7 @@
 | 실행기가 기대한 것(V3) | ESP32 브리지 | 어댑터 / 실행기 |
 | --- | --- | --- |
 | `steer_mrad` = 등가 바퀴각(왼쪽 +) | `steer_mrad` = 펌웨어 명령 눈금(왼쪽 +, ±20 명령도 = ±349), 브리지가 `ANGLE = −도`로 보냄 | 등가 ↔ 명령 눈금을 `steer_esp32_mark_deg`(명령 20의 등가각)로 바꾼다: 명령도 = −등가도 × 20 / mark. SIM 과 같은 식(ABS_HOLD8_SIM 3.3절). mark 는 가장 새 현장 조향 기록의 값(2026-11-16 23:21 기록 18.9°, 추정. 3.3절), 각도계 측정(B3)이 생기면 새 기록으로 바꾼다. 측정각도 거꾸로 바꿔 실행기에 준다 |
-| C 줄 20 Hz, MCU 서보 | 새 ANGLE 마다 펌웨어가 300 ms 기다리고 1000 ms 보정 예산을 다시 시작 | SIM 호스트 정책(`abs_hold_host`)을 어댑터가 한다: 새 목표는 마지막 것과 1 명령도 넘게 다르고, 마지막 뒤 1.0 s 가 지났거나 보드가 목표에 닿았거나(10 count) 유지가 없을 때만. 그 뒤 브리지 규칙(1 명령도 단위, 0.5 s 간격, 20° 넘는 이동은 나눔)이 따른다. **SMOOTH 유지**(브리지 상태 `steering.smooth.firmware` true = FW `SMOOTH=1`, `mode` `SMOOTH` = SM 줄)에서는 `ESP32_SMOOTH_POLICY`: 브리지 단위(0.25 명령도), 데드밴드 0.25 명령도, 0.2 s 간격(3.4절) |
+| C 줄 20 Hz, MCU 서보 | 새 ANGLE 마다 펌웨어가 300 ms 기다리고 1000 ms 보정 예산을 다시 시작 | SIM 호스트 정책(`abs_hold_host`)을 어댑터가 한다: 새 목표는 마지막 것과 1 명령도 넘게 다르고, 마지막 뒤 1.0 s 가 지났거나 보드가 목표에 닿았거나(10 count) 유지가 없을 때만. 그 뒤 브리지 규칙(1 명령도 단위, 0.5 s 간격, 20° 넘는 이동은 나눔)이 따른다. **SMOOTH 유지**(브리지 상태 `steering.smooth.firmware` true = FW `SMOOTH=1`, `mode` `SMOOTH` = SM 줄)에서는 `ESP32_SMOOTH_POLICY`: 브리지 단위(0.25 명령도), 데드밴드 0.25 명령도, 0.2 s 간격(3.5절) |
 | 취소 뒤 같은 ANGLE 다시 보냄(SIM 정책) | 취소된 목표는 요청이 바뀔 때까지 다시 보내지 않음 | 그대로 둔다(브리지 규칙이 더 보수적). 대신 아래 추종 감시가 남은 오차를 잡는다. SIM 과 다른 점 |
 | Arm 전 점검: 펌웨어 V3, `cal_id`, `simulated`, 극성 기록 | `firmware` `ABS-HOLD-8-REBOUND-LIMITS`, CAL 줄, `drive.direction_verified`, `drive.firmware_watchdog_ms` | `esp32_arm_precheck`: 상태 ok·연결, `esp_kind`, 펌웨어 이름, front_steer, 브리지 한계 349, **구동 방향 확인됨**, **펌웨어 구동 감시**(설정 `steer_esp32_require_fw_watchdog`, 기본 true), 보정됨, **CAL 줄 = 설정 `steer_esp32_cal`**(cal_id 대신), 결함 없음, 상태 신선(0.3 s), 측정각 유한, STOP 확인, 아무도 lease 없음, 정지, 스냅샷 2 s 안. 거절이면 arm 을 보내지 않는다 |
 | MCU ARM 확인(`arm_state` confirmed) | MCU ARM 없음(`arm_state` armed) | 브리지가 armed 이면 `confirmed`로 바꿔 보인다(그때부터 결함을 센다) |
@@ -42,7 +42,7 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 
 ### 3.1 현장 조향 기록 (`sim/ubts/steering/field_records/`)
 
-- 파일 하나가 현장 측정 한 번이다: `field_steer_<YYYYMMDD>_<HHMM>.yaml`, 스키마 `ubts.field_steer_record.v1` 또는 v2, 읽기·검사
+- 파일 하나가 현장 측정 한 번이다: `field_steer_<YYYYMMDD>_<HHMM>.yaml`, 스키마 `ubts.field_steer_record.v1`·v2(전체 기록) 또는 v3(보충 기록), 읽기·검사
   `sim/ubts/steering/field_steer_record.py`. 값마다 출처 태그(`MEASURED_<날짜>_LIFTED` 바퀴 든 정지 측정, `FIRMWARE`, `FIRMWARE_NVS` 보드 NVS
   저장 값, `USER_VISUAL` 사용자 눈 확인, `ESTIMATED`, `USER_DECISION`, `DEFINITION`, `NOT_MEASURED`)와 근거를 적고, 측정 조건(바퀴 든 채/땅,
   정지, 구동 상한, 가변저항 축전기)을 적는다.
@@ -54,6 +54,9 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
   가운데 한계(CENTER 가 그 안), 유지 방식(pulse / smooth; smooth 면 `SMOOTH=1` 과 SM 값이 있어야 하고 정지·재시작 허용은 SM STOP_TOL·
   RESTART_TOL), 계단 응답의 시간 정의(목표 허용 안 도달 / 펌웨어 DRIVE_MS)·눈금(브리지 명령도, + 왼쪽)·최종 오차, 극성 증거(펌웨어 부호
   낱말 POT_DECREASES 와 맞아야 함; `polarity_checked`는 따로). 속도 규칙에 `slowest_per_full_range`(모든 계단을 20 명령도당 시간으로)를 더했다.
+- 스키마 v3(보충 기록, 2026-11-17 부터): `base_record`(같은 폴더의 더 오래된 기록)의 값을 그대로 쓰고 이 파일에 적은 값만 더하거나 바꾼다. 적을 수
+  있는 값은 v2 의 값 이름과 구동 값 `breakaway_duty_pct`(C2), `v_measured_m_s`(C3, `{duty_pct, speed_m_s}`; 실행기 기본 duty 와 같아야 함),
+  `measured_stop_distance_m`(C7). 합친 값으로 같은 검사를 한다. `--sources`의 `field_record.chain`과 값마다의 기록 id 가 어디서 왔는지 보인다.
 - 새 기록 반영: 기록 파일을 더한다 → `python -B -m steering.vehicle_executor_config --check ../../tools/row_executor/config.vehicle_esp32_shadow.json`
   (sim/ubts)이 다르다고 알린다 → `--out <새 파일>`로 쓴 것을 레포 파일과 바꾼다 → `python -B tools/row_executor/write_sha256sums.py` → 시험.
   `--sources`는 값마다 출처(기록 id·sha256 포함)를 보인다. `--no-field-record`는 프로필만으로 만든다(11/16 오전 판과 같은 바이트).
@@ -96,7 +99,21 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | 명령 20 의 등가각 (mark) | 18.9° | 끝이 약 20° 라고 보면 20 × 542 / 572 = 18.95°(오른쪽), 20 × 496 / 526 = 18.86°(왼쪽)의 평균 | ESTIMATED |
 | 극성 증거 | 가변저항이 클수록 바퀴가 왼쪽 | 사용자 눈: 1913 은 오른쪽으로 틀어짐, 2009 는 조금 오른쪽, 2006·2029 는 곧음. 펌웨어 부호 POT_DECREASES(오른쪽으로 갈수록 준다)와 같다. 계단의 모든 ANGLE 이 한 번에 수렴해 모터 방향과 가변저항 방향도 맞는다 | USER_VISUAL |
 
-### 3.4 설정 값 (생성기 출력, 가장 새 기록 = 기록 2)
+### 3.4 보충 기록 3 `field_steer_20261117_0855` (구동 값, 10월 기록. 지금 쓰는 기록)
+
+사용자 결정(2026-11-17 아침): "모터 구동 자체는 지난번에 10월 초에 측정해둔 데이터랑 별 다를게 없을거거든? 일단은 그걸 기준으로 적용".
+스키마 v3 보충 기록이라 조향 값은 기록 2 의 것을 그대로 쓰고 구동 값 셋만 더한다. 출처 태그 `FIELD_OCT2026_PRE_STEERING`: 2026-10-03·10-10
+수동 주행 기록(조향 장치 전, 좌우 차동 구동, ESP8266 제어)에서 잰 값이다. 지금 차는 같은 구동 모터에 조향 장치(무게 더해짐)를 달았고
+ESP32-S3 + BTS7960(20 kHz, 8 비트 PWM)으로 돌린다. 배터리 상태는 그때도 지금도 모른다. **지금 차에서 다시 잰 값이 아니다.**
+자세한 표는 [`../drive_response/README_KO.md`](../drive_response/README_KO.md).
+
+| 값 | 설정 | 어디서 | 한계 |
+| --- | --- | --- | --- |
+| C2 `breakaway_duty_pct` | 34 % | 표 T4s: 10/10 출발 12건 가운데 움직임 잡힘 11건, 움직일 때 duty p50 34 %(p10/p90 15/90), 램프 시작에서 움직임까지 p50 0.34 s | 요청 88~100 % 출발뿐. 10/3 은 p50 23 %(7건), 합 26 %. 30~60 % 정지 출발 자료 없음 |
+| C3 `v_measured_m_s` | 0.459 m/s at 55 % | 표 T2 합친 기준표의 55 % 칸(참고 등급, GNSS, 구간 3, p10~p90 0.451~0.469) = 표 T3 과수원 10/3 의 같은 값. 실행기 C3 는 기본 duty(`base_duty_pct` 55)의 속도라 이 칸이다 | LiDAR 정합 품질이 낮아 GNSS 값(0.4 s 표본 중앙값은 0.517). 25~60 % 는 구간 1~3 개뿐이라 ±20 % 넘게 틀릴 수 있다 |
+| C7 `measured_stop_distance_m` | 0.595 m | 10/10 깨끗한 놓기 정지 4건 0.383 / 0.559 / 0.566 / 0.595 m 가운데 가장 긴 것(놓을 때 약 0.93 m/s). 표 T5s 속도 일관 8건 p90 0.575 m | 0.75~0.98 m/s 에서 키를 놓은 정지라 실행기 속도(약 0.46 m/s)보다 빠른 데서 잰 보수적인 값. 실행기 자신의 0/0 정지, STOP 제동, 0.2~0.6 m/s 정지는 미측정 |
+
+### 3.5 설정 값 (생성기 출력, 가장 새 기록 = 보충 기록 3 + 기록 2)
 
 | 값 | 설정 | 출처 |
 | --- | --- | --- |
@@ -108,8 +125,21 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | 변화율 한도 (주행·정지) | 10.507 °/s | 0.8 × 측정 속도(사용자 규칙 todo 다-6, 내림). 보드에는 10.507 × 20 / 18.9 = 11.12 명령도/s ≤ 0.8 × 13.90 |
 | GO 문턱 `steer_rate_min_deg_s` | 10.507 °/s | 같은 규칙. 측정 13.134 ≥ 10.507 이라 조향 속도 GO 는 통과한다 |
 | 데드밴드 | 0.229° | 부드러운 유지의 정지 허용 STOP_TOL 6 count ÷ 24.8 count/명령도(count 가 적은 왼쪽) × 18.9 / 20 |
+| C2 출발 duty | 34 % | 보충 기록 3, FIELD_OCT2026_PRE_STEERING |
+| C3 기본 duty 55 % 속도 | 0.459 m/s | 보충 기록 3, FIELD_OCT2026_PRE_STEERING |
+| C7 정지 거리 | 0.595 m | 보충 기록 3, FIELD_OCT2026_PRE_STEERING |
+| 정지 모형 `controller_overrides` | `stop_decel_m_s2` 0.25 (기본 1.07) | 생성기가 계산: 실행기 규칙(S6)은 C7 이 있으면 v_measured 에서의 정지 모형 거리가 C7 이상이어야 한다. 기본 모형은 0.459 m/s 에서 0.282 m 라 감속도만 낮춰(0.01 내림) 0.605 m(+ 앞 여유 0.35 = 0.955 ≥ 0.595 + 0.35). 반응·시작 지연·앞 여유는 기본 그대로, 어느 값도 느슨하게 하지 않는다 |
 | LiDAR | x 0.1185(측정), yaw 179.08(ESTIMATED) | 프로필 |
 | 몸체 | 1.22 × 0.70 | SPEC_PENDING |
+
+- 정지 모형을 낮춘 효과: 이 값은 실행기 설정의 정지 모형(위 규칙 판정, 끝 거리 규칙 보고의 `expected_rest_m`, 벤치·보정 주행의 앞 막힘 판정 —
+  front_steer 는 벤치·보정 주행을 거절한다)에 쓰인다. **차를 실제로 모는 열 추종 조향 컨트롤러(row_follow, `SteerFollowConfig`)는 자기 정지
+  모형(감속 1.07 m/s², 시작 지연 0.25 s + 잰 루프 지연 약 0.34 s)을 쓰므로 이 변경으로 앞 막힘·열 끝에서 더 일찍 서지 않는다.** 그 모형은
+  0.459 m/s 에서 약 0.37 m 로 C7 0.595 m(0.9 m/s 정지)보다 짧다(10월 기록의 모형 v·0.25 + v²/2.6 으로는 0.459 m/s 에서 약 0.20 m). 컨트롤러도
+  이 정지 모형을 따르게 할지는 따로 정할 일이다(실행기 코드 변경).
+- MOTOR 로 켜면(설정 검사 `feasibility`, motor_output_enabled true) 남는 문제는 조향 확인 다섯 가지뿐이다: `steer_range_measured` false(B2/B3),
+  `steer_wheel_soft_margin_deg`(B2/B3), `steer_min_pwm_pct`(B4), `steer_zero_offset_deg`(F1), `steer_polarity_checked` false(B0). 구동 쪽(C2, C3, C7,
+  정지 모형) 문제는 없다. 그 밖에 브리지 `direction_verified`(지금 차의 구동 방향)가 false 라 Arm 전 점검이 거절한다.
 
 - 기록 1 로 만든 값(펄스 유지): CAL [1469, 1900, 2463, 20], mark 18.8°, 측정 5.838 °/s(18.8° / 3.22 s, 전 범위 계단 기준), 한도·문턱
   4.67 °/s, 데드밴드 0.436°(목표 허용 10 count). 기록 2 가 이 값을 대신한다(기록 1 파일은 그대로).
@@ -127,8 +157,8 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
   - 조향 속도의 조건: 바퀴를 띄운 정지 값을 주행 중 값에도 넣었다. 땅에 닿으면 더 느리다. 배터리에 따라 같은 움직임이 30 % 느려진 적이
     있다(1.92 → 2.49 s). DRIVE_MS 는 구동 시간만이라 호스트 지연·정착·제동이 빠진다. 그래서 한도·문턱 10.507 °/s 는 땅에서 잰 값으로
     바꾸기 전까지 MOTOR 에 쓸 근거가 약하다.
-  - 구동 방향, C2 `breakaway_duty_pct`, C3 `v_measured_m_s`, C7 `measured_stop_distance_m`: 미측정 → null, 브리지 `direction_verified` false 라
-    Arm 도 거절된다.
+  - 구동: C2 / C3 / C7 은 10월 기록 값(보충 기록 3, 지금 차에서 다시 재지 않음). 구르는 바퀴 문턱 C3b `rolling_breakaway_duty_pct` 는 null.
+    지금 차의 구동 방향은 확인하지 않아 브리지 `direction_verified` false 라 Arm 이 거절된다.
 - 어댑터의 ANGLE 정책은 브리지 상태를 보고 고른다(2026-11-17). 브리지가 SMOOTH 유지(`steering.smooth.firmware` true 이고 `mode` `SMOOTH`)를
   알리면 `ESP32_SMOOTH_POLICY`: 브리지의 단위(SMOOTH 에서 0.25 명령도), 데드밴드 0.25 명령도, 새 목표는 0.2 s 마다 한 번까지(브리지의 SMOOTH
   간격과 같음). 까닭: r5 SMOOTH 펌웨어는 목표까지 한 번에 이어 구동하고 같은 방향의 새 목표를 멈추지 않고 이어받는다(방향이 바뀔 때만 60 ms
@@ -172,7 +202,7 @@ front_steer, 단일열, **SHADOW**, 소켓 `/run/ubts-rover/control.sock`, 운�
 | `tools/row_executor/tests/test_esp32_adapter.py` | 눈금·부호, 정규화, 정책(1 s 간격, 닿으면 다음 목표; SMOOTH 상태면 0.25 명령도·0.2 s, SMOOTH 꺼짐·SM 줄 없음·옛 브리지면 펄스 정책, 브리지 단위, 상태·스냅샷의 정책 이름), motion 이 브리지에 가지 않음, 추종·미끄럼 감시와 stop 한 번, 다른 사람 lease 에는 stop 없음, STOP 확인 계수, Arm 전 점검 규칙 하나씩, SMOOTH 브리지 상태(SMOOTH=1/0) 통과, V3 점검이 이 상태를 거절, 클라이언트 lease 잃음 → 래치, 설정 규칙, 기본 digest 그대로, 휠베이스 | 대시보드 없이 |
 | `tests/test_esp32_executor_e2e.py` | 실행기(ExecutorLoop, MOTOR, one_press) → 어댑터 → **대시보드의 Esp32Bridge·Esp32SteerMotor 그대로** → 가짜 펌웨어(차의 보드: 실시간 보정 SMOOTH 판, FW 줄 `SMOOTH=1`, NVS 에 설정의 CAL 표시; 대시보드 da39e8a 이후, 옛 가짜 보드면 건너뜀), 한 가상 시계, JSON 왕복. go 전 구동 줄 없음(Start만, Arm 뒤 기다림), 방향 미확인·감시 없음·CAL 다름·NVS 표시 잃음(기본 표시) → Arm 거절(arm 안 보냄), NVS 표시 = 설정이면 Arm, `SMOOTH=1` 펌웨어(구동 감시 낱말 있음·없음)에서 Arm, 부호·눈금을 SMOOTH 와 펄스 유지(SM OFF) 둘 다에서, 왼쪽 100 mrad → `ANGLE -6.0`, 가변저항 왼쪽, 측정 되돌림, 목표 변경 수(SMOOTH: 정책 smooth, 0.25 명령도 단위, ANGLE 간격 0.2 s 이상; 펄스: 정책 pulse, 정수 명령도, 약 1 s 에 하나), 화면 STOP → 40 ms 안 구동 0 · operator_stop · 래치 · 재출발 없음, heartbeat 끊김 → 1.15 s 안 구동 0 · 다시 이어져도 구동 없음, 실행기 멈춤 → 0.85 s 안 STOP, 가변저항 고착 → steering_not_following, INVALID POT → 정지 | `UBTS_DASH_DIR`=대시보드 레포 |
 | `tests/test_esp32_executor_linux.py` | 실시간: 실행기 → 실제 Unix 소켓 → **브리지 프로세스**(`python -m scripts.esp32_steer_bridge`, 실제 USB 전송 코드, 가짜 udev) → pty 의 가짜 펌웨어. go 뒤 구동·왼쪽 ANGLE, 화면 STOP 0.2 s 안 구동 0, 실행기 멈춤 1.0 s 안 구동 0, 브리지 SIGTERM → 구동 0 · run 끝 | Linux + `UBTS_DASH_DIR` |
-| `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값(속도 규칙은 시험에서 따로 계산), 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 null; 감시; 브리지 범위), 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 거절(두 스키마 공통 20가지 + v2 12가지, 기록마다), 속도 내림, SMOOTH 기록(SMOOTH=1 받아들임, 정지 허용 = STOP_TOL, 극성 증거는 B0 아님), 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
+| `sim/ubts/test_steering_vehicle_executor_config.py` | 레포의 차량 설정 = 생성기 출력(가장 새 현장 기록), 보드 값 = 그 기록의 값(속도 규칙은 시험에서 따로 계산), 고정 규칙(0.8 × 측정, 보드 눈금으로도; 극성·범위 false; 구동 값 = 기록 값이거나 null, C3 는 기본 duty; 정지 모형은 C7 이상이고 느슨해진 값 없음; MOTOR 로 켜면 조향 확인 문제만 남음; 감시; 브리지 범위), 보충 기록(v3)이 기반 위에 값을 더함·기반 없음/더 오래됨/합친 값 위반/C3 duty 다름 거절, 정지 모형 계산, 새 기록이 이기고 옛 기록은 남음, 같은 순간 거절, 잘못된 기록 거절(두 스키마 공통 20가지 + v2 12가지, 기록마다), 속도 내림, SMOOTH 기록(SMOOTH=1 받아들임, 정지 허용 = STOP_TOL, 극성 증거는 B0 아님), 기록 없이 만들면 프로필 값, MOTOR 거절, SHADOW 루프에 전송 없음 | sim/ubts |
 
 결과(2026-11-16, 이 브랜치): 7절.
 
