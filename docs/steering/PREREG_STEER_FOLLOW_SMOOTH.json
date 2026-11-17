@@ -1,0 +1,148 @@
+{
+ "controller": {
+  "kind": "row_follow",
+  "wheelbase_m": "profile wheelbase_m (0.657)"
+ },
+ "executor": "sim_in_loop_steer.steer_executor_config with the smooth_r5 measured values (steering.smooth_hold.executor_values through steering.abs_hold.executor_values); no threshold change (the measured SMOOTH rate passes the steering GO rule)",
+ "footprint": {
+  "front_bumper_m": 0.61,
+  "half_width_m": 0.35,
+  "note": "footprint 1.22 x 0.70 m is still the placeholder of the profile"
+ },
+ "id": "steer_follow_smooth_r5_v1",
+ "iterations": {
+  "allowed": "none in this registration: the results are reported as they are",
+  "max": 0
+ },
+ "order": "matrix first; wide when the time allows (reported as not run otherwise)",
+ "parts": {
+  "matrix": {
+   "conditions": [
+    "nominal",
+    "lateral_p040",
+    "lateral_n040",
+    "heading_p8",
+    "heading_n8",
+    "steer_zero_p2",
+    "steer_zero_n2",
+    "side_pull",
+    "lidar_dropout_0p2",
+    "lidar_stale_1p0",
+    "obstacle"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "min_clearance_m": 0.0,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1
+   },
+   "pass_rule": "every run passes its registered checks",
+   "rules": "follow_matrix.measure / judge (steer_follow_v1)",
+   "runs": 15,
+   "seeds": {
+    "heading_n8": [
+     0
+    ],
+    "heading_p8": [
+     0
+    ],
+    "lateral_n040": [
+     0
+    ],
+    "lateral_p040": [
+     0
+    ],
+    "lidar_dropout_0p2": [
+     0
+    ],
+    "lidar_stale_1p0": [
+     0
+    ],
+    "nominal": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "obstacle": [
+     0
+    ],
+    "side_pull": [
+     0
+    ],
+    "steer_zero_n2": [
+     0
+    ],
+    "steer_zero_p2": [
+     0
+    ]
+   },
+   "settle_m": 6.0
+  },
+  "wide": {
+   "conditions": [
+    "curve_l30",
+    "curve_r30",
+    "gap3_both",
+    "endpost_2p0",
+    "width_3p0",
+    "w2_042301_c03",
+    "w2_040927_c06",
+    "heading_p10",
+    "heading_n10",
+    "pull_left",
+    "pull_right",
+    "speed_0p2",
+    "speed_0p5",
+    "table_x070",
+    "table_x130",
+    "dist_step_p2p5",
+    "dist_terrain",
+    "imu_stale_1p0",
+    "gnss_nominal",
+    "operator_link_lost"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "imu_max_age_s": 0.4,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "lidar_max_age_s": 0.45,
+    "link_drive_zero_s": 0.55,
+    "min_clearance_m": 0.0,
+    "pw08_cell_ratio_tolerance": 0.01,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_fast_m_s": 0.55,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1,
+    "steer_fault_within_s": 3.0
+   },
+   "disturbance_profile": "front_steer_v2_field_20261116",
+   "pass_rule": "reported per condition; the part passes when every run passes",
+   "rules": "follow_wide.measure / judge (steer_follow_wide_v2, round 2 rules)",
+   "runs": 60,
+   "seeds": [
+    4000,
+    4001,
+    4002
+   ]
+  }
+ },
+ "profile_id": "front_steer_v2_field_20261116",
+ "result_kind": "placeholder-based SIM result",
+ "schema": "ubts.steer_sim.prereg_follow_smooth.v1",
+ "simulator": "F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)",
+ "steer_fw_mode": "smooth_r5"
+}
