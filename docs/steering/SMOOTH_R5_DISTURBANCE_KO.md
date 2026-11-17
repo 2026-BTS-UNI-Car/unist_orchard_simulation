@@ -105,3 +105,8 @@ r5 규칙에 조향축 외력 대응 네 가지를 더했다(네이티브 `smoot
 - 같은 묶음을 v2.1 로 돌리던 개발 run 은 다른 작업의 무거운 측정(잠금)과 겹치지 않게 도중에 멈췄다(판정하지 않음). 판정 run 이 대신한다.
 - 결론: v1 의 두 외란 실패는 '실기에 없는 감시가 멈춘 것'만이 아니다. 실기 감시 묶음(v2.1)에서도 SMOOTH r5 는 이 자리값 외란을 못 버티고 실행기 어댑터 규칙으로
   멈춘다. SIM 에서는 제안 r6p 가 같은 외란을 버텼다(서 있는 차의 떨림은 남음). 실기 판단에는 정지 토크·땅에 닿은 조향·전류의 측정이 먼저다.
+
+## 6. 판정 결과 (`steer_follow_smooth_r5_v2`, 2026-11-17)
+
+[`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](STEER_FOLLOW_SMOOTH_RESULT_KO.md) 8절. 차 모형(v2.1): `matrix` 15/15, 넓은 조건 54/60 불합격(`dist_step_p2p5` 0/3,
+`dist_terrain` 0/3, 모두 실행기 어댑터 규칙 `steering_not_following`; `operator_link_lost` 3/3). SIM 제안 r6p(v2.2): 15/15, 60/60. 자리값 기반 SIM 결과다.

@@ -5,6 +5,7 @@
 - 모든 수치는 **자리값 기반 SIM 결과**다. 현장 성능이 아니다. 측정한 코드: 브랜치 HEAD 41ca526(모형 783df78 + 사전등록 f67b495 + 문서, main aa7f2f4 위).
 - **main b8fef2e 위로 옮긴 뒤 재확인(2026-11-17, 잠금 세션 3)**: 같은 내용의 커밋 e228693, eb45a01, 8122eb1(충돌 없음, 조향 시험 1,347 통과 28 건너뜀). b8fef2e 대비 T1 71/71 통과·직렬과 trace 71/71 같음(실행기 기록은 시간 칸만 다름), nominal v0.1·v1 각 5/5 같음(네이티브 빌드 id 만 다름),
   등록 matrix 15/15 가 판정 run(41ca526)과 설정·직렬·trace·실행기 기록까지 같다. 기록 `runs/sim_smooth_model_20261117/measure/rebased/`, `logs/locked_rebased_run3.out`.
+- **v2 판정(`steer_follow_smooth_r5_v2`, 차의 감시 묶음 v2.1 과 SIM 제안 v2.2)은 8절.** 1~7절은 v1 그대로다.
 - 측정은 무거운 측정 잠금 안에서 했고, 시작 전 호스트 부하 확인을 통과했다(전체 CPU 30 s 평균 20.5 %, E 등급 평균 24.4 %, `STACK_OPERATIONS_KO.md` 2.1).
   기록 폴더(레포 밖) `steering-sim-20261108/runs/sim_smooth_model_20261117/`(measure/, logs/, NOTES_KO.txt).
 
@@ -95,3 +96,74 @@
 - 땅에 닿은 조향(바퀴 든 계단으로 맞춤), 주행 중 조향 속도, 가변저항 어긋남의 크기·부호(기본 0), 10비트 ADC 분해능(1 raw ≈ 7~8 count), 실기에 없는
   V3 감시, 어댑터·브리지 두 겹 정책을 하나로 합친 것, Gazebo 에서 이 프로필로 돌린 적 없음.
 - 등록 판정과 화면용 스택의 기본 프로필을 v2 로 바꿀지는 따로 정한다(R102).
+
+## 8. v2 판정 (`steer_follow_smooth_r5_v2`, 2026-11-17, 작업 sim-smooth-wide)
+
+- 위 1~7절(v1)의 수치는 그대로 둔다. v2 는 v1 의 실패 분석([`SMOOTH_R5_DISTURBANCE_KO.md`](SMOOTH_R5_DISTURBANCE_KO.md))에 따라 새로 등록한 판정이다.
+  사전등록 [`PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md`](PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md)(커밋 a5976b0, main a7563fe 위로 옮긴 같은 내용 104d17d; 판정 run 전).
+  기계가 읽는 결과: `STEER_FOLLOW_SMOOTH_V2_RESULT.json`.
+- 측정한 코드: 브랜치 HEAD 104d17d(모형 b790a0c + 사전등록 104d17d, main a7563fe 위). 무거운 측정 잠금 안(23:27~23:50), 시작 전 호스트 부하 확인 통과(전체 CPU
+  30 s 평균 11.8 %, E 등급 0.1 %). 기록 `runs/sim_smooth_wide_20261117/`(measure/smooth2, logs/locked_session.log, NOTES_KO.txt).
+- 모든 수치는 **자리값 기반 SIM 결과**다. 제안 부분은 **SIM 제안 r6p**(차의 펌웨어가 아니며 보드에 쓴 적 없음)의 효과다.
+
+### 8.1 요약
+
+| 부분 | 프로필 | 결과 |
+|---|---|---|
+| `matrix` 15 | v2.1(차의 감시 묶음, SMOOTH r5) | **15/15 통과** |
+| `wide` 60 | v2.1 | **54/60, 불합격**: `dist_step_p2p5` 0/3, `dist_terrain` 0/3(모두 `steering_not_following`). 나머지 18조건 54/54(`operator_link_lost` 3/3, 1.05 s) |
+| `proposal_matrix` 15 | v2.2(SIM 제안 r6p) | **15/15 통과** |
+| `proposal_wide` 60 | v2.2 | **60/60 통과**(`dist_step_p2p5` 3/3, `dist_terrain` 3/3) |
+
+- 판정: 차 모형(v2.1)은 **불합격**(두 외란 조건). SIM 제안 r6p(v2.2)는 등록한 75회 모두 통과. 제안의 통과는 차의 통과가 아니다.
+
+### 8.2 v1 과 견준 조건 (v1 은 같은 seed, 프로필 v2)
+
+| 조건 | v1(v2 프로필) | v2 차(v2.1) | v2 제안(v2.2) |
+|---|---|---|---|
+| `dist_step_p2p5` | 0/3: 6.49 s V3 POT_NOISE → `steering_feedback_invalid` | 0/3: 8.08 / 8.08 / 8.14 s 호스트 `steering_not_following`(요청 −167~−202 mrad, 측정 +335~+338 mrad = 왼쪽 끝), 방향 최대 16.6~18.5° | 3/3: 열 끝, 횡 RMSE 0.046~0.051 m, 최대 0.086~0.111 m, 방향 최대 3.2~3.4° |
+| `dist_terrain` | 1/3(s4001 7.79 s, s4002 13.46 s V3 TRACK) | 0/3: s4000 2.84 s(출발 전, 밀기로 바퀴가 −347 mrad), s4001 25.64 s, s4002 66.34 s(열 끝 0.17 m 앞) `steering_not_following` | 3/3: 횡 RMSE 0.026~0.058 m, 최대 0.054~0.111 m, 방향 최대 2.9~4.2° |
+| `operator_link_lost` | 0/3(1.05 s, 기준 0.55 s) | 3/3(1.05 s ≤ 1.05 s; 옛 0.55 s 로는 3회 모두 넘음, 행마다 `v1_link_check`) | 3/3(같음) |
+
+- v2.1 의 run 은 v1 의 run 과 1:1 로 같지 않다: 프로필 식별(sha256)과 episode 이름이 달라 같은 seed 라도 자리값 분포의 뽑기(가변저항 중심·이득 등, 상태 줄의
+  보정 표지 raw 가 다름)가 다르다. 그래서 v1 에서 통과한 `dist_terrain` s4000 이 v2.1 에서는 출발 전에 밀려 멈췄다. 비교는 조건별 통과 수로만 한다.
+- v2.1 의 멈춤은 모두 실행기 ESP32 어댑터 규칙(보낸 목표와 측정의 차 > 3 deg 가 2 s)이다. MCU 결함 줄은 0 이다(보드에 없는 감시를 껐으므로).
+  곧 실기 감시 묶음에서도 SMOOTH r5 는 이 자리값 외란에서 바퀴를 놓치고, 멈추는 이유가 V3 감시에서 호스트 규칙으로 바뀔 뿐이다.
+
+### 8.3 열 끝 run 의 값
+
+| 부분 | 열 끝 run | 횡 RMSE 평균 / 최대 (m) | 횡 최대 (m) | 방향 RMSE 평균 (°) | 방향 최대 (°) | 참 속도 최대 (m/s) | 최소 여유 (m) |
+|---|---|---|---|---|---|---|---|
+| `matrix`(v2.1) | 13 | 0.043 / 0.062 | 0.400(lateral_p040 출발 어긋남) | 1.39 | 10.1(lateral_p040) | 0.459 | 0.875 |
+| `wide`(v2.1) | 48 | 0.050 / 0.114 | 0.395(W2 042301_c03) | 1.41 | 10.0(heading_p10 출발) | 0.516(`speed_0p5`, 한도 0.55) | 0.671 |
+| `proposal_matrix` | 13 | 0.043 / 0.054 | 0.400(lateral_p040) | 1.22 | 10.5(lateral_n040) | 0.447 | 0.873 |
+| `proposal_wide` | 54 | 0.050 / 0.125 | 0.408(W2 042301_c03) | 1.47 | 10.0(heading_p10 출발) | 0.507 | 0.693 |
+
+- nominal 5회: v2.1 횡 RMSE 0.037~0.053 m, 제안 0.038~0.052 m(v1 0.030~0.050 m, 뽑기가 달라 1:1 비교 아님). 외란이 없는 조건에서 제안이 열 추종을 나쁘게
+  하지 않았다(조건별 통과 수 같음).
+
+### 8.4 동일성 (같은 잠금 세션, base = main a7563fe 분리 작업 트리; a7563fe 의 코드는 54f9c34 와 같다)
+
+| 묶음 | 결과 |
+|---|---|
+| T1 안전 대본 71(일꾼 1, 직렬 기록은 머리 줄 뺀 digest) | 71/71 통과(A17, A22 true), 직렬 기록 71/71 같음, trace 71/71 같음. 실행기 기록 digest 는 시간 칸 때문에 다름(앞 작업들과 같음) |
+| 빠른 SIM nominal v0.1 · v1(펄스) | 각 5/5 통과, 설정·trace·지표 5/5 같음, 직렬은 머리 줄의 `native_build_id` 만 다름, 실행기 기록은 시간 칸 빼고 같음 |
+| v2 프로필(스키마 v5)의 v1 등록 75 run 을 브랜치에서 다시 | 75/75 가 v1 판정 run(41ca526)과 설정·trace·지표·직렬(빌드 id 빼고)·실행기 기록(시간 칸 빼고) 같음: `matrix` 15/15, `wide` 52/60 그대로 |
+
+- 네이티브 소스(smooth_r5.cc, steer_config)가 바뀌어 직렬 기록 머리 줄의 `native_build_id` 가 다르다. V3 펌웨어 빌드 id 878B5F56 은 그대로다.
+- 옛 프로필(v0.x, v1, v2)의 호스트 프로필 바이트·시작 줄 법칙 블록·CFG 값은 54f9c34 와 같다(`test_steering_smooth_monitors.py`).
+
+### 8.5 시험과 검사
+
+- 조향 시험 전부(`test_steering_*.py`, Windows Python 3.13): 1,360 통과 28 건너뜀 0 실패. 브리지 시험 `dashboard/scripts/test_steer_bridge_core.py` 63 통과.
+  새 시험: `test_steering_smooth_monitors.py` 9, `test_steering_follow_smooth2.py` 4, 브리지 `esp32_adapter` 규칙 1.
+- 적합성: V3 대본 92/92, SMOOTH 대본 11/11, 두 전송(native, backend) 모두.
+- 레포 검사: check_pins OK(고정 115 중 113 같음, 허용 2), check_vendor_sync OK, check_import_manifest OK, check_assets OK, 바뀐 파일 좌표 lint 판정 0.
+
+### 8.6 남는 것
+
+- 차의 판단에는 실제 조향 모터 정지 토크(B5), 땅에 닿은 조향의 외력, 전류·열 측정이 먼저다. 이 판정의 외란 크기(2.5 N·m 계단, 지면 밀기 sd 0.5 N·m)와
+  정지 토크 5 N·m 는 자리값이다.
+- 제안 r6p 의 한계: PWM 200 은 r5 SM_LIMITS(PWM_MAX ≤ 160) 밖, 서 있는 차에서 2.5 N·m 아래 1.2~6.5° 떨림(약 0.9 s 주기), 실기 링크 되튐과의 상호작용은
+  보지 않았다([`SMOOTH_R5_DISTURBANCE_KO.md`](SMOOTH_R5_DISTURBANCE_KO.md) 4절). 보드에 쓰려면 따로 정하고, 바퀴 든 시험부터 한다.
+- 화면용 스택과 Gazebo 의 프로필은 바꾸지 않았다.
