@@ -238,6 +238,13 @@ ESP32-S3 + BTS7960(20 kHz, 8 비트 PWM)으로 돌린다. 배터리 상태는 �
 - SIM 은 바뀌지 않는다: 브랜치 머리(f3f00b4)를 잠금 세션에서 돌려 첫 세션의 main bde5474 결과와 비교했다. T1 71/71, 직렬·trace digest 71/71 같음.
   nominal v0.1·v1 각 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기 기록은 시간 칸과 tuning.file 만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
 
+구동 값(보충 기록 3)과 F1 추정(보충 기록 4) 반영, 2026-11-17:
+- 시험: Windows 실행기 시험 전체 619 통과 35 건너뜀(ESP32 끝단은 대시보드 da39e8a 작업 트리), 대시보드 없이 unittest 654 통과(49 건너뜀),
+  WSL Python 3.10.12 ESP32 시험 42 통과(Linux 실시간 끝단 3 포함), sim/ubts 관련 시험 125 통과 1 건너뜀. 가짜 보드이며 차에서 확인한 것이 아니다.
+- 설정 검사: SHADOW 'unknown'(B2/B3 둘, B4, B0). MOTOR 로 켜면 같은 넷만 문제로 남는다(구동·정지 모형·F1 문제 없음).
+- SIM 은 바뀌지 않는다: 같은 잠금 방식으로 main aa7f2f4 와 브랜치(5260722, 그 뒤 e0bab52)를 돌렸다. T1 71/71, 직렬·trace digest 71/71 같음.
+  nominal v0.1·v1 각 5/5, 설정 digest·직렬·trace 5/5 같음, 실행기 기록은 시간 칸과 tuning.file 만 다름. 자리값 기반 SIM 결과이며 판정이 아니다.
+
 SMOOTH 정책(2026-11-17, 브랜치 executor-smooth-policy-20261117, 작업 기록 `steering-sim-20261108/runs/executor_kit_20261116/NOTES_KO.txt`):
 - 시험: Windows 실행기 시험 전체 619 통과 35 건너뜀(ESP32 끝단은 대시보드 41937bf 작업 트리), WSL Python 3.10.12 ESP32 시험 42 통과(Linux 실시간
   끝단 3 포함), sim/ubts 관련 시험 102 통과 1 건너뜀. 끝단 시험의 SMOOTH 가짜 보드에서 왼쪽 100 mrad 경사(2.5 s)에 목표 변경 14 번(시험 하한 8,
