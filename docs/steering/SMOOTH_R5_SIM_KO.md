@@ -123,5 +123,6 @@ python -B -m pytest -q -p no:cacheprovider test_steering_smooth_hold.py test_ste
 
 ## 7. 확인 결과
 
-시험·검사·동일성 확인과 열 추종 측정 결과는 측정 뒤 `STEER_FOLLOW_SMOOTH_RESULT_KO.md` 에 적는다(사전등록
-`PREREG_STEER_FOLLOW_SMOOTH_KO.md`).
+[`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](STEER_FOLLOW_SMOOTH_RESULT_KO.md)(사전등록 [`PREREG_STEER_FOLLOW_SMOOTH_KO.md`](PREREG_STEER_FOLLOW_SMOOTH_KO.md)):
+열 추종 `matrix` 15/15, 넓은 조건 52/60(외란 두 조건의 V3 감시와 운영자 연결 기준; v1 은 51/60), 실기 r5 소스와의 차이 시험에서 조용한 읽기를 끄면
+핀 단위로 같음, 옛 프로필 동일성(T1 71, nominal 두 프로필의 trace 같음). 모두 자리값 기반 SIM 결과다.

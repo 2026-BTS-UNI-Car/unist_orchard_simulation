@@ -33,7 +33,7 @@
 ### 2.1 스택 없이 도는 큰 조건 묶음의 시작 절차 (2026-11-17, 계획 W-15)
 
 빠른 SIM(T1 리그)의 열 추종 행렬(`follow_matrix`, `follow_wide`, `follow_realdims`, `follow_smooth`), T1 안전 대본 전체(`sim_in_loop_steer.py
-checks`), 적합성 대본 전체, 식별 실행처럼 스택을 올리지 않는 큰 묶음도 같은 부하 확인을 거친다. 순서:
+checks`), 식별 실행처럼 스택을 올리지 않는 큰 묶음도 같은 부하 확인을 거친다(단위 시험과 적합성 대본은 가벼운 시험이라 잠금 없이 돈다). 순서:
 
 1. 무거운 측정 잠금을 잡는다: `mkdir <작업 폴더>/runs/_locks/heavy_measure`(이미 있으면 그 안 `OWNER.txt` 를 보고 1분마다 다시; 1시간 넘게
    그대로면 OWNER 의 기록 폴더 NOTES 를 보고 판단), 안에 `OWNER.txt`(누가, 시각, 무엇, 기록 폴더), 큐 파일(`runs/_locks/QUEUE_*.txt`)에 `order` 줄.

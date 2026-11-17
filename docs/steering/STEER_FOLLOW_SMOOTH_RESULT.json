@@ -1,0 +1,2057 @@
+{
+ "by_part": {
+  "matrix": {
+   "failed_checks": {},
+   "passed": 15,
+   "runs": 15
+  },
+  "wide": {
+   "failed_checks": {
+    "drive command 0 after the last heartbeat": 3,
+    "ends at the row end": 5,
+    "no host bridge latch": 5,
+    "no steering fault line of the MCU": 5,
+    "row end stop position e (last structure)": 5
+   },
+   "passed": 52,
+   "runs": 60
+  }
+ },
+ "complete": true,
+ "field_validated": false,
+ "measured_at_commit": "41ca526",
+ "prereg": "steer_follow_smooth_r5_v1",
+ "profile_id": "front_steer_v2_field_20261116",
+ "result_kind": "placeholder-based SIM result",
+ "rows": [
+  {
+   "condition": "nominal",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "f6c2ba8f73bd93fa44b772d73d7a6630fde4294f1bf8a648deeb5d3a3c712e35",
+    "serial_log_sha256": "084146749af7770fe26fc7b39830221dbf04b638f7cd2e888b55e8521e1f3ee3",
+    "trace_content_sha256": "b580b384534ddfc259d925dc07ad5ec5987486e727697a7bd4105dc47be04638"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.342,
+    "heading_rmse_deg": 0.991,
+    "lateral_max_m": 0.0803,
+    "lateral_p95_m": 0.0691,
+    "lateral_rmse_m": 0.0388,
+    "min_clearance_m": 1.1943,
+    "row_end_error_m": 0.068,
+    "speed_max_m_s": 0.443,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "nominal",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "9c3a81c760e0d9b614a12d0e89bcb824cce9eb6afb67fc6c72cd9e126c4a4eb7",
+    "serial_log_sha256": "f5f1a13d93c84aaa98c466fecc770f7fc436a3d278a82a2942f6bc81e91717be",
+    "trace_content_sha256": "1a9e5fc3b12fe4d26aef7f77e95e02bb3aa48ebe3d85629ba420fbabcb83e5c6"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.692,
+    "heading_rmse_deg": 1.538,
+    "lateral_max_m": 0.0972,
+    "lateral_p95_m": 0.0896,
+    "lateral_rmse_m": 0.0443,
+    "min_clearance_m": 1.1774,
+    "row_end_error_m": 0.056,
+    "speed_max_m_s": 0.446,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 1
+  },
+  {
+   "condition": "nominal",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "0fa61dd4a925cae8c47fb4f599f462f792cc97138f2dbead7dfe8cbbf0631053",
+    "serial_log_sha256": "7dfab480f6dee33a4b214c3316f7ee64d6aec76a348180828151c4e7954eb7cd",
+    "trace_content_sha256": "8ea46025bbc42296bdbb69a11202a1e4f24ea21dde04bf4c7d7005a65d763199"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.759,
+    "heading_rmse_deg": 1.185,
+    "lateral_max_m": 0.0758,
+    "lateral_p95_m": 0.0692,
+    "lateral_rmse_m": 0.0376,
+    "min_clearance_m": 1.1962,
+    "row_end_error_m": 0.048,
+    "speed_max_m_s": 0.448,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 2
+  },
+  {
+   "condition": "nominal",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "97b3654e6b03486a30c1f449a7a96920962391efab9a6f5abbd9f115bd5f365f",
+    "serial_log_sha256": "c4a6e597f57bbb9524871eacf493218dd1a33506ba32b1423d4160b93ebff10c",
+    "trace_content_sha256": "8fbff9498af622cde11542efe96320b7c0580ffe1cc71068f3c15787444ac3f3"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.136,
+    "heading_rmse_deg": 1.126,
+    "lateral_max_m": 0.0913,
+    "lateral_p95_m": 0.0818,
+    "lateral_rmse_m": 0.0502,
+    "min_clearance_m": 1.1788,
+    "row_end_error_m": 0.045,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 3
+  },
+  {
+   "condition": "nominal",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "e989e233e71ae612b666d48e86bafd22c690691adcf14caafa7d1e82fa183e59",
+    "serial_log_sha256": "cbffec64c0e166e5bc7c9775ecc39025e58d85005715495ecb804195601e9217",
+    "trace_content_sha256": "f11bba2d526b54ab8f82101943e796c77494918ea933fe7bfbf6a147cbc27c3d"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.915,
+    "heading_rmse_deg": 0.979,
+    "lateral_max_m": 0.0728,
+    "lateral_p95_m": 0.0602,
+    "lateral_rmse_m": 0.0296,
+    "min_clearance_m": 1.1956,
+    "row_end_error_m": 0.049,
+    "speed_max_m_s": 0.441,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 4
+  },
+  {
+   "condition": "lateral_p040",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "a9318511810a90cce03281220cacf69b463036e5c7347ed271853e56edac6001",
+    "serial_log_sha256": "81418eaa9f4302775845e8259e0f1c72300925fbba62067d0a9a747c803cc9e1",
+    "trace_content_sha256": "c2267d77074de1f1c3f4a7d5cf4e438bbb1b69bef98874eb580de43bef0b7e5a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.917,
+    "heading_rmse_deg": 1.151,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0767,
+    "lateral_rmse_m": 0.0375,
+    "min_clearance_m": 0.8794,
+    "row_end_error_m": 0.071,
+    "speed_max_m_s": 0.436,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "lateral_n040",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "aa127a93084578a9721e54343a28e4e9a2b7d58e36beed46c4266c34a9f517f7",
+    "serial_log_sha256": "08f81e316b8004cd6ac91bd99a66c685e427adb282db6f0073b3402384ced4f7",
+    "trace_content_sha256": "8321101a645519b424d58b51f022cf0547090e841e2c397e7398e9ab6fe8a5ef"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 11.003,
+    "heading_rmse_deg": 1.343,
+    "lateral_max_m": 0.4,
+    "lateral_p95_m": 0.0846,
+    "lateral_rmse_m": 0.0473,
+    "min_clearance_m": 0.88,
+    "row_end_error_m": 0.028,
+    "speed_max_m_s": 0.449,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "heading_p8",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "8e4f7629c820616e6d3fb19b23fa5d59a7cf00b1308fb52006f3750c4c7cddce",
+    "serial_log_sha256": "23702e06aa47c64fb857cdb91e22e336d4f37c9c511877182a3e38b39e10d263",
+    "trace_content_sha256": "2964c791739fc286db13ab1b00765fd7e2314a0c4e06b955f32669f6788266de"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.752,
+    "lateral_max_m": 0.1487,
+    "lateral_p95_m": 0.1261,
+    "lateral_rmse_m": 0.067,
+    "min_clearance_m": 1.1193,
+    "row_end_error_m": 0.054,
+    "speed_max_m_s": 0.456,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "heading_n8",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "479b385d82cafea1c6c745656e03092efe53f5ea8128daf63814f658b17cdb10",
+    "serial_log_sha256": "25b68d6bdb8681cf1ca73161f4e852dd11a27da233e34eb5e31a86818e392965",
+    "trace_content_sha256": "123d1311ff590dbeec37e7e312ccf1631ba23c8448ed7123db36b7989a99571e"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 8.0,
+    "heading_rmse_deg": 1.035,
+    "lateral_max_m": 0.0768,
+    "lateral_p95_m": 0.0642,
+    "lateral_rmse_m": 0.0405,
+    "min_clearance_m": 1.1772,
+    "row_end_error_m": 0.061,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_p2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "838a974aea6e080ce5bb1cb0662544e5002b39fe981cae8749f7d9464b545a0b",
+    "serial_log_sha256": "8f146dea75b8bdc4ec455302b5b2ec8a75f0a9222d27012d76be794968c89664",
+    "trace_content_sha256": "b6bba190b312789e129fdaa1713dfa253902c4d9e4e186e95eaa1d98e5c8c99c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.812,
+    "heading_rmse_deg": 0.775,
+    "lateral_max_m": 0.077,
+    "lateral_p95_m": 0.0626,
+    "lateral_rmse_m": 0.0327,
+    "min_clearance_m": 1.2055,
+    "row_end_error_m": 0.074,
+    "speed_max_m_s": 0.441,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "steer_zero_n2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "4f51a613118b2dd0578c7719cbb9da55d253df182850a10552dad4b5bbc04155",
+    "serial_log_sha256": "0dd18d58d0c9252d509a30620d3f17976516b09301939c0af8f3fe00a35eaee7",
+    "trace_content_sha256": "2576a4b1d393f8903ecf7338ba84012b9419f81814bde4c0da80e1362c13daa2"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 4.065,
+    "heading_rmse_deg": 1.559,
+    "lateral_max_m": 0.1379,
+    "lateral_p95_m": 0.1235,
+    "lateral_rmse_m": 0.0559,
+    "min_clearance_m": 1.1467,
+    "row_end_error_m": 0.068,
+    "speed_max_m_s": 0.433,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "side_pull",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "ddd28f0130a84fcdfc1a2d83bf2122b2ae1ac2cd55c20814fb60f65cd644b782",
+    "serial_log_sha256": "e163adbc2e268a3aef39ebc859fa7be0dcba1ad107925887158ee6c0435c3253",
+    "trace_content_sha256": "81e5ffc7a0064f25a1f534a0d60744bc4b03a1f7d1b0cabef7e3c12073dc2bc4"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.463,
+    "heading_rmse_deg": 1.927,
+    "lateral_max_m": 0.1135,
+    "lateral_p95_m": 0.1047,
+    "lateral_rmse_m": 0.0596,
+    "min_clearance_m": 1.1655,
+    "row_end_error_m": 0.078,
+    "speed_max_m_s": 0.443,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "lidar_dropout_0p2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "438856cb2e5e81a147597478d7ff78088def98e0dd3f5b3bd41dc6d5d99824f2",
+    "serial_log_sha256": "d3fd98e7e2663072186e61aa07d5b235ba8507983157f41824d788fd342bc788",
+    "trace_content_sha256": "d442aa6288e83550976b24985684f054e763cfdefc8343386d0fd163b91fccbe"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.091,
+    "heading_rmse_deg": 1.57,
+    "lateral_max_m": 0.1098,
+    "lateral_p95_m": 0.0989,
+    "lateral_rmse_m": 0.0507,
+    "min_clearance_m": 1.1568,
+    "row_end_error_m": 0.06,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "lidar_stale_1p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "685fad509a3b65837da34a593baaed3da88db262caa60854ee53620d7577dcda",
+    "serial_log_sha256": "0b4688dd83fe0845ff95aecfad644b9dd00849d02cdc05d241bfc4b8cc409008",
+    "trace_content_sha256": "514299786659a04846a5a0402d2a40699c643d56173b66c094d215f7ad92ce84"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     20.3,
+     "stale_lidar"
+    ],
+    "heading_max_deg": 1.925,
+    "heading_rmse_deg": 0.986,
+    "lateral_max_m": 0.0376,
+    "lateral_p95_m": 0.0349,
+    "lateral_rmse_m": 0.0146,
+    "min_clearance_m": 1.2411,
+    "row_end_error_m": -16.383,
+    "speed_max_m_s": 0.432,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "obstacle",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "6979259868fc5cc22dff734d27440cfaf5a3346c1e9a957d345967cc32c9060a",
+    "serial_log_sha256": "d465b5eb180e522fecd19ec5311d44aa12f232faf9d60b1c135f0aa625b07063",
+    "trace_content_sha256": "d657666a181a6dc9fd1eef8405ebdde4caa9a9a7092f9a2858815d7a5d2abb47"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "obstacle_ahead",
+    "first_pause": null,
+    "heading_max_deg": 1.795,
+    "heading_rmse_deg": 0.829,
+    "lateral_max_m": 0.0775,
+    "lateral_p95_m": 0.0723,
+    "lateral_rmse_m": 0.0375,
+    "min_clearance_m": 0.3801,
+    "row_end_error_m": -12.5,
+    "speed_max_m_s": 0.429,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "matrix",
+   "seed": 0
+  },
+  {
+   "condition": "curve_l30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "1f18020c002805db20e20d3cf5d5fb8e54c18333bc367f3f509f76140e40f9b4",
+    "serial_log_sha256": "8b1db7078e4b8f7dc21e88a828b8e2a640cea922335ebfbf91ef7f1a5ea67ff4",
+    "trace_content_sha256": "7eb375d3f2f2be17709f0c2a93cc498409e25a9dbcec95713df68d58544cb73c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 6.333,
+    "heading_rmse_deg": 2.737,
+    "lateral_max_m": 0.1695,
+    "lateral_p95_m": 0.1604,
+    "lateral_rmse_m": 0.0873,
+    "min_clearance_m": 1.0902,
+    "row_end_error_m": 0.232,
+    "speed_max_m_s": 0.449,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "curve_l30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "5ed572aa069ab9e1e646c80ed6bdecb0c93282f69c9d0cb709b5dc856c0c524f",
+    "serial_log_sha256": "c9a6663f9b162e5973b0bed1d93676ab275f49085e28cb0992887e39eac0e370",
+    "trace_content_sha256": "0aa0446c51449010d0cbe162791ded8c210f1fd8be8d47662df720da829fb42a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 6.042,
+    "heading_rmse_deg": 3.429,
+    "lateral_max_m": 0.258,
+    "lateral_p95_m": 0.2245,
+    "lateral_rmse_m": 0.1071,
+    "min_clearance_m": 1.0258,
+    "row_end_error_m": 0.2,
+    "speed_max_m_s": 0.439,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "curve_l30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "842186faee8867882067ba1ba8aa05f8741a6ce2df1710c5a2e459c2ea08a292",
+    "serial_log_sha256": "056ea663a87d353f5150b6ef79ccf75134bf5760914de8df96b7794d6eee1388",
+    "trace_content_sha256": "76b4d33939e5a7450c99e685f07c57482eda6f7cc80f9edd5c14fb16516c57a1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.681,
+    "heading_rmse_deg": 1.926,
+    "lateral_max_m": 0.1524,
+    "lateral_p95_m": 0.1291,
+    "lateral_rmse_m": 0.0676,
+    "min_clearance_m": 1.101,
+    "row_end_error_m": 0.191,
+    "speed_max_m_s": 0.455,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "curve_r30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "3dc1f010658a7bc50fb2abb0d0b7048b9084633bb21e04cea16d762dc9eef505",
+    "serial_log_sha256": "68670eb3e2370e0aaeb60c2818605fe1d943d3b9339525c05b9121beddce78fc",
+    "trace_content_sha256": "adb370ef0c4202d9a5db40f63b9bef2070a76f8773dac83c42010a014fdf6a21"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 5.788,
+    "heading_rmse_deg": 3.055,
+    "lateral_max_m": 0.2435,
+    "lateral_p95_m": 0.2122,
+    "lateral_rmse_m": 0.105,
+    "min_clearance_m": 1.0472,
+    "row_end_error_m": 0.186,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "curve_r30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "9d226eaec8b9db447d9d01f0f31b64e32140af499291ee72bd5c0c13a8ee0bcf",
+    "serial_log_sha256": "c4d6b2034ede5751d2b1958631cf6f4c4dab6536fc4c465083720e45f392f221",
+    "trace_content_sha256": "664347f28fbb0a041b33f05ab280a9d404e96d32e024066aec388e883ad40f23"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 5.0,
+    "heading_rmse_deg": 1.942,
+    "lateral_max_m": 0.1718,
+    "lateral_p95_m": 0.1644,
+    "lateral_rmse_m": 0.0945,
+    "min_clearance_m": 1.1027,
+    "row_end_error_m": 0.218,
+    "speed_max_m_s": 0.441,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "curve_r30",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "baef28f8ff91bcd5e7632d30ac358c5f42d915b1cf6f26484e58de115b752b27",
+    "serial_log_sha256": "b0a60594cbb1d0178c6c8e976a5e0e68d105003ad2af21cd9f70652165f47b84",
+    "trace_content_sha256": "37690b1e8e0b3418b2f22307bc8eb49b41b46f0caa24d2a3d69f050dfc079153"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 4.329,
+    "heading_rmse_deg": 2.116,
+    "lateral_max_m": 0.1329,
+    "lateral_p95_m": 0.1146,
+    "lateral_rmse_m": 0.0664,
+    "min_clearance_m": 1.143,
+    "row_end_error_m": 0.238,
+    "speed_max_m_s": 0.436,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "gap3_both",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "a2525d1b63160bda9d288b73f4c6b7d3d5dffa9082dfbc4b00ddb25b63949d1c",
+    "serial_log_sha256": "700be7b448b93f2f076a93136ced58b4dbdbb221823ece89a5c803a35a7f0d93",
+    "trace_content_sha256": "887db6c8a3a8439aa03950e15c24e4c8ead7c3bd93699d8072fc4f029d214794"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.835,
+    "heading_rmse_deg": 1.346,
+    "lateral_max_m": 0.1213,
+    "lateral_p95_m": 0.1004,
+    "lateral_rmse_m": 0.0496,
+    "min_clearance_m": 1.1483,
+    "row_end_error_m": 0.078,
+    "speed_max_m_s": 0.45,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "gap3_both",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "b3091ee9758f9f62c25e82487f175824057a72ee09e73d512943e1e78edc58c2",
+    "serial_log_sha256": "305daf7dad5b6246b6158bcc269b5cf73eedf086fede34320896d0453545e5d1",
+    "trace_content_sha256": "52d48308868c488da5381e8296b22d8f6252fda11a3b3b884202d95ae838e90c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.623,
+    "heading_rmse_deg": 0.801,
+    "lateral_max_m": 0.083,
+    "lateral_p95_m": 0.0556,
+    "lateral_rmse_m": 0.0314,
+    "min_clearance_m": 1.2172,
+    "row_end_error_m": 0.089,
+    "speed_max_m_s": 0.457,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "gap3_both",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "2fd4517bbcf83857907fb7f5bd4d330b64ff1c824edbaae60c3bdc26cd629737",
+    "serial_log_sha256": "00dfd0457b167e77fea789cb719ff2e5a8cca56e066bb3f3f18964b6f9cd1a13",
+    "trace_content_sha256": "557b924537c735167324e0bf73cfed7ef3248a5a3ba954b131fd6297138630ca"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.617,
+    "heading_rmse_deg": 1.207,
+    "lateral_max_m": 0.1255,
+    "lateral_p95_m": 0.1097,
+    "lateral_rmse_m": 0.0457,
+    "min_clearance_m": 1.1535,
+    "row_end_error_m": 0.056,
+    "speed_max_m_s": 0.4,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "endpost_2p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "5638891cef70b2ac0c189d484ac42d7e51555dd47344eb31c42d2b01ce3b19fd",
+    "serial_log_sha256": "e0504ca66d60215bb6c07388b64cf917843e64c15bb0af889e7ce2d68000091d",
+    "trace_content_sha256": "31be8c0447bc2f2d26977a085d941a5c7d76a34753081c5a3f480da1c3c530f1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.934,
+    "heading_rmse_deg": 0.845,
+    "lateral_max_m": 0.0851,
+    "lateral_p95_m": 0.0735,
+    "lateral_rmse_m": 0.032,
+    "min_clearance_m": 1.1987,
+    "row_end_error_m": 0.033,
+    "speed_max_m_s": 0.45,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "endpost_2p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "9c9243e4e642ca5415eff550502c072870fde9e39570b1b11be88c701198f521",
+    "serial_log_sha256": "57140ef7a60a43785f21de42bfd48396f8eb8484960157d80153edd158d5feab",
+    "trace_content_sha256": "c19a6e2f0a4688c78fae56884fdd7fc37bad4589cfcd82c916c888308dc94235"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.633,
+    "heading_rmse_deg": 0.744,
+    "lateral_max_m": 0.0765,
+    "lateral_p95_m": 0.0722,
+    "lateral_rmse_m": 0.0408,
+    "min_clearance_m": 1.1952,
+    "row_end_error_m": 0.014,
+    "speed_max_m_s": 0.452,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "endpost_2p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "6795fa183096643455fa55f6d9a823701527dec048aaf7a7fd7d45a5ecc235b7",
+    "serial_log_sha256": "3792e7bfb6501e70187b12415721e735b2736769c07e984bf57244a43da6af7c",
+    "trace_content_sha256": "53a852584a8c6e26cf439a38db3c1717c40601efb957963564f1aec47fe71d47"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.268,
+    "heading_rmse_deg": 1.428,
+    "lateral_max_m": 0.0959,
+    "lateral_p95_m": 0.0829,
+    "lateral_rmse_m": 0.048,
+    "min_clearance_m": 1.1831,
+    "row_end_error_m": 0.014,
+    "speed_max_m_s": 0.447,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "width_3p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "66b6fb9f971ac8580d2ac10f51fd4c8415a22aa7703f6e536583a4491b027b1d",
+    "serial_log_sha256": "235d627d4180a7e594d3ae01c2b974cb3aa370cd041491b4de40d08655e433cc",
+    "trace_content_sha256": "60097a36f090feabc7467809af95d3352c394de8908da71bf41250305be580f9"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.603,
+    "heading_rmse_deg": 0.688,
+    "lateral_max_m": 0.088,
+    "lateral_p95_m": 0.0756,
+    "lateral_rmse_m": 0.047,
+    "min_clearance_m": 0.9433,
+    "row_end_error_m": 0.085,
+    "speed_max_m_s": 0.442,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "width_3p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "a6235651b467ce54dd05b6a3af80ba35364567b2f749c90f6ac1452b452c13ed",
+    "serial_log_sha256": "f73b3d6f531df02ee6e7ab21a2a6a1cbeb01b4320bbecfa5d3c60bf796f2f0b0",
+    "trace_content_sha256": "5f6673415219287bcf0950cf57324cf49dc8bec720f57c0a699e90d8df431fb1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.454,
+    "heading_rmse_deg": 1.299,
+    "lateral_max_m": 0.1066,
+    "lateral_p95_m": 0.0858,
+    "lateral_rmse_m": 0.053,
+    "min_clearance_m": 0.9292,
+    "row_end_error_m": 0.052,
+    "speed_max_m_s": 0.44,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "width_3p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "00952213a7b52c905688cc4f9feb633ee86d86fffc2dc7104349a03e16b5c515",
+    "serial_log_sha256": "756744fd04e228e178e1e4f7ce855bb0f0cb004175abf466f979484827763652",
+    "trace_content_sha256": "579e413c37b042f559d219184c241aaaeda04e0935b9fe060ca0a9f31d1a6db1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.969,
+    "heading_rmse_deg": 0.95,
+    "lateral_max_m": 0.0704,
+    "lateral_p95_m": 0.0517,
+    "lateral_rmse_m": 0.0271,
+    "min_clearance_m": 0.9574,
+    "row_end_error_m": 0.064,
+    "speed_max_m_s": 0.449,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "w2_042301_c03",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "fb70f253611ac73b0452d2e85f3071704c989c7c14d762489cd7b1711b6d9f50",
+    "serial_log_sha256": "7491a2c3f556bbb1a11d2b7db361090346a1f61c1b0044179d77bdd22442c7da",
+    "trace_content_sha256": "002c3e1c01166fe8debaca4b1d4e85ac84088a027bad9044d03b305ad1c9d779"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 4.105,
+    "heading_rmse_deg": 1.741,
+    "lateral_max_m": 0.3601,
+    "lateral_p95_m": 0.1136,
+    "lateral_rmse_m": 0.0679,
+    "min_clearance_m": 0.7195,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.449,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "w2_042301_c03",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "a74900e40608568312cda498384b9809c77186229c4821cb65e8d77e3b618db0",
+    "serial_log_sha256": "1c0b235d9e5445159e8d420399511585e16c3af7c00bfbb53a92c0d2030f4ad7",
+    "trace_content_sha256": "88491c2d079e4ea0c9f75a2c6672973791f28e8c0e814384e21876dc0cdd3c03"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.382,
+    "heading_rmse_deg": 0.51,
+    "lateral_max_m": 0.3559,
+    "lateral_p95_m": 0.08,
+    "lateral_rmse_m": 0.0441,
+    "min_clearance_m": 0.6912,
+    "row_end_error_m": 0.041,
+    "speed_max_m_s": 0.443,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "w2_042301_c03",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "ca610d284bf5cec2b68d9b39640162d7276f094562c3edf6da6db398a6fe4389",
+    "serial_log_sha256": "52ff8533a31e7a0d1d45f17272e18db25d2141914165745b39068dc12f478c43",
+    "trace_content_sha256": "94c6cda55b8864c1d0640cfa7bf3817517293e3742e4d6850636419c29920e0d"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.601,
+    "heading_rmse_deg": 1.465,
+    "lateral_max_m": 0.3683,
+    "lateral_p95_m": 0.1497,
+    "lateral_rmse_m": 0.0704,
+    "min_clearance_m": 0.713,
+    "row_end_error_m": 0.085,
+    "speed_max_m_s": 0.443,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "w2_040927_c06",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "17a7873aebbb0ad7e33dd10504fb2bd3a06cb04e772605fd62e6665ad297e4a4",
+    "serial_log_sha256": "023971adda39a5023515fffc69672e3e94b2f032c747e6f539d65ab541e736ee",
+    "trace_content_sha256": "757d25ff75eadcb4d267691ce0eaf7b446a64cd5eb03bd911664deaef0202da1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.306,
+    "heading_rmse_deg": 1.737,
+    "lateral_max_m": 0.1095,
+    "lateral_p95_m": 0.0926,
+    "lateral_rmse_m": 0.0464,
+    "min_clearance_m": 1.3643,
+    "row_end_error_m": 0.092,
+    "speed_max_m_s": 0.421,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "w2_040927_c06",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "4a0001ba7dbfc43cade55077287f1f2e3b518bbc1b99a6777155210a04de56a4",
+    "serial_log_sha256": "e3eb09214734d01e91f70aaeb617c9d04558bdfc36cbed6c5a57ed6ec4c8ee62",
+    "trace_content_sha256": "7bcb7b5a1a42a890ae370fa3474eec169176ffb765133aefdfe94c1c86c2a80a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.691,
+    "heading_rmse_deg": 1.224,
+    "lateral_max_m": 0.1151,
+    "lateral_p95_m": 0.0554,
+    "lateral_rmse_m": 0.0276,
+    "min_clearance_m": 1.4089,
+    "row_end_error_m": 0.064,
+    "speed_max_m_s": 0.32,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "w2_040927_c06",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "ba8c94c792218b3245ed5b6d18f525af0c3f02b46070bacda4a8c7fe463435db",
+    "serial_log_sha256": "1ec0d10a8421787068a7c0283b5ebec153e23efa08491332dc55db3a2bc8c4b0",
+    "trace_content_sha256": "10904acf28c42877fca60749e258e052a646be07046e9658e4b2a00a585935b1"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.292,
+    "heading_rmse_deg": 1.118,
+    "lateral_max_m": 0.1029,
+    "lateral_p95_m": 0.0894,
+    "lateral_rmse_m": 0.0463,
+    "min_clearance_m": 1.3856,
+    "row_end_error_m": 0.099,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "heading_p10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "51aa94b8dff009688bebf835c620e76927362c12f434d1a7dfdc867d31f22866",
+    "serial_log_sha256": "8945f73f8cd40a7d2db41613eeb64f3303881a1b8dbb9da8c4828d9d46a08527",
+    "trace_content_sha256": "6f9c4f63ac64204ac7e5bc97348a70d82dc5bd32bf5846e27f8d98c1afa11d6a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.943,
+    "lateral_max_m": 0.1133,
+    "lateral_p95_m": 0.1035,
+    "lateral_rmse_m": 0.0641,
+    "min_clearance_m": 1.1486,
+    "row_end_error_m": 0.042,
+    "speed_max_m_s": 0.437,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "heading_p10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "6139711591e4155e3cc4498290494762648bc7a44f11f4b1dcc55c0cf7821b79",
+    "serial_log_sha256": "ba579d8073f80a353a9d604059bdbacfed63dc833ba3d10e3b3952905cba65b4",
+    "trace_content_sha256": "148a8a149f43ed8553b677d06446f0806d737fbc56fe878e2405fa3ce3bc5140"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.086,
+    "lateral_max_m": 0.0822,
+    "lateral_p95_m": 0.0728,
+    "lateral_rmse_m": 0.0394,
+    "min_clearance_m": 1.1757,
+    "row_end_error_m": 0.06,
+    "speed_max_m_s": 0.446,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "heading_p10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "84b2fe3047547f09f96eaa2b410fa139d4ba36467b01c15a5a5d99f96bb30fd5",
+    "serial_log_sha256": "00e441fe334dbea5492568881ab61087ce9fbde26a687e12ec6406d24bdbe0fc",
+    "trace_content_sha256": "ad8432cb73526c3ad7d7256bea606971580d711660c160118d555eb7cdd3c3e8"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 2.05,
+    "lateral_max_m": 0.1115,
+    "lateral_p95_m": 0.1021,
+    "lateral_rmse_m": 0.0508,
+    "min_clearance_m": 1.158,
+    "row_end_error_m": 0.052,
+    "speed_max_m_s": 0.441,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "heading_n10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "59b30756caa1041453477416dd3e021727b889301fe71579f9f4564c9e7bcd5c",
+    "serial_log_sha256": "0df6930ff899584e99f7ea554ded797d0a8436d669e88283434111c86dc54b00",
+    "trace_content_sha256": "8d9d5939c6bff07a500970ede9bcb397e9a77d4acb26c7a3fb1d00a11f7bb1d2"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.588,
+    "lateral_max_m": 0.117,
+    "lateral_p95_m": 0.0704,
+    "lateral_rmse_m": 0.04,
+    "min_clearance_m": 1.15,
+    "row_end_error_m": 0.088,
+    "speed_max_m_s": 0.439,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "heading_n10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "7f6bcac389bc7dfa9dc4928d6f1e6d0b256348472267347b57d69d5fd1ec76e7",
+    "serial_log_sha256": "eee296174aade8d5f1f874a63d1a21253275b0d630a0bee13dbf17d2c43823ea",
+    "trace_content_sha256": "a191b67b1e3dca07a9408caba175f1de4b3e56d4c8923738803058436ddacd88"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.822,
+    "lateral_max_m": 0.1742,
+    "lateral_p95_m": 0.0781,
+    "lateral_rmse_m": 0.0304,
+    "min_clearance_m": 1.0973,
+    "row_end_error_m": 0.025,
+    "speed_max_m_s": 0.429,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "heading_n10",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "b441ac28a177b38b5372548fcda0b0135da59a2bf08fc3fb4e86a40dd62c7b04",
+    "serial_log_sha256": "f381ea29623320d9ed55d243843d5c403cc6e50d94f67c7e7c6f1b654e6ffe02",
+    "trace_content_sha256": "c5ae96096a860fdcb6e415ddb4254b953ba27d22696b9adbc5a06d37ab48891d"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 10.0,
+    "heading_rmse_deg": 1.378,
+    "lateral_max_m": 0.1121,
+    "lateral_p95_m": 0.0747,
+    "lateral_rmse_m": 0.0386,
+    "min_clearance_m": 1.1649,
+    "row_end_error_m": 0.091,
+    "speed_max_m_s": 0.446,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "pull_left",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "cc93cdec867d99fecca2e3e503b214a250a3bdd6a1938d884e359bf12b31581e",
+    "serial_log_sha256": "24da634dfadbd0e7a66337472d734b3a897f94c94d2ae11cd46b016f64e7b1e3",
+    "trace_content_sha256": "4d8d99e498ed6f49eacdb3929bc3a7dc507bcc716b64881716b0984d768e31da"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.643,
+    "heading_rmse_deg": 0.773,
+    "lateral_max_m": 0.0952,
+    "lateral_p95_m": 0.0745,
+    "lateral_rmse_m": 0.0361,
+    "min_clearance_m": 1.1849,
+    "row_end_error_m": 0.083,
+    "speed_max_m_s": 0.453,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "pull_left",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "f21d35fafe2e0db7d15f278cddb7733ec003c49bf7f7d626b0f24b6a451ddf66",
+    "serial_log_sha256": "662c3edcdafca1a6e6d9d65c6ffbf594019fdc0c37b84ce0685e80025b28239e",
+    "trace_content_sha256": "03e2a30bf25f565deb5f635026dcdcb9afaeafb45bd4992b5ac24248e368eb6c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.325,
+    "heading_rmse_deg": 1.746,
+    "lateral_max_m": 0.1168,
+    "lateral_p95_m": 0.1075,
+    "lateral_rmse_m": 0.0548,
+    "min_clearance_m": 1.1559,
+    "row_end_error_m": 0.06,
+    "speed_max_m_s": 0.467,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "pull_left",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "65c9dda2bb78ccc11642ac7b675f8158bf374bd5ef0e36fedcff62d3572e771c",
+    "serial_log_sha256": "04def7d5502c95ed0e2b2ba37b32e55356bcf2b18cc646a7be7bb4515fa113b2",
+    "trace_content_sha256": "e013722e60beafd2dd7ff072a698014c58f76256101028661bbebd554de89d47"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.876,
+    "heading_rmse_deg": 1.123,
+    "lateral_max_m": 0.0683,
+    "lateral_p95_m": 0.061,
+    "lateral_rmse_m": 0.0263,
+    "min_clearance_m": 1.1981,
+    "row_end_error_m": 0.042,
+    "speed_max_m_s": 0.435,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "pull_right",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "55d7dd61ddd2b3b0217cbe0911a4c59c6ac1aeb3b09c1ba35a36262fff422e60",
+    "serial_log_sha256": "bb42d612e0263e2c6cef972c6a5ffe64e36abf8f1535a403d34b8a75be37c8f8",
+    "trace_content_sha256": "09d0c9d985d4c1352ceee052a494aa7d008e5edfc22f1010fb5616b30fb1ab84"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.107,
+    "heading_rmse_deg": 1.399,
+    "lateral_max_m": 0.097,
+    "lateral_p95_m": 0.0899,
+    "lateral_rmse_m": 0.0469,
+    "min_clearance_m": 1.1795,
+    "row_end_error_m": 0.023,
+    "speed_max_m_s": 0.443,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "pull_right",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "62c3fe59f00200c42bd5ef5e5078463932d391baed2e4ab5b07915ddd6d970d9",
+    "serial_log_sha256": "f7272dcc289bd76dfad6f6176a2ae3863c6e673f68fb0607587b376af787b9a0",
+    "trace_content_sha256": "4234f2f5ccadd84f8cf457806ff7ff57c0676c7a42651e0a4c0d69308002818a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.429,
+    "heading_rmse_deg": 1.397,
+    "lateral_max_m": 0.0972,
+    "lateral_p95_m": 0.0831,
+    "lateral_rmse_m": 0.0449,
+    "min_clearance_m": 1.1801,
+    "row_end_error_m": 0.076,
+    "speed_max_m_s": 0.433,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "pull_right",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "88369a43dc5b1214f458caf4cf06faac2267fe887609f928825514ca27455777",
+    "serial_log_sha256": "a713db0e8014e543544d606f99870992af9deea3fb0d74c73f27d9182d480c9e",
+    "trace_content_sha256": "07cfee55d7d9682f111b4262b90d1e782b552b7870d6cca86e491581acb1783b"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.358,
+    "heading_rmse_deg": 0.565,
+    "lateral_max_m": 0.0753,
+    "lateral_p95_m": 0.0506,
+    "lateral_rmse_m": 0.0246,
+    "min_clearance_m": 1.1998,
+    "row_end_error_m": 0.076,
+    "speed_max_m_s": 0.445,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "speed_0p2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "2239c160059b820edf06bb13db71c7df080f972d006188866e9064137b88fd7e",
+    "serial_log_sha256": "1094bd48d91ba69d5b4e57edbf1e1d675b84393ab749d5fc74d80c42a3a1918e",
+    "trace_content_sha256": "b83bb1cdc3b7b91991a1367bb2047a0add6e191751941d7ae12e8c84200fbd73"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.975,
+    "heading_rmse_deg": 0.792,
+    "lateral_max_m": 0.0475,
+    "lateral_p95_m": 0.0398,
+    "lateral_rmse_m": 0.0222,
+    "min_clearance_m": 1.2318,
+    "row_end_error_m": 0.069,
+    "speed_max_m_s": 0.232,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "speed_0p2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "aebfebcd4f19338ba6353eda2fcf436e7424b0e1ceb38617836cfafb9763fa01",
+    "serial_log_sha256": "d3e906ee9994af67b4d880fb32a7f7fa171253ed5b8741036c5c85f6efed2ea8",
+    "trace_content_sha256": "f16960a8d3083112a7603060dacb99edc6666398ea5e4af8105bc1663cae940c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.478,
+    "heading_rmse_deg": 0.899,
+    "lateral_max_m": 0.0712,
+    "lateral_p95_m": 0.0649,
+    "lateral_rmse_m": 0.0272,
+    "min_clearance_m": 1.2096,
+    "row_end_error_m": 0.048,
+    "speed_max_m_s": 0.221,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "speed_0p2",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "681347a0aff3d7b4194a3cef41a2888669078f5acc9413905362f4cd71cd53fc",
+    "serial_log_sha256": "594294dd6567ff0d5652b57ce5a3f6943699e4a107862d18694f7f6a2083f7b6",
+    "trace_content_sha256": "88395195c1f4213a81447ca0b6ec56f015af3cf86706ae19587b2dc9c219c15a"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.253,
+    "heading_rmse_deg": 1.168,
+    "lateral_max_m": 0.064,
+    "lateral_p95_m": 0.0581,
+    "lateral_rmse_m": 0.0312,
+    "min_clearance_m": 1.2114,
+    "row_end_error_m": 0.06,
+    "speed_max_m_s": 0.221,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "speed_0p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "ad699b276ea95902b4fab8b4cef089ad669804e3543114b92808424cd22d58dc",
+    "serial_log_sha256": "159fd7a77f7431b73eda45feb7266b457c128998b055038941c47006d956ef0d",
+    "trace_content_sha256": "79569c73218cd7ecce76b355ad4e20024a32c69fff38c15fc5cb9dc24c854d72"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.2,
+    "heading_rmse_deg": 1.266,
+    "lateral_max_m": 0.094,
+    "lateral_p95_m": 0.0843,
+    "lateral_rmse_m": 0.0532,
+    "min_clearance_m": 1.1852,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.499,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "speed_0p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "94fa239b7f3893cc6306eedd86fb837da539db6c77b5208720654dca99c80705",
+    "serial_log_sha256": "cd0c989d3e8660ebcc5ba5d26313005dc1c535e62eec415f44fc388ce18dd10c",
+    "trace_content_sha256": "e2f9a7b5e6c2b3149f8bd407debaf2ad6dc0011ce495b99c81bbc38eaf7a2e02"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.474,
+    "heading_rmse_deg": 1.043,
+    "lateral_max_m": 0.0676,
+    "lateral_p95_m": 0.0629,
+    "lateral_rmse_m": 0.0355,
+    "min_clearance_m": 1.2093,
+    "row_end_error_m": 0.054,
+    "speed_max_m_s": 0.504,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "speed_0p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "d0f68b011d2160c3221bf778341894b8077db9266a457ceb23e425dc2c2bbc43",
+    "serial_log_sha256": "8684e18b655863e71872467570addc0ea1bbc9dd22374a693c5953ffcc8a45ce",
+    "trace_content_sha256": "e4a739dcd143a7c544a6acde135381922163e2262ebb9db901bea2b808efe06e"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.49,
+    "heading_rmse_deg": 1.16,
+    "lateral_max_m": 0.0595,
+    "lateral_p95_m": 0.0527,
+    "lateral_rmse_m": 0.0306,
+    "min_clearance_m": 1.2131,
+    "row_end_error_m": 0.047,
+    "speed_max_m_s": 0.502,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "table_x070",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "befa2b48f255a3e60f322c97ac341ea92471d015e614387f38757bb8f847a503",
+    "serial_log_sha256": "e0580dca8c45213222433a0b2015eb409609345c67b4e7f082ef11ab4808f41c",
+    "trace_content_sha256": "489901e10853ab0fbe6e44ae551f8136c0d05bfc91d088a14c0d0cdf77ca3645"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.505,
+    "heading_rmse_deg": 0.951,
+    "lateral_max_m": 0.1049,
+    "lateral_p95_m": 0.0905,
+    "lateral_rmse_m": 0.0474,
+    "min_clearance_m": 1.1714,
+    "row_end_error_m": 0.09,
+    "speed_max_m_s": 0.404,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "table_x070",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "0dba7d17d23365f6131b4acc1f9583613aa5aa5d7f95b1455ec55a25e9d990b3",
+    "serial_log_sha256": "4fdc31cf6641922bb9fc27b34ce6a0eddd4b44bc65a6e694789c7136e85dcda0",
+    "trace_content_sha256": "2489f3eb1333b9bc39f214f1b076e1efd75f8f97f2bf3b03d0202699aaf8fdac"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.54,
+    "heading_rmse_deg": 1.228,
+    "lateral_max_m": 0.1055,
+    "lateral_p95_m": 0.0944,
+    "lateral_rmse_m": 0.0468,
+    "min_clearance_m": 1.169,
+    "row_end_error_m": 0.042,
+    "speed_max_m_s": 0.413,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "table_x070",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "09bfe4d6dc097e5bb90676c98d4f0b699981f73b057a2d7645de000c0e16ad34",
+    "serial_log_sha256": "9be3b8f8e006c6bc22374b8f39880bfe721756b42f99c4eb628c3edc9d6345f6",
+    "trace_content_sha256": "d894f6fd3fc4e97a00b9f6808bbc96497eeb80b2940a34ed7f618ea55a4ce612"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 1.337,
+    "heading_rmse_deg": 0.655,
+    "lateral_max_m": 0.0573,
+    "lateral_p95_m": 0.0457,
+    "lateral_rmse_m": 0.024,
+    "min_clearance_m": 1.2221,
+    "row_end_error_m": 0.035,
+    "speed_max_m_s": 0.414,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "table_x130",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "f994fd825b62cb918f75e6b0c54a5b836403fb636d79d9d24f63d5d2b114816e",
+    "serial_log_sha256": "f6f85471f90225b0e43f6c90093e77d9b87a5e74d44e8179e03425b1015148c2",
+    "trace_content_sha256": "c601365b7f413f5f48013520e990ab0db387055fe5a4af1d24fa865e81161b3c"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.545,
+    "heading_rmse_deg": 1.065,
+    "lateral_max_m": 0.0843,
+    "lateral_p95_m": 0.0698,
+    "lateral_rmse_m": 0.0392,
+    "min_clearance_m": 1.2006,
+    "row_end_error_m": 0.071,
+    "speed_max_m_s": 0.499,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "table_x130",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "45440353381f58302bbf15e7dfb7f69c8a1906d199f43d54179a06b5768a04fd",
+    "serial_log_sha256": "4a809023025ee836ff0796a4a9ce783b755931af3b1708e50ccabf31bcbe82a1",
+    "trace_content_sha256": "09f35dd02c402b73464c5f128b808404893801774ee9c8a8957bc041c5633fed"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.049,
+    "heading_rmse_deg": 1.505,
+    "lateral_max_m": 0.081,
+    "lateral_p95_m": 0.0743,
+    "lateral_rmse_m": 0.0476,
+    "min_clearance_m": 1.1971,
+    "row_end_error_m": 0.065,
+    "speed_max_m_s": 0.471,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "table_x130",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "3e29fe040abaf91190fa030b04d1fcef34ee5424f57d6d5725185da8930594ae",
+    "serial_log_sha256": "c81774e39abe81c700da76b1913c01cebe7e904fe5a6766e86035856e7c4c9ae",
+    "trace_content_sha256": "4d22c4c9fe772cf79371e6ee6ac5842baa671664981b4ff0664dfbedb0d71bf6"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.923,
+    "heading_rmse_deg": 1.318,
+    "lateral_max_m": 0.098,
+    "lateral_p95_m": 0.0941,
+    "lateral_rmse_m": 0.0452,
+    "min_clearance_m": 1.1824,
+    "row_end_error_m": 0.028,
+    "speed_max_m_s": 0.478,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "e560d1a26a03cff85df05ce75a16b24e283666cabc44097a4f2f37b5d80df0ad",
+    "serial_log_sha256": "772793b66438b4504b06df85fc709190eb8da6d9931358b34dd8ada49105218b",
+    "trace_content_sha256": "eb36a25cc8a1420d1ce3698c5a98dac7888818b2bbd0f13beb37f2d4173c5d98"
+   },
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "end_reason": "steering_feedback_invalid",
+    "first_pause": null,
+    "heading_max_deg": 5.077,
+    "heading_rmse_deg": 1.255,
+    "lateral_max_m": 0.0498,
+    "lateral_p95_m": 0.0307,
+    "lateral_rmse_m": 0.0137,
+    "min_clearance_m": 1.2037,
+    "row_end_error_m": -22.035,
+    "speed_max_m_s": 0.377,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.485
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "01bf8107353eaed11dbc3a7b416a60d121fe23aff3532410a5fc374b79fac196",
+    "serial_log_sha256": "1a59abb4ca6b7ffed968789bbb83dd1ac154c8f19b278426d4297b7e0e3ffd5f",
+    "trace_content_sha256": "3c89db1957e81c0618fb90dbf9895b1beb0f9d628b589899d3ddf6ba1af26432"
+   },
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "end_reason": "steering_feedback_invalid",
+    "first_pause": null,
+    "heading_max_deg": 2.672,
+    "heading_rmse_deg": 0.469,
+    "lateral_max_m": 0.0208,
+    "lateral_p95_m": 0.0203,
+    "lateral_rmse_m": 0.0132,
+    "min_clearance_m": 1.2591,
+    "row_end_error_m": -22.02,
+    "speed_max_m_s": 0.38,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.488
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "dist_step_p2p5",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "7b7edd7410628849ab26a61c31c5a5c225a0ecea302bf1fbcb377818c9fedd48",
+    "serial_log_sha256": "cafcb1f80a532de8309235db5f82b9487bc6d62eda5e3bf9b28965f70bcd4676",
+    "trace_content_sha256": "8daeb6827dc1e7c4a70269f193a6dedc91d330082823a7e81333701bd328cfa2"
+   },
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "end_reason": "steering_feedback_invalid",
+    "first_pause": null,
+    "heading_max_deg": 2.762,
+    "heading_rmse_deg": 0.43,
+    "lateral_max_m": 0.01,
+    "lateral_p95_m": 0.009,
+    "lateral_rmse_m": 0.0043,
+    "min_clearance_m": 1.2567,
+    "row_end_error_m": -22.106,
+    "speed_max_m_s": 0.354,
+    "steer_fault_lines": [
+     [
+      "POT_NOISE",
+      6.49
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "dist_terrain",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "291a2a7251df548f9320819467d503289b7b7286ea3c857d4bad097354478a84",
+    "serial_log_sha256": "1a9cfa0643aff10a08ef5e1c869bff452dd384ad2dfb7d142ae93d7901d8db85",
+    "trace_content_sha256": "09a77b4805120dfd83b258140175307737e2288b502f0688cee377d95f03072d"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.318,
+    "heading_rmse_deg": 1.03,
+    "lateral_max_m": 0.052,
+    "lateral_p95_m": 0.0471,
+    "lateral_rmse_m": 0.0283,
+    "min_clearance_m": 1.2128,
+    "row_end_error_m": 0.03,
+    "speed_max_m_s": 0.439,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "dist_terrain",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "6a26c22861fcf2944ef81ecbe1cfc2bfa6c031e212b6b9aee928a403b7802ca2",
+    "serial_log_sha256": "91cb9e8fb713ed0b31aed6577e07f5f16ed7be7cdf8ec765ed81e8a3872bb994",
+    "trace_content_sha256": "1e8171df8496530e9bb7ead144609f3a6b9113beace33b4ca989031b4dcd920c"
+   },
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "end_reason": "steering_not_following",
+    "first_pause": null,
+    "heading_max_deg": 11.742,
+    "heading_rmse_deg": 3.545,
+    "lateral_max_m": 0.1317,
+    "lateral_p95_m": 0.1015,
+    "lateral_rmse_m": 0.0409,
+    "min_clearance_m": 1.1147,
+    "row_end_error_m": -21.883,
+    "speed_max_m_s": 0.337,
+    "steer_fault_lines": [
+     [
+      "TRACK",
+      7.79
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "dist_terrain",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "292289f385a70eb709a6c3bb847eaae1790a55663d5b1d8994d5460356913c53",
+    "serial_log_sha256": "4dac75abc09b82fc66ef9b3e5ecd58f5aea1cc775c0b17aab6e2302ad55739c8",
+    "trace_content_sha256": "52814395a28138badd7fd5fa7652147420582f69226385405088885429bcbd9f"
+   },
+   "failed": [
+    "ends at the row end",
+    "row end stop position e (last structure)",
+    "no steering fault line of the MCU",
+    "no host bridge latch"
+   ],
+   "metrics": {
+    "end_reason": "steering_not_following",
+    "first_pause": null,
+    "heading_max_deg": 7.858,
+    "heading_rmse_deg": 1.645,
+    "lateral_max_m": 0.0822,
+    "lateral_p95_m": 0.0442,
+    "lateral_rmse_m": 0.0274,
+    "min_clearance_m": 1.1338,
+    "row_end_error_m": -19.145,
+    "speed_max_m_s": 0.42,
+    "steer_fault_lines": [
+     [
+      "TRACK",
+      13.459
+     ]
+    ]
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "31e3fd60225367c484f32132d197750670dc81cd773af5f11da056ebd480701c",
+    "serial_log_sha256": "95ec6a18a8439be6d8ab586647d7c5d19daaa7a64b18fdc9fb413d5eb60376c4",
+    "trace_content_sha256": "ecf669c4bed9ddfc71bb3d12c4bb9ecf6d949245cb80a66f40ad1593c0925e22"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 2.256,
+    "heading_rmse_deg": 1.129,
+    "lateral_max_m": 0.0422,
+    "lateral_p95_m": 0.0401,
+    "lateral_rmse_m": 0.0239,
+    "min_clearance_m": 1.23,
+    "row_end_error_m": -16.901,
+    "speed_max_m_s": 0.396,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "4fbbf2e050b8bc52209503ca334b0843c8297c923b70d7e2e8876a1c605e9262",
+    "serial_log_sha256": "b5ad9c3051cd5bffd157c1832f3d8d89e20dd05c413e7472b770982f8715e7f3",
+    "trace_content_sha256": "cf2d329d505e52279ebb1ef2ee0956f3a060432a12d4b99d23ab5db05eb0b014"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 1.435,
+    "heading_rmse_deg": 0.685,
+    "lateral_max_m": 0.0439,
+    "lateral_p95_m": 0.0406,
+    "lateral_rmse_m": 0.0215,
+    "min_clearance_m": 1.2269,
+    "row_end_error_m": -16.233,
+    "speed_max_m_s": 0.451,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "imu_stale_1p0",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "1d0818270036d91afa57ba7377241a662e73708f64a6d202c1aa6ff5315ce336",
+    "serial_log_sha256": "2832bde65997d47fd22f9f3ca977d5afc43f8ddd9d466a0afcbf469633594cdd",
+    "trace_content_sha256": "dc815b89a64977656881301df9bd1f0488a09669ff200ada54730b0213e898d7"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     20.4,
+     "stale_imu"
+    ],
+    "heading_max_deg": 1.473,
+    "heading_rmse_deg": 0.668,
+    "lateral_max_m": 0.0339,
+    "lateral_p95_m": 0.0301,
+    "lateral_rmse_m": 0.0187,
+    "min_clearance_m": 1.2368,
+    "row_end_error_m": -19.038,
+    "speed_max_m_s": 0.292,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "gnss_nominal",
+   "config_digest": "39b456a5558b9d570a4bcb9e841f3a33770613b75e634da7809d5b3cd45e9fbf",
+   "digests": {
+    "executor_log_sha256": "ad3a1dae036959329d381067a8cd12c424b8654de1abeb282716f0205d37a6b1",
+    "serial_log_sha256": "f193b0459b57e6740bf2ed12a7ce6dd90bf9c0f1568cf6a51fd549ba4c102390",
+    "trace_content_sha256": "8f7ae9afb9cd0f121a4b0258c3961b282fb35be3f66797057b207de2c5a0c131"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 3.133,
+    "heading_rmse_deg": 1.249,
+    "lateral_max_m": 0.0859,
+    "lateral_p95_m": 0.0776,
+    "lateral_rmse_m": 0.0458,
+    "min_clearance_m": 1.1761,
+    "row_end_error_m": 0.066,
+    "speed_max_m_s": 0.449,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "gnss_nominal",
+   "config_digest": "39b456a5558b9d570a4bcb9e841f3a33770613b75e634da7809d5b3cd45e9fbf",
+   "digests": {
+    "executor_log_sha256": "fd5ed72001eff0dc4b4ab4a7307b650097b23aae0bec01754da53b7daadf19f4",
+    "serial_log_sha256": "9582966b31da9020ca29375a7dbb7f3ccde6fbffdf5bf6e7a6cf393f7e65678d",
+    "trace_content_sha256": "c95370a811aa93db3892802bfd981072287db1f36a790070056864dcd331a7ba"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.141,
+    "heading_rmse_deg": 1.01,
+    "lateral_max_m": 0.0741,
+    "lateral_p95_m": 0.0676,
+    "lateral_rmse_m": 0.0401,
+    "min_clearance_m": 1.1965,
+    "row_end_error_m": 0.046,
+    "speed_max_m_s": 0.428,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "gnss_nominal",
+   "config_digest": "39b456a5558b9d570a4bcb9e841f3a33770613b75e634da7809d5b3cd45e9fbf",
+   "digests": {
+    "executor_log_sha256": "13d217ef0235a4c54065b5dc67f777b1658c5924e0f754f74ab8b45dfafc2345",
+    "serial_log_sha256": "293bcdb42d309718788a9dd888435e0024b6faff4dbf871c818c2bae8bac88b6",
+    "trace_content_sha256": "57eb841c9ce61ff074ffc2daa69deeb56b0b8332fe0bbbb866d283636b94f14f"
+   },
+   "failed": [],
+   "metrics": {
+    "end_reason": "row_end",
+    "first_pause": null,
+    "heading_max_deg": 2.484,
+    "heading_rmse_deg": 1.342,
+    "lateral_max_m": 0.0949,
+    "lateral_p95_m": 0.0904,
+    "lateral_rmse_m": 0.0417,
+    "min_clearance_m": 1.1807,
+    "row_end_error_m": 0.062,
+    "speed_max_m_s": 0.442,
+    "steer_fault_lines": []
+   },
+   "ok": true,
+   "part": "wide",
+   "seed": 4002
+  },
+  {
+   "condition": "operator_link_lost",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "954ccef7342d332c5d5ac444412dc34b02eefefe5f79612519bc330bda7c4e49",
+    "serial_log_sha256": "afb3b4f4ef0dcb16780de9d103ece7decbd5d508b23fc8ace522c090032055b7",
+    "trace_content_sha256": "710b5e12fbb516aa3d2fbc04c44cbeadfcb260058dc62f1149f74c881ca7f817"
+   },
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 1.882,
+    "heading_rmse_deg": 1.082,
+    "lateral_max_m": 0.0833,
+    "lateral_p95_m": 0.08,
+    "lateral_rmse_m": 0.0446,
+    "min_clearance_m": 1.1882,
+    "row_end_error_m": -15.91,
+    "speed_max_m_s": 0.442,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4000
+  },
+  {
+   "condition": "operator_link_lost",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "230514d90239ebbe21e0349b63b1be68c2567ccdcd4842decaeb10e79de8ddae",
+    "serial_log_sha256": "2a10e0c48f805dad79bf3a73dbb430a68d1ed2ad4aa24e234e1f61d76b1f6313",
+    "trace_content_sha256": "91a63b3ad8723da85dc6979b27a605d07f37c93e77dd26cb306d5e0349f1b0d1"
+   },
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 1.634,
+    "heading_rmse_deg": 0.987,
+    "lateral_max_m": 0.0576,
+    "lateral_p95_m": 0.0565,
+    "lateral_rmse_m": 0.0354,
+    "min_clearance_m": 1.2092,
+    "row_end_error_m": -16.574,
+    "speed_max_m_s": 0.423,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4001
+  },
+  {
+   "condition": "operator_link_lost",
+   "config_digest": "4d623fe461835d5624423d98c4995efba71e6ccfad290b3e95547085dc4c9b52",
+   "digests": {
+    "executor_log_sha256": "112442ac0f2e6429153e52a1bda170aed1eac89dd143c146e28e189a95e4771c",
+    "serial_log_sha256": "be7edcb626c2f63f74bf9bcff3cd547065f810959d21d5e7069452afdbdea0c7",
+    "trace_content_sha256": "bfc85ba15eb5fe58b594a9139dc118f1c0c17b23a0f0d2d38f69abd6eada452b"
+   },
+   "failed": [
+    "drive command 0 after the last heartbeat"
+   ],
+   "metrics": {
+    "end_reason": null,
+    "first_pause": [
+     21.0,
+     "operator_link_lost"
+    ],
+    "heading_max_deg": 1.032,
+    "heading_rmse_deg": 0.63,
+    "lateral_max_m": 0.024,
+    "lateral_p95_m": 0.019,
+    "lateral_rmse_m": 0.0102,
+    "min_clearance_m": 1.2515,
+    "row_end_error_m": -16.627,
+    "speed_max_m_s": 0.398,
+    "steer_fault_lines": []
+   },
+   "ok": false,
+   "part": "wide",
+   "seed": 4002
+  }
+ ],
+ "runs": 75,
+ "schema": "ubts.steer_sim.follow_smooth_result.v1"
+}
