@@ -45,6 +45,7 @@ void SmoothBoard::reset(uint32_t now, int counts) {
   progress_ref_ = run_start_pot_ = peak_ = 0;
   runs_ = 0;
   fresh_ = braking_ = false;
+  reached_ = false;
   quiet_pot_ = -1;
   quiet_ms_ = 0;
   quiet_pending_ = false;
@@ -140,6 +141,7 @@ void SmoothBoard::stop_motor(uint32_t now) {  // stopMotor(0)
   runs_ = 0;
   fresh_ = false;
   braking_ = false;
+  reached_ = false;
   quiet_pending_ = false;
 }
 
@@ -199,7 +201,7 @@ void SmoothBoard::quiet_sample(uint32_t now, int counts) {
 
 void SmoothBoard::end_run(uint32_t now, int value) {  // smEndRun()
   drive_ms_ += static_cast<uint32_t>(now - run_start_);
-  if (cfg_.brake_ms > 0) {
+  if (cfg_.brake_ms > 0 || (cfg_.proposal && cfg_.rest_brake)) {
     // dynamic brake: both PWM 0 with EN high (both low-side switches); ends after brake_ms or at any stop
     pwm_f_ = pwm_r_ = 0;
     steer_off_ms_ = now;
@@ -235,6 +237,7 @@ bool SmoothBoard::angle(uint32_t now, float deg, int counts) {  // moveSteeringT
     target_ = target;
     runs_ = 1;
     fresh_ = true;
+    reached_ = false;
     limit_start_ = now;
     return true;
   }
@@ -280,20 +283,27 @@ void SmoothBoard::update(uint32_t now, int counts) {  // updateSmoothHold()
     }
     const int along = run_right ? -run_error : run_error;  // remaining distance in the running direction
     if (along <= cfg_.stop_tol) {                           // reached, or passed: brake, settle
+      reached_ = true;
       end_run(now, pos);
       return;
     }
+    // r5: the STALL boost and cancel at pwm_max; r6p: at hold_pwm_max
+    const int cap = cfg_.proposal ? imax(cfg_.pwm_max, cfg_.hold_pwm_max) : cfg_.pwm_max;
     const int progress = run_right ? progress_ref_ - pos : pos - progress_ref_;
-    if (progress >= cfg_.progress_counts) {
+    if (cfg_.proposal && cfg_.push_counts > 0 && -progress >= cfg_.push_counts) {
+      floor_ = cap;  // r6p: pushed back against the drive (an external torque, not a jam): the hold floor at once
+      progress_ms_ = now;
+      progress_ref_ = pos;
+    } else if (progress >= cfg_.progress_counts) {
       progress_ref_ = pos;
       progress_ms_ = now;
     } else if (static_cast<uint32_t>(now - progress_ms_) >= static_cast<uint32_t>(cfg_.stall_ms)) {
-      if (sm_pwm_ >= cfg_.pwm_max) {
+      if (sm_pwm_ >= cap) {
         drive_ms_ += static_cast<uint32_t>(now - run_start_);
         cancel(now, kSmoothCancelStall);  // STALL (no force retry)
         return;
       }
-      floor_ = imin(cfg_.pwm_max, floor_ + cfg_.boost);  // battery voltage and load change the PWM that moves it
+      floor_ = imin(cap, floor_ + cfg_.boost);  // battery voltage and load change the PWM that moves it
       progress_ms_ = now;
       progress_ref_ = pos;
     }
@@ -306,15 +316,17 @@ void SmoothBoard::update(uint32_t now, int counts) {  // updateSmoothHold()
       tick_ms_ = now;
       const float scale = std::min(1.0f, std::max(0.0f, static_cast<float>(along - cfg_.stop_tol) /
                                                             static_cast<float>(cfg_.slow)));
-      const int want = floor_ + static_cast<int>(lroundf(static_cast<float>(cfg_.pwm_max - floor_) * scale));
+      const int top = imax(cfg_.pwm_max, floor_);  // r5: floor_ <= pwm_max; r6p: a raised floor is the PWM
+      const int want = floor_ + static_cast<int>(lroundf(static_cast<float>(top - floor_) * scale));
       sm_pwm_ = want > sm_pwm_ ? imin(want, sm_pwm_ + cfg_.ramp) : want;
       write_pwm(sm_dir_, sm_pwm_);
     }
     return;
   }
   if (sm_phase_ == 2) {
-    if (braking_ && static_cast<uint32_t>(now - settle_start_) >= static_cast<uint32_t>(cfg_.brake_ms)) {
-      en_ = false;  // EN low: the brake ends
+    if (braking_ && static_cast<uint32_t>(now - settle_start_) >= static_cast<uint32_t>(cfg_.brake_ms) &&
+        !(cfg_.proposal && cfg_.rest_brake)) {
+      en_ = false;  // EN low: the brake ends (r6p rest_brake: it stays on while the target is held)
       braking_ = false;
     }
     // early unpowered travel and the filter latency count toward the rebound peak
@@ -325,7 +337,8 @@ void SmoothBoard::update(uint32_t now, int counts) {  // updateSmoothHold()
     sm_phase_ = 0;
     fresh_ = false;  // after a settled run only drift above restart_tol starts another one
     const int rebound = run_right ? value - peak_ : peak_ - value;
-    if (std::abs(error) > cfg_.restart_tol && rebound >= cfg_.rebound_max) {
+    if (std::abs(error) > cfg_.restart_tol && rebound >= cfg_.rebound_max &&
+        !(cfg_.proposal && cfg_.hold_no_cancel && reached_)) {
       cancel(now, kSmoothCancelRebound);  // REBOUND (no force retry)
       return;
     }
@@ -333,11 +346,16 @@ void SmoothBoard::update(uint32_t now, int counts) {  // updateSmoothHold()
   if (std::abs(error) <= cfg_.stop_tol || (!fresh_ && std::abs(error) <= cfg_.restart_tol)) {
     fresh_ = false;
     runs_ = 0;
-    return;  // target reached: keep monitoring, no powered preload
+    if (std::abs(error) <= cfg_.stop_tol) reached_ = true;
+    return;  // target reached: keep monitoring, no powered preload (r6p rest_brake: the short brake stays on)
   }
   if (runs_ >= cfg_.max_runs) {
-    cancel(now, kSmoothCancelNoConvergence);  // NO CONVERGENCE (no force retry)
-    return;
+    if (cfg_.proposal && cfg_.hold_no_cancel && reached_) {
+      runs_ = 0;  // r6p: a reached target pushed off again is corrected, not given up
+    } else {
+      cancel(now, kSmoothCancelNoConvergence);  // NO CONVERGENCE (no force retry)
+      return;
+    }
   }
   const bool right = error < 0;
   if ((right && value <= cfg_.cal_right) || (!right && value >= cfg_.cal_left)) {

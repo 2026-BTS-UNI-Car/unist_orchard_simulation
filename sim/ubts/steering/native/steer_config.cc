@@ -467,8 +467,9 @@ void parse_law(const ObjectView &b, LawConfig *out) {
 }
 
 // Optional block "steer_law" with kind smooth_r5 (profile schema v5, firmware mode only; smooth_r5.h). Every key is
-// required. The SM parameter ranges are the firmware's SM_LIMITS (SM SET refuses values outside them).
-void parse_smooth_law(const ObjectView &b, SmoothLawConfig *out) {
+// required. The SM parameter ranges are the firmware's SM_LIMITS (SM SET refuses values outside them). Kind
+// smooth_r6p (profile schema v6, the SIM proposal r6p) needs the four proposal keys too.
+void parse_smooth_law(const ObjectView &b, SmoothLawConfig *out, bool proposal) {
   static const char *const keys[] = {
       "kind",              "cal_right",          "cal_center",          "cal_left",          "command_max_deg",
       "pwm_min",           "pwm_max",            "slow_counts",         "stop_tol_counts",   "restart_tol_counts",
@@ -478,8 +479,11 @@ void parse_smooth_law(const ObjectView &b, SmoothLawConfig *out) {
       "sample_ms",         "median_of",          "pair_tol_counts",     "stale_ms",          "slew_min_counts",
       "slew_counts_per_ms", "hard_right_min",    "hard_left_max",       "limit_margin_counts",
       "adc_powered_offset_counts", "adc_burst_counts", "adc_burst_ms",  "adc_burst_period_ms",
-      "host_step_deg",     "host_deadband_deg",  "host_min_interval_ms", "host_poll_ms"};
-  b.require_keys(keys, sizeof keys / sizeof keys[0]);
+      "host_step_deg",     "host_deadband_deg",  "host_min_interval_ms", "host_poll_ms",
+      // kind smooth_r6p only (the SIM proposal r6p)
+      "hold_pwm_max",      "push_counts",        "rest_brake",          "hold_no_cancel"};
+  const size_t count = sizeof keys / sizeof keys[0];
+  b.require_keys(keys, proposal ? count : count - 4);
   out->present = true;
   out->cal_right = static_cast<int>(b.integer("cal_right", 1, 4095));
   out->cal_center = static_cast<int>(b.integer("cal_center", 1, 4095));
@@ -537,6 +541,14 @@ void parse_smooth_law(const ObjectView &b, SmoothLawConfig *out) {
   out->host_deadband_deg = b.number("host_deadband_deg", 0.0, 90.0);
   out->host_min_interval_ms = static_cast<int>(b.integer("host_min_interval_ms", 1, 100000));
   out->host_poll_ms = static_cast<int>(b.integer("host_poll_ms", 1, 100000));
+  out->proposal = proposal;
+  if (proposal) {
+    out->hold_pwm_max = static_cast<int>(b.integer("hold_pwm_max", 40, 255));
+    if (out->hold_pwm_max < out->pwm_max) throw ConfigError("steer_law: need hold_pwm_max >= pwm_max");
+    out->push_counts = static_cast<int>(b.integer("push_counts", 0, 4095));
+    out->rest_brake = static_cast<int>(b.integer("rest_brake", 0, 1));
+    out->hold_no_cancel = static_cast<int>(b.integer("hold_no_cancel", 0, 1));
+  }
 }
 
 const char *const kProtocolV1 = "ubts.steer_lockstep.v1";
@@ -734,7 +746,9 @@ Config parse_config(const std::string &line) {
         if (has_law) {
           const ObjectView law = top.object("steer_law");
           if (law.has_string("kind", "smooth_r5")) {
-            parse_smooth_law(law, &cfg.smooth);  // profile schema v5, steer_fw_mode smooth_r5
+            parse_smooth_law(law, &cfg.smooth, false);  // profile schema v5, steer_fw_mode smooth_r5
+          } else if (law.has_string("kind", "smooth_r6p")) {
+            parse_smooth_law(law, &cfg.smooth, true);  // profile schema v6, steer_fw_mode smooth_r6p (SIM proposal)
           } else {
             parse_law(law, &cfg.law);  // every other block: the abs_hold_8 rules and messages as before
           }

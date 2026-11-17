@@ -765,6 +765,46 @@ class HostFaultTest(unittest.TestCase):
         self.assertNotIn('steering_not_following', rig.core.latches)
         self.assertTrue(rig.core.control.lease)
 
+    def test_esp32_adapter_track_rule_counts_without_the_ramp_gate(self):
+        # host profile host_faults.track_rule esp32_adapter (vehicle profile steer_monitor_stack esp32_r5): the
+        # vehicle's ESP32 stack has no MCU ramp, so |sent target (status cmd) - measured| counts at once. The slow ramp
+        # of the test above toward 300 mrad: cmd passes 3 deg (about 120 permille) after about 0.25 s, the latch
+        # follows 1.5 s later (the ramp-gated rule: >= 2.9 s); the never-settling reversal now latches too
+        faults = dict(ts.host_profile_data()['host_faults'], track_rule='esp32_adapter')
+        profile = ts.host_profile_data(host_faults=faults)
+        self.assertEqual(core_mod.HostProfile(profile).track_rule, 'esp32_adapter')
+        self.assertEqual(core_mod.HostProfile(ts.host_profile_data()).track_rule, 'v3_ramp_gate')
+        rig = ts.Rig(profile=profile)
+        rig.ready()
+        reply = rig.arm()
+        rig.mcu.stuck_pos = 0
+        rig.mcu.cmd_rate_pm_s = 480.0
+        t0 = rig.clock.t
+        while rig.core.control.lease and rig.clock.t - t0 < 5.0:
+            reply = rig.submit(drive(reply, 0, 300))
+            rig.run(0.2)
+        latch = rig.core.latches['steering_not_following']
+        self.assertGreaterEqual(latch['since'] - t0, 0.2 + 1.5)
+        self.assertLess(latch['since'] - t0, 2.2)
+        rig = ts.Rig(profile=profile)
+        rig.ready()
+        reply = rig.arm()
+        rig.mcu.stuck_pos = 0
+        rig.mcu.cmd_rate_pm_s = 480.0
+        t0 = rig.clock.t
+        k = 0
+        while rig.core.control.lease and rig.clock.t - t0 < 6.0:
+            target = 400 if (k // 6) % 2 == 0 else -400
+            reply = rig.submit(drive(reply, 0, target))
+            rig.run(0.2)
+            k += 1
+        self.assertIn('steering_not_following', rig.core.latches)
+        bad = dict(faults, track_rule='other')
+        with self.assertRaises(core_mod.HostProfileError):
+            core_mod.HostProfile(ts.host_profile_data(host_faults=bad))
+        with self.assertRaises(core_mod.HostProfileError):
+            core_mod.HostProfile(ts.host_profile_data(host_faults=dict(faults, surprise=1)))
+
     def test_steering_ineffective_with_a_motion_source(self):
         for yaw_rate, expect in ((0.0, True), (0.4 * math.tan(0.2) / 0.76, False)):
             with self.subTest(yaw_rate=yaw_rate):

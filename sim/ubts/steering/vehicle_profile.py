@@ -63,6 +63,15 @@ host ANGLE policy of the SMOOTH bridge (smooth_host), the SIM ADC path placehold
 step times of the SMOOTH hold (smooth_step_time_measured_s; docs/steering/SMOOTH_R5_SIM_KO.md). smooth_r5 needs a v5
 file; v2, v3 and v4 files keep loading unchanged (a v4 file still allows only v3_servo and abs_hold_8).
 
+Schema v6 (ubts.vehicle_profile.v6, profile front_steer_v2_1_field_20261117 and later): the v5 parameters plus group M
+(V6_PARAMETER_GROUPS, docs/steering/SMOOTH_R5_DISTURBANCE_KO.md). steer_monitor_stack names the steering monitors of
+the stack the SIM models: v3 (the V3 firmware's MCU monitors and the V3 host bridge rules, every earlier profile) or
+esp32_r5 (the vehicle: the r5 board has no V3 MCU fault monitors, so the SIM sets their CFG values where they cannot
+trip, fw_eeprom.BOARD_R5_MONITORS_OFF, and the host counts steering_not_following as the executor's ESP32 adapter,
+host profile host_faults.track_rule esp32_adapter). steer_fw_mode may also be smooth_r6p: the SIM proposal r6p of the
+SMOOTH hold (native/smooth_r5.cc kind smooth_r6p, values smooth_fw_proposal; not the vehicle's firmware). Any other
+mode needs smooth_fw_proposal all 0. v2 to v5 files keep loading unchanged.
+
 Pure Python + PyYAML (safe loader only). No numpy.
 """
 from __future__ import annotations
@@ -84,9 +93,13 @@ SCHEMA = 'ubts.vehicle_profile.v2'
 SCHEMA_V3 = 'ubts.vehicle_profile.v3'
 SCHEMA_V4 = 'ubts.vehicle_profile.v4'
 SCHEMA_V5 = 'ubts.vehicle_profile.v5'
-SCHEMAS = (SCHEMA, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5)
+SCHEMA_V6 = 'ubts.vehicle_profile.v6'
+SCHEMAS = (SCHEMA, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6)
 STEER_FW_MODES = ('v3_servo', 'abs_hold_8')                    # schema v4
 STEER_FW_MODES_V5 = STEER_FW_MODES + ('smooth_r5',)           # schema v5
+STEER_FW_MODES_V6 = STEER_FW_MODES_V5 + ('smooth_r6p',)       # schema v6 (smooth_r6p: SIM proposal)
+SMOOTH_FW_MODES = ('smooth_r5', 'smooth_r6p')                 # the SMOOTH hold (native/smooth_r5.cc)
+STEER_MONITOR_STACKS = ('v3', 'esp32_r5')                     # schema v6
 MARK_HALF_WIDTH_MIN = 50      # counts between the centre mark and each end mark (fw_eeprom.MARK_WINDOW_SPAN_MIN)
 MARK_INSET_DEG = 1.0          # calibration marks at the equivalent mechanical limit - 1 deg (LOCKSTEP 11.11)
 PROFILES_DIR = Path(__file__).resolve().parent / 'profiles'
@@ -189,9 +202,15 @@ V5_PARAMETER_GROUPS = (
 )
 PARAMETER_GROUPS_V5 = PARAMETER_GROUPS_V4 + V5_PARAMETER_GROUPS
 PARAMETER_NAMES_V5 = tuple(name for _, names in PARAMETER_GROUPS_V5 for name in names)
+# Schema v6 group M (2026-11-17): the monitor stack the SIM models and the SIM proposal r6p of the SMOOTH hold.
+V6_PARAMETER_GROUPS = (
+    ('M_steer_monitor_stack', ('steer_monitor_stack', 'smooth_fw_proposal')),
+)
+PARAMETER_GROUPS_V6 = PARAMETER_GROUPS_V5 + V6_PARAMETER_GROUPS
+PARAMETER_NAMES_V6 = tuple(name for _, names in PARAMETER_GROUPS_V6 for name in names)
 NAMES_OF_SCHEMA = {SCHEMA: PARAMETER_NAMES, SCHEMA_V3: PARAMETER_NAMES_V3, SCHEMA_V4: PARAMETER_NAMES_V4,
-                   SCHEMA_V5: PARAMETER_NAMES_V5}
-GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V5 for name in names}
+                   SCHEMA_V5: PARAMETER_NAMES_V5, SCHEMA_V6: PARAMETER_NAMES_V6}
+GROUP_OF = {name: group for group, names in PARAMETER_GROUPS_V6 for name in names}
 # Keys of the abs_hold_fw mapping: the constants of BTS7960_Serial_Control.ino (ABS-HOLD-8-REBOUND-LIMITS), counts of
 # the board's 12-bit ADC and milliseconds. The SIM emulator (native/abs_hold8.cc) uses every key.
 ABS_HOLD_FW_KEYS = (
@@ -219,6 +238,8 @@ SMOOTH_SM_LIMITS = dict(pwm_min=(20, 150), pwm_max=(40, 160), slow_counts=(20, 4
                         quiet_us=(200, 3000))
 SMOOTH_HOST_KEYS = ABS_HOLD_HOST_KEYS
 SMOOTH_ADC_SIM_KEYS = ('powered_offset_counts', 'burst_counts', 'burst_ms', 'burst_period_ms')
+# Keys of the smooth_fw_proposal mapping (schema v6; native/smooth_r5.h, SIM proposal r6p). All 0 = no proposal.
+SMOOTH_PROPOSAL_KEYS = ('hold_pwm_max', 'push_counts', 'rest_brake', 'hold_no_cancel')
 
 # Names the steered plant (F-SIM SteeredPlant, P1/P2) reads; geometry.PROFILE_NAMES come on top.
 PLANT_PROFILE_NAMES = (
@@ -311,6 +332,9 @@ SHAPES = {
     'smooth_host': {'step_deg': NUMBER, 'deadband_deg': NUMBER, 'min_interval_ms': INTEGER, 'poll_ms': INTEGER},
     'smooth_adc_sim': _keys(INTEGER, *SMOOTH_ADC_SIM_KEYS),
     'smooth_step_time_measured_s': _keys(NUMBER, 'outward_20', 'return_20'),
+    # schema v6
+    'steer_monitor_stack': STRING,
+    'smooth_fw_proposal': _keys(INTEGER, *SMOOTH_PROPOSAL_KEYS),
 }
 
 
@@ -835,14 +859,37 @@ def _semantic_checks_v5(values):
         raise ProfileError('bad_value', 'smooth_step_time_measured_s', 'step times must be > 0')
 
 
+def _semantic_checks_v6(values):
+    """Schema v6 checks: the monitor stack is a known one (esp32_r5 only with a board law of the ESP32 board: abs_hold_8,
+    smooth_r5 or smooth_r6p); smooth_fw_proposal is all 0 unless steer_fw_mode is smooth_r6p, where hold_pwm_max is
+    pwm_max..255, push_counts 0..4095 and the switches 0 / 1."""
+    stack = values['steer_monitor_stack']
+    if stack not in STEER_MONITOR_STACKS:
+        raise ProfileError('out_of_range', 'steer_monitor_stack', 'one of %s' % ', '.join(STEER_MONITOR_STACKS))
+    if stack == 'esp32_r5' and values['steer_fw_mode'] == 'v3_servo':
+        raise ProfileError('bad_value', 'steer_monitor_stack', 'esp32_r5 needs a board law (abs_hold_8, smooth_r5, '
+                                                               'smooth_r6p), not the V3 servo')
+    prop = values['smooth_fw_proposal']
+    if values['steer_fw_mode'] != 'smooth_r6p':
+        if any(prop[key] != 0 for key in SMOOTH_PROPOSAL_KEYS):
+            raise ProfileError('bad_value', 'smooth_fw_proposal', 'must be all 0 unless steer_fw_mode is smooth_r6p')
+        return
+    pwm_max = values['smooth_fw']['pwm_max']
+    if not pwm_max <= prop['hold_pwm_max'] <= 255 or not 0 <= prop['push_counts'] <= 4095 or \
+            prop['rest_brake'] not in (0, 1) or prop['hold_no_cancel'] not in (0, 1):
+        raise ProfileError('bad_value', 'smooth_fw_proposal', 'need pwm_max <= hold_pwm_max <= 255, push_counts '
+                                                              '0..4095, rest_brake and hold_no_cancel 0 or 1')
+
+
 def abs_hold_mode(profile):
     """True when the profile runs the ABS-HOLD-8 pulse law in the SIM ESP emulator (schema v4, steer_fw_mode)."""
     return profile.has('steer_fw_mode') and profile.value('steer_fw_mode') == 'abs_hold_8'
 
 
 def smooth_hold_mode(profile):
-    """True when the profile runs the SMOOTH r5 hold in the SIM ESP emulator (schema v5, steer_fw_mode smooth_r5)."""
-    return profile.has('smooth_fw') and profile.value('steer_fw_mode') == 'smooth_r5'
+    """True when the profile runs the SMOOTH hold in the SIM ESP emulator (schema v5, steer_fw_mode smooth_r5; schema
+    v6 also smooth_r6p, the SIM proposal)."""
+    return profile.has('smooth_fw') and profile.value('steer_fw_mode') in SMOOTH_FW_MODES
 
 
 # --- consistency warnings ----------------------------------------------------------------------------------------
@@ -971,7 +1018,7 @@ class VehicleProfile:
 
     @property
     def schema_version(self):
-        return {SCHEMA_V3: 3, SCHEMA_V4: 4, SCHEMA_V5: 5}.get(self.schema, 2)
+        return {SCHEMA_V3: 3, SCHEMA_V4: 4, SCHEMA_V5: 5, SCHEMA_V6: 6}.get(self.schema, 2)
 
     def _record(self, name):
         try:
@@ -1231,9 +1278,12 @@ def _finish_records(records, derived_bounds=True):
     if 'belt_type' in records:
         _semantic_checks_v3(resolved, strict_pot=derived_bounds)
     if 'steer_fw_mode' in records:
-        _semantic_checks_v4(resolved, STEER_FW_MODES_V5 if 'smooth_fw' in records else STEER_FW_MODES)
+        _semantic_checks_v4(resolved, STEER_FW_MODES_V6 if 'steer_monitor_stack' in records else
+                            STEER_FW_MODES_V5 if 'smooth_fw' in records else STEER_FW_MODES)
     if 'smooth_fw' in records:
         _semantic_checks_v5(resolved)
+    if 'steer_monitor_stack' in records:
+        _semantic_checks_v6(resolved)
     computing = set()
 
     def get(name):

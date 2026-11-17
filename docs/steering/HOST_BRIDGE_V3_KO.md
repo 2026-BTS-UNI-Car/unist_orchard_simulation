@@ -175,7 +175,7 @@ python -B -m steering.host_profile_export --out <저장소 밖 경로>/host_prof
 | `link` | `baud`, `status_hz`, `c_ttl_max_ms`, `c_resend_hz`, `ping_hz`, `watchdog_ms`, `banner_timeout_s` | 115200, 20, 300, 20, 10, 500, 1.5 |
 | `stop` | `confirm_periods`, `resend_interval_ms`, `resend_max`, `steer_policy`, `hold_after_*_ms`, `watchdog_steer_mode`, `ttl_expiry_drive_mode` | 2, 50, 5, hold_measured, 2000, hold, brake |
 | `arm` | `confirm_ms` | 150 |
-| `host_faults` | `status_gap_ms`, `seq_gap_missing`, `seq_gap_window_s`, `track_error_deg`, `track_duration_s`, `ineffective` | 150, 5, 1.0, 3.0, 1.5, (프로필 값) |
+| `host_faults` | `status_gap_ms`, `seq_gap_missing`, `seq_gap_window_s`, `track_error_deg`, `track_duration_s`, `ineffective`; 선택 `track_rule`(없으면 `v3_ramp_gate`, `esp32_adapter` = 보낸 목표(상태 줄 cmd)와 측정의 차를 램프 조건 없이 셈, 프로필 `steer_monitor_stack esp32_r5`, `SMOOTH_R5_DISTURBANCE_KO.md`) | 150, 5, 1.0, 3.0, 1.5, (프로필 값) |
 | `servo` | `deadband_permille`, `max_pwm` | 20, 255 |
 | `drive` | `lr_mode` | `equal_duty`(다른 값은 거부) |
 | `vehicle` | `wheelbase_m` | 0.76 |

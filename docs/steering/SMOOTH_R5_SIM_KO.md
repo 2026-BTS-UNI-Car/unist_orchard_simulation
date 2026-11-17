@@ -123,6 +123,9 @@ python -B -m pytest -q -p no:cacheprovider test_steering_smooth_hold.py test_ste
 
 ## 7. 확인 결과
 
+- 2026-11-17 뒤: v1 넓은 조건의 실패 분석, 차의 감시 묶음을 맞춘 v2.1(스키마 v6)과 SIM 제안 r6p(v2.2)는
+  [`SMOOTH_R5_DISTURBANCE_KO.md`](SMOOTH_R5_DISTURBANCE_KO.md), 결정 R103.
+
 [`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](STEER_FOLLOW_SMOOTH_RESULT_KO.md)(사전등록 [`PREREG_STEER_FOLLOW_SMOOTH_KO.md`](PREREG_STEER_FOLLOW_SMOOTH_KO.md)):
 열 추종 `matrix` 15/15, 넓은 조건 52/60(외란 두 조건의 V3 감시와 운영자 연결 기준; v1 은 51/60), 실기 r5 소스와의 차이 시험에서 조용한 읽기를 끄면
 핀 단위로 같음, 옛 프로필 동일성(T1 71, nominal 두 프로필의 trace 같음). 모두 자리값 기반 SIM 결과다.

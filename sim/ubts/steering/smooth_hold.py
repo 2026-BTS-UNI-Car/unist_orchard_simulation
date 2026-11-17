@@ -14,6 +14,10 @@ centre CAL CENTER; the board's targets are CENTER + lroundf(span x |a| / 20) in 
 most every 0.2 s, no force retry of a cancelled target) and of the executor's ESP32 adapter (dad6a93
 ESP32_SMOOTH_POLICY).
 
+Schema v6 adds steer_fw_mode smooth_r6p, the SIM proposal r6p (kind smooth_r6p: the r5 block plus the four
+smooth_fw_proposal keys; native/smooth_r5.h; docs/steering/SMOOTH_R5_DISTURBANCE_KO.md). It is not the vehicle's
+firmware; nothing is flashed.
+
 Pure Python. The firmware values come from the field record field_steer_20261116_2321 and the r5 source; the plant
 values stay placeholders; results are SIM results (자리값 기반 SIM 결과).
 """
@@ -26,6 +30,7 @@ from . import abs_hold
 from . import vehicle_profile as vp
 
 LAW_KIND = 'smooth_r5'
+PROPOSAL_LAW_KIND = 'smooth_r6p'      # SIM proposal r6p (schema v6)
 # startup block key -> smooth_fw / smooth_adc_sim / smooth_host key (the native parser requires every key)
 _ADC_KEYS = (('adc_powered_offset_counts', 'powered_offset_counts'), ('adc_burst_counts', 'burst_counts'),
              ('adc_burst_ms', 'burst_ms'), ('adc_burst_period_ms', 'burst_period_ms'))
@@ -36,24 +41,34 @@ CANCEL_REASONS = {1: 'ADC STALE/INVALID', 2: 'STALL (no force retry)', 3: 'RUN T
 
 
 def active(profile):
-    """True when the profile runs the SMOOTH r5 hold (schema v5, steer_fw_mode smooth_r5)."""
+    """True when the profile runs the SMOOTH hold (schema v5 smooth_r5; schema v6 also the SIM proposal smooth_r6p)."""
     return vp.smooth_hold_mode(profile)
 
 
+def proposal(profile):
+    """True when the profile runs the SIM proposal r6p of the SMOOTH hold (schema v6, steer_fw_mode smooth_r6p)."""
+    return active(profile) and profile.value('steer_fw_mode') == 'smooth_r6p'
+
+
 def startup_block(profile):
-    """The native startup block 'steer_law' (kind smooth_r5) for a profile in smooth_r5 mode, else None."""
+    """The native startup block 'steer_law' (kind smooth_r5, or smooth_r6p with the proposal keys) for a profile in a
+    SMOOTH mode, else None."""
     if not active(profile):
         return None
     fw = profile.value('smooth_fw')
     adc = profile.value('smooth_adc_sim')
     host = profile.value('smooth_host')
-    block = dict(kind=LAW_KIND)
+    block = dict(kind=PROPOSAL_LAW_KIND if proposal(profile) else LAW_KIND)
     for key in vp.SMOOTH_FW_KEYS:
         block[key] = float(fw[key]) if key in vp.SMOOTH_FW_FLOAT_KEYS else int(fw[key])
     for key, name in _ADC_KEYS:
         block[key] = int(adc[name])
     for key, name in _HOST_KEYS:
         block[key] = float(host[name]) if key.endswith('_deg') else int(host[name])
+    if proposal(profile):
+        prop = profile.value('smooth_fw_proposal')
+        for key in vp.SMOOTH_PROPOSAL_KEYS:
+            block[key] = int(prop[key])
     return block
 
 

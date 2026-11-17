@@ -759,3 +759,15 @@
 - 정한 것: 판정 격자 1000 Hz(이 프로필만), 조용한 읽기는 서보 한 주기 EN 끔 + 다음 주기 값, 가변저항 어긋남·전류 묶음은 SIM ADC 경로 자리값(기본 0),
   호스트는 브리지와 어댑터의 SMOOTH 규칙을 하나로(0.25 명령도, 200 ms, 취소된 목표 다시 안 보냄), 모터 속도는 r5 바퀴 든 계단에 맞춘 80 °/s,
   실행기 '측정' 조향 속도는 r5 0 -> 20 계단(12.39 °/s, GO 문턱 그대로). 등록 판정·화면용 스택의 프로필은 바꾸지 않는다(따로 정함).
+
+## R103. SMOOTH 프로필은 차의 감시 묶음(`steer_monitor_stack esp32_r5`, 스키마 v6)으로 판정한다. 외력 대응은 SIM 제안 r6p 로만 둔다
+
+- 2026-11-17. 근거: v1 판정(`steer_follow_smooth_r5_v1`)의 두 외란 조건이 r5 보드에 없는 V3 MCU 감시(POT_NOISE, TRACK)로 멈췄고, SIM 호스트의
+  `steering_not_following` 은 실행기 ESP32 어댑터와 달랐다(램프 조건, 3 s). 그 밑에서는 SMOOTH 유지가 자리값 외란을 못 버텼다
+  ([`SMOOTH_R5_DISTURBANCE_KO.md`](SMOOTH_R5_DISTURBANCE_KO.md)).
+- 선택지: (가) V3 펌웨어 소스에서 감시를 끈다. (나) 프로필 v2 의 감시 값을 고친다. (다) 새 스키마 v6 의 `steer_monitor_stack` 으로 CFG 값과 호스트 규칙을
+  바꾸는 새 프로필. 외력 대응: (라) 보드 펌웨어를 고쳐 쓴다. (마) SIM 안의 제안으로만 만든다.
+- 결정: (다)와 (마). (가)는 펌웨어 빌드 id 와 모든 옛 결과를 바꾼다. (나)는 v1 판정을 다시 만들 수 없게 한다. (라)는 이 작업의 범위 밖이다(차에 쓰지 않음).
+- 정한 것: v2.1 = v2 + `esp32_r5`(V3 감시 CFG 를 닿을 수 없는 끝으로, 호스트 `track_rule esp32_adapter` 3 deg / 2 s), v2.2 = v2.1 + 제안 r6p
+  (hold_pwm_max 200, push_counts 24, rest_brake 1, hold_no_cancel 1). 판정은 새 사전등록 `steer_follow_smooth_r5_v2`(운영자 연결 기준은 R60 의 1.05 s).
+  v1 결과, 옛 프로필, 화면용 스택의 프로필은 그대로다.

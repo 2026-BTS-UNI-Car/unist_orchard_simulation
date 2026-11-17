@@ -179,8 +179,26 @@ _WATCHDOG_MODE = {'hold': 0, 'center': 1, 'free': 2}
 _TTL_MODE = {'brake': 0, 'release': 1}
 
 
+# The CFG values that switch off the V3 fault monitors the vehicle's steering board (firmware r5) does not have, for a
+# profile with steer_monitor_stack esp32_r5 (schema v6, docs/steering/SMOOTH_R5_DISTURBANCE_KO.md). The V3 firmware
+# source is not changed (build id 878B5F56): each monitor gets the end of its CFG range where its condition cannot
+# become true. POT_JUMP |f[n] - f[n - jmpw]| > 1023 (raw is 0..1023); POT_NOISE sd > 100 raw within nsw (the whole
+# steering travel is about 140 raw); POLARITY 1000 permille against the output within 1 tick; DRV_STUCK 1000 permille
+# within 1 tick; STALL needs PWM 255 and |motion| < 0; TRACK 2000 permille for 10 s (the host track rule of the stack,
+# 2 s, stops first); THERMAL PWM 255 for the whole 60 s window. POT_OPEN / POT_SHORT (pvmin, pvmax) stay: the board too
+# stops on an invalid POT (hold cancel, no valid angle for the host).
+BOARD_R5_MONITORS_OFF = dict(jmp=1023, nsd=1000, polp=1000, polt=1, dsm=1000, dst=1, stp=255, stm=0, trk=2000,
+                             trt=10000, thp=255, thw=60, tha=60000)
+
+
+def monitor_stack(profile):
+    """'v3' (every profile before schema v6) or the profile's steer_monitor_stack."""
+    return profile.value('steer_monitor_stack') if profile.has('steer_monitor_stack') else 'v3'
+
+
 def params_from_profile(profile, scale_permille_per_deg=PLACEHOLDER_SCALE_PERMILLE_PER_DEG):
-    """The 41 CFG values from the profile's MCU parameters (spec 4.10 conversion with scale s)."""
+    """The 41 CFG values from the profile's MCU parameters (spec 4.10 conversion with scale s). A profile with
+    steer_monitor_stack esp32_r5 gets BOARD_R5_MONITORS_OFF for the monitors its board does not have."""
     v = profile.value
     s = float(scale_permille_per_deg)
 
@@ -212,6 +230,8 @@ def params_from_profile(profile, scale_permille_per_deg=PLACEHOLDER_SCALE_PERMIL
         dsm=permille(v('driver_stuck_fault')['motion_deg']), dst=ms(v('driver_stuck_fault')['duration_s']),
         thp=pwm(v('thermal_proxy')['pwm_pct']), thw=_round_half_up(v('thermal_proxy')['window_s']),
         tha=ms(v('thermal_proxy')['accumulated_s']), crcn=int(v('crc_burst_n')), movms=300, svhz=int(v('servo_hz')))
+    if monitor_stack(profile) == 'esp32_r5':
+        params.update(BOARD_R5_MONITORS_OFF)
     return check_params(params)
 
 

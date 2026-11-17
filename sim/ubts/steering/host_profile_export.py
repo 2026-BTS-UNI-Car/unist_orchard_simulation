@@ -113,6 +113,10 @@ def build(profile, *, cal_id=DEFAULT_CAL_ID, hw_profile=HW_PROFILE):
         'drive': {'lr_mode': v('drive_lr_mode')},
         'vehicle': {'wheelbase_m': float(v('wheelbase_m'))},
     }
+    if profile.has('steer_monitor_stack') and v('steer_monitor_stack') == 'esp32_r5':
+        # schema v6: steering_not_following as the vehicle's ESP32 stack counts it (steer_bridge_core TRACK_RULES);
+        # without the key (every earlier profile) the host profile keeps its bytes
+        data['host_faults']['track_rule'] = 'esp32_adapter'
     data['provenance'] = _provenance(profile)
     check_timing_relations(data)
     return data
@@ -171,6 +175,9 @@ def _provenance(profile):
         out[key] = {'profile_names': list(names), 'tags': sorted({profile.provenance(name) for name in names})}
     for key, text in _DOCUMENT_SOURCES.items():
         out[key] = {'document': text}
+    if profile.has('steer_monitor_stack') and profile.value('steer_monitor_stack') == 'esp32_r5':
+        out['host_faults.track_rule'] = {'profile_names': ['steer_monitor_stack'],
+                                         'tags': [profile.provenance('steer_monitor_stack')]}
     return dict(sorted(out.items()))
 
 

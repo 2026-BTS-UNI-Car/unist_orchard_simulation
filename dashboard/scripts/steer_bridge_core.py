@@ -125,6 +125,12 @@ _HOST_PROFILE_SPEC = {
     'drive': {'lr_mode': (str, ('equal_duty',), None)},
     'vehicle': {'wheelbase_m': (_NUM, 0.1, 5.0)},
 }
+# Optional keys (absent = the value in brackets; an older host profile keeps its bytes): host_faults.track_rule
+# ['v3_ramp_gate'] 'esp32_adapter' = steering_not_following as the vehicle's ESP32 stack counts it (the executor's
+# Esp32AbsHoldAdapter: |sent target - measured| without the MCU ramp gate; vehicle profile steer_monitor_stack esp32_r5,
+# docs/steering/SMOOTH_R5_DISTURBANCE_KO.md).
+TRACK_RULES = ('v3_ramp_gate', 'esp32_adapter')
+_HOST_PROFILE_OPTIONAL = {'host_faults': {'track_rule': (str, TRACK_RULES, None)}}
 _INEFFECTIVE_KEYS = ('min_speed_m_s', 'min_steer_deg', 'rate_error_deg_s', 'rate_error_frac', 'duration_s')
 _TOP_KEYS = ('schema', 'vehicle_profile', 'hw_profile', 'source_profile', 'provenance') + tuple(_HOST_PROFILE_SPEC)
 _SOURCE_KEYS = ('profile_id', 'profile_sha256', 'provenance_grade', 'result_kind', 'field_validated', 'overrides')
@@ -215,10 +221,15 @@ class HostProfile:
             raise HostProfileError('provenance must be an object')
         for section, spec in _HOST_PROFILE_SPEC.items():
             block = data[section]
-            if not isinstance(block, dict) or set(block) != set(spec):
-                raise HostProfileError('%s needs exactly %s' % (section, sorted(spec)))
+            optional = _HOST_PROFILE_OPTIONAL.get(section, {})
+            if not isinstance(block, dict) or not set(spec) <= set(block) <= set(spec) | set(optional):
+                raise HostProfileError('%s needs exactly %s' % (section, sorted(spec)) + (
+                    ' (optional %s)' % sorted(optional) if optional else ''))
             for key, rule in spec.items():
                 _check_value('%s.%s' % (section, key), block[key], rule)
+            for key, rule in optional.items():
+                if key in block:
+                    _check_value('%s.%s' % (section, key), block[key], rule)
         _check_timing_relations(data)
         self.data = data
         self.sha256 = sha256
@@ -256,6 +267,7 @@ class HostProfile:
         self.seq_gap_missing, self.seq_gap_window_s = faults['seq_gap_missing'], float(faults['seq_gap_window_s'])
         self.track_error_mrad = math.radians(faults['track_error_deg']) * 1000.0
         self.track_duration_s = float(faults['track_duration_s'])
+        self.track_rule = faults.get('track_rule', 'v3_ramp_gate')
         self.ineffective = dict(faults['ineffective'])
         self.deadband_permille = data['servo']['deadband_permille']
         self.servo_max_pwm = data['servo']['max_pwm']
@@ -949,23 +961,30 @@ class SteerBridgeCore:
         MCU servo ramp has reached its goal (status cmd == the soft-limited tgt). While the MCU still slews toward
         the request at its configured rate (rmov / rstd), the lag is the designed one and the MCU's own TRACK rule
         (progress-aware, spec 6.7, decision 12.1-69) watches it; a large standstill step (about 40 deg at 12 deg/s)
-        used to latch here (SIM_ACCEPTANCE amendment 40, normal script N5; amendment 43)."""
+        used to latch here (SIM_ACCEPTANCE amendment 40, normal script N5; amendment 43).
+
+        track_rule 'esp32_adapter' (host profile option; the vehicle's ESP32 stack, whose board has no servo ramp and
+        no MCU TRACK rule): requested = the target the board was sent (status cmd, the steering law's last ANGLE),
+        counted without the ramp gate, as the executor's Esp32AbsHoldAdapter._track does."""
         control = self.control
         if not (control.lease and self._arm_confirmed and s['st'] == 2 and control.steer_mrad is not None
                 and self._marks_valid()):
             self._track_since = None
             return
-        if s['cmd'] != self._ramp_goal(s, self.link.cal):
+        if self.hp.track_rule == 'esp32_adapter':
+            requested = self.hp.mrad_from_permille(s['cmd'])
+        elif s['cmd'] != self._ramp_goal(s, self.link.cal):
             self._track_since = None
             return
+        else:
+            requested = control.steer_mrad
         measured = self.hp.mrad_from_permille(s['pos'])
-        if abs(control.steer_mrad - measured) > self.hp.track_error_mrad:
+        if abs(requested - measured) > self.hp.track_error_mrad:
             if self._track_since is None:
                 self._track_since = t
             elif t - self._track_since >= self.hp.track_duration_s:
                 self._track_since = None
-                self._latch('steering_not_following', 'requested %d mrad, measured %d mrad' % (control.steer_mrad,
-                                                                                              measured))
+                self._latch('steering_not_following', 'requested %d mrad, measured %d mrad' % (requested, measured))
                 self._stop_control('steering_not_following')
         else:
             self._track_since = None

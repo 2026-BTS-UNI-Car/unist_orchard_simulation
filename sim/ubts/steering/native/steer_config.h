@@ -229,7 +229,12 @@ struct SmoothLawConfig {
         host_step_deg(0.25),
         host_deadband_deg(0.25),
         host_min_interval_ms(200),
-        host_poll_ms(200) {}
+        host_poll_ms(200),
+        proposal(false),
+        hold_pwm_max(0),
+        push_counts(0),
+        rest_brake(0),
+        hold_no_cancel(0) {}
   bool present;
   int cal_right, cal_center, cal_left;
   double command_max_deg;
@@ -245,6 +250,13 @@ struct SmoothLawConfig {
   // SIM host ANGLE policy
   double host_step_deg, host_deadband_deg;
   int host_min_interval_ms, host_poll_ms;
+  // SIM proposal r6p (kind smooth_r6p; not on the vehicle, docs/steering/SMOOTH_R5_DISTURBANCE_KO.md). Kind
+  // smooth_r5 keeps proposal false and every value 0: the r5 rules unchanged.
+  bool proposal;
+  int hold_pwm_max;    // STALL boost cap and the floor of a back-driven run (>= pwm_max)
+  int push_counts;     // a run pushed back this far from its progress reference jumps its floor to hold_pwm_max
+  int rest_brake;      // 1: the short brake (EN high, PWM 0) while a target is held (settle and rest), not EN low
+  int hold_no_cancel;  // 1: once the target was reached, REBOUND and NO CONVERGENCE start a correction run instead
 };
 
 struct Config {

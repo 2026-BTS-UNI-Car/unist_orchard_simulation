@@ -38,6 +38,18 @@
 // rounds the executor's goal (command degrees a = -goal_permille * command_max / 1000) half away from zero to step_deg
 // and sends it when it differs from the last ANGLE by >= deadband_deg and min_interval_ms has passed (or the board is
 // idle). After a hold cancel the cancelled ANGLE is not sent again until the requested angle changes (no force retry).
+//
+// SIM proposal r6p (kind smooth_r6p, profile schema v6, steer_fw_mode smooth_r6p; NOT the vehicle's firmware, nothing
+// flashed; docs/steering/SMOOTH_R5_DISTURBANCE_KO.md): the r5 rules with four changes for an external torque on the
+// steering axis, each off in kind smooth_r5 (cfg.proposal false, the r5 behaviour bit for bit):
+//   hold_pwm_max   the STALL boost may raise the floor up to hold_pwm_max (r5: pwm_max) and STALL cancels only there;
+//                  a floor above pwm_max is the run's PWM (no slow-zone reduction below the floor)
+//   push_counts    a run pushed back against its drive by push_counts from its progress reference (back-driven, not
+//                  a jam) sets its floor to hold_pwm_max at once (still rising at most ramp per ramp tick)
+//   rest_brake     after a run the short brake (EN high, both PWM 0) stays on while the target is held (settle and
+//                  rest) instead of EN low after brake_ms
+//   hold_no_cancel once the target was reached, a REBOUND or NO CONVERGENCE does not cancel: a correction run starts
+//                  (STALL at hold_pwm_max, RUN TIME LIMIT, an invalid POT and the CAL guards still apply)
 #ifndef UBTS_STEER_SMOOTH_R5_H
 #define UBTS_STEER_SMOOTH_R5_H
 
@@ -133,6 +145,7 @@ class SmoothBoard {
   int progress_ref_, run_start_pot_, peak_;
   int runs_;
   bool fresh_, braking_;
+  bool reached_;  // SIM proposal r6p: the target was reached since it was set (r5 never reads it)
   int quiet_pot_;
   uint32_t quiet_ms_;
   // SIM only: the quiet read's second servo period is pending (EN low now); cancel bookkeeping for the host
