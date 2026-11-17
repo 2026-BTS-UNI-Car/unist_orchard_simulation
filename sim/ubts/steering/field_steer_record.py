@@ -17,6 +17,13 @@ saw it; it must agree with the firmware word POT_DECREASES and does not set pola
 keep loading unchanged. The firmware name must stay the executor's (bridge_client.ESP32_FIRMWARE); other FW words such
 as SMOOTH=1 are accepted.
 
+Schema v3 (from field_steer_20261117_0855) is a supplement record: base_record names an older record of the same vehicle
+in the same folder, and the file carries only the values it adds or replaces (any v2 value name, and the drive
+measurements breakaway_duty_pct (C2), v_measured_m_s (C3: {duty_pct, speed_m_s}) and measured_stop_distance_m (C7)),
+with its own result_kind (field_drive_pre_steering) and conditions (where the values come from, the vehicle then and
+now). The merged values are validated as one record; origin(name) tells which record a value comes from. Tag
+FIELD_OCT2026_PRE_STEERING: the 2026-10-03 / 10-10 drive records of the same drive motors before the steering unit.
+
 executor_values(record) turns a record into the row executor fields of the vehicle configuration
 (steering.vehicle_executor_config):
 
@@ -35,9 +42,12 @@ executor_values(record) turns a record into the row executor fields of the vehic
                                        equivalent degrees
   steer_polarity_checked               polarity_checked (B0)
   steer_range_measured                 range_measured (B2 / B3 with an angle meter)
+  breakaway_duty_pct                   breakaway_duty_pct (C2), when the record (chain) has it
+  v_measured_m_s                       v_measured_m_s.speed_m_s (C3), only when measured at the executor's base duty
+  measured_stop_distance_m             measured_stop_distance_m (C7)
 
-Nothing else comes from a record: the drive measurements (C2 / C3 / C7), the zero offset (F1), the steering start PWM
-(B4) and the per-wheel soft margin stay with the generator (null until measured). Pure Python + PyYAML (safe loader).
+Nothing else comes from a record: the zero offset (F1), the steering start PWM (B4), the per-wheel soft margin and the
+rolling threshold (C3b) stay with the generator (null until measured). Pure Python + PyYAML (safe loader).
 """
 from __future__ import annotations
 
@@ -51,12 +61,16 @@ import yaml
 
 SCHEMA = 'ubts.field_steer_record.v1'
 SCHEMA_V2 = 'ubts.field_steer_record.v2'     # + the hold method (SMOOTH firmware), firmware identity, polarity evidence
-SCHEMAS = (SCHEMA, SCHEMA_V2)
+SCHEMA_V3 = 'ubts.field_steer_record.v3'     # a supplement: base_record + the values it adds or replaces (drive)
+FULL_SCHEMAS = (SCHEMA, SCHEMA_V2)
+SCHEMAS = FULL_SCHEMAS + (SCHEMA_V3,)
+MAX_CHAIN = 10                                # base_record links followed at most
 RECORDS_DIR = Path(__file__).resolve().parent / 'field_records'
 VEHICLE = 'ubts_orchard_rover'
 NAME = re.compile(r'field_steer_(\d{8})_(\d{4})\Z')
 MEASURED_LIFTED = re.compile(r'MEASURED_(\d{4})(\d{2})(\d{2})_LIFTED\Z')
-PLAIN_TAGS = ('FIRMWARE', 'FIRMWARE_NVS', 'USER_VISUAL', 'ESTIMATED', 'USER_DECISION', 'DEFINITION', 'NOT_MEASURED')
+PLAIN_TAGS = ('FIRMWARE', 'FIRMWARE_NVS', 'USER_VISUAL', 'ESTIMATED', 'USER_DECISION', 'DEFINITION', 'NOT_MEASURED',
+              'FIELD_OCT2026_PRE_STEERING')   # the 2026-10-03 / 10-10 drive records, before the steering unit
 RESULT_KINDS = ('field_lifted_standstill',)
 RATE_RULES = ('slowest_full_range_step', 'slowest_per_full_range')
 HOLD_MODES = ('pulse', 'smooth')
@@ -71,6 +85,10 @@ VALUE_KEYS_V2 = VALUE_KEYS + ('polarity_evidence',)
 FW_KEYS = ('name', 'cal_runtime', 'drive_watchdog_ms', 'target_tol_counts', 'restart_tol_counts', 'guard_right',
            'guard_left')
 FW_KEYS_V2 = FW_KEYS + ('app_sha256', 'fw_tokens', 'center_guard', 'hold_mode', 'sm')
+DRIVE_KEYS = ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
+V3_TOP_KEYS = ('schema', 'record_id', 'vehicle', 'measured_at', 'base_record', 'result_kind', 'conditions', 'values')
+V3_RESULT_KINDS = ('field_drive_pre_steering',)
+V3_CONDITION_KEYS = ('drive_source', 'vehicle_then', 'vehicle_now', 'battery', 'note', 'logs')
 DERIVE_KEYS = ('rate_rule', 'rate_fraction')
 FLAGS = ('polarity_checked', 'range_measured', 'drive_direction_verified')
 
@@ -107,12 +125,25 @@ def _tag_ok(tag):
 class FieldSteerRecord:
     """One validated record file (load())."""
 
-    def __init__(self, path, doc, data):
+    def __init__(self, path, doc, data, base=None):
         self.path = Path(path)
-        self.doc = doc
+        self.own = doc
+        self.base = base
+        self.doc = doc if base is None else _merged(base.doc, doc)
         self.sha256 = hashlib.sha256(data).hexdigest()
         self.record_id = doc['record_id']
         self.measured_at = datetime.datetime.fromisoformat(doc['measured_at'])
+
+    def has(self, name):
+        return name in self.doc['values']
+
+    def origin(self, name):
+        """The record id a value comes from (this record, or a base record of a supplement)."""
+        return self.doc.get('origin', {}).get(name, self.record_id)
+
+    def chain(self):
+        """Record ids from this record down to its full (v1 / v2) base."""
+        return [self.record_id] + (self.base.chain() if self.base is not None else [])
 
     def value(self, name):
         group = 'derive' if name in DERIVE_KEYS else 'values'
@@ -149,6 +180,19 @@ class FieldSteerRecord:
         return '%s (sha256 %s, %s)' % (self.record_id, self.sha256[:12], self.doc['result_kind'])
 
 
+def _merged(base_doc, own):
+    """The values of a supplement record (schema v3) over those of its base: steering conditions and derive rules stay
+    the base's; the supplement's conditions are kept as drive_conditions; origin names the record of every value."""
+    m = dict(base_doc)
+    origin = dict(base_doc.get('origin') or {name: base_doc['record_id'] for name in base_doc['values']})
+    origin.update({name: own['record_id'] for name in own['values']})
+    m.update(schema=own['schema'], record_id=own['record_id'], measured_at=own['measured_at'],
+             base_record=own['base_record'], full_schema=base_doc.get('full_schema', base_doc['schema']),
+             values=dict(base_doc['values'], **own['values']), origin=origin,
+             drive_conditions=own['conditions'], drive_result_kind=own['result_kind'])
+    return m
+
+
 def _check_entry(group, name, entry, problems):
     if not isinstance(entry, dict) or sorted(entry) != ['provenance', 'source', 'value']:
         problems.append('%s.%s: needs exactly value, provenance, source' % (group, name))
@@ -161,28 +205,13 @@ def _check_entry(group, name, entry, problems):
 
 
 def _problems(stem, doc):
-    p = []
+    if isinstance(doc, dict) and doc.get('schema') == SCHEMA_V3:
+        return _v3_problems(stem, doc)
     if not isinstance(doc, dict) or sorted(doc) != sorted(TOP_KEYS):
         return ['top level: needs exactly the keys %s' % (TOP_KEYS,)]
-    if doc['schema'] not in SCHEMAS:
+    if doc['schema'] not in FULL_SCHEMAS:
         return ['schema: %r is not one of %s' % (doc['schema'], SCHEMAS)]
-    match = NAME.match(stem)
-    if not match:
-        p.append('file name %s: not field_steer_<YYYYMMDD>_<HHMM>' % stem)
-    if doc['record_id'] != stem:
-        p.append('record_id %r differs from the file name %s' % (doc['record_id'], stem))
-    if not isinstance(doc['vehicle'], str) or not doc['vehicle']:
-        p.append('vehicle: must be a name')
-    try:
-        when = datetime.datetime.fromisoformat(doc['measured_at'])
-    except (TypeError, ValueError):
-        p.append('measured_at: needs an ISO time text with an offset, e.g. 2026-11-16T22:12:00+09:00')
-        when = None
-    if when is not None:
-        if when.tzinfo is None:
-            p.append('measured_at: needs an offset (+09:00)')
-        elif match and when.strftime('%Y%m%d_%H%M') != '%s_%s' % match.groups():
-            p.append('measured_at %s does not match the file name %s' % (doc['measured_at'], stem))
+    p = _identity_problems(stem, doc)
     if doc['result_kind'] not in RESULT_KINDS:
         p.append('result_kind: one of %s' % (RESULT_KINDS,))
     cond = doc['conditions']
@@ -210,9 +239,76 @@ def _problems(stem, doc):
     return p + _value_problems(doc)
 
 
+def _identity_problems(stem, doc):
+    """File name = record_id = field_steer_<YYYYMMDD>_<HHMM> = the local date and time of measured_at (with offset)."""
+    p = []
+    match = NAME.match(stem)
+    if not match:
+        p.append('file name %s: not field_steer_<YYYYMMDD>_<HHMM>' % stem)
+    if doc['record_id'] != stem:
+        p.append('record_id %r differs from the file name %s' % (doc['record_id'], stem))
+    if not isinstance(doc['vehicle'], str) or not doc['vehicle']:
+        p.append('vehicle: must be a name')
+    try:
+        when = datetime.datetime.fromisoformat(doc['measured_at'])
+    except (TypeError, ValueError):
+        p.append('measured_at: needs an ISO time text with an offset, e.g. 2026-11-16T22:12:00+09:00')
+        when = None
+    if when is not None:
+        if when.tzinfo is None:
+            p.append('measured_at: needs an offset (+09:00)')
+        elif match and when.strftime('%Y%m%d_%H%M') != '%s_%s' % match.groups():
+            p.append('measured_at %s does not match the file name %s' % (doc['measured_at'], stem))
+    return p
+
+
+def _v3_problems(stem, doc):
+    """Schema v3, a supplement record: its own identity, base_record (an older record of the same vehicle in the same
+    folder, checked at load), result_kind, the conditions of the values it carries and those values (any of the v2 value
+    names and the drive measurements DRIVE_KEYS, each with value / provenance / source)."""
+    if sorted(doc) != sorted(V3_TOP_KEYS):
+        return ['top level (schema v3): needs exactly the keys %s' % (V3_TOP_KEYS,)]
+    p = _identity_problems(stem, doc)
+    if not isinstance(doc['base_record'], str) or not NAME.match(doc['base_record']) or \
+            doc['base_record'] == doc['record_id']:
+        p.append('base_record: another record id field_steer_<YYYYMMDD>_<HHMM>')
+    if doc['result_kind'] not in V3_RESULT_KINDS:
+        p.append('result_kind (schema v3): one of %s' % (V3_RESULT_KINDS,))
+    cond = doc['conditions']
+    if not isinstance(cond, dict) or not set(cond) <= set(V3_CONDITION_KEYS) or \
+            not all(isinstance(cond.get(k), str) and cond[k] for k in ('drive_source', 'vehicle_then', 'vehicle_now')):
+        p.append('conditions (schema v3): drive_source, vehicle_then, vehicle_now texts (+ battery, note, logs)')
+    values = doc['values']
+    allowed = VALUE_KEYS_V2 + DRIVE_KEYS
+    if not isinstance(values, dict) or not values or not set(values) <= set(allowed):
+        return p + ['values (schema v3): one or more of %s' % (allowed,)]
+    for name, entry in values.items():
+        _check_entry('values', name, entry, p)
+    return p
+
+
+def _drive_problems(values):
+    """The drive measurements: C2 breakaway duty (int %), C3 speed at a stated duty, C7 stop distance."""
+    p = []
+    if 'breakaway_duty_pct' in values:
+        x = values['breakaway_duty_pct']['value']
+        if not (_int(x) and 0 <= x <= 100):
+            p.append('breakaway_duty_pct: an integer 0..100 (%)')
+    if 'v_measured_m_s' in values:
+        x = values['v_measured_m_s']['value']
+        if not (isinstance(x, dict) and sorted(x) == ['duty_pct', 'speed_m_s'] and _int(x['duty_pct']) and
+                1 <= x['duty_pct'] <= 100 and _real(x['speed_m_s']) and .05 <= x['speed_m_s'] <= 2.):
+            p.append('v_measured_m_s: {duty_pct: 1..100, speed_m_s: 0.05..2}')
+    if 'measured_stop_distance_m' in values:
+        x = values['measured_stop_distance_m']['value']
+        if not (_real(x) and .05 <= x <= 5.):
+            p.append('measured_stop_distance_m: a number 0.05..5 (m)')
+    return p
+
+
 def _value_problems(doc):
     p = []
-    v2 = doc['schema'] == SCHEMA_V2
+    v2 = doc.get('full_schema', doc['schema']) == SCHEMA_V2
     v = {name: entry['value'] for name, entry in doc['values'].items()}
     d = {name: entry['value'] for name, entry in doc['derive'].items()}
     fw = v['firmware']
@@ -345,8 +441,9 @@ def _polarity_evidence_problems(evidence, tokens):
     return []
 
 
-def load(path):
-    """Read and validate one record file; RecordError lists every problem."""
+def load(path, _depth=0):
+    """Read and validate one record file; RecordError lists every problem. A supplement (schema v3) loads its
+    base_record from the same folder (an older record of the same vehicle) and is validated on the merged values."""
     path = Path(path)
     data = path.read_bytes()
     try:
@@ -358,7 +455,23 @@ def load(path):
         problems.insert(0, 'file name %s: needs the .yaml suffix' % path.name)
     if problems:
         raise RecordError('%s: %s' % (path.name, '; '.join(problems)))
-    return FieldSteerRecord(path, doc, data)
+    if doc['schema'] != SCHEMA_V3:
+        return FieldSteerRecord(path, doc, data)
+    if _depth >= MAX_CHAIN:
+        raise RecordError('%s: base_record chain longer than %d' % (path.name, MAX_CHAIN))
+    base_path = path.parent / (doc['base_record'] + '.yaml')
+    if not base_path.is_file():
+        raise RecordError('%s: base_record %s not found next to it' % (path.name, doc['base_record']))
+    base = load(base_path, _depth + 1)
+    when = datetime.datetime.fromisoformat(doc['measured_at'])
+    if base.doc['vehicle'] != doc['vehicle'] or not base.measured_at < when:
+        raise RecordError('%s: base_record %s must be an older record of the same vehicle'
+                          % (path.name, doc['base_record']))
+    record = FieldSteerRecord(path, doc, data, base)
+    problems = _value_problems(record.doc) + _drive_problems(record.doc['values'])
+    if problems:
+        raise RecordError('%s (with %s): %s' % (path.name, doc['base_record'], '; '.join(problems)))
+    return record
 
 
 def records(directory=None, vehicle=VEHICLE):
@@ -384,10 +497,11 @@ def newest(directory=None, vehicle=VEHICLE):
     return found[-1]
 
 
-def executor_values(record, firmware_name=None, command_limit_deg=None):
+def executor_values(record, firmware_name=None, command_limit_deg=None, base_duty_pct=None):
     """(values, sources): the row executor fields a record gives (module docstring). firmware_name / command_limit_deg:
     the executor's ESP32 bridge constants (bridge_client.ESP32_FIRMWARE, config.ESP32_COMMAND_LIMIT_DEG); a record of
-    another firmware or command scale is refused."""
+    another firmware or command scale is refused. base_duty_pct: the executor's base duty; a C3 speed measured at
+    another duty is refused (C3 is the speed at the base duty)."""
     fw = record.value('firmware')
     right, center, left, full = record.cal
     if firmware_name is not None and fw['name'] != firmware_name:
@@ -410,6 +524,7 @@ def executor_values(record, firmware_name=None, command_limit_deg=None):
                   steer_polarity_checked=record.value('polarity_checked'),
                   steer_range_measured=record.value('range_measured'))
     rid = record.record_id
+    o = record.origin
     cond = record.doc['conditions']
     timing = record.value('step_response').get('timing', 'reached_within_tolerance')
     hold = fw.get('hold_mode', 'pulse')
@@ -417,22 +532,41 @@ def executor_values(record, firmware_name=None, command_limit_deg=None):
                                  ', capacitor on the pot' if cond['pot_capacitor'] else '')
     sources = dict(
         field_record=dict(id=rid, sha256=record.sha256, measured_at=record.doc['measured_at'],
-                          result_kind=record.doc['result_kind'], conditions=where,
-                          path=record.path.name),
-        steer_esp32_cal='%s esp32_cal [%s]: the CAL line the board reports (NVS)' % (rid, record.provenance('esp32_cal')),
-        steer_esp32_mark_deg='%s mark_angle_deg [%s]' % (rid, record.provenance('mark_angle_deg')),
+                          result_kind=record.own['result_kind'], conditions=where,
+                          path=record.path.name, chain=record.chain()),
+        steer_esp32_cal='%s esp32_cal [%s]: the CAL line the board reports (NVS)'
+                        % (o('esp32_cal'), record.provenance('esp32_cal')),
+        steer_esp32_mark_deg='%s mark_angle_deg [%s]' % (o('mark_angle_deg'), record.provenance('mark_angle_deg')),
         steer_measured_rate_deg_s='%s step_response [%s] (%s; %s, %s hold): mark %.3g deg / %.3f s per %d command '
                                   'deg (rate_rule %s: step %+g -> %+g command deg in %.3f s; %.3f command deg/s); '
                                   'rounded down. Standstill value used for driving too (not measured on the ground or '
                                   'while driving)'
-                                  % (rid, record.provenance('step_response'), where, timing, hold, mark, seconds, full,
-                                     record.value('rate_rule'), start, end, step_seconds, full / seconds),
+                                  % (o('step_response'), record.provenance('step_response'), where, timing, hold, mark,
+                                     seconds, full, record.value('rate_rule'), start, end, step_seconds, full / seconds),
         steer_rate_limit_deg_s='%s rate_fraction %g [%s] x the measured rate, rounded down (also steer_rate_min_deg_s, '
-                               'the steering GO threshold)' % (rid, fraction, record.provenance('rate_fraction')),
+                               'the steering GO threshold)' % (o('rate_fraction'), fraction,
+                                                               record.provenance('rate_fraction')),
         steer_servo_deadband_deg='%s firmware stop tolerance %d counts (%s hold) [%s] / %.2f counts per command deg '
                                  '(CAL, the side with fewer counts) x mark / %d'
-                                 % (rid, fw['target_tol_counts'], hold, record.provenance('firmware'),
+                                 % (o('firmware'), fw['target_tol_counts'], hold, record.provenance('firmware'),
                                     counts_per_command_deg, full),
-        steer_polarity_checked='%s polarity_checked [%s]' % (rid, record.provenance('polarity_checked')),
-        steer_range_measured='%s range_measured [%s]' % (rid, record.provenance('range_measured')))
+        steer_polarity_checked='%s polarity_checked [%s]' % (o('polarity_checked'), record.provenance('polarity_checked')),
+        steer_range_measured='%s range_measured [%s]' % (o('range_measured'), record.provenance('range_measured')))
+    note = ' (%s)' % record.doc['drive_result_kind'] if record.doc.get('drive_result_kind') else ''
+    if record.has('breakaway_duty_pct'):
+        values['breakaway_duty_pct'] = int(record.value('breakaway_duty_pct'))
+        sources['breakaway_duty_pct'] = '%s breakaway_duty_pct [%s]%s' % (
+            o('breakaway_duty_pct'), record.provenance('breakaway_duty_pct'), note)
+    if record.has('v_measured_m_s'):
+        c3 = record.value('v_measured_m_s')
+        if base_duty_pct is not None and int(c3['duty_pct']) != int(base_duty_pct):
+            raise RecordError('%s: v_measured_m_s measured at %d %%, the executor base duty is %d %% (C3 = the speed at '
+                              'the base duty)' % (o('v_measured_m_s'), c3['duty_pct'], base_duty_pct))
+        values['v_measured_m_s'] = float(c3['speed_m_s'])
+        sources['v_measured_m_s'] = '%s v_measured_m_s at %d %% [%s]%s' % (
+            o('v_measured_m_s'), c3['duty_pct'], record.provenance('v_measured_m_s'), note)
+    if record.has('measured_stop_distance_m'):
+        values['measured_stop_distance_m'] = float(record.value('measured_stop_distance_m'))
+        sources['measured_stop_distance_m'] = '%s measured_stop_distance_m [%s]%s' % (
+            o('measured_stop_distance_m'), record.provenance('measured_stop_distance_m'), note)
     return values, sources

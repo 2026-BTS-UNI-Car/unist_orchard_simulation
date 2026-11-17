@@ -12,13 +12,15 @@
  "bind_port": 8097,
  "body_mask": [],
  "body_mask_limit_m": 1.2,
- "breakaway_duty_pct": null,
+ "breakaway_duty_pct": 34,
  "bridge_timeout_s": 0.6,
  "calib_distance_cap_m": 15.0,
  "calib_motor_output_enabled": false,
  "calib_time_cap_s": 45.0,
  "control_hz": 20.0,
- "controller_overrides": {},
+ "controller_overrides": {
+  "stop_decel_m_s2": 0.25
+ },
  "corridor_every_n_scans": 3,
  "diff_cap_pct": 40,
  "distance_mode": "resolved_polyline",
@@ -44,7 +46,7 @@
  "max_stale_events": 3,
  "max_stall_guard_pauses": 3,
  "max_yaw_rate_deg_s": 3.6,
- "measured_stop_distance_m": null,
+ "measured_stop_distance_m": 0.595,
  "measured_yaw_at_max_diff_deg_s": null,
  "min_run_distance_m": 1.0,
  "min_yaw_authority_deg_s": 2.0,
@@ -105,7 +107,7 @@
  "terminal_stop_wait_s": 1.5,
  "tuning_file": "/var/lib/row_executor/field_tuning.json",
  "tuning_values": {},
- "v_measured_m_s": null,
+ "v_measured_m_s": 0.459,
  "vehicle_profile": "front_steer",
  "yaw_authority_fraction": 0.6
 }

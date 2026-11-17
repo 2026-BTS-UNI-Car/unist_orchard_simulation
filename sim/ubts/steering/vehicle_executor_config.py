@@ -30,9 +30,16 @@ executor reports it as 'unknown' and refuses motor output until it is measured):
                                     STOP_TOL) in equivalent degrees (CAL, mark)
     steer_polarity_checked          the record's B0 flag (false: not checked yet)
     steer_range_measured            the record's B2 / B3 flag (false: no angle meter)
-  left null (unknown until measured in the field): breakaway_duty_pct (C2), v_measured_m_s (C3),
-    measured_stop_distance_m (C7), steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg
-    (F1); steer_esp32_require_fw_watchdog stays true (the board firmware reports DRIVE_WD=300 since 2026-11-16).
+  from the supplement field_steer_20261117_0855 (schema v3, over field_steer_20261116_2321) [FIELD_OCT2026_PRE_STEERING,
+  the 2026-10 drive records before the steering unit, adopted by the user's decision of 2026-11-17]
+    breakaway_duty_pct (C2) 34, v_measured_m_s (C3, at base_duty_pct 55) 0.459, measured_stop_distance_m (C7) 0.595
+    controller_overrides            stop_model_overrides(): stop_decel_m_s2 lowered (only that key, only downward) so
+                                    that the stop model at v_measured is at least C7 (config rule S6). It is the
+                                    executor's stop model (that rule, the backstop expected_rest_m report); the row_follow
+                                    steering controller keeps its own stop model (SteerFollowConfig)
+  left null (unknown until measured in the field): steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4),
+    steer_zero_offset_deg (F1), rolling_breakaway_duty_pct (C3b); steer_esp32_require_fw_watchdog stays true (the board
+    firmware reports DRIVE_WD=300 since 2026-11-16).
   Without a record (--no-field-record, record=None) the board values come from the profile as before the field record:
     steer_esp32_cal = the profile's abs_hold_fw CAL [FIRMWARE, the original marks], steer_esp32_mark_deg = the SIM
     mechanical limit - 1 deg [SIM_ASSUMED], steer_rate_limit_* = 0.8 x the board step response of the profile
@@ -47,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -133,18 +141,52 @@ def vehicle_values(profile, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):
         return values, sources
     from row_executor.bridge_client import ESP32_FIRMWARE
     board, board_sources = FSR.executor_values(record, firmware_name=ESP32_FIRMWARE,
-                                               command_limit_deg=XC.ESP32_COMMAND_LIMIT_DEG)
+                                               command_limit_deg=XC.ESP32_COMMAND_LIMIT_DEG,
+                                               base_duty_pct=XC.ExecutorConfig().base_duty_pct)
     values.update(board)
     sources.update(board_sources)
     sources['steer_rate_limit_standstill_deg_s'] = sources['steer_rate_limit_deg_s']
     sources['steer_rate_min_deg_s'] = sources['steer_rate_limit_deg_s']
     sources['steer_measured_rate_standstill_deg_s'] = sources['steer_measured_rate_deg_s']
-    sources['unmeasured'] = ('breakaway_duty_pct (C2), v_measured_m_s (C3), measured_stop_distance_m (C7), '
-                             'steer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg (F1): '
-                             'null until measured in the field; drive direction not verified; %s'
-                             % ', '.join('%s %s' % (name, values[name]) for name in
-                                         ('steer_polarity_checked', 'steer_range_measured')))
+    overrides = stop_model_overrides(values.get('v_measured_m_s'), values.get('measured_stop_distance_m'))
+    if overrides:
+        values['controller_overrides'] = overrides
+        sources['controller_overrides'] = (
+            'stop_decel_m_s2 lowered from the default %g to %g m/s^2 (rounded down to 0.01) so that the stop model at '
+            'v_measured_m_s %.3f m/s is at least the measured C7 %.3f m (config rule S6); reaction_s, stop_onset_s and '
+            'front_margin_m keep the defaults. It sets the executor stop model (this rule, the backstop expected_rest_m '
+            'report); the row_follow steering controller keeps its own stop model (SteerFollowConfig)'
+            % (XC.STOP_MODEL_DEFAULTS['stop_decel_m_s2'], overrides['stop_decel_m_s2'], values['v_measured_m_s'],
+               values['measured_stop_distance_m']))
+    open_items = [name for name in ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
+                  if name not in values]
+    sources['unmeasured'] = ('%ssteer_wheel_soft_margin_deg (B2 / B3), steer_min_pwm_pct (B4), steer_zero_offset_deg (F1),'
+                             ' rolling_breakaway_duty_pct (C3b): null until measured in the field; drive direction not '
+                             'verified on this vehicle; %s'
+                             % (''.join(name + ', ' for name in open_items),
+                                ', '.join('%s %s' % (name, values[name]) for name in
+                                          ('steer_polarity_checked', 'steer_range_measured'))))
     return values, sources
+
+
+def stop_model_overrides(v_measured, measured_stop):
+    """controller_overrides that make the configuration's stop model (STOP_MODEL_DEFAULTS, stopping_distance_model) at
+    v_measured at least as long as the measured C7 stop distance, changing only stop_decel_m_s2 and only downward
+    (rounded down to 0.01 m/s^2); {} when the defaults already cover it or a value is missing. ValueError when the
+    deceleration would fall below the override limit."""
+    XC = _row_executor_config()
+    if v_measured is None or measured_stop is None:
+        return {}
+    d = XC.STOP_MODEL_DEFAULTS
+    if XC.stopping_distance_model(v_measured, d['stop_decel_m_s2'], d['reaction_s'], d['stop_onset_s']) >= measured_stop:
+        return {}
+    room = measured_stop - v_measured * (d['reaction_s'] + d['stop_onset_s'])
+    decel = math.floor(v_measured * v_measured / (2. * room) * 100. + 1e-9) / 100.
+    low = XC.CONTROLLER_OVERRIDE_LIMITS['stop_decel_m_s2'][1]
+    if room <= 0. or decel < low:
+        raise ValueError('the measured C7 %.3f m at %.3f m/s needs stop_decel_m_s2 below %g (a longer reaction or onset '
+                         'is needed; not automatic)' % (measured_stop, v_measured, low))
+    return {'stop_decel_m_s2': decel}
 
 
 def vehicle_config(profile=None, tuning_file=DEFAULT_TUNING_FILE, record=NEWEST):

@@ -1,0 +1,36 @@
+# 현장 기록 보충 field_steer_20261117_0855 (구동 값 C2 / C3 / C7, 2026-10 기록에서)
+# 사용자 결정(2026-11-17 아침): "모터 구동 자체는 지난번에 10월 초에 측정해둔 데이터랑 별 다를게 없을거거든? 일단은 그걸 기준으로 적용".
+# 이 파일은 버전 파일이다. 고치지 않는다. 스키마 v3(보충 기록): base_record 의 값을 그대로 쓰고 여기 적은 값만 더하거나 바꾼다.
+# 조향 값은 base_record(field_steer_20261116_2321)의 것이고 다시 재지 않았다. measured_at 은 이 값들을 실행기에 쓰기로 한 시각이다.
+# 출처 태그 FIELD_OCT2026_PRE_STEERING: 2026-10-03·10-10 수동 주행 기록(조향 장치를 달기 전, 좌우 차동 구동, ESP8266 제어)에서 잰 값.
+# 지금 차는 같은 구동 모터에 조향 장치(무게 더해짐)를 달았고 ESP32-S3 + BTS7960(20 kHz, 8 비트 PWM)으로 돌린다. 주행 결과가 아니다.
+schema: ubts.field_steer_record.v3
+record_id: field_steer_20261117_0855
+vehicle: ubts_orchard_rover
+measured_at: '2026-11-17T08:55:00+09:00'
+base_record: field_steer_20261116_2321
+result_kind: field_drive_pre_steering
+conditions:
+  drive_source: 2026-10-03·10-10 수동 주행 기록 14개(LiDAR 스캔 정합 속도, GNSS·Cartographer 교차 확인), 레포 docs/drive_response/(README_KO.md 3~6절, 표 T2, T3, T4s, T5s)
+  vehicle_then: 조향 장치 전, 좌우 차동 구동, ESP8266 제어
+  vehicle_now: 같은 구동 모터, 앞바퀴 조향 장치(무게 더해짐), ESP32-S3 + BTS7960 20 kHz 8 비트 PWM
+  battery: 10월 기록도 지금도 모름(전압 기록 없음)
+  note: 지금 차에서 다시 재지 않았다. 사용자 결정으로 10월 값을 기준으로 쓴다. 지금 차의 구동 방향(브리지 direction_verified)은 아직 확인하지 않았다
+values:
+  breakaway_duty_pct:
+    value: 34
+    provenance: FIELD_OCT2026_PRE_STEERING
+    source: 표 T4s 10/10 출발 사건 12 가운데 움직임 잡힘 11, 움직일 때 duty p10/50/90 = 15/34/90 %, 램프 시작에서 움직임까지 p50 0.34 s(요청 90~100 %).
+      10/3 은 7건 p50 23 %, 합 18건 p50 26 %. 정지에서 30~60 % 로 출발한 자료는 없다
+  v_measured_m_s:
+    value: {duty_pct: 55, speed_m_s: 0.459}
+    provenance: FIELD_OCT2026_PRE_STEERING
+    source: 표 T2 합친 기준표 55 % = 0.459 m/s [참고 등급, GNSS, 구간 3, p10~p90 0.451~0.469, 기록 080909] = 표 T3 과수원 10/3 의 같은 값. 실행기 C3 는
+      기본 duty(base_duty_pct 55) 에서의 속도라 이 칸을 쓴다. 이 duty 는 LiDAR 정합 품질이 낮아 GNSS 값이다(0.4 s 표본 중앙값 0.517). 자율 속도대(25~60 %)는
+      구간이 1~3 개뿐이라 ±20 % 넘게 틀릴 수 있다(README_KO.md 9절)
+  measured_stop_distance_m:
+    value: 0.595
+    provenance: FIELD_OCT2026_PRE_STEERING
+    source: 10/10 깨끗한 놓기 정지 4건 0.383 / 0.559 / 0.566 / 0.595 m 가운데 가장 긴 것(045553 16:52, 놓을 때 약 0.93 m/s). 표 T5s 속도 일관 8건 p90 0.575 m.
+      모두 0.75~0.98 m/s 에서 키를 놓은 정지라 실행기 속도(약 0.46 m/s)보다 빠른 데서 잰 보수적인 값이다. 실행기 자신의 0/0 정지와 STOP 제동, 0.2~0.6 m/s
+      정지는 미측정

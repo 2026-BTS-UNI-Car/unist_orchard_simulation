@@ -6,9 +6,11 @@ front_steer_v1_spec_20261116 and the NEWEST field steering record (steering/fiel
 single-row configuration for the ESP32-S3 bridge on the vehicle socket with the operator page on 127.0.0.1; the vehicle
 values are the profile's and the board values are the newest record's (no record value is written here as a literal: a
 newer record supersedes the older one and these tests follow it); the fixed rules hold for any record (rate limit and
-GO threshold at most 0.8 x the measured rate, also on the board's command scale; polarity and range not confirmed; drive
-measurements null); a newer record wins and older ones are kept; malformed records are refused; without a record the
-profile values come back; it builds a SHADOW executor loop that never creates a bridge transport.
+GO threshold at most 0.8 x the measured rate, also on the board's command scale; polarity and range not confirmed; the
+drive values C2 / C3 / C7 are the record's or null, C3 at the base duty, and the stop model is at least as long as C7,
+loosened nowhere; with motor output only the open steering checks remain); a newer record wins and older ones are kept,
+a supplement record (schema v3) adds values over its base; malformed records are refused; without a record the profile
+values come back; it builds a SHADOW executor loop that never creates a bridge transport.
 When a record confirms the polarity (B0) or the range (B2 / B3), test_fixed_rules must be changed on purpose.
 unittest style (pytest or python -m unittest).
 """
@@ -28,9 +30,20 @@ from steering import vehicle_executor_config as V
 
 COMMITTED = V.REPO / 'tools' / 'row_executor' / 'config.vehicle_esp32_shadow.json'
 FIRMWARE = 'ABS-HOLD-8-REBOUND-LIMITS'
-DRIVE_AND_OPEN = ('breakaway_duty_pct', 'rolling_breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m',
-                  'measured_yaw_at_max_diff_deg_s', 'steer_wheel_soft_margin_deg', 'steer_min_pwm_pct',
-                  'steer_zero_offset_deg')
+DRIVE = ('breakaway_duty_pct', 'v_measured_m_s', 'measured_stop_distance_m')
+STILL_OPEN = ('rolling_breakaway_duty_pct', 'measured_yaw_at_max_diff_deg_s', 'steer_wheel_soft_margin_deg',
+              'steer_min_pwm_pct', 'steer_zero_offset_deg')
+
+
+def newest_full():
+    return [r for r in FSR.records() if r.schema in FSR.FULL_SCHEMAS][-1]
+
+
+def drive_value(record, name):
+    if not record.has(name):
+        return None
+    value = record.value(name)
+    return value['speed_m_s'] if name == 'v_measured_m_s' else value
 
 
 def write_record(folder, doc, stem=None):
@@ -93,6 +106,10 @@ class VehicleExecutorConfig(unittest.TestCase):
                                record.value('firmware')['target_tol_counts'] / counts * mark / cal['max_command'], places=3)
         self.assertEqual(cfg.steer_polarity_checked, record.value('polarity_checked'))
         self.assertEqual(cfg.steer_range_measured, record.value('range_measured'))
+        for name in DRIVE:                                       # the drive values: the record's, else null
+            self.assertEqual(getattr(cfg, name), drive_value(record, name), name)
+        if record.has('v_measured_m_s'):
+            self.assertEqual(record.value('v_measured_m_s')['duty_pct'], cfg.base_duty_pct)   # C3 = speed at base duty
 
     def test_fixed_rules(self):
         cfg, record = self.cfg, self.record
@@ -108,12 +125,31 @@ class VehicleExecutorConfig(unittest.TestCase):
         # the same rule on the board's command scale (the adapter converts with the same mark angle)
         board_rate = record.value('esp32_cal')['max_command'] / rate_seconds(record)
         self.assertLessEqual(cfg.steer_rate_limit_deg_s * XC.esp32_scale(cfg), fraction * board_rate + 1e-9)
-        # not confirmed yet: polarity (B0), range with an angle meter (B2 / B3), drive direction; drive values null
+        # not confirmed yet: polarity (B0), range with an angle meter (B2 / B3), drive direction on this vehicle;
+        # still unmeasured values null
         self.assertIs(cfg.steer_polarity_checked, False)
         self.assertIs(cfg.steer_range_measured, False)
         self.assertIs(record.value('drive_direction_verified'), False)
-        for name in DRIVE_AND_OPEN:
+        for name in STILL_OPEN:
             self.assertIsNone(getattr(cfg, name), name)
+        # the stop model: only stop-model keys, none looser than the defaults, at v_measured at least the measured C7
+        d = XC.STOP_MODEL_DEFAULTS
+        self.assertLessEqual(set(cfg.controller_overrides), set(d))
+        model = {k: cfg.controller_overrides.get(k, v) for k, v in d.items()}
+        self.assertLessEqual(model['stop_decel_m_s2'], d['stop_decel_m_s2'])
+        for name in ('front_margin_m', 'reaction_s', 'stop_onset_s'):
+            self.assertGreaterEqual(model[name], d[name])
+        if cfg.measured_stop_distance_m is not None and cfg.v_measured_m_s is not None:
+            self.assertGreaterEqual(XC.stopping_distance_model(cfg.v_measured_m_s, model['stop_decel_m_s2'],
+                                                               model['reaction_s'], model['stop_onset_s']),
+                                    cfg.measured_stop_distance_m)
+        # with motor output only the open steering checks remain once the record carries C2 / C3 / C7
+        motor = XC.feasibility(replace(cfg, motor_output_enabled=True, tuning_file=None))
+        self.assertEqual(motor['status'], 'infeasible')
+        if all(record.has(name) for name in DRIVE):
+            self.assertTrue(motor['problems'])
+            for problem in motor['problems']:
+                self.assertIn('steer_', problem)
         # the Arm checks of the ESP32 client can pass with this board: firmware name, command scale, firmware drive
         # watchdog (required), soft limits inside the bridge range; the marks lie inside the ends found
         cal = record.value('esp32_cal')
@@ -153,15 +189,34 @@ class VehicleExecutorConfig(unittest.TestCase):
         self.assertEqual(found[-1].record_id, self.record.record_id)
         for record in found:
             self.assertEqual(record.path.stem, record.record_id)
-            FSR.executor_values(record, firmware_name=FIRMWARE, command_limit_deg=20.)
+            FSR.executor_values(record, firmware_name=FIRMWARE, command_limit_deg=20., base_duty_pct=55)
+            if record.schema == FSR.SCHEMA_V3:                   # a supplement over an older record of its folder
+                self.assertLess(record.base.measured_at, record.measured_at)
+                self.assertIn(record.base.record_id, [r.record_id for r in found])
         sources = V.vehicle_values(self.profile)[1]
         self.assertEqual(sources['field_record']['id'], self.record.record_id)
         self.assertEqual(sources['field_record']['sha256'], self.record.sha256)
+        self.assertEqual(sources['field_record']['chain'], self.record.chain())
+
+    def test_stop_model_overrides(self):
+        XC = V._row_executor_config()
+        d = XC.STOP_MODEL_DEFAULTS
+        self.assertEqual(V.stop_model_overrides(None, .6), {})
+        self.assertEqual(V.stop_model_overrides(.46, None), {})
+        covered = XC.stopping_distance_model(.46, d['stop_decel_m_s2'], d['reaction_s'], d['stop_onset_s'])
+        self.assertEqual(V.stop_model_overrides(.46, covered - .01), {})      # the defaults already cover it
+        for v, c7 in ((.46, .6), (.4, .5), (.5, .7)):
+            decel = V.stop_model_overrides(v, c7)['stop_decel_m_s2']
+            self.assertLess(decel, d['stop_decel_m_s2'])
+            self.assertGreaterEqual(XC.stopping_distance_model(v, decel, d['reaction_s'], d['stop_onset_s']), c7)
+            self.assertLess(XC.stopping_distance_model(v, decel + .01, d['reaction_s'], d['stop_onset_s']), c7)
+        with self.assertRaises(ValueError):                                   # would need a deceleration below 0.2
+            V.stop_model_overrides(.46, 1.5)
 
 
 class NewestRecordWins(unittest.TestCase):
     def setUp(self):
-        self.base = FSR.newest()
+        self.base = newest_full()
         self.dir = tempfile.mkdtemp(prefix='field_records_')
         self.addCleanup(shutil.rmtree, self.dir, True)
         shutil.copy(self.base.path, self.dir)
@@ -194,6 +249,56 @@ class NewestRecordWins(unittest.TestCase):
         with self.assertRaises(FSR.RecordError):
             FSR.load(write_record(tempfile.mkdtemp(dir=self.dir), copy, stem=self.base.record_id + '_copy'))
 
+    def supplement(self, hours, base=None, **values):
+        when = self.base.measured_at + datetime.timedelta(hours=hours)
+        entry = lambda value: dict(value=value, provenance='FIELD_OCT2026_PRE_STEERING', source='test')  # noqa: E731
+        return dict(schema=FSR.SCHEMA_V3, record_id='field_steer_' + when.strftime('%Y%m%d_%H%M'),
+                    vehicle=self.base.doc['vehicle'], measured_at=when.isoformat(),
+                    base_record=base or self.base.record_id, result_kind='field_drive_pre_steering',
+                    conditions=dict(drive_source='test', vehicle_then='test', vehicle_now='test'),
+                    values={name: entry(value) for name, value in values.items()})
+
+    def test_a_supplement_adds_values_over_its_base(self):
+        doc = self.supplement(2, breakaway_duty_pct=30, v_measured_m_s=dict(duty_pct=55, speed_m_s=.4),
+                              measured_stop_distance_m=.5)
+        write_record(self.dir, doc)
+        newest = FSR.newest(self.dir)
+        self.assertEqual((newest.record_id, newest.chain()), (doc['record_id'], [doc['record_id'], self.base.record_id]))
+        self.assertEqual((newest.cal, newest.origin('esp32_cal'), newest.origin('breakaway_duty_pct')),
+                         (self.base.cal, self.base.record_id, doc['record_id']))
+        cfg = V.vehicle_config(record=newest)
+        self.assertEqual((cfg.breakaway_duty_pct, cfg.v_measured_m_s, cfg.measured_stop_distance_m), (30, .4, .5))
+        self.assertEqual(cfg.steer_esp32_cal, V.vehicle_config(record=self.base).steer_esp32_cal)
+        self.assertTrue((Path(self.dir) / self.base.path.name).exists())
+        # a full record newer than the supplement wins over both
+        later = shifted_doc(self.base, 3, right=self.base.value('esp32_cal')['right'] + 10)
+        write_record(self.dir, later)
+        self.assertEqual(FSR.newest(self.dir).record_id, later['record_id'])
+
+    def test_supplement_refusals(self):
+        cases = [
+            self.supplement(1, base='field_steer_20200101_0000', breakaway_duty_pct=30),     # base not in the folder
+            self.supplement(-1, breakaway_duty_pct=30),                                       # older than its base
+            self.supplement(1, breakaway_duty_pct=130),
+            self.supplement(1, v_measured_m_s=dict(duty_pct=55)),
+            self.supplement(1, measured_stop_distance_m=0.),
+            self.supplement(1, esp32_cal=dict(self.base.value('esp32_cal'),
+                                              left=self.base.value('end_left')['pot'] + 1)),   # merged rule
+            self.supplement(1, colour='red'),
+            self.supplement(1),                                                               # no values
+        ]
+        for i, doc in enumerate(cases):
+            with self.subTest(case=i):
+                folder = tempfile.mkdtemp(dir=self.dir)
+                shutil.copy(self.base.path, folder)
+                with self.assertRaises(FSR.RecordError):
+                    FSR.load(write_record(folder, doc))
+        # C3 measured at another duty than the executor's base duty
+        doc = self.supplement(1, v_measured_m_s=dict(duty_pct=45, speed_m_s=.4))
+        record = FSR.load(write_record(self.dir, doc))
+        with self.assertRaises(FSR.RecordError):
+            V.vehicle_config(record=record)
+
     def test_no_record(self):
         empty = tempfile.mkdtemp(prefix='field_records_empty_')
         self.addCleanup(shutil.rmtree, empty, True)
@@ -202,15 +307,18 @@ class NewestRecordWins(unittest.TestCase):
 
 
 class RecordValidation(unittest.TestCase):
-    """Every committed record (schema v1 and v2) passes; each change below is refused, for every record."""
+    """Every committed record (schema v1, v2 and v3 supplements) passes; each change below is refused, for every record
+    of its schema."""
 
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix='field_records_bad_')
         self.addCleanup(shutil.rmtree, self.dir, True)
+        for record in FSR.records():                             # the bases of the supplements, unchanged
+            shutil.copy(record.path, self.dir)
 
     def check(self, doc, stem):
         path = write_record(self.dir, doc, stem=stem)
-        return FSR.executor_values(FSR.load(path), firmware_name=FIRMWARE, command_limit_deg=20.)
+        return FSR.executor_values(FSR.load(path), firmware_name=FIRMWARE, command_limit_deg=20., base_duty_pct=55)
 
     def each_record(self):
         for record in FSR.records():
@@ -266,19 +374,40 @@ class RecordValidation(unittest.TestCase):
             lambda doc: v('polarity_evidence')(doc)['value'].update(observations=[]),
             lambda doc: doc['values'].pop('polarity_evidence'),
         ]
+        v3_cases = [
+            lambda doc: doc['values']['breakaway_duty_pct'].update(value=34.5),
+            lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=55, speed_m_s=3.)),
+            lambda doc: doc['values']['v_measured_m_s'].update(value=dict(duty_pct=45, speed_m_s=.4)),  # not base duty
+            lambda doc: doc['values']['measured_stop_distance_m'].update(value=-1.),
+            lambda doc: doc['values']['measured_stop_distance_m'].update(provenance='OCTOBER'),
+            lambda doc: doc['values']['breakaway_duty_pct'].update(source=''),
+            lambda doc: doc.update(base_record='field_steer_20200101_0000'),
+            lambda doc: doc.update(base_record=doc['record_id']),
+            lambda doc: doc.update(result_kind='field_lifted_standstill'),
+            lambda doc: doc['conditions'].pop('drive_source'),
+            lambda doc: doc['values'].update(colour=dict(value=1, provenance='DEFINITION', source='x')),
+            lambda doc: doc.update(values={}),
+            lambda doc: doc.update(measured_at='2026-11-17T09:13:00+09:00'),                 # file name differs
+            lambda doc: doc.update(extra=1),
+        ]
         refused = 0
         for record, base in self.each_record():
-            cases = common + (v2_only if base['schema'] == FSR.SCHEMA_V2 else [])
+            if base['schema'] == FSR.SCHEMA_V3:
+                cases = v3_cases
+            else:
+                cases = common + (v2_only if base['schema'] == FSR.SCHEMA_V2 else [])
             for i, change in enumerate(cases):
                 doc = yaml.safe_load(record.path.read_bytes())
                 change(doc)
                 with self.assertRaises(FSR.RecordError, msg='case %d' % i):
                     self.check(doc, record.record_id)
                 refused += 1
-        self.assertGreaterEqual(refused, len(common) * 2 + len(v2_only))   # both schemas were exercised
+        self.assertGreaterEqual(refused, len(common) * 2 + len(v2_only) + len(v3_cases))   # every schema exercised
 
     def test_rates_are_rounded_down(self):
         for record, doc in self.each_record():
+            if doc['schema'] == FSR.SCHEMA_V3:
+                continue                                         # a supplement carries no steps
             for step in doc['values']['step_response']['value']['steps']:
                 if abs(step['to'] - step['from']) == 20:
                     step['reached_s'] = 3.0

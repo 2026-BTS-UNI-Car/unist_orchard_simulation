@@ -40,9 +40,9 @@ WALL0 = 1.7e9
 PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOARD_FIRMWARE_OPTIONS = ('cal_runtime', 'smooth')   # FakeEsp32 options the vehicle board needs (board_options)
 # Test numbers for what the field has not measured yet (not field values): the vehicle config of the kit (its board
-# values, the CAL marks and the steering rates, from the newest field steering record) plus feasible motor values.
-MOTOR_TEST = dict(motor_output_enabled=True, tuning_file=None, breakaway_duty_pct=20, v_measured_m_s=.42,
-                  measured_stop_distance_m=.2, steer_range_measured=True,
+# values, the CAL marks and the steering rates, and the drive values C2 / C3 / C7 of the October records, all from the
+# newest field record) plus feasible values for the steering checks still open (B0, B2 / B3, B4, F1).
+MOTOR_TEST = dict(motor_output_enabled=True, tuning_file=None, steer_range_measured=True,
                   steer_wheel_soft_margin_deg=3., steer_min_pwm_pct=10., steer_zero_offset_deg=0.,
                   steer_polarity_checked=True, steer_esp32_require_fw_watchdog=False)
 
