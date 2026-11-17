@@ -1,0 +1,294 @@
+{
+ "changed_from_v1": {
+  "link_drive_zero_s": {
+   "reason": "decision R60 (2026-11-13) and SIM_ACCEPTANCE amendment 60: drive 0 <= operator_timeout_s (1.0) + 1 tick (0.05 s); the 0.55 s of steer_follow_wide_v2 predates it",
+   "v1": 0.55,
+   "v2": 1.05
+  },
+  "profiles": "front_steer_v2_field_20261116 -> front_steer_v2_1_field_20261117 (vehicle monitor stack) and front_steer_v2_2_proposal_20261117 (SIM proposal parts)"
+ },
+ "controller": {
+  "kind": "row_follow",
+  "wheelbase_m": "profile wheelbase_m (0.657)"
+ },
+ "executor": "sim_in_loop_steer.steer_executor_config with the SMOOTH measured values (steering.smooth_hold.executor_values); no threshold change",
+ "follows": "steer_follow_smooth_r5_v1",
+ "footprint": {
+  "front_bumper_m": 0.61,
+  "half_width_m": 0.35,
+  "note": "footprint 1.22 x 0.70 m is still the placeholder of the profile"
+ },
+ "id": "steer_follow_smooth_r5_v2",
+ "iterations": {
+  "allowed": "none in this registration: the results are reported as they are",
+  "max": 0
+ },
+ "order": "matrix, wide, proposal_matrix, proposal_wide in one locked session",
+ "parts": {
+  "matrix": {
+   "conditions": [
+    "nominal",
+    "lateral_p040",
+    "lateral_n040",
+    "heading_p8",
+    "heading_n8",
+    "steer_zero_p2",
+    "steer_zero_n2",
+    "side_pull",
+    "lidar_dropout_0p2",
+    "lidar_stale_1p0",
+    "obstacle"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "min_clearance_m": 0.0,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1
+   },
+   "pass_rule": "every run passes its registered checks",
+   "profile_id": "front_steer_v2_1_field_20261117",
+   "rules": "follow_matrix.measure / judge (steer_follow_v1)",
+   "runs": 15,
+   "seeds": {
+    "heading_n8": [
+     0
+    ],
+    "heading_p8": [
+     0
+    ],
+    "lateral_n040": [
+     0
+    ],
+    "lateral_p040": [
+     0
+    ],
+    "lidar_dropout_0p2": [
+     0
+    ],
+    "lidar_stale_1p0": [
+     0
+    ],
+    "nominal": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "obstacle": [
+     0
+    ],
+    "side_pull": [
+     0
+    ],
+    "steer_zero_n2": [
+     0
+    ],
+    "steer_zero_p2": [
+     0
+    ]
+   },
+   "settle_m": 6.0
+  },
+  "proposal_matrix": {
+   "conditions": [
+    "nominal",
+    "lateral_p040",
+    "lateral_n040",
+    "heading_p8",
+    "heading_n8",
+    "steer_zero_p2",
+    "steer_zero_n2",
+    "side_pull",
+    "lidar_dropout_0p2",
+    "lidar_stale_1p0",
+    "obstacle"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "min_clearance_m": 0.0,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1
+   },
+   "pass_rule": "every run passes its registered checks",
+   "profile_id": "front_steer_v2_2_proposal_20261117",
+   "rules": "follow_matrix.measure / judge (steer_follow_v1)",
+   "runs": 15,
+   "seeds": {
+    "heading_n8": [
+     0
+    ],
+    "heading_p8": [
+     0
+    ],
+    "lateral_n040": [
+     0
+    ],
+    "lateral_p040": [
+     0
+    ],
+    "lidar_dropout_0p2": [
+     0
+    ],
+    "lidar_stale_1p0": [
+     0
+    ],
+    "nominal": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "obstacle": [
+     0
+    ],
+    "side_pull": [
+     0
+    ],
+    "steer_zero_n2": [
+     0
+    ],
+    "steer_zero_p2": [
+     0
+    ]
+   },
+   "settle_m": 6.0
+  },
+  "proposal_wide": {
+   "conditions": [
+    "curve_l30",
+    "curve_r30",
+    "gap3_both",
+    "endpost_2p0",
+    "width_3p0",
+    "w2_042301_c03",
+    "w2_040927_c06",
+    "heading_p10",
+    "heading_n10",
+    "pull_left",
+    "pull_right",
+    "speed_0p2",
+    "speed_0p5",
+    "table_x070",
+    "table_x130",
+    "dist_step_p2p5",
+    "dist_terrain",
+    "imu_stale_1p0",
+    "gnss_nominal",
+    "operator_link_lost"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "imu_max_age_s": 0.4,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "lidar_max_age_s": 0.45,
+    "link_drive_zero_s": 1.05,
+    "min_clearance_m": 0.0,
+    "pw08_cell_ratio_tolerance": 0.01,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_fast_m_s": 0.55,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1,
+    "steer_fault_within_s": 3.0
+   },
+   "pass_rule": "reported per condition; the part passes when every run passes",
+   "profile_id": "front_steer_v2_2_proposal_20261117",
+   "rules": "follow_wide.measure / judge (steer_follow_wide_v2, round 2 rules) with the operator link limit replaced (judge_wide)",
+   "runs": 60,
+   "seeds": [
+    4000,
+    4001,
+    4002
+   ]
+  },
+  "wide": {
+   "conditions": [
+    "curve_l30",
+    "curve_r30",
+    "gap3_both",
+    "endpost_2p0",
+    "width_3p0",
+    "w2_042301_c03",
+    "w2_040927_c06",
+    "heading_p10",
+    "heading_n10",
+    "pull_left",
+    "pull_right",
+    "speed_0p2",
+    "speed_0p5",
+    "table_x070",
+    "table_x130",
+    "dist_step_p2p5",
+    "dist_terrain",
+    "imu_stale_1p0",
+    "gnss_nominal",
+    "operator_link_lost"
+   ],
+   "criteria": {
+    "after_terminal_window_s": 3.0,
+    "heading_max_deg": 15.0,
+    "heading_rmse_deg": 5.0,
+    "imu_max_age_s": 0.4,
+    "lateral_max_m": 0.5,
+    "lateral_p95_m": 0.35,
+    "lateral_rmse_m": 0.2,
+    "lidar_max_age_s": 0.45,
+    "link_drive_zero_s": 1.05,
+    "min_clearance_m": 0.0,
+    "pw08_cell_ratio_tolerance": 0.01,
+    "rest_speed_m_s": 0.02,
+    "row_end_error_m": 1.0,
+    "speed_max_fast_m_s": 0.55,
+    "speed_max_m_s": 0.5,
+    "stale_drive_zero_s": 0.1,
+    "steer_fault_within_s": 3.0
+   },
+   "pass_rule": "reported per condition; the part passes when every run passes",
+   "profile_id": "front_steer_v2_1_field_20261117",
+   "rules": "follow_wide.measure / judge (steer_follow_wide_v2, round 2 rules) with the operator link limit replaced (judge_wide)",
+   "runs": 60,
+   "seeds": [
+    4000,
+    4001,
+    4002
+   ]
+  }
+ },
+ "profiles": {
+  "proposal": {
+   "note": "SIM proposal r6p, not the vehicle firmware; nothing flashed",
+   "profile_id": "front_steer_v2_2_proposal_20261117",
+   "steer_fw_mode": "smooth_r6p",
+   "steer_monitor_stack": "esp32_r5"
+  },
+  "vehicle": {
+   "profile_id": "front_steer_v2_1_field_20261117",
+   "steer_fw_mode": "smooth_r5",
+   "steer_monitor_stack": "esp32_r5"
+  }
+ },
+ "result_kind": "placeholder-based SIM result",
+ "schema": "ubts.steer_sim.prereg_follow_smooth2.v1",
+ "simulator": "F-SIM T1 rig, executor in the loop (tools/row_executor/sim_in_loop_steer.py)",
+ "v1": "steer_follow_smooth_r5_v1 and its result (matrix 15/15, wide 52/60) stay as they are"
+}
