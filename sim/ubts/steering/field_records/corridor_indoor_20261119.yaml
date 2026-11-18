@@ -1,0 +1,89 @@
+# 실내 복도 현장 기록 (2026-11-18/19, 타일 바닥) — 과수원 값이 아니다.
+# 이 파일은 field_steer_record.records()/newest() 가 읽지 않는다(이름이 field_steer_* 가 아니다). 차량 실행기 설정
+# (vehicle_executor_config)과 SIM 차량 프로필(profiles/*.yaml)의 과수원·자리값을 바꾸지 않는다. SIM 이 복도 조건을 흉내 낼 때
+# 쓰는 '잰 값' 묶음이며, 값마다 출처(provenance)와 근거(source)를 적었다. 파일은 버전 파일이다: 고치지 말고 새 파일을 만든다.
+# 시험: sim/ubts/test_steering_field_corridor_record.py
+schema: ubts.field_corridor_record.v1
+record_id: corridor_indoor_20261119
+vehicle: ubts_orchard_rover
+measured_at: '2026-11-19T02:36:00+09:00'
+window_utc: ['2026-11-18T16:06:43Z', '2026-11-18T17:36:30Z']
+not_for: orchard ground, orchard rows (tile floor, walls, no trunks; the duty -> speed relation and the LiDAR scan matching differ)
+conditions:
+  site: building corridor, tile floor, walls on both sides (doors and fittings), about 3.1 m wide and 22 m long
+  vehicle: front-wheel steering (ESP32-S3 board, SMOOTH firmware r5), wheelbase 0.657 m, LiDAR RPLIDAR S2
+  executor: kit b8fef2e then sim 32c49bb, MOTOR, config runs/corridor_test_20261117/motor_20261119/config_motor_corridor_age06_20261119.json
+    (steer_esp32_mark_deg 26, steer_status_max_age_s 0.6 in the last file, breakaway 20); runtime tuning from 02:03 KST target 0.5 m/s,
+    lookahead 2.5 / 4.0 m, from 02:06 KST speed_scale 1.3
+  battery: not recorded
+  logs: executor tick logs row_executor_20261118T16*.jsonl (Jetson ~/ubts-row-executor/log), recordings 20261118T162959Z ... 173517Z
+    (sensor sidecars); copies and analysis outside the repository in steering-sim-20261108/runs/sim_field_20261119/
+provenance_tags:
+  MEASURED_LEAD: measured by the lead on site (indoor tile, 2026-11-18/19)
+  MEASURED_LOG: computed from the executor tick logs of the same runs (indoor tile, 2026-11-18/19); the reference speed is the
+    closing speed to the far wall (LiDAR front clearance, static pieces only)
+  FIRMWARE: the board's firmware / NVS values at the time
+values:
+  breakaway_duty_pct:
+    value: [16, 18]
+    unit: '%'
+    provenance: MEASURED_LEAD
+    source: C2 start duty, standstill on tile
+  speed_by_duty_step:
+    value: [{duty_pct: 40, speed_m_s: [0.33, 0.49]}, {duty_pct: 55, speed_m_s: 0.67}, {duty_pct: 70, speed_m_s: 0.75}]
+    provenance: MEASURED_LEAD
+    source: 2 s per step, not settled; ramp 150 PWM/s from 60
+  speed_by_applied_duty_autonomy:
+    value: [{duty_pct: 33, speed_m_s: 0.26}, {duty_pct: 38, speed_m_s: 0.31}, {duty_pct: 40, speed_m_s: 0.34},
+            {duty_pct: 47, speed_m_s: 0.40}, {duty_pct: 50, speed_m_s: 0.41}]
+    provenance: MEASURED_LOG
+    source: median front-wall closing speed per applied-duty bin over the autonomy runs (n 17 to 2733 ticks per bin; the bins below 33 %
+      are start ramps and are left out); 0.91 to 0.94 x the package speed table at the same applied duty
+  speed_table_ratio:
+    value: [0.91, 0.94]
+    provenance: MEASURED_LOG
+    source: measured speed / table speed (field_tuning.default.json speed_table) at the applied duty, steady ticks of 10 runs
+  stop_distance_m:
+    value: 0.125
+    duty_pct: 40
+    provenance: MEASURED_LEAD
+    source: C7 stop at 40 %, release ramp 320 PWM/s
+  steer_standstill_steps:
+    value: [{from: 0, to: 10, s: 0.52}, {from: 10, to: -10, s: 0.75}, {from: -10, to: 20, s: 1.62}, {from: 20, to: -20, s: 1.82}]
+    unit: bridge command deg (+ left), seconds to reach
+    provenance: MEASURED_LEAD
+    source: ground, standstill, single step commands (about 20 to 25 command deg/s); rightward moves stopped 1 to 2 deg short twice
+  steer_equivalent_angle_at_command_12_deg:
+    value: {left: 14.4, right: 16.7}
+    provenance: MEASURED_LEAD
+    source: IMU yaw rate / LiDAR speed on constant-steer arcs, +-30 %; mark 26 deg at command 20 was set from it
+  steer_ramp_rate_standstill:
+    value: {right_mrad_s: 118, left_mrad_s: 82, dead_time_s: [0.56, 0.89]}
+    provenance: MEASURED_LOG
+    source: executor ALIGN phase (command ramp 137 mrad/s), measured steering 10 to 90 % of moves >= 95 mrad, 10 moves
+      (right n 6, left n 3 + the failed run); slower than the ramp, so the command leads by up to 3 deg and more
+  steer_status_age_s:
+    value: {p99: [0.246, 0.269], max_active: [0.26, 0.299], gap_that_ended_a_run: 0.35}
+    provenance: MEASURED_LOG
+    source: steering status age at the executor (limit 0.3 s, later 0.6 s)
+  firmware_sm:
+    value: {PWM_MIN: 70, PWM_MAX: 160, RESTART_TOL: 10, STOP_TOL: 6, STALL_MS: 200, BOOST: 15, CAL: [1330, 1885, 2440, 20]}
+    provenance: FIRMWARE
+    source: board settings at the end of the session (RESTART_TOL was 16 and PWM_MIN 60 earlier the same evening)
+observations:
+  executor_speed_estimate:
+    value: {pooled_ratio_v_to_front_speed: 0.514, per_run_ratio: [0.38, 0.84], distance_to_front_ratio: 0.966}
+    provenance: MEASURED_LOG
+    source: estimator LiDAR speed (median of 5 per-scan ICP steps) against the front-wall closing speed, 4738 driving ticks; the path
+      distance advances in 60 to 150 mm jumps, so the median of the steps reads low while the distance stays within 2 to 6 %
+  start_overshoot:
+    value: [{head0_deg: -22.2, opposite_deg: 13.8}, {head0_deg: -20.6, opposite_deg: 14.4}, {head0_deg: -18.3, opposite_deg: 9.7},
+            {head0_deg: 16.6, opposite_deg: -6.1}, {head0_deg: -15.3, opposite_deg: 9.4}]
+    provenance: MEASURED_LOG
+    source: executor heading error (head < 0 = nose left), first two before the lookahead change (1.5 / 3.0 m), the others after it
+      (2.5 / 4.0 m); settle (|head| < 2 deg, |lat| < 0.10 m for 2 m) after 6.8 to 12.9 m
+  straight_steering:
+    value: {sd_after_settle_mrad: [2.0, 25.4], weave_period_s: [20, 34], mean_command_mrad: [38, 85], mean_lat_m: [-0.10, -0.03]}
+    provenance: MEASURED_LOG
+    source: no short-period limit cycle; a slow weave and a steady left command with the vehicle right of centre (zero offset or a
+      right pull above the 3 deg trim limit, not diagnosed)
