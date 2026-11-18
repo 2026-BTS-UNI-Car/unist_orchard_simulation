@@ -188,6 +188,7 @@ import numpy as np
 
 from . import calib_runs as CR
 from . import perception_settings as PS
+from .run_metrics import RunMetrics
 from .config import FRONT_STEER, SINGLE_ROW_MODE, prior_active, single_row_time_cap_speed, steer_fault_reason
 from .guard import Backstop, MotionOdometer, OutputGuard, SteerOutputGuard, sensor_reports_motion
 
@@ -932,6 +933,9 @@ class Runner:
         if PS.enabled(config):
             from .perception_layers import PerceptionLayers
             self.perception = PerceptionLayers(config)
+        self.run_gnss_mode = None           # gnss_mode of the current / last run (POST /api/start gnss_mode)
+        self._gnss_supported = None         # the run modes this (immutable) config supports, computed once
+        self.metrics = None                 # run_metrics.RunMetrics of the current / last row run
         self.run_id = 0
         self.state = IDLE
         self.run_kind = None
@@ -995,9 +999,27 @@ class Runner:
             guard.last_t = guard.last_steer = None
             guard.last_throttle = 0
 
-    def _begin(self, t, kind):
+    def gnss_mode_problems(self, mode):
+        """Why a run can not use gnss_mode `mode` (empty = it can; perception_settings.run_mode_problems)."""
+        return PS.run_mode_problems(self.config, mode)
+
+    def _set_run_gnss_mode(self, mode):
+        """The perception layers of a run with gnss_mode `mode` (the configured local grid unchanged). With every layer
+        off there is no PerceptionLayers (bit-identical to a configuration without layers)."""
+        if not PS.enabled(self.config, mode):
+            self.perception = None
+        elif self.perception is None:
+            from .perception_layers import PerceptionLayers
+            self.perception = PerceptionLayers(self.config, gnss_mode=mode)
+        else:
+            self.perception.set_gnss_mode(self.config, mode)
+        self.run_gnss_mode = mode
+
+    def _begin(self, t, kind, gnss_mode=None):
+        self._set_run_gnss_mode(self.config.gnss_mode if gnss_mode is None else gnss_mode)
         self.run_id += 1
         self.run_kind = kind
+        self.metrics = RunMetrics(self.run_id) if kind == 'row' else None
         self.estimator = self._new_estimator()
         self.near_filter = NearConfirmFilter.from_config(self.config)
         self.controller = None
@@ -1013,18 +1035,26 @@ class Runner:
                                     else self.config.max_row_len_m)
         return self.run_id
 
-    def start_run(self, t, row_len_m=None):
+    def start_run(self, t, row_len_m=None, gnss_mode=None):
         """A row run. row_len_m: operator-measured length from the start pose to the row end (required except in mode
-        'single_row', where it is optional: Backstop.start_single_row)."""
+        'single_row', where it is optional: Backstop.start_single_row). gnss_mode: this run's GNSS layer mode (None = the
+        configured gnss_mode; one of perception_settings.run_modes, else ValueError gnss_mode_invalid / RuntimeError
+        gnss_mode_unsupported before any state change)."""
         if self.state in (PAUSED, ACTIVE):
             raise RuntimeError('run_in_progress')
+        if gnss_mode is not None:
+            if not isinstance(gnss_mode, str) or gnss_mode not in PS.GNSS_MODES:
+                raise ValueError('gnss_mode_invalid')
+            problems = self.gnss_mode_problems(gnss_mode)
+            if problems:
+                raise RuntimeError('gnss_mode_unsupported: ' + '; '.join(problems))
         backstop = Backstop.from_config(self.config)
         if self.single_row is not None:                                # raises before any state change
             backstop.start_single_row(t, 0., self.config.single_row_max_row_length_m,
                                       single_row_time_cap_speed(self.config), row_len_m)
         else:
             backstop.start(t, 0., row_len_m, self.config.v_measured_m_s)   # raises before any state change
-        run_id = self._begin(t, 'row')
+        run_id = self._begin(t, 'row', gnss_mode)
         self.backstop = backstop
         return run_id
 
@@ -1291,7 +1321,89 @@ class Runner:
             self.calib.observe_stop(float(now), self.last_snapshot)      # C7: the stop after the run's 0/0
             if decision.summary.get('calib') is not None:
                 decision.summary['calib'] = self.calib.status()
+        if self.metrics is not None:
+            # run metrics (run_metrics.py; display / log only): a driving tick of this run is one sample
+            driving = self.state == ACTIVE and decision.left > 0 and self.last_snapshot is not None
+            grid_ref = (self.perception.grid_reference(now, self.estimator)
+                        if driving and self.perception is not None else None)
+            self.metrics.update(now, self.last_snapshot, driving, grid_ref)
+            decision.summary['metrics'] = self.metrics.summary()
         return decision
+
+    def gnss_status(self, now):
+        """status.gnss (docs/steering/OPERATOR_API_KO.md 4.2): the GNSS layer mode of this run, the configured mode, the
+        run modes the configuration allows and what the layer tracks (no position: run-local counts and ages only)."""
+        cfg = self.config
+        if self._gnss_supported is None:
+            self._gnss_supported = [m for m in PS.run_modes(cfg) if not PS.mode_problems(cfg, m)]
+        out = dict(mode=self.run_gnss_mode, configured_mode=cfg.gnss_mode, supported_modes=list(self._gnss_supported))
+        layer = None if self.perception is None else self.perception.gnss
+        if self.run_gnss_mode is None:
+            out.update(state='no_run', used=False)
+            return out
+        if self.run_gnss_mode == 'off' or layer is None:
+            out.update(state='off', used=False)
+            return out
+        block = layer.summary(float(now))
+        counts = block.get('counts') or {}
+        accepted = sum(counts.get(k, 0) for k in ('accepted', 'restarted', 'reanchored'))
+        last = layer.last
+        if layer.fence_tripped:
+            state = 'fence_tripped'
+        elif last is None:
+            state = 'waiting'
+        elif block.get('present'):
+            state = 'ok'
+        elif last[5] in ('accepted', 'restarted', 'reanchored'):
+            state = 'stale'
+        else:
+            state = 'rejected_' + str(last[5])
+        hacc = block.get('hacc_m')
+        out.update(state=state, used=bool(block.get('present')), fix=None if last is None else bool(last[4]),
+                   outcome=block.get('outcome'), age_s=block.get('age_s'), hacc_m=hacc, h_acc_m=hacc,
+                   accepted=accepted, rejected=sum(counts.values()) - accepted, counts=dict(counts),
+                   flags=dict(block.get('flags') or {}), fence_tripped=bool(layer.fence_tripped),
+                   fence_inside=block.get('fence_inside'), aligned=bool(block.get('aligned')),
+                   unreadable=self.perception.gnss_unreadable)
+        for key in ('course_drift_deg', 'disagreement_m'):
+            if key in block:
+                out[key] = block[key]
+        if self.perception.rtk is not None:
+            out['rtk'] = self.perception.rtk.summary(float(now))
+        return out
+
+    def state_geometry(self, now):
+        """Geometry of the executor state topic (executor_main.state_message; docs/steering/ROW_EXECUTOR_STATE_TOPIC_KO.md):
+        the base pose in the run's odometry frame, the estimator band (heading, centre offset, width), the grid
+        centreline and the controller's lookahead (distance, lateral offset in the base frame). None before the first
+        run. Display only."""
+        est = self.estimator
+        if est is None:
+            return None
+        now = float(now)
+        try:
+            pose = est.base_pose(now)
+        except Exception:                   # display only: never break a tick
+            return None
+        out = dict(pose=pose)
+        band = getattr(est, 'band', None)
+        if band is not None:
+            try:
+                out['band'] = (float(band.heading), float(band.center), float(band.width))
+            except (AttributeError, TypeError, ValueError):
+                pass
+        if self.perception is not None:
+            grid = self.perception.grid_centreline(now)
+            if grid is not None:
+                out['grid'] = grid
+        telemetry = None
+        if self.controller is not None and hasattr(self.controller, 'telemetry'):
+            telemetry = self.controller.telemetry()
+        if isinstance(telemetry, dict):
+            look, y_l = telemetry.get('lookahead_m'), telemetry.get('lookahead_y_m')
+            if isinstance(look, (int, float)) and isinstance(y_l, (int, float)):
+                out['lookahead'] = (float(look), float(y_l))
+        return out
 
     def _tick(self, now, hold_active):
         now = float(now)

@@ -304,6 +304,8 @@ class FrontSteerExecutorTest(unittest.TestCase):
         self.assertEqual(ti.EXECUTOR_TOPIC_ALLOWLIST, ('/scan', '/imu/data_raw', '/rover/control/requested'))
         # A13 revision 30 (PC-12): the GNSS fix of the GNSS layer (subscribed only with gnss_mode not off)
         self.assertEqual(ti.EXECUTOR_GNSS_TOPICS, ('/gps/fix',))
+        # 2026-11-19: the state topic is an output (published, never subscribed)
+        self.assertEqual(ti.EXECUTOR_PUBLISH_TOPICS, ('/row_executor/state',))
         report = ti.subscription_check()
         self.assertTrue(report['passed'], report['problems'])
         self.assertTrue(set(report['topics']) <= set(ti.EXECUTOR_TOPIC_ALLOWLIST + ti.EXECUTOR_GNSS_TOPICS))

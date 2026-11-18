@@ -3,7 +3,8 @@
 One row: align at standstill, follow the inter-row centre line, stop at the row end. No turn, no next row.
 
 Input: ONLY the estimator snapshot the executor's Runner hands the controller slot and the controller's own clock t
-(seconds since the resume). Read keys: lidar_age_s, imu_age_s, scan_count, speed, still / still_s, corridor_valid,
+(seconds since the resume). Read keys: lidar_age_s, imu_age_s, scan_count, speed (and distance_m with speed_window_s > 0,
+the estimator's LiDAR path distance), still / still_s, corridor_valid,
 corridor_reason, corridor_age_s, heading_error, lateral_offset, row_end_ahead_m, front_clearance_m, odom_valid, the
 estimator's actuator prior block (actuator_prior: only its 'predicting' flag), the map age hook (map_age_s, absent until
 PC-07) and the steering fields of the front_steer Runner (steer_command_mrad, steer_measured_mrad). No plant, world or
@@ -44,6 +45,19 @@ kept the start ramp rising past the target, true speed 0.54 m/s with the vehicle
 A reference below min_speed_m_s stops the run (speed_cap_below_min): no creeping inside the drive deadband.
 Overspeed (V2-4 item 6): a LiDAR speed above max_speed_m_s + overspeed_margin_m_s sets the duty to the table duty of the
 minimum speed; for longer than overspeed_s it stops the run (overspeed, a pause).
+Speed input (speed_window_s, 2026-11-19 corridor field data; 0 = off, the LiDAR speed alone, bit-identical): the
+estimator's LiDAR speed is the median of its last five per-scan ICP steps; in a uniform corridor (parallel walls, the end
+beyond the ICP range) the along-track match sticks near its seed and catches up in 60-150 mm jumps, so that median read
+about 0.5 x the true speed (measured: pooled 0.173 vs 0.337 m/s from the front-wall closing speed) while the path distance
+stayed within 2-6 %. With speed_window_s > 0 every use of the speed here (the speed PI and its no-rise rule, the
+overspeed rule, the row-end stopping distance, the lookahead) takes max(LiDAR speed, path rate), path rate = the
+estimator's distance_m gained over the last speed_window_s (needs 0.8 x the window of samples). The max never reads a
+lower speed than the LiDAR speed alone: the duty is never higher, the overspeed rule and the stopping distance never laxer.
+speed_prior_floor (0 = off): the same max also takes speed_prior_floor x the actuator prior's speed (the duty -> speed
+table at the APPLIED duty x the speed scale, snapshot actuator_prior speed_m_s, only while its status is fresh). For a
+corridor where the LiDAR distance stalls too (the SIM's featureless W0 corridors: 2-5 m of 21.5 m) it bounds the duty
+by the table. It reads a duty-derived speed in the decision path (design rule A13 lists only the prior's 'predicting'
+flag as a controller input): opt-in, for the operator to decide; it can only lower the duty.
 Row end (v1 6.4): the stop point is end_stop_offset_m before the estimator's row end (the front bumper at the last
 trunk line); zero throttle when the remaining distance is within the stopping distance of the current speed.
 
@@ -143,6 +157,8 @@ class SteerFollowConfig:
     duty_rise_pct_s: float = 5.
     duty_fall_pct_s: float = 15.
     duty_max_pct: int = 70
+    speed_window_s: float = 0.           # > 0: speed input max(LiDAR speed, path rate over this window) (docstring)
+    speed_prior_floor: float = 0.        # > 0: ... and max(..., this x the actuator prior speed) (docstring, opt-in)
     # --- holds ---------------------------------------------------------------------------------------------------------
     acquire_timeout_s: float = 6.
     corridor_lost_s: float = 1.
@@ -172,6 +188,8 @@ class SteerFollowConfig:
                 and 0. < self.fresh_slow_age_s < self.lidar_max_age_s and self.overspeed_margin_m_s >= 0.
                 and self.overspeed_s > 0.):
             raise ValueError('steer_follow_invalid: curvature, steering demand, freshness or overspeed settings')
+        if not (0. <= self.speed_window_s <= 5. and 0. <= self.speed_prior_floor <= 1.):
+            raise ValueError('steer_follow_invalid: speed_window_s must be in [0, 5], speed_prior_floor in [0, 1]')
         if not (self.d_scan_m > 0. and self.d_blind_m > 0. and self.loop_fixed_s >= 0. and self.timing_window_s > 0.
                 and self.stop_decel_m_s2 > 0. and self.stop_onset_s >= 0. and self.front_margin_m >= 0.
                 and 0. <= self.lateral_slow_start_m < self.lateral_slow_full_m and self.speed_scale > 0.
@@ -220,6 +238,8 @@ class RowFollowController:
         self.over_since = None           # overspeed start (controller clock)
         self.demand = 0.                 # |raw steering target| / steer_follow_limit of the last step
         self.curvature = 0.              # curvature of the last steering target [1/m]
+        self.path = deque()              # speed_window_s > 0: (t, estimator distance_m) of the last window
+        self.speeds = None               # speed input on: (LiDAR speed, path rate, speed used, prior floor) of this step
 
     # --- the attributes the Runner and the SIM facades read ----------------------------------------------------------
     def current_phase(self):
@@ -403,6 +423,22 @@ class RowFollowController:
             self.duty = max(1., min(float(cfg.duty_max_pct), self.duty + limited))
         return int(round(self.duty)), feedforward
 
+    def _path_rate(self, t, s):
+        """Path rate [m/s]: the estimator distance gained over the last speed_window_s, None without 0.8 x the window
+        of samples (speed_window_s > 0 only)."""
+        window = self.config.speed_window_s
+        distance = s.get('distance_m')
+        if _finite(distance):
+            self.path.append((t, float(distance)))
+        while len(self.path) > 1 and t - self.path[1][0] >= window:
+            self.path.popleft()
+        if len(self.path) < 2:
+            return None
+        (t0, d0), (t1, d1) = self.path[0], self.path[-1]
+        if t1 - t0 < .8 * window:
+            return None
+        return max(0., (d1 - d0) / (t1 - t0))
+
     # --- step ----------------------------------------------------------------------------------------------------------
     def step(self, t, s):
         t = float(t)
@@ -424,6 +460,19 @@ class RowFollowController:
         t_scan, tau = self._timing(t, s, dt if self.drive_t0 is not None else 0.)
         speed = s.get('speed')
         speed = float(speed) if _finite(speed) else 0.
+        if cfg.speed_window_s > 0. or cfg.speed_prior_floor > 0.:
+            # speed input (docstring): never below the LiDAR speed
+            rate = self._path_rate(t, s) if cfg.speed_window_s > 0. else None
+            lidar = speed
+            speed = lidar if rate is None else max(lidar, rate)
+            prior = s.get('actuator_prior')
+            floor = None
+            if cfg.speed_prior_floor > 0. and isinstance(prior, dict) and prior.get('fresh') is True:
+                table = prior.get('speed_m_s')
+                if _finite(table) and table > 0.:
+                    floor = cfg.speed_prior_floor * float(table)
+                    speed = max(speed, floor)
+            self.speeds = (lidar, rate, speed, floor)
         valid = s.get('corridor_valid') is True
         if self.drive_t0 is None:
             return self._align(t, s, dt, valid)
@@ -460,6 +509,11 @@ class RowFollowController:
                                overspeed=self.over_since is not None, base_duty_pct=round(self.duty, 2),
                                duty_feedforward_pct=round(feedforward, 2), steer_mrad=steer,
                                end_remaining_m=None if remaining is None else round(remaining, 3))
+        if self.speeds is not None:
+            lidar, rate, used, floor = self.speeds
+            self._telemetry.update(speed_lidar_m_s=round(lidar, 3), speed_path_m_s=None if rate is None
+                                   else round(rate, 3), speed_used_m_s=round(used, 3),
+                                   speed_prior_floor_m_s=None if floor is None else round(floor, 3))
         return self._command('FOLLOW', 'follow_' + bound, throttle, steer)
 
     def _align(self, t, s, dt, valid):

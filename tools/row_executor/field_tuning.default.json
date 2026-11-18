@@ -28,6 +28,7 @@
  "schema": "ubts.field_tuning.v1",
  "values": {
   "advanced": {
+   "align_timeout_s": 4.0,
    "approach_speed_m_s": 0.2,
    "approach_window_m": 1.5,
    "battery_scale": 1.0,
@@ -48,6 +49,7 @@
    "speed_integral_limit_pct": 15.0,
    "speed_ki_pct_per_m": 15.0,
    "speed_kp_pct_s_per_m": 30.0,
+   "speed_prior_floor": 0.0,
    "speed_table": [
     [
      25.0,
@@ -66,6 +68,7 @@
      0.899
     ]
    ],
+   "speed_window_s": 0.0,
    "steer_filter_s": 0.25,
    "steer_follow_limit_deg": 12.0,
    "steer_slow_start": 0.8,

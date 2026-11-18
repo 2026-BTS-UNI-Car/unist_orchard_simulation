@@ -18,6 +18,12 @@ gnss_mode != 'off'); with both off nothing here runs and the Runner is bit-ident
   summary(now, est)          {'local_grid': ..., 'gnss': ...} blocks of the Runner summary (proc_ms = wall clock); the
                              'gnss' block gets 'rtk' in mode weak_constraint
   export(now, est)           the bounded grid serialisation for the operator map (rate-limited), or None
+  set_gnss_mode(cfg, mode)   a run's gnss_mode (POST /api/start gnss_mode, 2026-11-19): the GNSS layer and the RTK
+                             constraint of that mode (rebuilt only when the mode changes; the latitude / longitude
+                             frame is kept); 'off' = no GNSS layer for the run
+  grid_reference(now, est)   (lateral_m, heading_rad) of the base pose against the newest grid fit's centreline when the
+                             fit is at most GRID_REFERENCE_MAX_AGE_S old, else None (run metrics, display only)
+  grid_centreline(now)       the newest fresh fit as (axis_rad, centre_n_m, width_m) in the odometry frame, else None
 
 The grid sees the estimator only through its public outputs (base_pose, odom_valid, config.lidar_x_in_base_m, the band
 heading of the snapshot); the GNSS layer and the RTK constraint never write into the estimator.
@@ -31,25 +37,38 @@ from .gnss_rtk import RtkConstraint, fix_type_from_message
 from .local_grid import SOURCE_NAME, LocalGrid
 
 
+GRID_REFERENCE_MAX_AGE_S = 1.       # a grid fit older than this is no reference (run metrics, state topic)
+
+
 class PerceptionLayers:
-    def __init__(self, cfg):
+    def __init__(self, cfg, gnss_mode=None):
         self.grid_settings = PS.grid_settings(cfg) if cfg.local_grid_enabled else None
         self.fusion_gain = float(cfg.local_grid_fusion_gain)
         self.fuse_width = bool(cfg.local_grid_fuse_width)
         self.publish = bool(cfg.local_grid_publish)
         self.publish_period_s = float(cfg.local_grid_publish_period_s)
         self.publish_max_bytes = int(cfg.local_grid_publish_max_bytes)
-        self.gnss_settings = PS.gnss_settings(cfg) if cfg.gnss_mode != 'off' else None
-        self.gnss = None if self.gnss_settings is None else GnssLayer(self.gnss_settings)
-        # RTK weak constraint (mode weak_constraint only; None otherwise and nothing below calls it)
-        self.rtk = RtkConstraint(PS.rtk_settings(cfg)) if cfg.gnss_mode == 'weak_constraint' else None
         self.frame = LocalFrame()           # latitude / longitude -> local metres (origin private, never exported)
+        self.gnss_mode = None
+        self.set_gnss_mode(cfg, cfg.gnss_mode if gnss_mode is None else gnss_mode)
         self.grid = None
         self.fusion = {}                    # outcome -> count of the fused observations of this run
         self.gnss_unreadable = 0
         self._export = None
         self._export_t = None
         self._band_heading = None
+
+    def set_gnss_mode(self, cfg, mode):
+        """The GNSS layer (and in mode weak_constraint the RTK constraint) of `mode`; nothing is rebuilt when the mode
+        stays the same (the per-run state is reset by new_run as before)."""
+        if mode == self.gnss_mode:
+            return
+        self.gnss_settings = PS.gnss_settings(cfg, mode) if mode != 'off' else None
+        self.gnss = None if self.gnss_settings is None else GnssLayer(self.gnss_settings)
+        # RTK weak constraint (mode weak_constraint only; None otherwise and nothing below calls it)
+        self.rtk = RtkConstraint(PS.rtk_settings(cfg)) if mode == 'weak_constraint' else None
+        self.gnss_unreadable = 0
+        self.gnss_mode = mode
 
     def new_run(self, t, row_length_m):
         self.grid = None if self.grid_settings is None else LocalGrid(self.grid_settings)
@@ -114,6 +133,24 @@ class PerceptionLayers:
     # --- outputs -------------------------------------------------------------------------------------------------
     def end_reason(self):
         return None if self.gnss is None else self.gnss.end_reason()
+
+    def _fresh_fit(self, now):
+        grid = self.grid
+        if grid is None or grid.fit is None or float(now) - grid.fit.stamp > GRID_REFERENCE_MAX_AGE_S:
+            return None
+        return grid.fit
+
+    def grid_reference(self, now, est):
+        fit = self._fresh_fit(now)
+        if fit is None or est is None:
+            return None
+        return fit.observation(est.base_pose(float(now)))
+
+    def grid_centreline(self, now):
+        fit = self._fresh_fit(now)
+        if fit is None:
+            return None
+        return float(fit.axis), .5 * (float(fit.left_n) + float(fit.right_n)), float(fit.width)
 
     def grid_age_s(self, now):
         """Age of the fit the fusion would use (A_map of design V2-4), None without a fit."""

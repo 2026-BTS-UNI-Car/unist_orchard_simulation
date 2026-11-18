@@ -439,6 +439,9 @@ class ExecutorConfig:
     gnss_rtk_min_span_m: float = 8.              # path a line needs before it is used
     gnss_rtk_antenna_x_m: float = 0.             # antenna lever arm in the base frame (placeholder)
     gnss_rtk_antenna_y_m: float = 0.
+    # the modes a run may ask for at its Start (POST /api/start gnss_mode; perception_settings.run_modes); the
+    # configured gnss_mode is always one of them, weak_constraint only when listed here (it reaches the steering input)
+    gnss_run_modes: str = 'off,log_only,geofence'
 
     # --- assisted headland turn (TurnAssist; opt-in, default DISABLED; TURN_DESIGN.txt 3.10) ------
     # With the defaults below no turn run can command any output (observe / dry runs only) and the

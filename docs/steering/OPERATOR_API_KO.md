@@ -7,6 +7,7 @@
 - 코드: `tools/row_executor/operator_http.py`(경로), `executor_main.py`(`OperatorLink`, `ExecutorLoop`), `field_tuning.py`.
 - 개정 5(2026-11-14, G-SIM 5단계): 세션 묶임·풀림 규칙(3.1절). 같은 글을 `runs/_locks/AUTONOMY_API_CONTRACT_20261113.txt` 끝에 적었다.
 - 개정 6(2026-11-14, PW-10): 상태 `online_scale`과 `/api/params`의 온라인 배율 답 형식(6.1절). 같은 글을 규약 파일 끝에 적었다.
+- 개정 7(2026-11-19, 복도 현장 요청): `/api/start`의 `gnss_mode`(run마다 GNSS 층 선택, 3.5절), 상태 `gnss`(4.2절)와 `metrics`(4.3절), 실행기 상태 토픽 `/row_executor/state`(`ROW_EXECUTOR_STATE_TOPIC_KO.md`).
 - 수치는 자리값이다. SIM에서 잰 값은 자리값 기반 SIM 결과이며 현장 성능이 아니다.
 
 ## 1. 접근 규칙(바뀌지 않음)
@@ -35,7 +36,7 @@
 | 경로 | 본문 | 뜻 | 응답 |
 |---|---|---|---|
 | `GET /api/status` | - | 상태(4절). 화면은 2 Hz로 읽는다 | 200 |
-| `POST /api/start` | `{"row_len_m": L 또는 null}` | 새 run. 단일열 모드에서 열 길이는 비워도 된다 | 200 / 409 |
+| `POST /api/start` | `{"row_len_m": L 또는 null, "gnss_mode": m}` | 새 run. 단일열 모드에서 열 길이는 비워도 된다. `gnss_mode`는 고르기(3.5절) | 200 / 400 / 409 |
 | `POST /api/arm` | `{}` | 브리지 lease(MOTOR만) | 200 / 409 |
 | `POST /api/go` | `{"session": "<id>"}` | one_press: 열린 run을 한 번 출발시키거나 일시정지 뒤 다시 출발 | 200 / 409(+`blockers`) |
 | `POST /api/heartbeat` | `{"session": "<id>"}` | one_press: 운영자 연결 확인 | 200 / 409 |
@@ -135,6 +136,23 @@
   결함(예: `steering_not_following`), 실행기 자신이 티켓 기한(1.5 s)보다 오래 멈춤(`stale_input_rearm_required`, `bridge_error`)은
   run을 끝낸다(`latched`, 확인 → Start → Arm → go).
 
+### 3.5 run마다 GNSS 층 고르기(`gnss_mode`, 개정 7)
+
+- 사용자 결정(2026-11-19): 자율 주행 run마다 GPS를 쓸지 정한다. 실내에서는 쓸모가 없고, 과수원에서는 비교군이다.
+- 값: `off`(GNSS 층 없음), `log_only`(점검·기록만), `geofence`(+ 열 범위 펜스로 run 끝), `weak_constraint`(+ RTK 약한 제약,
+  조향 제어기의 횡오차 입력을 ±`gnss_rtk_cap_m` 안에서 당김, `GNSS_RTK_KO.md`). 칸이 없거나 null이면 설정의 `gnss_mode`.
+- 그 run에만 쓴다. 다음 Start가 `gnss_mode` 없이 오면 다시 설정의 값이다. 층의 run 상태(펜스, 정렬, 횟수)는 Start마다 새로 시작한다.
+- 설정이 허락하는 값: `gnss_run_modes`(쉼표 목록, 기본 `off,log_only,geofence`) + 설정의 `gnss_mode`. `log_only`·`geofence`는 명령에 닿지
+  않거나(run을 끝낼 수만 있음) 기본으로 허락한다. `weak_constraint`는 조향 입력을 바꾸므로 `gnss_run_modes`에 적었을 때만(또는 설정의
+  `gnss_mode`가 그것일 때만) 고를 수 있다. GNSS 토픽 구독은 `off` 말고 고를 수 있는 값이 하나라도 있으면 켜진다.
+- 거절(아무 상태도 바뀌지 않는다):
+  - 400 `gnss_mode_invalid` + `allowed`(네 값): 문자열이 아니거나 네 값이 아님(HTTP에서 거름; 실행기 요청 경로에서도 같은 이름, 409).
+  - 409 `gnss_mode_unsupported` + `reasons`(문장 목록) + `supported`(이 설정에서 고를 수 있는 값): 목록에 없음, 차동 프로필의
+    `weak_constraint`, 설정 값 검사 실패(RTK 값 범위 등), bench 프로필.
+  - 400 `unknown_parameter`: `row_len_m`, `gnss_mode` 말고 다른 키.
+- 성공 답: `{"ok": true, "run_id": n, "gnss_mode": "<이 run의 값>"}`. 기록의 `start` 사건에 `gnss_mode`와 `gnss_mode_source`
+  (`request`/`config`), `run_end` 사건에 `gnss_mode`.
+
 ## 4. 상태(`GET /api/status`)
 
 기존 칸에 더해:
@@ -151,9 +169,46 @@
 | `tuning` | `{preset, revision, editable, ...}`(6절) |
 | `lease_lost` | 3.4절 상태일 때 `{t, where, error, bridge_reason, bridge_latches, steering_fault, run_id, client_latch}`, 아니면 null |
 | `online_scale` | front_steer: 온라인 배율과 run 뒤 제안(6.1절, 개정 6). 차동 실행기에는 없다 |
+| `gnss` | 이 run의 GNSS 층(4.2절, 개정 7) |
+| `metrics` | 이 run(끝난 뒤에는 다음 Start까지 지난 run)의 경로 대 중심선 수치(4.3절, 개정 7). run 전에는 null |
 
 - `stop_reason` 분류표: 새 이유의 분류는 `operator_link_lost` → `OPERATOR_LINK_LOST`, `speed_cap_below_min`·`prediction_limit` →
   `PERCEPTION_OR_LOCALISATION`(센서 쪽), `overspeed` → `CONTROL_AUTHORITY`(구동 쪽). 제안이며 조향 사전등록(PC-14)에서 정한다.
+
+### 4.2 `gnss`(개정 7)
+
+좌표는 내보내지 않는다(run 안의 횟수, 나이, 정확도만).
+
+| 칸 | 값 |
+|---|---|
+| `mode` | 지금(또는 마지막) run의 값. Start 전에는 null |
+| `configured_mode` | 설정의 `gnss_mode`(Start에 `gnss_mode`가 없을 때 쓰는 값) |
+| `supported_modes` | 이 설정에서 run이 고를 수 있는 값 |
+| `state` | `no_run`(Start 전), `off`, `waiting`(fix를 아직 못 받음), `ok`(마지막 fix를 받아들였고 `gnss_max_age_s` 안), `stale`(받아들인 마지막 fix가 오래됨), `rejected_<이유>`(마지막 fix를 거절: `quality`, `jump`, `no_fix`, `invalid`, `order`), `fence_tripped` |
+| `used` | 층이 마지막 fix를 쓰고 있다(`state` `ok`) |
+| `fix` | 마지막 메시지가 fix였나(true/false), 메시지가 없으면 null |
+| `outcome`, `age_s`, `hacc_m`, `h_acc_m` | 마지막 메시지의 판정, 나이[s], 보고 수평 정확도[m](`h_acc_m`은 대시보드 규약 이름, 같은 값) |
+| `accepted`, `rejected`, `counts` | 이 run에서 받아들인 수(accepted + restarted + reanchored), 거절한 수, 판정별 수 |
+| `flags`, `fence_tripped`, `fence_inside`, `aligned`, `unreadable` | 층의 표시(course_disagree, position_disagree, fence_outside), 펜스, 진행 방향 정렬, 읽을 수 없던 메시지 수 |
+| `course_drift_deg`, `disagreement_m` | 정렬 뒤에만 |
+| `rtk` | `weak_constraint`에서만: RTK 제약 요약(`GNSS_RTK_KO.md`) |
+
+### 4.3 `metrics`(개정 7)
+
+`run_metrics.py`. 표시·기록만이고 추정기·제어기·명령에 닿지 않는다. 표본 = run이 ACTIVE이고 구동 명령이 0보다 큰 틱(정지 정렬과 멈춤은
+빠짐). 두 기준 모두 차의 LiDAR에서 나오므로 참값이 아니다.
+
+| 칸 | 값 |
+|---|---|
+| `run_id`, `ref` | run 번호, `estimator` 또는 `estimator+grid`(격자 기준 표본이 있을 때) |
+| `samples`, `distance_m`, `time_s` | 표본 틱 수, 그동안의 추정기 경로 거리, 시간 |
+| `lat_rms_m`, `lat_mean_m`, `lat_max_abs_m`, `within_0_05_pct`, `within_0_10_pct`, `head_rms_deg`, `head_max_abs_deg` | 추정기 통로 중심선(`lat`·`head`가 가리키는 선) 대비. within = \|횡\| ≤ 0.05 / 0.10 m 인 표본의 비율[%] |
+| `grid_samples`, `grid_lat_rms_m`, … `grid_head_max_abs_deg` | 국소 격자의 두 선 맞춤 가운데선 대비(격자가 켜져 있고 맞춤이 1 s 안일 때) |
+| `ref_diff_lat_rms_m`, `ref_diff_head_rms_deg` | 두 기준을 함께 가진 틱의 (추정기 − 격자) RMS |
+| `last` | 마지막 표본의 `lat_m`, `head_deg`, `grid_lat_m`, `grid_head_deg` |
+
+- 부호: 횡 + = 차가 중심선 왼쪽, 방향 = 통로 축 − 차 방향(실행기 기록의 `head` < 0 = 코가 왼쪽).
+- `run_end` 사건에 같은 묶음(`metrics`)이 들어간다.
 
 ## 5. 속도 조절기(PC-10)
 

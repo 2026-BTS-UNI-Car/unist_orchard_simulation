@@ -274,6 +274,11 @@ EXECUTOR_SUBSCRIPTION_FILES = ('tools/row_executor/executor_main.py',)
 # /gps/* string in decision code stays an error.
 EXECUTOR_GNSS_TOPICS = ('/gps/fix',)
 EXECUTOR_GNSS_TOPIC_FILES = ('tools/row_executor/executor_main.py',)
+# 2026-11-19: the executor PUBLISHES its state for recordings and the dashboard (docs/steering/ROW_EXECUTOR_STATE_TOPIC_KO.md;
+# nothing in the executor subscribes it). These command-line options name an output topic: their constant default must
+# be one of EXECUTOR_PUBLISH_TOPICS and they are not subscriptions (every other --*-topic option stays an input).
+EXECUTOR_PUBLISH_TOPICS = ('/row_executor/state',)
+EXECUTOR_OUTPUT_TOPIC_OPTIONS = ('--state-topic',)
 # Pattern roles (fnmatch on the repository-relative path), checked after ROLE_TABLE, first match wins.
 ROLE_PATTERNS = (
     ('sim/ubts/test_*.py', ROLE_TEST, 'unit test'),
@@ -764,6 +769,9 @@ def subscription_check(root=None, files=EXECUTOR_SUBSCRIPTION_FILES,
                     where = '%s:%d %s' % (rel, node.lineno, node.args[0].value)
                     if not isinstance(value, str):
                         problems.append('command-line topic without a constant default at %s' % where)
+                    elif node.args[0].value in EXECUTOR_OUTPUT_TOPIC_OPTIONS:
+                        if value not in EXECUTOR_PUBLISH_TOPICS:
+                            problems.append('output topic %s outside EXECUTOR_PUBLISH_TOPICS at %s' % (value, where))
                     else:
                         topics.append(dict(topic=value, where=where))
     outside = sorted({t['topic'] for t in topics if t['topic'] not in allowlist})

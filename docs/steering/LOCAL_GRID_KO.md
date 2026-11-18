@@ -198,3 +198,19 @@ python -B -m steering.safety_scripts.perception_figures --replay <runs>/replay -
 - 격자 나이에 따른 속도 상한(`v_map`)과 `grid_stale` 일시정지는 속도 조절기(PC-10) 몫이다. 요약의 `fit.age_s`를 읽으면 된다.
 - 직렬화 형식은 대시보드 묶음(UI-09, NET)과 아직 맞추지 않았다.
 - 넓은 사전등록 행렬(PC-14, PC-15)과 Gazebo 확인은 다른 묶음의 일이다. 6절의 비교는 판정이 아니다.
+
+## 9. 주행 중 표시 전용 격자(2026-11-19 복도 확인)
+
+- 알아낸 것: 복도 시험의 실행기 설정(`config_motor_corridor_age06_20261119.json`)에는 `local_grid_*` 키가 없다(= `local_grid_enabled`
+  false). 그래서 Runner가 격자를 만들지 않고(`perception` 없음), 상태에 `local_grid_map`이 없으며, 대시보드 `?grid=1`은 run 중에도 끝난
+  뒤에도 격자를 받지 못한다. 격자는 이득과 상관없이 `local_grid_enabled`일 때만 만들어진다. 이득 0(기본)이면 이미 표시·기록 전용이다
+  (추정기 입력 없음, 4절). 그러니 코드 변경 없이 설정만으로 켤 수 있다.
+- 켜면: run이 열려 있는 동안(PAUSED·ACTIVE·ENDED, 다음 Start까지) 처리한 스캔마다 넣고 `local_grid_every_n_scans`마다 갱신한다.
+  Start 전(IDLE)에는 격자가 없다(`local_grid_map` null). run 지표(`run_metrics.py`)의 격자 기준과 상태 토픽의 `grid_centreline`도 이 격자를 쓴다.
+- 복도 재생(잰 기록, 실내 타일 복도, 2026-11-18/19 run 6개, 실행기 Runner에 기록된 /scan·/imu/data_raw를 그대로 넣은 개방 루프, 이 PC):
+  `local_grid_every_n_scans` 4, 이득 0에서 추정기 출력은 격자 없음과 6/6 run 모두 틱마다 같았다. 갱신 시간 p99 2.4~4.2 ms(PC),
+  직렬화 약 3.8 KB(비트맵), 0.05 ms. 주행 틱의 100 %에서 1 s 안의 맞춤이 있었고, 추정기 중심선과의 차이는 횡 RMS 0.010~0.041 m, 방향
+  RMS 0.13~0.43°였다. Jetson(부하 평균 4~6)에서는 재지 않았다. PC 대비 약 3배로 어림하면 갱신당 약 10 ms, 2.5 Hz면 한 코어의 약 3 %다.
+- 현장 설정 제안(설치하지 않음): `{"local_grid_enabled": true, "local_grid_every_n_scans": 4, "local_grid_publish": true,
+  "local_grid_publish_period_s": 1.0}`(이득 키는 쓰지 않는다 = 0). 설정 digest가 바뀐다. 기록 폴더
+  `steering-sim-20261108/runs/sim_field_20261119/proposals/`.

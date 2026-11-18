@@ -22,8 +22,13 @@ API (all JSON; the autonomy contract of the front-steer executor is docs/steerin
   POST /api/release  {"press": id}          hold_to_run only: pointerup / blur / visibilitychange / pagehide
   POST /api/stop     {}                     MOTOR: op stop to the bridge at once, run ends, LATCHED (HTTP 502 when
                                             the bridge did not confirm). SHADOW: ends the shadow run only.
-  POST /api/start    {"row_len_m": L}       new run (row length required in the field profile; optional in mode
-                                            single_row: null = no length, the single-row distance / time caps bound it)
+  POST /api/start    {"row_len_m": L, "gnss_mode": m}   new run (row length required in the field profile; optional in
+                                            mode single_row: null = no length, the single-row distance / time caps bound
+                                            it). gnss_mode (optional; absent or null = the config's gnss_mode): 'off' |
+                                            'log_only' | 'geofence' | 'weak_constraint' for this run only; 400
+                                            gnss_mode_invalid for another value, 409 gnss_mode_unsupported (+ reasons,
+                                            supported) for a mode the config does not allow (gnss_run_modes) or support;
+                                            400 unknown_parameter for any other key
   POST /api/end      {}                     end the run normally (no latch)
   POST /api/arm      {}                     MOTOR only: take the bridge lease for the current run
   POST /api/ack      {}                     acknowledge a LATCHED bridge client (does not arm)
@@ -64,6 +69,7 @@ import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_BODY = 4096
+GNSS_MODES = ('off', 'log_only', 'geofence', 'weak_constraint')   # perception_settings.GNSS_MODES (the page needs no numpy)
 JSON_TYPE = 'application/json; charset=utf-8'
 
 
@@ -194,7 +200,12 @@ class Handler(BaseHTTPRequestHandler):
             result = loop.emergency_stop('operator_page')
             return self._send(502 if result.get('stop_sent') is False else 200, result)
         if route == '/api/start':
-            return self._result(loop.request('start', row_len_m=body.get('row_len_m')))
+            if set(body) - {'row_len_m', 'gnss_mode'}:
+                return self._deny(400, 'unknown_parameter')
+            gnss_mode = body.get('gnss_mode')
+            if gnss_mode is not None and gnss_mode not in GNSS_MODES:
+                return self._send(400, dict(ok=False, error='gnss_mode_invalid', allowed=list(GNSS_MODES)))
+            return self._result(loop.request('start', row_len_m=body.get('row_len_m'), gnss_mode=gnss_mode))
         if route == '/api/end':
             return self._result(loop.request('end'))
         if route == '/api/arm':

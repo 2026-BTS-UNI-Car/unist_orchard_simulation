@@ -21,11 +21,18 @@ configurations keep their digest; both layers are OFF by default and the Runner 
   _course_tolerance_deg         GnssSettings
   gnss_rtk_fix_types / _max_hacc_m / _gain / _cap_m / _rate_m_s / _hold_s / _window_m / _min_span_m / _antenna_x_m /
   _antenna_y_m                  RtkSettings (read only in mode 'weak_constraint')
+  gnss_run_modes                the modes a single run may ask for at its Start (operator API POST /api/start gnss_mode,
+                                2026-11-19 field request: GPS on or off per autonomy run). Comma list; default
+                                'off,log_only,geofence' (they never reach a command: log_only reports, geofence can only
+                                END a run). 'weak_constraint' changes the steering input (bounded) and is a run choice only
+                                when listed here (or when gnss_mode itself is weak_constraint). The configured gnss_mode is
+                                always allowed (it is the run mode of a Start without gnss_mode).
 """
 from dataclasses import dataclass
 import math
 
 GNSS_MODES = ('off', 'log_only', 'geofence', 'weak_constraint')
+DEFAULT_RUN_MODES = 'off,log_only,geofence'   # gnss_run_modes default (the modes that never reach a command)
 RTK_FIX_TYPES = ('fixed', 'float')          # the receiver solutions the RTK gate can accept (gnss_rtk.py)
 _REAL = 'real'                 # the config.py field-spec kind of a finite number
 
@@ -201,6 +208,7 @@ CONFIG_SPEC = {
     'gnss_rtk_cap_m': (_REAL, 0., .3), 'gnss_rtk_rate_m_s': (_REAL, .005, .2), 'gnss_rtk_hold_s': (_REAL, .2, 5.),
     'gnss_rtk_window_m': (_REAL, 4., 100.), 'gnss_rtk_min_span_m': (_REAL, 1., 50.),
     'gnss_rtk_antenna_x_m': (_REAL, -2., 2.), 'gnss_rtk_antenna_y_m': (_REAL, -2., 2.),
+    'gnss_run_modes': (str,),
 }
 
 
@@ -217,8 +225,10 @@ def grid_settings(cfg):
                         fit_cross_max_m=min(base.fit_cross_max_m, width / 2))
 
 
-def gnss_settings(cfg):
-    return GnssSettings(mode=cfg.gnss_mode, max_hacc_m=float(cfg.gnss_max_hacc_m), max_age_s=float(cfg.gnss_max_age_s),
+def gnss_settings(cfg, mode=None):
+    """GnssSettings of an ExecutorConfig; mode: a run's gnss_mode (None = the configured gnss_mode)."""
+    mode = cfg.gnss_mode if mode is None else mode
+    return GnssSettings(mode=mode, max_hacc_m=float(cfg.gnss_max_hacc_m), max_age_s=float(cfg.gnss_max_age_s),
                         jump_gate_m=float(cfg.gnss_jump_gate_m), fence_margin_m=float(cfg.gnss_fence_margin_m),
                         fence_confirm=int(cfg.gnss_fence_confirm), course_baseline_m=float(cfg.gnss_course_baseline_m),
                         course_tolerance_deg=float(cfg.gnss_course_tolerance_deg))
@@ -237,9 +247,45 @@ def rtk_settings(cfg):
                        antenna_x_m=float(cfg.gnss_rtk_antenna_x_m), antenna_y_m=float(cfg.gnss_rtk_antenna_y_m))
 
 
-def enabled(cfg):
-    """True when any perception layer is on (the Runner builds PerceptionLayers only then)."""
-    return bool(getattr(cfg, 'local_grid_enabled', False)) or getattr(cfg, 'gnss_mode', 'off') != 'off'
+def enabled(cfg, gnss_mode=None):
+    """True when any perception layer is on (the Runner builds PerceptionLayers only then); gnss_mode: a run's mode
+    (None = the configured gnss_mode)."""
+    mode = getattr(cfg, 'gnss_mode', 'off') if gnss_mode is None else gnss_mode
+    return bool(getattr(cfg, 'local_grid_enabled', False)) or mode != 'off'
+
+
+def run_modes(cfg):
+    """The gnss_mode values a run may ask for (gnss_run_modes + the configured gnss_mode, in GNSS_MODES order)."""
+    listed = {part.strip() for part in str(getattr(cfg, 'gnss_run_modes', DEFAULT_RUN_MODES)).split(',') if part.strip()}
+    listed.add(getattr(cfg, 'gnss_mode', 'off'))
+    return tuple(m for m in GNSS_MODES if m in listed)
+
+
+def mode_problems(cfg, mode):
+    """Why the configuration can not run gnss_mode `mode` (empty = it can): the GNSS settings, and for
+    weak_constraint the front_steer profile and the RTK settings."""
+    if mode not in GNSS_MODES:
+        return ['gnss_mode: must be one of %s' % (GNSS_MODES,)]
+    if mode == 'off':
+        return []
+    p = ['gnss: ' + text for text in gnss_settings(cfg, mode).problems()]
+    if mode == 'weak_constraint':
+        if getattr(cfg, 'vehicle_profile', None) != 'front_steer':
+            p.append('gnss_mode weak_constraint needs vehicle_profile front_steer (the steering controller input)')
+        p += ['gnss_rtk: ' + text for text in rtk_settings(cfg).problems()]
+    return p
+
+
+def run_mode_problems(cfg, mode):
+    """Why a run can not use gnss_mode `mode` (empty = it can): not one of GNSS_MODES, not in run_modes(cfg), or
+    mode_problems()."""
+    if mode not in GNSS_MODES:
+        return ['gnss_mode: must be one of %s' % (GNSS_MODES,)]
+    if mode not in run_modes(cfg):
+        why = ('it changes the steering input (bounded RTK correction): list it in gnss_run_modes to allow it per run'
+               if mode == 'weak_constraint' else 'list it in gnss_run_modes to allow it per run')
+        return ['gnss_mode %s is not in the run modes of this configuration %s: %s' % (mode, run_modes(cfg), why)]
+    return mode_problems(cfg, mode)
 
 
 def rule_problems(cfg):
@@ -251,14 +297,15 @@ def rule_problems(cfg):
         p.append('local_grid_publish / local_grid_fuse_width need local_grid_enabled')
     if cfg.local_grid_enabled:
         p += ['local_grid: ' + text for text in grid_settings(cfg).problems()]
-    if cfg.gnss_mode not in GNSS_MODES:
-        p.append('gnss_mode: must be one of %s' % (GNSS_MODES,))
-    elif cfg.gnss_mode != 'off':
-        p += ['gnss: ' + text for text in gnss_settings(cfg).problems()]
-    if cfg.gnss_mode == 'weak_constraint':
-        if getattr(cfg, 'vehicle_profile', None) != 'front_steer':
-            p.append('gnss_mode weak_constraint needs vehicle_profile front_steer (the steering controller input)')
-        p += ['gnss_rtk: ' + text for text in rtk_settings(cfg).problems()]
+    p += mode_problems(cfg, cfg.gnss_mode)
+    listed = [part.strip() for part in str(cfg.gnss_run_modes).split(',') if part.strip()]
+    bad = [m for m in listed if m not in GNSS_MODES]
+    if bad or len(set(listed)) != len(listed):
+        p.append('gnss_run_modes: a comma list of distinct modes out of %s' % (GNSS_MODES,))
+    else:
+        for mode in listed:
+            if mode != cfg.gnss_mode:
+                p += ['gnss_run_modes %s: %s' % (mode, text) for text in mode_problems(cfg, mode)]
     return p
 
 

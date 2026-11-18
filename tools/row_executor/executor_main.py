@@ -106,6 +106,7 @@ from . import calib_runs as CR
 from . import config as C
 from . import field_tuning as T
 from . import online_scale as OS
+from . import perception_settings as PS
 from .bridge_client import (ARMED, ESP32_KIND, LATCHED, LEASE_GONE_ERRORS, BridgeClient, BridgeError,
                             Esp32AbsHoldAdapter, Esp32SteerBridgeClient, SteerBridgeClient, UnixSocketTransport,
                             idle_latch_only, recovery_hint)
@@ -784,6 +785,88 @@ def _json_default(value):
     return repr(value)
 
 
+# Executor state topic (2026-11-19 field request; docs/steering/ROW_EXECUTOR_STATE_TOPIC_KO.md): std_msgs/String with one
+# compact JSON object, published by the loop thread for recordings and the dashboard's autonomy view. Display only.
+STATE_TOPIC = '/row_executor/state'
+STATE_SCHEMA = 'ubts.row_executor.state.v1'
+STATE_PERIOD_RUN_S = .1          # while a run is open (PAUSED / ACTIVE): about 10 Hz
+STATE_PERIOD_IDLE_S = 1.         # otherwise (no run, the run ended): about 1 Hz
+STATE_LINE_BEHIND_M = 2.         # the centreline segments: from this far behind the base ...
+STATE_LINE_AHEAD_M = 8.          # ... to this far ahead of it (along the line)
+STATE_METRIC_KEYS = ('ref', 'samples', 'distance_m', 'lat_rms_m', 'lat_mean_m', 'lat_max_abs_m', 'within_0_05_pct',
+                     'within_0_10_pct', 'head_rms_deg', 'head_max_abs_deg', 'grid_samples', 'grid_lat_rms_m',
+                     'grid_lat_mean_m', 'grid_lat_max_abs_m', 'grid_within_0_05_pct', 'grid_within_0_10_pct',
+                     'grid_head_rms_deg', 'grid_head_max_abs_deg')
+
+
+def _round(value, digits):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return round(float(value), digits)
+
+
+def _line_segment(heading, offset, pose):
+    """Two odometry points of the line {p : n . p = offset} (n = left normal of heading), STATE_LINE_BEHIND_M behind
+    to STATE_LINE_AHEAD_M ahead of the base pose's along-line coordinate."""
+    c, s = math.cos(heading), math.sin(heading)
+    along = c * pose[0] + s * pose[1]
+    return [[round(-s * offset + u * c, 3), round(c * offset + u * s, 3)]
+            for u in (along - STATE_LINE_BEHIND_M, along + STATE_LINE_AHEAD_M)]
+
+
+def _to_base(points, pose):
+    """Odometry points -> the base frame of pose (x forward, y left)."""
+    x0, y0, yaw = pose
+    c, s = math.cos(yaw), math.sin(yaw)
+    return [[round(c * (x - x0) + s * (y - y0), 3), round(-s * (x - x0) + c * (y - y0), 3)] for x, y in points]
+
+
+def state_message(status, geometry, decision=None):
+    """One message of the state topic (schema STATE_SCHEMA, ROW_EXECUTOR_STATE_TOPIC_KO.md) from the status of this tick
+    and Runner.state_geometry() (None before the first run)."""
+    st = status
+    sr = st.get('single_row') if isinstance(st.get('single_row'), dict) else {}
+    gnss = st.get('gnss') if isinstance(st.get('gnss'), dict) else {}
+    steer = st.get('steer') if isinstance(st.get('steer'), dict) else {}
+    metrics = st.get('metrics') if isinstance(st.get('metrics'), dict) else None
+    msg = dict(schema=STATE_SCHEMA, stamp=st.get('t_wall'), t=st.get('t'), run_id=st.get('run'), mode=st.get('mode'),
+               run_state=st.get('run_state'), state=st.get('state'), reason=st.get('reason'), phase=sr.get('phase'),
+               stop_reason=st.get('stop_reason'), gnss=dict(mode=gnss.get('mode'), state=gnss.get('state')),
+               frame='run_odometry', pose=None,
+               lat_m=st.get('lat'), head_deg=st.get('head'), width_m=st.get('width'),
+               corridor_ok=st.get('corridor'), corridor_reason=st.get('corridor_reason'),
+               centreline=None, grid_centreline=None, lookahead=None,
+               steer_cmd_mrad=st.get('S'), steer_meas_mrad=steer.get('meas'),
+               throttle_pct=st.get('T', st.get('L')), speed_mps=st.get('v'), dist_m=st.get('dist'),
+               front_m=st.get('front'), target_speed_mps=sr.get('target_speed_m_s'),
+               metrics=None if metrics is None else {k: metrics.get(k) for k in STATE_METRIC_KEYS})
+    if metrics is not None:
+        msg['metrics']['run_id'] = metrics.get('run_id')
+    if not geometry or 'pose' not in geometry:
+        return msg
+    pose = tuple(float(v) for v in geometry['pose'])
+    if not all(math.isfinite(v) for v in pose):
+        return msg
+    msg['pose'] = dict(x=round(pose[0], 3), y=round(pose[1], 3), yaw_deg=round(math.degrees(pose[2]), 2))
+    band = geometry.get('band')
+    if band is not None and st.get('corridor') and all(math.isfinite(v) for v in band):
+        odom = _line_segment(band[0], band[1], pose)
+        msg['centreline'] = dict(odom=odom, base=_to_base(odom, pose), axis_deg=round(math.degrees(band[0]), 2),
+                                 width_m=round(band[2], 3))
+    grid = geometry.get('grid')
+    if grid is not None and all(math.isfinite(v) for v in grid):
+        odom = _line_segment(grid[0], grid[1], pose)
+        msg['grid_centreline'] = dict(odom=odom, base=_to_base(odom, pose), axis_deg=round(math.degrees(grid[0]), 2),
+                                      width_m=round(grid[2], 3))
+    look = geometry.get('lookahead')
+    if look is not None and st.get('state') == ACTIVE and all(math.isfinite(v) for v in look):
+        c, s = math.cos(pose[2]), math.sin(pose[2])
+        msg['lookahead'] = dict(base=[round(look[0], 3), round(look[1], 4)],
+                                odom=[round(pose[0] + c * look[0] - s * look[1], 3),
+                                      round(pose[1] + s * look[0] + c * look[1], 3)])
+    return msg
+
+
 def _clean(value):
     """JSON-safe copy (non-finite floats -> None)."""
     if isinstance(value, dict):
@@ -926,6 +1009,8 @@ class ExecutorLoop:
         self._last_scan_info = {}
         self._phases = None                     # diagnostics: phase times [ms] of this step (logged when slow)
         self.tick_extra = None                  # diagnostics: callable -> dict logged as the tick's 'diag' (SIM container)
+        self.state_sink = None                  # callable(json text) of the state topic (RosInput: /row_executor/state)
+        self._state_last_t = None
         self._calib_logged = (None, 0, False)   # (run id, results logged, result event logged)
         self._calib_options = (None, None)      # (config digest, calib_runs.plan_options)
         self._run_end_logged = None             # run id of the last 'run_end' event (R6)
@@ -1421,7 +1506,7 @@ class ExecutorLoop:
             return dict(ok=False, error='acknowledge_latch_first', latch=self.bridge.latch_reason)
         return None
 
-    def _start(self, now, row_len_m, source='operator'):
+    def _start(self, now, row_len_m, source='operator', gnss_mode=None):
         blocked = self._start_blocked()
         if blocked is not None:
             return blocked
@@ -1429,7 +1514,7 @@ class ExecutorLoop:
             if self.config.profile == 'bench':
                 run_id = self.runner.start_bench(now)
             else:
-                run_id = self.runner.start_run(now, row_len_m)
+                run_id = self.runner.start_run(now, row_len_m, gnss_mode=gnss_mode)
         except (ValueError, RuntimeError) as exc:
             return dict(ok=False, error=str(exc))
         self._ending_since = None
@@ -1438,10 +1523,31 @@ class ExecutorLoop:
         self._event('start', run_id=run_id, row_len_m=row_len_m, source=source,
                     backstop=self.runner.backstop.summary() if self.runner.backstop else None,
                     config_digest=self._config_digest,
-                    tuning=None if self.tuning is None else self.tuning.brief())    # the run's tuning (PC-13)
-        return dict(ok=True, run_id=run_id)
+                    tuning=None if self.tuning is None else self.tuning.brief(),    # the run's tuning (PC-13)
+                    gnss_mode=getattr(self.runner, 'run_gnss_mode', None),          # this run's GNSS layer mode
+                    gnss_mode_source='request' if gnss_mode is not None else 'config')
+        return dict(ok=True, run_id=run_id, gnss_mode=getattr(self.runner, 'run_gnss_mode', None))
 
-    def _req_start(self, now, row_len_m=None):
+    def _gnss_mode_refusal(self, gnss_mode):
+        """None when a Start may use gnss_mode (None = the configured mode), else the refusal (OPERATOR_API_KO.md 3:
+        gnss_mode_invalid for a value outside the four modes, gnss_mode_unsupported with the reasons)."""
+        if gnss_mode is None:
+            return None
+        supported = [m for m in PS.run_modes(self.config) if not PS.mode_problems(self.config, m)]
+        if not isinstance(gnss_mode, str) or gnss_mode not in PS.GNSS_MODES:
+            return dict(ok=False, error='gnss_mode_invalid', allowed=list(PS.GNSS_MODES), supported=supported)
+        if self.config.profile == 'bench':
+            return dict(ok=False, error='gnss_mode_unsupported', reasons=['bench runs have no GNSS layer choice'],
+                        supported=supported)
+        problems = PS.run_mode_problems(self.config, gnss_mode)
+        if problems:
+            return dict(ok=False, error='gnss_mode_unsupported', reasons=problems, supported=supported)
+        return None
+
+    def _req_start(self, now, row_len_m=None, gnss_mode=None):
+        refusal = self._gnss_mode_refusal(gnss_mode)
+        if refusal is not None:
+            return refusal
         number = (not isinstance(row_len_m, bool) and isinstance(row_len_m, (int, float))
                   and math.isfinite(row_len_m))
         if self.config.profile != 'bench' and self.config.mode == C.SINGLE_ROW_MODE:
@@ -1452,7 +1558,7 @@ class ExecutorLoop:
         elif self.config.profile != 'bench':
             if not number:
                 return dict(ok=False, error='row_len_m_required')
-        return self._start(now, None if row_len_m is None else float(row_len_m))
+        return self._start(now, None if row_len_m is None else float(row_len_m), gnss_mode=gnss_mode)
 
     def _req_turn_observe(self, now, params=None):
         """Always refused: the headland-turn observation (turn_observation.py) is not part of this package (U-turn is
@@ -2163,8 +2269,31 @@ class ExecutorLoop:
             status['vehicle_profile'] = self.config.vehicle_profile
             status['steering'] = s.get('steering')
             status['steer_limits_mrad'] = [self.config.steer_limit_left_mrad, self.config.steer_limit_right_mrad]
+        gnss_status = getattr(self.runner, 'gnss_status', None)
+        if gnss_status is not None:                 # per-run GNSS layer mode and its state (OPERATOR_API_KO.md 4.2)
+            status['gnss'] = gnss_status(now)
+        status['metrics'] = s.get('metrics')        # path vs centreline of this / the last run (run_metrics.py)
         with self._status_lock:
             self._status = _clean(status)
+        if self.state_sink is not None:
+            self._emit_state(now, d, status)
+
+    def _emit_state(self, now, d, status):
+        """The executor state topic (ROW_EXECUTOR_STATE_TOPIC_KO.md): STATE_PERIOD_RUN_S while a run is open, else
+        STATE_PERIOD_IDLE_S. Display / recording only; an error here is counted and never stops a tick."""
+        period = STATE_PERIOD_RUN_S if d.state in (PAUSED, ACTIVE) else STATE_PERIOD_IDLE_S
+        if self._state_last_t is not None and now - self._state_last_t < period - 1e-6:
+            return
+        self._state_last_t = now
+        try:
+            geometry = getattr(self.runner, 'state_geometry', lambda _now: None)(now)
+            text = json.dumps(_clean(state_message(status, geometry, d)), separators=(',', ':'), allow_nan=False)
+            self.state_sink(text)
+            self.counts['state_messages'] = self.counts.get('state_messages', 0) + 1
+        except Exception as exc:                    # never stop a tick for the display topic
+            self.counts['state_errors'] = self.counts.get('state_errors', 0) + 1
+            if self.counts['state_errors'] <= 3:
+                self._event('state_topic_error', error=repr(exc)[:200])
 
     def _speed_status(self, d):
         """The speed block of the contract: target_mps (the configured cruise target), limit_mps (the speed reference of
@@ -2215,7 +2344,8 @@ class ExecutorLoop:
                     stall_guard_pauses=s.get('stall_guard_pauses'), controllers_built=s.get('controllers_built'),
                     corridor_lost_pauses=s.get('corridor_lost_pauses'), inner_limited_ticks=s.get('inner_limited_ticks'),
                     no_motion_drive_s=s.get('no_motion_drive_s'), backstop=s.get('backstop'),
-                    distance_m=s.get('distance_m'), guard_violation=s.get('guard_violation'))
+                    distance_m=s.get('distance_m'), guard_violation=s.get('guard_violation'),
+                    gnss_mode=getattr(self.runner, 'run_gnss_mode', None), metrics=s.get('metrics'))
 
     def _calib_plan_options(self):
         if not (self.motor_allowed and self.config.calib_motor_output_enabled):
@@ -2360,7 +2490,7 @@ class RosInput:
     """rclpy subscriptions -> ExecutorLoop input buffers (receipt = time.monotonic() at callback entry)."""
 
     def __init__(self, loop, scan_topic='/scan', imu_topic='/imu/data_raw', human_topic='/rover/control/requested',
-                 gnss_topic='/gps/fix'):
+                 gnss_topic='/gps/fix', state_topic=STATE_TOPIC):
         import rclpy
         from rclpy.executors import SingleThreadedExecutor
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -2379,10 +2509,20 @@ class RosInput:
         self.node.create_subscription(Imu, imu_topic, lambda m: loop.on_imu_msg(mono(), m), sensor_qos(50))
         if human_topic:
             self.node.create_subscription(String, human_topic, lambda m: loop.on_human_msg(mono(), m.data), 5)
-        if loop.config.gnss_mode != 'off' and gnss_topic:
-            # GNSS layer input only (A13 revision 30): gnss_layer reads it, never the estimator or a command
+        if gnss_topic and any(m != 'off' for m in PS.run_modes(loop.config)):
+            # GNSS layer input only (A13 revision 30): gnss_layer reads it, never the estimator or a command. Subscribed
+            # whenever a run may use a GNSS mode (gnss_mode or gnss_run_modes); a run in mode off ignores the fixes
             from sensor_msgs.msg import NavSatFix
             self.node.create_subscription(NavSatFix, gnss_topic, lambda m: loop.on_gnss_msg(mono(), m), sensor_qos(5))
+        if state_topic:
+            # display / recording only (ROW_EXECUTOR_STATE_TOPIC_KO.md): the loop thread publishes, nothing subscribes
+            publisher = self.node.create_publisher(String, state_topic, 10)
+
+            def sink(text, publisher=publisher, kind=String):
+                message = kind()
+                message.data = text
+                publisher.publish(message)
+            loop.state_sink = sink
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(self.node)
         self.thread = threading.Thread(target=self._spin, name='row-executor-ros', daemon=True)
@@ -2430,7 +2570,10 @@ def parse_args(argv=None):
     p.add_argument('--scan-topic', default='/scan')
     p.add_argument('--imu-topic', default='/imu/data_raw')
     p.add_argument('--human-topic', default='/rover/control/requested')
-    p.add_argument('--gnss-topic', default='/gps/fix', help='GNSS layer input, subscribed only with gnss_mode not off')
+    p.add_argument('--gnss-topic', default='/gps/fix',
+                   help='GNSS layer input, subscribed when gnss_mode or gnss_run_modes has a mode other than off')
+    p.add_argument('--state-topic', default='/row_executor/state',      # = STATE_TOPIC (constant for the A13 check)
+                   help='executor state topic (std_msgs/String JSON, ROW_EXECUTOR_STATE_TOPIC_KO.md); empty = none')
     p.add_argument('--no-http', action='store_true', help='SHADOW only: run without the operator page')
     p.add_argument('--skip-source-check', action='store_true', help='development only; refused with --motor-output')
     return p.parse_args(argv)
@@ -2489,7 +2632,8 @@ def main(argv=None):
     ros = None
     try:
         try:
-            ros = RosInput(loop, args.scan_topic, args.imu_topic, args.human_topic or None, args.gnss_topic)
+            ros = RosInput(loop, args.scan_topic, args.imu_topic, args.human_topic or None, args.gnss_topic,
+                           args.state_topic or None)
         except ImportError as exc:
             print('rclpy/sensor_msgs not importable (source the ROS setup first): %s' % exc, file=sys.stderr)
             return 4
