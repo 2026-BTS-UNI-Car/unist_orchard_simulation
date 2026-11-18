@@ -437,6 +437,24 @@ class SteerRunnerTest(unittest.TestCase):
         self.assertTrue(ended)
         self.assertEqual(ended[0].reason, 'guard_violation:steer_in_non_driving_state')
 
+    def test_new_run_forgets_the_previous_steering(self):
+        # 2026-11-19 corridor: run 1 ended with the wheels steered (+~120 mrad); run 2's controller starts again
+        # near 0 (no measured steering, as in SHADOW). Before the fix the guard compared run 2's first command with
+        # run 1's last one and ended run 2 at once (guard_violation:steer_rate_above_limit).
+        controllers = iter([StubSteer(start=0, step=2), StubSteer(start=0, step=2)])
+        runner = Runner(steer_config(), controller_factory=lambda: next(controllers))
+        driver = L.FakeTimeDriver(runner, lambda t: SCENE, t0=2000.)
+        runner.start_run(driver.t, None)
+        out1 = driver.run(3.) + driver.run(3., hold=True)
+        self.assertTrue([d for _, d in out1 if d.state == ACTIVE and d.steer_mrad and d.steer_mrad > 60])
+        runner.end_run(driver.t)
+        driver.run(1.)
+        runner.start_run(driver.t, None)
+        out2 = driver.run(3.) + driver.run(3., hold=True)
+        self.assertTrue([d for _, d in out2 if d.state == ACTIVE], 'run 2 drives')
+        self.assertNotEqual(runner.end_reason, 'guard_violation:steer_rate_above_limit')
+        self.assertEqual(runner.guard.violations, 0)
+
     def test_rate_violation_ends_the_run(self):
         controller = StubSteer(step=60)
         runner, _, out = run_static(steer_config(), controller)

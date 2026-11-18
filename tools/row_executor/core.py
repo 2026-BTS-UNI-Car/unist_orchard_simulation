@@ -986,6 +986,14 @@ class Runner:
         self._held_steer = None
         if getattr(self, 'steer_monitor', None) is not None:
             self.steer_monitor.reset_run()
+        # 2026-11-19 field (corridor): the output guard kept the previous run's last steering command, so a new run
+        # whose wheels had moved in between (manual steering, a SHADOW run, another tool) ended at its first command
+        # with steer_rate_above_limit. A run starts from the steering it measures (the held steering above), so the
+        # guard forgets the previous run; the first measured steering re-seeds it through the zero-output holds.
+        guard = getattr(self, 'guard', None)
+        if isinstance(guard, SteerOutputGuard):
+            guard.last_t = guard.last_steer = None
+            guard.last_throttle = 0
 
     def _begin(self, t, kind):
         self.run_id += 1
