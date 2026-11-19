@@ -14,7 +14,13 @@ Without UBTS_EXECUTOR_URL the dashboard reads the link file of the Jetson execut
 With neither the relay is "not configured": the status says so and every action answers 503. The
 executor checks Host, Origin and the X-Row-Token header and takes JSON bodies of at most 4 KiB; this module sends
 exactly that, with only the fields of the contract. The status is reduced to the fields the screens show (no GNSS
-coordinates, no paths). Standard library only.
+coordinates). Only the map screen's ?grid=1 read carries the run's own odometry geometry (local grid, estimator band,
+the recent path of this run: run-local metres from the start pose, never GNSS). Standard library only.
+
+GPS per run (2026-11-19, user request 'gps를 자율주행에 쓸지 안쓸지를 이제 결정해서 자율주행을 굴릴 수 있으면'): POST
+/api/executor/start may carry "gnss_mode" (off | log_only | geofence | weak_constraint); null or absent = the executor's
+configured mode (the field is then not sent, as before). Any other value: 400 invalid_gnss_mode. The executor decides
+(weak_constraint needs RTK FIXED) and answers its own refusal, which the page shows.
 """
 from __future__ import annotations
 
@@ -32,6 +38,7 @@ SESSION = re.compile(r"[A-Za-z0-9_-]{4,64}")      # contract v0 revision 2: 4 to
 TIMEOUT_S = {"heartbeat": 0.8, "stop": 2.5}       # placeholders (STEERING_SERVER_KO.md 6); others 2.0 s
 DEFAULT_TIMEOUT_S = 2.0
 ACTIONS = ("start", "arm", "go", "heartbeat", "stop", "ack", "end")
+GNSS_MODES = ("off", "log_only", "geofence", "weak_constraint")    # tools/row_executor/config.py gnss_mode
 
 # GET /api/status fields passed to the page (STEERING_SERVER_KO.md 6). None = the whole value (a scalar or a list of
 # strings), a tuple = only these keys of the object. "tuning" and "local_grid_map" have their own readers below.
@@ -39,11 +46,18 @@ STATUS_FIELDS = {
     "run_state": None, "start_mode": None, "stop_reason": None, "stop_detail": None, "go_ready": None,
     "go_blockers": None, "mode": None, "state": None, "reason": None, "end_reason": None, "controller_mode": None,
     "profile": None, "vehicle_control": None, "lidar_age": None, "imu_age": None,
+    # the tick record of a front_steer executor: run id, throttle T (%), steering target S (mrad), corridor width
+    "run": None, "T": None, "S": None, "width": None, "corridor": None,
+    "steer": ("meas", "age", "sat"),
     "operator_link": ("fresh", "age_s", "timeout_s"),
     "speed": ("target_mps", "limit_mps", "limit_reason"),
     "single_row": ("phase", "lateral_error_m", "heading_error_deg", "distance_m", "speed_m_s", "target_speed_m_s",
-                   "stop_reason", "stop_category", "confidence"),
-    "gnss": ("state", "fix", "age_s", "h_acc_m", "used"),
+                   "stop_reason", "stop_category", "confidence", "throttle_pct", "steer_mrad", "end_remaining_m",
+                   "lookahead_error_deg", "lateral_reference_m"),
+    # the GNSS layer of the run (gnss_layer.py summary; 2026-11-19 per-run mode): no coordinates (rel_m stays here)
+    "gnss": ("mode", "configured_mode", "requested_mode", "state", "fix", "fix_type", "present", "outcome", "age_s",
+             "h_acc_m", "hacc_m", "used", "accepted", "rejected", "aligned", "fence_tripped", "fence_inside", "reason",
+             "counts", "rtk"),
     "bridge_detail": ("state", "latch_reason"),
     # contract revision 3: the bridge took the lease back before the first go (the run stays open, run_state ready)
     "lease_lost": ("where", "error", "bridge_reason", "bridge_latches", "steering_fault"),
@@ -52,6 +66,8 @@ STATUS_FIELDS = {
                      "speed_scale", "prior_scale", "offer"),
 }
 NESTED = {("single_row", "confidence"): ("level",),
+          ("gnss", "counts"): ("accepted", "restarted", "reanchored", "invalid", "order", "no_fix", "quality", "jump"),
+          ("gnss", "rtk"): ("state", "fix_type", "fix_age_s", "fix_hacc_m", "correction_m", "fix_reason"),
           ("online_scale", "offer"): ("run_id", "value", "window_s", "end_reason", "speed_scale_now", "speed_scale_new",
                                       "ok", "why_not")}
 # tools/row_executor/field_tuning.py State.status() (OPERATOR_API_KO.md 6). The file path and digests stay here.
@@ -64,6 +80,13 @@ GRID_SCHEMA = "ubts.row_executor.local_grid.v1"
 GRID_SCALARS = ("schema", "frame", "updates", "axis_rad", "occupied", "encoding", "age_s", "cell_m", "truncated")
 MAX_GRID_BITS = 24576
 MAX_GRID_CELLS = 2000
+# status.metrics (2026-11-19): the run's reference centreline against the travelled path (lat_rms_m, within_0_10_pct,
+# head_rms_deg, grid_* ...). The names may still change, so every short snake_case key with a number, a bool or a short
+# text is passed (aggregates only, no coordinates).
+METRIC_KEY = re.compile(r"[a-z][a-z0-9_]{0,47}")
+MAX_METRICS = 64
+# status.single_row_geometry (estimator band and the recent path, run odometry frame) on the ?grid=1 read only.
+MAX_PATH_POINTS = 200
 
 
 def _scalar(value):
@@ -146,8 +169,56 @@ def page_grid(raw):
     return out
 
 
+def page_metrics(raw):
+    """status.metrics: the scalar aggregates (numbers, bools, short texts) under short snake_case names."""
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for key, value in raw.items():
+        if len(out) >= MAX_METRICS:
+            break
+        if not isinstance(key, str) or not METRIC_KEY.fullmatch(key):
+            continue
+        if isinstance(value, bool) or _number(value) is not None:
+            out[key] = value
+        elif isinstance(value, str):
+            out[key] = value[:40]
+    return out
+
+
+def page_geometry(raw):
+    """status.single_row_geometry for the monitoring view: base pose, band, recent path, optional lookahead point."""
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    if isinstance(raw.get("frame"), str):
+        out["frame"] = raw["frame"][:64]
+    base = _numbers(raw.get("base"), 3)
+    if base is not None:
+        out["base"] = base
+    band = raw.get("band")
+    if isinstance(band, dict):
+        part = {k: band[k] for k in ("heading_rad", "centre_m", "width_m", "end_left_m", "end_right_m")
+                if _number(band.get(k)) is not None}
+        if part:
+            out["band"] = part
+    path = raw.get("path")
+    if isinstance(path, list):
+        points = [_numbers(point, 2) for point in path[-MAX_PATH_POINTS:]]
+        out["path"] = [point for point in points if point is not None]
+    for key in ("lookahead", "target"):
+        point = _numbers(raw.get(key), 2)
+        if point is not None:
+            out[key] = point
+    footprint = _numbers(raw.get("footprint_m"), 2)
+    if footprint is not None:
+        out["footprint_m"] = footprint
+    return out
+
+
 def page_status(raw, grid=False) -> dict:
-    """The executor status reduced to the fields the screens show; the local grid only when asked (map screen)."""
+    """The executor status reduced to the fields the screens show; the local grid and the run geometry only when
+    asked (map screen, monitoring view)."""
     out = {}
     if not isinstance(raw, dict):
         return out
@@ -172,10 +243,16 @@ def page_status(raw, grid=False) -> dict:
         out[name] = part
     if isinstance(raw.get("tuning"), dict):
         out["tuning"] = page_tuning(raw["tuning"])
+    metrics = page_metrics(raw.get("metrics"))
+    if metrics is not None:
+        out["metrics"] = metrics
     if grid:
         local = page_grid(raw.get("local_grid_map"))
         if local is not None:
             out["local_grid_map"] = local
+        geometry = page_geometry(raw.get("single_row_geometry"))
+        if geometry is not None:
+            out["single_row_geometry"] = geometry
     return out
 
 
@@ -197,7 +274,13 @@ def parse_action_body(action: str, body) -> dict:
         if row is not None and (isinstance(row, bool) or not isinstance(row, (int, float)) or not math.isfinite(row)
                                 or not 0 < row <= 1000):
             raise ExecutorError(400, "invalid_row_len")
-        return {"row_len_m": row}
+        out = {"row_len_m": row}
+        mode = body.get("gnss_mode")
+        if mode is not None:                         # absent or null: the executor's configured mode
+            if not isinstance(mode, str) or mode not in GNSS_MODES:
+                raise ExecutorError(400, "invalid_gnss_mode")
+            out["gnss_mode"] = mode
+        return out
     if action in ("go", "heartbeat"):
         session = body.get("session")
         if not isinstance(session, str) or not SESSION.fullmatch(session):
@@ -301,6 +384,27 @@ class ExecutorClient:
         if isinstance(reply.get("status"), dict):        # a start reply carries the status: the same fields as GET
             reply["status"] = page_status(reply["status"])
         return code, reply
+
+
+def hand_over_manual_lease(request_fn, sleep=None) -> str | None:
+    """MOTOR '준비' (executor arm, 2026-11-19 corridor): the executor takes the bridge lease, and a manual Arm of the
+    drive page holds it (the bridge answers control_in_use). The operator's press hands it over: when the bridge is
+    armed_manual and not moving, a bridge stop of that lease first. A moving vehicle is left alone (the arm is then
+    refused as before). Returns 'released', 'moving' or None (nothing to do / bridge not reachable)."""
+    try:
+        status = request_fn({"op": "status"})
+    except Exception:
+        return None
+    if not isinstance(status, dict) or not status.get("armed") or status.get("state") != "armed_manual":
+        return None
+    if status.get("moving"):
+        return "moving"
+    try:
+        request_fn({"op": "stop", "reason": "executor_takeover"})
+    except Exception:
+        return None
+    (sleep or time.sleep)(0.3)
+    return "released"
 
 
 LINK_SCHEMA = "ubts.row_executor.dashboard_link.v1"

@@ -35,6 +35,22 @@ DEFAULT_CAMERA_DRIVER_STATUS_FILE = ROOT / "runtime" / "camera_driver_status.jso
 DEFAULT_CAMERA_BRIDGE_STATUS_FILE = ROOT / "runtime" / "camera_bridge_status.json"
 DEFAULT_IMU_DRIVER_STATUS_FILE = ROOT / "runtime" / "imu_driver_status.json"
 DEFAULT_IMU_BRIDGE_STATUS_FILE = ROOT / "runtime" / "imu_bridge_status.json"
+
+def _legacy_sensors(metadata: dict[str, Any]) -> list[str]:
+    """Sensor groups of a recording without a 'sensors' list (before 2026-11-19): from kind and the include flags."""
+    kind = metadata.get("kind")
+    chosen = {"drive", "steering", "tf"}
+    if kind in ("lidar", "both"):
+        chosen.add("lidar")
+    if kind in ("camera", "both"):
+        chosen.add("camera")
+    if metadata.get("include_imu", True):
+        chosen.add("imu")
+    if metadata.get("include_gps", True):
+        chosen.add("gps")
+    order = ("lidar", "camera", "imu", "gps", "drive", "steering", "executor", "tf")
+    return [s for s in order if s in chosen]
+
 DEFAULT_CAMERA_SETTINGS_FILE = ROOT / "runtime" / "camera_settings.json"
 DEFAULT_ROVER_BRIDGE_STATUS_FILE = ROOT / "runtime" / "rover_bridge_status.json"
 DEFAULT_DATA_RECORDER_STATUS_FILE = ROOT / "runtime" / "data_recorder_status.json"
@@ -1109,6 +1125,26 @@ class TelemetryProvider:
         }
 
     def start_recording(self, payload: dict[str, Any]) -> dict[str, Any]:
+        # 2026-11-19: {sensors: [...], tag: manual|autonomy} (one checkbox per sensor; autonomy runs apart); the
+        # recorder validates the list (scripts/data_recorder_service.sensor_plan). The old kind request still works.
+        sensors = payload.get("sensors")
+        tag = payload.get("tag")
+        if sensors is not None or tag is not None:
+            if sensors is not None and (not isinstance(sensors, list) or len(sensors) > 16
+                                        or not all(isinstance(s, str) and len(s) <= 16 for s in sensors)):
+                return {"ok": False, "state": "invalid_sensors", "error": "sensors must be a list of names"}
+            if tag is not None and tag not in ("manual", "autonomy"):
+                return {"ok": False, "state": "invalid_tag", "error": "tag must be manual or autonomy"}
+            body: dict[str, Any] = {"kind": str(payload.get("kind") or "lidar")}
+            if sensors is not None:
+                body["sensors"] = sensors
+            if tag is not None:
+                body["tag"] = tag
+            result = self._recorder_post("/start", body)
+            if result.get("ok"):
+                return result
+            return {"ok": False, "state": result.get("state") or "recorder_unavailable",
+                    "error": result.get("error"), "status": self.recording_status()}
         kind = str(payload.get("kind") or "").strip().lower()
         if kind not in {"lidar", "camera", "both"}:
             return {
@@ -1176,6 +1212,8 @@ class TelemetryProvider:
                     {
                         "id": metadata.get("id") or path.name,
                         "kind": metadata.get("kind") or "unknown",
+                        "tag": metadata.get("tag") or "manual",
+                        "sensors": metadata.get("sensors") or _legacy_sensors(metadata),
                         "state": metadata.get("state") or "archived",
                         "started_at": metadata.get("started_at"),
                         **__import__("dashboard_server.recording_clock", fromlist=["display_clock"]).display_clock(path, metadata),
@@ -1477,10 +1515,49 @@ class TelemetryProvider:
         for kind,rows in frames.items():combined.setdefault(kind,{})['frames']=sorted(rows.values(),key=lambda f:float(f.get('t_s',0)))
         result=self._recording_timeline_segment(combined,start,duration)
         result=self._with_recorded_gps(path,result,start,duration)
+        result=self._with_recorded_executor(path,result,start,duration)
         result=with_recorded_motor(path,result,start,duration)
         result=self._playback_response_profile(result,POLAR_PROFILE)
         result['playback']['profile']='dashboard-telemetry-v1'
         return dict(ok=True,timeline=result)
+
+    def _with_recorded_executor(self, path, timeline, start_s, duration_s):
+        """executor_state.jsonl (2026-11-19, sensor 'executor'): the frames of the window plus the one before it, as
+        timeline['executor'] = {frames: [{t_s, state}], frame_count}. Absent file: the timeline unchanged."""
+        source_path = path / "executor_state.jsonl"
+        if not source_path.is_file():
+            return timeline
+        try:
+            start = max(0.0, float(start_s)) if start_s is not None else 0.0
+            end = start + max(0.1, float(duration_s)) if duration_s is not None else float("inf")
+        except (ValueError, TypeError):
+            return timeline
+        frames, before, total = [], None, 0
+        try:
+            with source_path.open(encoding="utf-8") as source:
+                for line in source:
+                    try:
+                        frame = json.loads(line)
+                        t = float(frame["t_s"])
+                        if not math.isfinite(t) or not isinstance(frame.get("state"), dict):
+                            continue
+                    except (ValueError, TypeError, KeyError):
+                        continue
+                    total += 1
+                    if t < start:
+                        before = frame
+                        continue
+                    if t > end:
+                        continue
+                    if not frames and before is not None:
+                        frames.append(before)
+                    if len(frames) < 3000:
+                        frames.append(frame)
+            if not frames and before is not None:
+                frames.append(before)
+        except OSError:
+            return timeline
+        return {**timeline, "executor": {"frames": frames, "frame_count": total}}
 
     def _with_recorded_gps(self, path, timeline, start_s, duration_s):
         """Read the full GPS sidecar by time window, including old samples past the RAM tail."""

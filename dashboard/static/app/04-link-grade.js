@@ -195,12 +195,12 @@ function linkGradeReason() {
   const now = performance.now();
   const recent = linkGrade.samples.filter((sample) => now - sample[0] <= LINK_GRADE.windowMs).map((sample) => sample[1]);
   const base = recent.length ? Math.round(Math.min(...recent)) : null;
-  const rtt = base === null ? "" : ` (왕복 ${base} ms)`;
-  if (linkGrade.grade === "offline") return "연결 끊김 · 조종 중이었다면 차는 입력 만료로 스스로 정지합니다.";
-  if (liveNetworkProfile() !== "auto") return `전송 품질을 직접 골랐습니다${rtt}.`;
-  if (linkGrade.grade === "slow" || linkGrade.grade === "very_slow") return `연결이 느려 화면 자료를 줄였습니다${rtt}.`;
+  const rtt = base === null ? "" : ` 왕복 시간은 ${base} ms입니다.`;
+  if (linkGrade.grade === "offline") return "연결이 끊겼습니다. 조종 중이었다면 차는 입력이 끊겨 스스로 멈춥니다.";
+  if (liveNetworkProfile() !== "auto") return `전송 품질을 직접 골랐습니다.${rtt}`;
+  if (linkGrade.grade === "slow" || linkGrade.grade === "very_slow") return `연결이 느려 화면 자료를 줄였습니다.${rtt}`;
   if (linkGrade.grade === "unknown") return "연결을 재는 중입니다.";
-  return `연결 상태에 맞춰 화면 자료를 보냅니다${rtt}.`;
+  return `연결 상태에 맞춰 화면 자료를 보냅니다.${rtt}`;
 }
 
 // The status bar's connection badge shows the grade (one badge, no new element).
@@ -214,7 +214,7 @@ function renderLinkBadge() {
   const className = level ? `status-chip ${level}` : "status-chip";
   if (el.className !== className) el.className = className;
   if (el.textContent !== label) el.textContent = label;
-  const reason = telemetryDown ? "상태 응답이 없습니다 · 조종 중이었다면 차는 입력 만료로 스스로 정지합니다." : linkGradeReason();
+  const reason = telemetryDown ? "상태 응답이 없습니다. 조종 중이었다면 차는 입력이 끊겨 스스로 멈춥니다." : linkGradeReason();
   if (el.title !== reason) el.title = reason;
 }
 

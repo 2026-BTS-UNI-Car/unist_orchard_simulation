@@ -32,10 +32,10 @@ archive.beforeCommit=(previous,next)=>segments.beforeCommit(previous,next);
 archive.afterDraw=()=>{
   if(archive.snapshot.playback_driven){
     if($('liveArchiveSegments'))$('liveArchiveSegments').hidden=true;
-    text('liveArchiveMapNote','새 지도 만들기 → 재생 · 일시정지 시 지도 유지 · 원본 기록 보존');
+    text('liveArchiveMapNote','새 지도 만들기를 누른 뒤 재생하세요. 일시정지해도 지도는 남고 원본 기록은 그대로 보존됩니다.');
   }else{
     segments.update(archive.snapshot,archiveTimeS);
-    text('liveArchiveMapNote','이전 방식의 기록 지도 · 새 지도 만들기 후 재생하면 같은 지도에 계속 누적합니다.');
+    text('liveArchiveMapNote','이전 방식으로 만든 기록 지도입니다. 새 지도 만들기를 누른 뒤 재생하면 같은 지도에 계속 쌓입니다.');
   }
   mapControls('archive',archive);
 };
@@ -112,7 +112,7 @@ function paint(value){
   const restored=value.persistence?.restored&&value.state==='needs_reset';
   live.set(value);text('liveMapState',restored?'저장된 지도':waiting?'센서 동기화 대기':value.active?'그리는 중':value.state==='needs_reset'?'위치 추정 중단':'멈춤');
   $('liveMapStart').disabled=value.active||value.state==='needs_reset';$('liveMapStop').disabled=!value.active;
-  text('liveMapStatus',restored?'저장된 지도 유지 · 새 지도를 눌러 그리기를 시작하세요.':`${waiting?'GPS·IMU·LiDAR 동기화 대기 · 마지막 지도 유지':value.active?'지도 누적 중':value.state==='needs_reset'?'새 지도 필요':'마지막 지도 유지'}${value.reason?` · ${value.reason}`:''}${value.persistence?.saved===false?' · 원본 셀 저장 실패 · 표시 지도 유지':''}`);
+  text('liveMapStatus',restored?'저장된 지도를 유지하고 있습니다. 새 지도를 눌러 그리기를 시작하세요.':`${waiting?'GPS·IMU·LiDAR 동기화 대기 · 마지막 지도 유지':value.active?'지도 누적 중':value.state==='needs_reset'?'새 지도 필요':'마지막 지도 유지'}${value.reason?` · ${value.reason}`:''}${value.persistence?.saved===false?' · 원본 셀 저장 실패 · 표시 지도 유지':''}`);
 }
 for(const operation of ['start','stop','reset'])$('liveMap'+operation[0].toUpperCase()+operation.slice(1)).addEventListener('click',async()=>{
   if(liveActionBusy)return;liveActionBusy=true;liveActionSeq++;
@@ -221,9 +221,9 @@ async function acceptArchiveMap(value){
       cursorMapping?`${value.grid?(archivePlaying?'재생하며 지도 저장 중':'저장된 지도 유지'):'재생하면 새 지도가 쌓입니다'} · ${(value.frame_t_s||0).toFixed(1)}초${archiveQuality(value)}`:
       value.state==='regenerating'?(generation.stage==='localizing'?'LiDAR·IMU 위치 추정 계산 중…':`지도 생성 ${Math.round((generation.progress||0)*100)}% · ${(generation.processed_t_s||0).toFixed(1)} / ${duration.toFixed(1)}초`):
       value.needs_regeneration?'이전 방식의 지도입니다. 새 지도 만들기 후 재생하세요.':
-      value.state==='interrupted'?'중단된 지도 생성 · 부분 결과 유지 · 다시 재생성할 수 있습니다.':
+      value.state==='interrupted'?'지도 생성이 중단됐습니다. 만든 부분은 남아 있고 다시 만들 수 있습니다.':
       value.grid?`${followGeneration?'생성된 전체 지도':'재생 시각의 지도'} · ${(value.frame_t_s||0).toFixed(1)}초${archiveQuality(value)}`:
-      value.history_available?'첫 지도 관측 전 · 재생하면 지도가 쌓입니다.':'저장된 지도 없음 · 새 지도 만들기 후 재생하세요.');
+      value.history_available?'아직 지도 관측이 없습니다. 재생하면 지도가 쌓입니다.':'저장된 지도가 없습니다. 새 지도 만들기를 누른 뒤 재생하세요.');
 }
 async function loadMapWindow(id,epoch,start,span,next){
   if(mapWindowPending)return;
@@ -374,7 +374,7 @@ $('liveArchiveRegenerate').addEventListener('click',async()=>{
     cursorMapping=true;triedCausalMap=true;inlinePlaybackMap=false;immutableCursorMap=false;bufferedCursorMap=false;availableCursorPrefix=0;
     archiveTimeS=0;archivePlaying=false;archiveGenerating=false;followGeneration=false;
     segments.reset();archive.set({map_epoch:value.map_epoch,preserve_view_on_seek:true,version:0,scan_count:0,tiles:[],tiles_reset:true,playback_driven:true});
-    text('liveArchiveStatus','새 지도 준비됨 · 재생을 누르면 지도가 쌓이고 저장됩니다.');
+    text('liveArchiveStatus','새 지도가 준비됐습니다. 재생을 누르면 지도가 쌓이고 저장됩니다.');
   }
   catch(error){if(epoch===archiveEpoch)text('liveArchiveStatus',error.message);}
   finally{if(epoch===archiveEpoch)$('liveArchiveRegenerate').disabled=archiveGenerating;}

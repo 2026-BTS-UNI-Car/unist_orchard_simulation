@@ -1,16 +1,22 @@
 {
- "bytes": 4990639,
- "commit": "a435d44a97588938c34c5b5af7de41c63ea8ae22",
+ "bytes": 5194540,
+ "commit": "e9ba5658c78cb12f4bac7cf638fa5f66f1c91226",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
- "file_count": 135,
+ "file_count": 140,
  "files": {
   "config/dashboard.json": {
    "blob": "67f0ec8e55737a0efc71fe54601cd188cd8765d6",
    "bytes": 302,
    "mode": "100644",
    "sha256": "b3d376cbe8ccbcc3b55af47f2a7750d9f056b2852497209ce83b04d47eb59e70"
+  },
+  "config/drive_terrain_table_202610.json": {
+   "blob": "d0ed29ee744fe61c6d103052283bc7e345b9b1cf",
+   "bytes": 6475,
+   "mode": "100644",
+   "sha256": "5b3e67c21ef6d7323c1ffe0fee69f6217542e4ca22fadcb3926eec1b6b3f8585"
   },
   "config/field_autonomy_preparation.json": {
    "blob": "2d432b38d81fc4f7ca8e2e8c09929e279f38205d",
@@ -37,10 +43,10 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "a83cf924f5ada246b24e981caf0697f902463428",
-   "bytes": 93038,
+   "blob": "d1548a69bc6a910367ca24213908bd7bd982158c",
+   "bytes": 104641,
    "mode": "100644",
-   "sha256": "a3887d2dd8c4b539ec8b04dc285be38957501313904a03d069a27e1f1c7b46b5"
+   "sha256": "67ef21c2c46d0b9e8c6d064b4aa0cd61b1c02f329fd45e33ab8f4b5ff25f5032"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
@@ -72,6 +78,12 @@
    "mode": "100644",
    "sha256": "70f4efd330c6a2349864672fa0c3598456b469777e3555c0e5289d04b06fec7a"
   },
+  "dashboard_server/drive_distance.py": {
+   "blob": "0275fe43c654279aac32ad3a27b1e2344460117d",
+   "bytes": 31074,
+   "mode": "100644",
+   "sha256": "647f46089a758ae32bf7b66bf38e2157fe7f3b00fa8e0fdb792a230f07ed96af"
+  },
   "dashboard_server/encoderless_drive_preview.py": {
    "blob": "0c388dea33a1ac977bb6f3c1690cafc2b74a611f",
    "bytes": 12142,
@@ -79,10 +91,10 @@
    "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
   },
   "dashboard_server/executor_proxy.py": {
-   "blob": "e0278e68aad1b2db0b76403e9b644e759050382b",
-   "bytes": 18755,
+   "blob": "b1d0497f8202b0d93077b2a8ad6f3bf6a57ebd4f",
+   "bytes": 24170,
    "mode": "100644",
-   "sha256": "33b5b8f95e41ff23e7e739efcf6f04e22e34432688149111ff7d257f741db264"
+   "sha256": "9047aa42e54e5e9036921fb422f139c7f76b7c9bfcb4ea15b8d1eb748b51c8ab"
   },
   "dashboard_server/extensions.py": {
    "blob": "18110aea03888e63eac5eb1de435277b18171aef",
@@ -313,16 +325,16 @@
    "sha256": "385fa7f377c1f4511f437686fecaf17c50b13fbdec94185d4dd61420b83bea49"
   },
   "dashboard_server/steer_tuning.py": {
-   "blob": "d752fbf6211dc30ea953d053af2c364473c0f268",
-   "bytes": 16695,
+   "blob": "67b416ceaf747d08b387ada56918954da9f76732",
+   "bytes": 16849,
    "mode": "100644",
-   "sha256": "d5b11106799a67c8c7ff6226e04c4aa8f3aae2aa014fcf9478626bbbed76eace"
+   "sha256": "ddc27b11c782f37f74713a1b01664671317d698e1be9afffcf89f8dc1efe3c27"
   },
   "dashboard_server/telemetry.py": {
-   "blob": "937fb52024cd4b0e98dc0f1f6e9191f2c9ab1230",
-   "bytes": 175952,
+   "blob": "9c4697ea3381dde0279a674a2156afef4987e9e0",
+   "bytes": 179974,
    "mode": "100644",
-   "sha256": "c0356dc14fe502bc78e0ed21f0f9fb49aa2033912a6fb5d0cfd6d7181ef91f8d"
+   "sha256": "98f8e395cfdc42d72979d7301fe93ac8b007a39c256f8520a0abd3011c4b0383"
   },
   "dashboard_server/telemetry_cache.py": {
    "blob": "6fd1bb08db1c26765f916b92b817710283c9dcdf",
@@ -373,46 +385,46 @@
    "sha256": "7836fa5e19e89da70eac9b01980543996ee848c7c457ccadbc4ff73e15b90516"
   },
   "static/app/00-config-state.js": {
-   "blob": "176ccd93940982fce6b760b196a6d27714a74628",
-   "bytes": 7628,
+   "blob": "dbbb49b0f31e5d413de784ac430990b70fa9a2f2",
+   "bytes": 7937,
    "mode": "100644",
-   "sha256": "d36b81ac0f544e414c4f3ac5eb12bc3def9c89df9b9cfafbf7476a892874309a"
+   "sha256": "9274386db85da757c12796971a169626374da50749c9a2529b14c43d36a23f5c"
   },
   "static/app/01-format-http.js": {
-   "blob": "a5dd686fa21b5e96dde634777ec4cd3d70eae301",
-   "bytes": 11207,
+   "blob": "de8a3e3aa6870c58c8b690c5f7ee6ae19a3676c8",
+   "bytes": 12613,
    "mode": "100644",
-   "sha256": "9a2949f9186b27d0892f4733afb318512fd9394a47ced39a71f6728333c91d01"
+   "sha256": "e2548270521a06ff0eb9d0207bf08afde5d90cc4299122a6d49170da7fbd49b8"
   },
   "static/app/02-shell.js": {
-   "blob": "9a0b9e1783feb5eb7b7eef93b05a67acd0fbd496",
-   "bytes": 8509,
+   "blob": "42095fb9ff17c5b02b43404aa416187ddd92064b",
+   "bytes": 8719,
    "mode": "100644",
-   "sha256": "5e4b791efa2b06fe7abf7795869e1570fc8ebbc00d345d465ade7d64301d3046"
+   "sha256": "a3b7b702bfdd4e29107c736aa62923f3cf80fd1eec9bc5d0b40c4dc3a1ac1064"
   },
   "static/app/03-sensor-settings.js": {
-   "blob": "35cf3abada6b58a60690d6b701ed37a4127f2438",
-   "bytes": 17519,
+   "blob": "ed5dedcf2dc58b3b47d4eb5a7c8869d1e6954429",
+   "bytes": 17549,
    "mode": "100644",
-   "sha256": "67066d530872b7ef09e7c8e76e10b2e249be4bc356e576cb993a0845816457f1"
+   "sha256": "84cedbda00abdef774e5fc2a7c1d7421f2fab7783727ed78539da8da7996c853"
   },
   "static/app/04-link-grade.js": {
-   "blob": "e941e62956d3a282ff9819548951b0605f01ced1",
-   "bytes": 12746,
+   "blob": "9a047af9cee4a564bbcf680138b316912b22b217",
+   "bytes": 12766,
    "mode": "100644",
-   "sha256": "517c5973bc2057b885bdb2d1a6bcf38bfdc99bce864dfbb107d8480ed44df390"
+   "sha256": "c945c20da940e74000ef77e77c6ee7a8fd744b27f90a6aa92eba08e0857381f1"
   },
   "static/app/04-telemetry.js": {
-   "blob": "c69f4b1e7c17ee6d9e3831882aed2f3d7fb6f4ca",
-   "bytes": 14009,
+   "blob": "96766cc7225459a28174464f5f11d19d391d1b22",
+   "bytes": 15930,
    "mode": "100644",
-   "sha256": "d4f15275d4bdcf70fa7f877c532b0a65b32b94f5352723afe639bbcb831d380c"
+   "sha256": "71ffb80562d1c6f7a5178327ffab9330b0df1d433d7217df1fcaeaf813dffb5d"
   },
   "static/app/05-live-lidar-camera.js": {
-   "blob": "8b0fa17d3e0eab87b7aa73e4ab9009a75d8ecbb4",
-   "bytes": 45396,
+   "blob": "49b2e2eaa0530ea8e8f700c9e1601d906a652a2d",
+   "bytes": 45441,
    "mode": "100644",
-   "sha256": "81b6b6149028349c4f92476ee8f589f112d68d6583ee7f39790bd2dc4365733a"
+   "sha256": "720f8f0113a77506cb1c0b86967361ea050a95f3697a8d9b76393658c73bb739"
   },
   "static/app/06-live-imu.js": {
    "blob": "a6a40d0abb773cd2a92ce87c6af343e52cbcd6ae",
@@ -427,10 +439,10 @@
    "sha256": "b85a51436256c9049898f60a1bdfaff485bb09c5dd944b53dcc9e04619aea41a"
   },
   "static/app/08-system-panels.js": {
-   "blob": "14a6188db09e58306313622209d9a821efd40bc6",
-   "bytes": 38847,
+   "blob": "49e5adc3144819b806242df95e05cac12287942c",
+   "bytes": 39133,
    "mode": "100644",
-   "sha256": "96de8c0ea62cb55b0d7ef76570161324f7c8c2e1d6dff646ed8c80c41698eed4"
+   "sha256": "a4c2a95743e89f17bebbffb9cbfb2c85a70a648a62dea156288d8cdc2ed3c6e2"
   },
   "static/app/09-docs.js": {
    "blob": "4537c2ac7888358773a41197bf91feacfd665acc",
@@ -439,22 +451,22 @@
    "sha256": "96898a93946a6f047fb5c0029943d0ee42ff294f01e0a10a09b463f7877f3275"
   },
   "static/app/10-rover-control.js": {
-   "blob": "2e379e7653ad27e3c24d987d84800ef82fdda77a",
-   "bytes": 22196,
+   "blob": "1d27ad7424422e2b3ee6f77b01b55a2566048f53",
+   "bytes": 26868,
    "mode": "100644",
-   "sha256": "eb9c52bea94765f931ec571251eed31c4e3e86bbeb622aff26d28acd1e8f91d9"
+   "sha256": "b4df930f0a95392227b9ac75ba1e30a35ce1f4af83fd8aafb37e56d5cc4ec55a"
   },
   "static/app/11-recording.js": {
-   "blob": "0139d6ce90e5babd869d13ccdfafa634a8b1280d",
-   "bytes": 9398,
+   "blob": "4e94646fde72c9377a9f2e6b31ec722279266af4",
+   "bytes": 14512,
    "mode": "100644",
-   "sha256": "e19e47203df897b047f126c4513c9e3055bfaa13ae68de18905679951416fd6a"
+   "sha256": "7211bd3faf3b9a291ad40bcb34309ffdf22a1e0ccff6ce389259f81cdce7adc1"
   },
   "static/app/12-archive.js": {
-   "blob": "8cbaf256222400cabec91b7a21b0774a9f8902d9",
-   "bytes": 53609,
+   "blob": "6a80b666444dcbd221dc735a1dbc168a60fc2f2f",
+   "bytes": 60255,
    "mode": "100644",
-   "sha256": "5a77a9d3d6dc337e2c61bbd7151b1e28157a231d999884ae9cb781795380af0b"
+   "sha256": "d355ab44600a471e1369983ce13f019e5ad8b53181ec7c739a3b1fabba1549ad"
   },
   "static/app/13-charts-canvas.js": {
    "blob": "66a60f76636dc179901796c73a5bf04bb26cf3fe",
@@ -463,16 +475,16 @@
    "sha256": "654b2a2b22a2a5265f3e3b49dfeedfee806dfc341f11ccb1d5319a6398d8e18f"
   },
   "static/app/14-steer.js": {
-   "blob": "fedf8fecd3e74d7f59ff3e5df06203673e1bd08c",
-   "bytes": 4564,
+   "blob": "c34c9d733ce823e8793a7b52b8e2f771e9199bb4",
+   "bytes": 7451,
    "mode": "100644",
-   "sha256": "389481e224c98e240d25b309bd87fd987d76da81755b5241e234782cfa63f5fd"
+   "sha256": "188326949f68e335c622b714e20ed529232f259e7e5751c0ae38eef2ff391c80"
   },
   "static/app/99-main.js": {
-   "blob": "afef47b94a6dbaae2edc63ef0717aff8678965e9",
-   "bytes": 3031,
+   "blob": "680698cf98d8f6eb4fef2d2e6421bfc99687c1e3",
+   "bytes": 2998,
    "mode": "100644",
-   "sha256": "2a9ec39bad55f1395b737366045bd8b4abd5225e2673454369be2c7a811d1406"
+   "sha256": "401b78d3519ea51267c3ccca30a8ea55ae0d748647bd0d556bb4adec19f57284"
   },
   "static/archive-map-buffer.mjs": {
    "blob": "79a8c94baa8b149531449d73c75e65fb221a4084",
@@ -529,10 +541,10 @@
    "sha256": "86fdb1cbb99f40c1f85dfb5cf877317941f3aa9720cf09bc29d5a3c564cae4ad"
   },
   "static/css/tokens.css": {
-   "blob": "eb38edacbb50b62b3e82dd473c8bf0cc97729d9e",
-   "bytes": 13848,
+   "blob": "0d9b1072bbe2c57a2f6e573238c6f8cb258211bd",
+   "bytes": 13865,
    "mode": "100644",
-   "sha256": "d279e009d593390d0761f481ea8340b5c06a7c9509d7e6448aa30a2dc5381ead"
+   "sha256": "c8f1a3cc09fd611e5f6acf8ba857de3d90157d612b35db8f203a2023e709717b"
   },
   "static/favicon.ico": {
    "blob": "ed5c2b43a5f14da9f14d13543b629bbe69df40f3",
@@ -577,10 +589,10 @@
    "sha256": "ec7afaf62937e54e67e1b096151a3769d8c4e14af20c198d23f7a061e3ae4136"
   },
   "static/index.html": {
-   "blob": "65996dc6d68c71e54165504151b1f701288b23f9",
-   "bytes": 55240,
+   "blob": "26d440c9c27b42a683497e0f6583b0801b6e7bbe",
+   "bytes": 64054,
    "mode": "100644",
-   "sha256": "31e6e90359834deb339ec03ee93744b439249df34e5f45afd004962eaea371e0"
+   "sha256": "6c24a93b1a3196e4be413f310866418e6082ee72c5c57d76cf4c4ff0b4489de5"
   },
   "static/live-map-delta.mjs": {
    "blob": "58e4f2a8fd54a378d89aa233bf70f230b1d39bcf",
@@ -589,10 +601,10 @@
    "sha256": "5678167c62f0a1899619eebfb960a969aff8ccfb86fa635b4773b40a0a968625"
   },
   "static/live-map.js": {
-   "blob": "b9330dd9d5662bf10fd31950031daa43f4139263",
-   "bytes": 32439,
+   "blob": "677d0fc256ad55d0bfb32163e03f3d6349532bc9",
+   "bytes": 32576,
    "mode": "100644",
-   "sha256": "5da4e23080d2819fc70bf4df3a6aaf3d5e68a143b5112fb018ea28490f228c9f"
+   "sha256": "71bc3083eb809eda5dde994d9ab4cfb5c4a81927503977d78bd7aa9b41181e81"
   },
   "static/mapping-jobs.mjs": {
    "blob": "27a72b20e5eebefc04c674364ac80b37613a93a3",
@@ -619,10 +631,10 @@
    "sha256": "65df96b83afb4ce6a43238d6526241e8011180804a9fa36b6d58a725d496a526"
   },
   "static/network/wifi-manager.mjs": {
-   "blob": "e47473b9587eaef8885c06a267ae154a61bcab13",
-   "bytes": 26909,
+   "blob": "a69d20d16fcdf768cbbe6c7544d4242cfefc437b",
+   "bytes": 26952,
    "mode": "100644",
-   "sha256": "5b06b479183d10658317d424a2d75673525c21448b73c44d3d708f9a99785676"
+   "sha256": "7b85354e48a1d8c6d877e9802dde14cd068d098ebf494dca7f2d70a459ad9ec8"
   },
   "static/sim-map-model.mjs": {
    "blob": "cc6580e8583c85110c691870c8c29bbea5550a0a",
@@ -631,58 +643,76 @@
    "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb"
   },
   "static/steer/auto-model.mjs": {
-   "blob": "ef6fba83cf5f1e688944ee8d6fe2b589142e5a51",
-   "bytes": 14493,
+   "blob": "b1ee53c61329a1b58b23313306a1e93941ab12ae",
+   "bytes": 40397,
    "mode": "100644",
-   "sha256": "58d122dd3dd82d9f0c8a676c9449752b70a6d88beaad81f4c0c534c2f08b5802"
+   "sha256": "e6a8303d1be54e813e92e9ddac22efd2d5cda778292d4b6f63517d3fc6388e7a"
   },
   "static/steer/auto-panel.mjs": {
-   "blob": "c4d8205f14dc3ef5a72c38a33974af4d4be3dc54",
-   "bytes": 8875,
+   "blob": "8c966d2848e57196a64a5893f4c3fff6cc663c67",
+   "bytes": 23118,
    "mode": "100644",
-   "sha256": "0fd58200d239eca2b0d18bc8c0bb72c02267a81bc05ec3b490c0a8c6c92b336e"
+   "sha256": "62e30a30a35b730e03f1ea3d6d99d7b9b36ffa022265f2a94f9b4663a5488aba"
+  },
+  "static/steer/drive-distance.mjs": {
+   "blob": "f97c2fd7072cbdb41ed671b6232e9ed148e008f7",
+   "bytes": 33359,
+   "mode": "100644",
+   "sha256": "c9124464211fe29217f5ee77c28c07223e1a016e05f074c30ac15a067b5a1907"
   },
   "static/steer/local-grid.mjs": {
-   "blob": "acf6bee045c85b8117bc6feab840843161de0741",
-   "bytes": 9537,
+   "blob": "f420145ee25dd515e9ab8ebd3e011bc61e40072b",
+   "bytes": 10147,
    "mode": "100644",
-   "sha256": "a65c1c8847fbcb9c02ae3bcc5e4838e736c4512314809a984ad41abf957c8046"
+   "sha256": "2dba5189054019e1788311a33a465fa169b9519cfa91940e1f7ec646221a3a72"
+  },
+  "static/steer/run-view.mjs": {
+   "blob": "31a78af8f3abe0b5b348b0cf552e7d37cfb81de9",
+   "bytes": 10183,
+   "mode": "100644",
+   "sha256": "f5597c74f057f64060671356b6c48e9acea74e3039c4c21ae20427e15af88f76"
+  },
+  "static/steer/steer-calibration.mjs": {
+   "blob": "62375af418af1dc84bc2a85942326ab4e96d7f20",
+   "bytes": 23331,
+   "mode": "100644",
+   "sha256": "6e18478db68d9c6790f8db20670efbee236e8090fa31e263082bf031146de87d"
   },
   "static/steer/steer-control-rules.js": {
-   "blob": "fc2b61c121424f11db4b6833b0b673fa72031732",
-   "bytes": 43895,
+   "blob": "cb5b49dd140e6e5124529b1fdf3cab8b2c3ed889",
+   "bytes": 52087,
    "mode": "100644",
-   "sha256": "1f0355486b939066b499b3d4c135f43dc7af28c98520a590a2c899486d78ea2b"
+   "sha256": "f881e55c8b0a0c1d78df91f108ccb629569759f9f9becc27f948a18a1f8cd008"
   },
   "static/steer/steer-drive.mjs": {
-   "blob": "64870249e6a1a5497734cadc4cb587f4eea10502",
-   "bytes": 17716,
+   "blob": "983cd586e438749fd73872c7ddfad965df92230f",
+   "bytes": 23013,
    "mode": "100644",
-   "sha256": "647089c776eb67b9a75ffce05c0465b89c5737744e8421c41e35dadfd7644a9d"
+   "sha256": "79bda4e9d35f0223f760645c96e4cb2eeedda92ed457f33e3e417a92aa28a0c6"
   },
   "static/steer/steer-sensor.mjs": {
-   "blob": "6fac62e44724f9b0a41c953b5c0efc44385f4b8a",
-   "bytes": 3994,
+   "blob": "1b2645009f653b15ac53664a92bc3620ab2d3aab",
+   "bytes": 4839,
    "mode": "100644",
-   "sha256": "adf86b5ca0e1e6bcaeaca19c80b015f76afdeeb343e148d0bca382ca0c150098"
+   "sha256": "97c71f126ecfc7155d21e9a82455355195ef750ae3f6ed43f50c850e50feac8a"
   },
   "static/steer/tuning-model.mjs": {
-   "blob": "d4a99f71fec0fed81167893a42c7462a797cff61",
-   "bytes": 9251,
+   "blob": "643239531ac8622be7a87e9b72794d6dab37b558",
+   "bytes": 10699,
    "mode": "100644",
-   "sha256": "0f981073563162225b47d6b85d0ce11437765d962dc6ceb327660594b2786d66"
+   "sha256": "f8d469441c0bb946d2fe4fac6cdf1f2579c037e35e5ec5782d94a65259b95517"
   },
   "static/steer/tuning-page.mjs": {
-   "blob": "ae9dbdbaf0d188782fb533b74f00462a603ba082",
-   "bytes": 10158,
+   "blob": "44fff794ee7af78fc13c840103bfd14859f3bc73",
+   "bytes": 10350,
    "mode": "100644",
-   "sha256": "6721344fddef0f94a4cd655eb8d03912f129fc3c34ed2d7a3b3e7d4d58c8f48e"
+   "sha256": "a07a6c84e15049a247e609d583a425b0b77e159fcd341a8fad5bbd1ac1f02165"
   },
   "static/styles.css": {
-   "blob": "059356b593b5ace3ca6213978867c91b37c897a4",
-   "bytes": 51088,
+   "blob": "f9e220d78d79657b7f3fdb30874355aab81c2e14",
+   "bytes": 50846,
    "mode": "100644",
-   "sha256": "3f2fbcf4d487fa1e2bf26a8d2606a01869214e0b490fa49772d39feb159cbfd6"
+   "sha256": "c578dec39905c36315a240b5ae7bb3050ebda68893515eb9af400775faa76960"
   },
   "static/ui-kit.html": {
    "blob": "7c9dcaaca29bab8cdfe95f59b38de053da43cb06",
@@ -787,22 +817,22 @@
    "sha256": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04"
   },
   "static/vendor/ubts-sans/ubts-sans-ko.woff2": {
-   "blob": "478a05a1ccd93c2f40469d96987e5e4b001fe464",
-   "bytes": 241488,
+   "blob": "69a47e701cffcff991208ff566fbc6c64849f40e",
+   "bytes": 236724,
    "mode": "100644",
-   "sha256": "c4186ebaf168e181654fd5c81ca9825ce8ee4a9e179b08c3e2b16b133df482dd"
+   "sha256": "9fb60aa888583925b7a9c7b477adbe7b693a55be8cec56535c7d5abdfab3ebe4"
   },
   "static/vendor/ubts-sans/ubts-sans-split.json": {
-   "blob": "12bb93b6670d48a45c4fdd269072c4ab8fbe83fb",
+   "blob": "6736ecdee345b565b39d63ae2555a2591a9b452b",
    "bytes": 601,
    "mode": "100644",
-   "sha256": "3f6370d0d69cc8247a7e4335d89dcec6e00621f20a2bacd95e041a2903d9969b"
+   "sha256": "4f75f7e8a357af4a18e36296fa4401c8ebd9113399099dc7865b0e25560cdb98"
   },
   "static/vendor/ubts-sans/ubts-sans-ui.woff2": {
-   "blob": "d883458746573da035924b1485c9b6c01dd3c67b",
-   "bytes": 99576,
+   "blob": "e92f3738aefef184c8347172c12f6cfa788e9393",
+   "bytes": 93612,
    "mode": "100644",
-   "sha256": "0adad9c3ddaecd02ef45315bb8fd924f6366ae2ac7e6f7a22ea600930eb24c0c"
+   "sha256": "d5b943c54bc4c5dbb5bb727c41e978dea6b09e4998f94c2478e91d5e8828a4bf"
   },
   "static/vendor/ubts-sans/ubts-sans-var.json": {
    "blob": "abbe7c40b973de9fa5765aff9e26954ba96af42d",
@@ -817,7 +847,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "1fb87259e7845836ae881f12c8c8671356d28181cd973c1a007e60bb24196d36",
+ "files_sha256": "d345f9a27869b0e124604e72681b1cfbefacbf9564688ff22e8694b47e2be091",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

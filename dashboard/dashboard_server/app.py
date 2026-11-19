@@ -126,7 +126,7 @@ class _TeeWriter:
         self.cache_target.flush()
 
 
-DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP32-S3 · ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP32-S3(BTS7960 3개) 조종 브리지와 구동 안전, 옛 ESP8266 V2 조종권과 정지', 'file': 'esp_rover_control.md'}, {'slug': 'field-steer-autonomy-test', 'title': '현장 첫 조향·자율 시험', 'category': 'Hardware', 'summary': 'ESP32-S3 차량: 바퀴 든 조향 시험과 잴 값, 그림자 주행, 구동 측정, 결정할 것, 첫 자율 시험 순서', 'file': 'FIELD_STEER_AUTONOMY_TEST_KO.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
+DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP32-S3 · ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP32-S3(BTS7960 3개) 조종 브리지와 구동 안전, 옛 ESP8266 V2 조종권과 정지', 'file': 'esp_rover_control.md'}, {'slug': 'field-steer-autonomy-test', 'title': '현장 첫 조향·자율 시험', 'category': 'Hardware', 'summary': 'ESP32-S3 차량: 바퀴 든 조향 시험과 잴 값, 그림자 주행, 구동 측정, 결정할 것, 첫 자율 시험 순서', 'file': 'FIELD_STEER_AUTONOMY_TEST_KO.md'}, {'slug': 'corridor-test', 'title': '복도 주행 시험', 'category': 'Hardware', 'summary': '건물 복도 첫 땅 시험의 준비물, 당일 순서, 채울 값과 안전 규칙', 'file': 'CORRIDOR_TEST_KO.md'}, {'slug': 'orchard-day-20261120', 'title': '과수원 자율주행 날 (11/20)', 'category': 'Hardware', 'summary': '열 단위 자율주행: 첫 열 전 점검, 차 놓기, 열마다 순서, 멈췄을 때, 적을 것, 권하는 설정', 'file': 'ORCHARD_DAY_20261120_KO.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -144,6 +144,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
     executor_client = None
     # Change log of the tuning screen (dashboard_server/steer_tuning.py); create_server() sets it.
     tuning_log = None
+    # Distance moves (dashboard_server/drive_distance.py); create_server() sets the store and the runner.
+    distance_table = None
+    distance_store = None
+    distance_runner = None
     _last_telemetry_log_at = 0.0
 
     def do_HEAD(self):
@@ -154,6 +158,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path.startswith('/api/live/') or path.startswith('/api/autonomy/'):
             self._live_request(parsed, action=True)
+        elif path.startswith("/api/rover/distance/"):
+            self._distance_action(path.removeprefix("/api/rover/distance/"))
         elif path.startswith("/api/rover/"):
             self._rover_action(path)
         elif path.startswith("/api/executor/"):
@@ -182,6 +188,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(self.provider.zero_imu(), status=410)
         elif path == "/api/link-log":
             self._link_log()
+        elif path == "/api/session/reset":
+            self._session_reset()
         elif path == "/api/network/mode":
             if self._network_request_allowed():
                 payload = self._read_json_body()
@@ -275,6 +283,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(payload)
         elif path == "/api/rover/status":
             self._send_json(self.provider.rover_status())
+        elif path == "/api/rover/distance":
+            self._distance_get()
         elif path == "/api/recordings/media-jobs":
             self._send_json(self.provider._recorder_get("/media-jobs"))
         elif path == "/api/recordings/status":
@@ -361,6 +371,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     raise proxy.ExecutorError(503, "tuning_log_not_configured")
                 status, reply = steer_tuning.apply(client, body, self.tuning_log, session[:8])
             else:
+                if name == "arm":
+                    from dashboard_server import rover_api
+                    handed = proxy.hand_over_manual_lease(rover_api.request)
+                    if handed:
+                        dashboard_log("executor.manual_lease", result=handed)
                 status, reply = client.action(name, body)
         except proxy.ExecutorError as exc:
             if name == "stop":
@@ -601,16 +616,135 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_error(400, "Object required")
             return
         operations = {"/api/rover/arm": "arm", "/api/rover/command": "drive", "/api/rover/release": "release",
-                      "/api/rover/keepalive": "keepalive", "/api/rover/stop": "stop"}
+                      "/api/rover/keepalive": "keepalive", "/api/rover/stop": "stop",
+                      "/api/rover/calibrate": "calibrate"}
         if path not in operations:
             self.send_error(404)
             return
         supervisor=getattr(self,'autonomy_supervisor',None)
+        runner = self.distance_runner
+        if path == "/api/rover/stop" and runner is not None:
+            runner.abort(str(payload.get("reason") or "operator_stop")[:80])       # STOP wins over a distance move
+        elif runner is not None and runner.busy():
+            # A distance move owns the lease chain (dashboard_server/drive_distance.py): the page's own requests wait.
+            self._send_json({'ok': False, 'error': 'distance_move_running'}, 409); return
+        if path == "/api/rover/calibrate":
+            # Steering calibration (ESP32-S3 bridge op calibrate): never during an autonomy run, and no takeover for
+            # it; only its own fields go to the bridge (the bridge itself refuses while armed or moving).
+            if supervisor is not None and (supervisor.status().get('active') or supervisor.status().get('loop_cleanup_pending')):
+                self._send_json({'ok': False, 'error': 'calibration_needs_disarmed'}, 409); return
+            fields = {key: payload[key] for key in ("action", "left_margin_counts", "right_margin_counts", "pulse_ms", "delta_counts")
+                      if key in payload}
+            self._send_json(request({**fields, "op": "calibrate", "owner": session}))
+            return
+        if path == "/api/rover/arm" and payload.get("vehicle_profile") is None:
+            # The differential pad's Arm (no vehicle_profile): a front-steer bridge refuses it with
+            # 'steer_profile_required'; say why in Korean and name the profile so the page takes the steering panel.
+            status = request({"op": "status"})
+            if isinstance(status, dict) and status.get("vehicle_profile") == "front_steer":
+                self._send_json({'ok': False, 'error': 'steer_profile_required', 'vehicle_profile': 'front_steer',
+                                 'message': '조향 차량 브리지다: 이 화면은 차동 조종판이다. 조향 패널로 바꾼 뒤 다시 조종 활성화'})
+                return
         if supervisor is not None and (supervisor.status().get('active') or supervisor.status().get('loop_cleanup_pending')):
             handoff=supervisor.manual_takeover()
             if path!='/api/rover/stop' and not handoff.get('loop_joined'):
                 self._send_json({'ok':False,'error':'autonomy_manual_handoff_cleanup_pending'},409);return
         self._send_json(request({**payload, "op": operations[path], "owner": session}))
+
+    # ---- distance moves (2026-11-17, dashboard_server/drive_distance.py, docs/esp_rover_control.md 1-6) ----------
+    def _distance_parts(self):
+        from dashboard_server import drive_distance
+        cls = DashboardHandler
+        if cls.distance_table is None:
+            cls.distance_table = drive_distance.load_table()
+        return drive_distance, cls.distance_table, cls.distance_store, cls.distance_runner
+
+    def _distance_get(self):
+        dd, table, store, runner = self._distance_parts()
+        session = self._ensure_session(create=False)
+        self._send_json({'ok': True, 'table': dd.table_view(table),
+                         'corrections': store.view() if store is not None else {},
+                         'move': runner.view(session) if runner is not None and session else None})
+
+    def _distance_bridge(self, request, plan, dd):
+        """Why the control bridge cannot run this plan now (front-steer ESP32-S3 bridge, armed, drive cap), or None."""
+        status = request({"op": "status"})
+        if not isinstance(status, dict) or not status.get("connected", status.get("ok")):
+            return "motor_bridge_unavailable", status if isinstance(status, dict) else {}
+        if status.get("vehicle_profile") != "front_steer" or status.get("esp_kind") != "esp32_abs_hold":
+            return "distance_needs_steer_bridge", status
+        drive = status.get("drive") if isinstance(status.get("drive"), dict) else {}
+        cap = drive.get("max_pwm")
+        if not isinstance(cap, int) or isinstance(cap, bool):
+            return "distance_drive_cap_unknown", status
+        if cap <= 0:
+            return "distance_drive_cap_zero", status
+        if plan is not None and plan.get("pwm", 0) > cap:
+            return "distance_duty_above_cap", status
+        return None, status
+
+    def _distance_action(self, action):
+        from dashboard_server import rover_api
+        payload = self._read_json_body()       # read first: a refused request still consumes its body
+        origin = self.headers.get("Origin")
+        if origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send_error(403, "Origin mismatch"); return
+        session = self._ensure_session(create=False)
+        if not session:
+            self.send_error(403, "Dashboard session required"); return
+        if not isinstance(payload, dict):
+            self.send_error(400, "Object required"); return
+        dd, table, store, runner = self._distance_parts()
+        if store is None or runner is None:
+            self._send_json({'ok': False, 'error': 'distance_not_configured'}, 503); return
+        request = rover_api.request
+        if action in ("plan", "start"):
+            # duty: the speed of the move (an integer % in the terrain's table range; missing = the terrain's default),
+            # with the tape correction of that duty or the nearest measured one (dashboard_server/drive_distance.py).
+            # direction: 'forward' (missing) or 'backward' (2026-11-19: negative throttle, at most 2 m, own corrections).
+            plan = dd.plan(table, payload.get("terrain"), payload.get("duty"), payload.get("distance_m"),
+                           correction=store.correction, direction=payload.get("direction"))
+            refusal, status = self._distance_bridge(request, plan if plan.get("problem") is None else None, dd)
+            drive = status.get("drive") if isinstance(status.get("drive"), dict) else {}
+            bridge = {"refusal": refusal, "armed": bool(status.get("armed")), "max_pwm": drive.get("max_pwm"),
+                      "max_duty": dd.cap_duty(drive.get("max_pwm"))}
+            if action == "plan":
+                self._send_json({'ok': plan.get("problem") is None and refusal is None, 'plan': plan, 'bridge': bridge})
+                return
+            supervisor = getattr(self, 'autonomy_supervisor', None)
+            if supervisor is not None and (supervisor.status().get('active') or supervisor.status().get('loop_cleanup_pending')):
+                self._send_json({'ok': False, 'error': 'distance_needs_manual'}, 409); return
+            if plan.get("problem"):
+                self._send_json({'ok': False, 'error': plan["problem"], 'plan': plan}); return
+            if refusal:
+                self._send_json({'ok': False, 'error': refusal, 'plan': plan, 'bridge': bridge}); return
+            if not status.get("armed"):
+                self._send_json({'ok': False, 'error': 'distance_needs_arm', 'plan': plan}); return
+            chain = {key: payload.get(key) for key in ("lease", "ticket", "seq")}
+            steer = payload.get("steer_mrad")
+            if not isinstance(chain["lease"], str) or not isinstance(chain["ticket"], str) \
+                    or type(chain["seq"]) is not int or type(steer) is not int:
+                self._send_json({'ok': False, 'error': 'distance_needs_lease'}); return
+            result = runner.start(session, plan, chain, steer)
+            self._send_json({**result, 'plan': plan})
+            return
+        move_id = payload.get("move_id")
+        if action == "hold":
+            self._send_json(runner.hold(session, move_id))
+        elif action == "release":
+            self._send_json(runner.release(session, move_id))
+        elif action == "feedback":
+            self._send_json(runner.feedback(session, move_id, payload.get("actual_m"), store))
+        elif action == "reset":
+            terrain = payload.get("terrain")
+            if terrain is not None and dd.terrain_of(table, terrain) is None:
+                self._send_json({'ok': False, 'error': 'distance_terrain_unknown'}); return
+            direction = payload.get("direction")           # missing: every direction of the terrain (as before)
+            if direction is not None and (terrain is None or dd.direction_of(direction) is None):
+                self._send_json({'ok': False, 'error': 'distance_direction_invalid'}); return
+            self._send_json({'ok': True, 'corrections': store.reset(terrain, direction)})
+        else:
+            self.send_error(404)
 
     def log_message(self, fmt, *args):
         if os.environ.get("DASHBOARD_ACCESS_LOG", "0") == "1":
@@ -922,7 +1056,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             content_type = "text/html; charset=utf-8"
         self.send_response(200)
         self.send_header("Content-Type", content_type)
-        self.send_header("Cache-Control", served.cache_control)
+        self.send_header("Cache-Control", "no-store" if suffix == ".html" else served.cache_control)
         self.send_header("ETag", served.etag)
         self.send_header("Vary", "Accept-Encoding")
         if served.gzip:
@@ -997,8 +1131,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         except CookieError:
             cookie = SimpleCookie()
         token = cookie.get(SESSION_COOKIE_NAME).value if SESSION_COOKIE_NAME in cookie else None
+        # 2026-11-18 (a phone that never armed again): a browser may send several cookies of this name (an old one
+        # with another path or from before a restart); the first one the server knows wins, not the last one.
+        sent = [part.split("=", 1)[1].strip() for part in self.headers.get("Cookie", "").split(";")
+                if "=" in part and part.split("=", 1)[0].strip() == SESSION_COOKIE_NAME]
         with _SESSION_LOCK:
             _prune_sessions(now)
+            token = next((value for value in sent if value in _SESSIONS), token)
             if token and token in _SESSIONS:
                 # NET-11: a session in use slides. Past half of its lifetime it is
                 # extended and the cookie sent again, so an open page (and its
@@ -1015,6 +1154,31 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self._session_created = token
         dashboard_log("session.created", session=token[:8], remote=self.client_address[0])
         return token
+
+    def _session_reset(self):
+        """'화면 초기화' (Rover Control): forget this browser's session (the page stopped first) and expire its cookie."""
+        self._read_json_body()
+        origin = self.headers.get("Origin")
+        if origin and urlparse(origin).netloc != self.headers.get("Host"):
+            self.send_error(403, "Origin mismatch"); return
+        try:
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        except CookieError:
+            cookie = SimpleCookie()
+        sent = [part.split("=", 1)[1].strip() for part in self.headers.get("Cookie", "").split(";")
+                if "=" in part and part.split("=", 1)[0].strip() == SESSION_COOKIE_NAME]
+        with _SESSION_LOCK:
+            for value in sent:
+                _SESSIONS.pop(value, None)
+        body = json.dumps({"ok": True, "cleared": len(sent)}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Set-Cookie", f"{SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+        self.send_header("Content-Length", str(len(body)))
+        self.close_connection = True
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send_session_cookie(self, token: str | None):
         # The cookie is sent when the session is created (NET-06). The session
@@ -1706,6 +1870,11 @@ def create_server(host: str, port: int, config: str | None = None, *, autonomy_b
     DashboardHandler.provider = extensions.load_provider(settings, config) or TelemetryProvider(config)
     DashboardHandler.executor_client = executor_from_env(os.environ, ROOT)
     DashboardHandler.tuning_log = TuningLog(os.environ.get("UBTS_EXECUTOR_TUNING_LOG") or ROOT / "runtime/executor_tuning_log.jsonl")
+    from dashboard_server import drive_distance, rover_api
+    DashboardHandler.distance_table = None
+    DashboardHandler.distance_store = drive_distance.CorrectionStore(
+        os.environ.get("UBTS_DRIVE_DISTANCE_FILE") or ROOT / "runtime/drive_distance_corrections.json")
+    DashboardHandler.distance_runner = drive_distance.MoveRunner(lambda payload: rover_api.request(payload))
     from dashboard_server.source_live_mapping import SourceLiveMapping as LiveMapping
     from dashboard_server.mapping_operations import ManagedArchiveMapping,MappingOperations
     from dashboard_server.autonomy_settings import AutonomySettings

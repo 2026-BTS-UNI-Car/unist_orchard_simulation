@@ -7,6 +7,17 @@ async function loadDocs() {
   renderDocsRoute();
 }
 
+// The document list is used by the Docs page only: it is asked for when that page is first shown, not on the first
+// load of every page (one request less on a slow link). A failed request is asked again on the next visit.
+function ensureDocs() {
+  if (state.docsRequested) return;
+  state.docsRequested = true;
+  loadDocs().catch((error) => {
+    state.docsRequested = false;
+    console.error(error);
+  });
+}
+
 async function tick() {
   if (document.hidden) return;
   const interval = telemetryIntervalMs();
@@ -25,11 +36,17 @@ async function tick() {
     state.telemetryPath = path;
     state.telemetry = await getJson(path, { signal: controller.signal });
     state.telemetryCameraSettingsRevision = cameraSettingsRevision;
-    pushHistory(state.telemetry);
-    renderTelemetry(state.telemetry);
+    // The link answered. A drawing error below is not a lost link (2026-11-20: on Rover Control the drive bundle
+    // has no system part, the drawing threw on it and the bar read '연결 끊김' after three polls).
     state.telemetryFailures = 0;
     setConnection("ok", "연결됨");
-    requestChartAnimation({ redrawLidar: false });
+    try {
+      pushHistory(state.telemetry);
+      renderTelemetry(state.telemetry);
+      requestChartAnimation({ redrawLidar: false });
+    } catch (drawError) {
+      debugLog("api", "/api/telemetry answered, drawing it failed", drawError);
+    }
   } catch (err) {
     state.telemetryFailures += 1;
     if (state.telemetryFailures >= 3) setConnection("bad", "연결 끊김");
@@ -126,6 +143,10 @@ function setConnection(kind, label) {
   if (kind !== "ok") renderRecordingStatus();
 }
 
+function isDriveBundle(data) {
+  return Boolean(data) && !("system" in data) && !("network" in data) && !("docker" in data);
+}
+
 function renderTelemetry(data) {
   const sys = data.system || {};
   const net = data.network || {};
@@ -135,8 +156,13 @@ function renderTelemetry(data) {
   const connection = data.connection || {};
 
   text("updatedAt", new Date((data.meta?.generated_at || Date.now() / 1000) * 1000).toLocaleString("ko-KR"));
+  // The drive bundle of Rover Control (NET-06: connection, sensors, services, rover) has no system, network, docker
+  // or fan part. Until 2026-11-20 the load line below threw on it, so nothing after it was ever drawn from a drive
+  // bundle; Rover Control draws itself from its own polls. That stays: nothing more is drawn from a drive bundle.
+  if (isDriveBundle(data)) return;
   text("overviewCpu", fmtPercent(sys.cpu?.total_percent));
-  text("overviewLoad", `load ${(sys.loadavg || [0])[0]?.toFixed ? sys.loadavg[0].toFixed(2) : "--"}`);
+  const overviewLoad = Number((sys.loadavg || [])[0]);
+  text("overviewLoad", `load ${Number.isFinite(overviewLoad) ? overviewLoad.toFixed(2) : "--"}`);
   text("overviewMemory", fmtPercent(memoryPercent(sys.memory)));
   text("overviewMemoryText", `${fmtBytes(sys.memory?.used)} / ${fmtBytes(memoryTotal(sys.memory))} · ${memoryLabel(sys.memory)}`);
   text("overviewNetwork", net.external_ip || "확인 중");
@@ -157,6 +183,14 @@ function renderTelemetry(data) {
   text("systemPowerValue", fmtPower(sys.power?.total_w));
   setProgress("memoryBar", memoryPercent(sys.memory));
   text("memoryDetail", `${fmtBytes(sys.memory?.used)} used / ${fmtBytes(memoryTotal(sys.memory))} · ${memoryLabel(sys.memory)} · ${fmtBytes(sys.memory?.available)} available`);
+  // Summary strip of the System page: the values of the panels below it (the disk cell is filled by renderDisks).
+  const load = Number((sys.loadavg || [])[0]);
+  text("systemStripCpu", fmtPercent(sys.cpu?.total_percent));
+  text("systemStripCpuText", Number.isFinite(load) ? `load ${load.toFixed(2)}` : "--");
+  text("systemStripMemory", fmtPercent(memoryPercent(sys.memory)));
+  text("systemStripMemoryText", `${fmtBytes(sys.memory?.used)} / ${fmtBytes(memoryTotal(sys.memory))}`);
+  text("systemStripTemp", fmtTemp(sys.temperature_c));
+  text("systemStripTempText", fmtPower(sys.power?.total_w));
 
   text("networkExternalIp", net.external_ip || "--");
   text("networkExternalIpText", net.external_ip ? "공개 주소" : "확인 대기");

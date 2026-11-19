@@ -1,10 +1,14 @@
-// The executor's local grid on Rover Control's live occupancy grid map (UI-09, UI-16): the occupied cells of the row executor's local
-// grid, its last row-line fit (left and right row lines, centre line) and the vehicle, from GET
-// /api/executor/status?grid=1 (status.local_grid_map, schema ubts.row_executor.local_grid.v1, simulation repository
-// docs/steering/LOCAL_GRID_KO.md). The frame is the run's odometry (not a map, not GNSS). The grid axis (the row
-// direction) points right on the screen, the left of the row up. When the executor sends no grid the panel stays
-// hidden; without an executor the module stops asking. It asks only while the live map part (#liveMapPanel) is on
-// screen. Loaded by static/app/14-steer.js when Rover Control opens.
+// The executor's local grid in Rover Control's 자율주행 tab (UI-09, 2026-11-19 monitoring view): the occupied cells of the
+// row executor's local grid, its last row-line fit (left and right row lines, centre line), the estimator band's
+// centreline, the travelled path, the lookahead point and the vehicle, from GET /api/executor/status?grid=1
+// (status.local_grid_map, schema ubts.row_executor.local_grid.v1, simulation repository docs/steering/LOCAL_GRID_KO.md;
+// status.single_row_geometry). The frame is the run's odometry (not a map, not GNSS). The grid axis (the row direction)
+// points right on the screen, the left of the row up (static/steer/run-view.mjs draws it). When the executor sends
+// nothing to draw the picture stays hidden; without an executor the module stops asking. It asks at most once a second
+// and only while its block (#autoGridBlock, in the 자율주행 tab) is on screen. Loaded by static/app/14-steer.js when that
+// tab is opened the first time.
+
+import { drawScene, sceneColours, sceneFromStatus } from './run-view.mjs';
 
 export const POLL_MS = 1000;              // placeholder: the executor makes a new export at most every 0.5 s
 export const STALE_S = 2.0;               // an export older than this is shown as old
@@ -76,7 +80,7 @@ export function describe(grid) {
   const parts = [`셀 ${num(grid.cell_m) ?? '--'} m · ${shape}`, `점유 ${grid.occupied ?? '--'}`,
                  grid.lines?.centre ? `선 품질 ${quality === null ? '--' : quality.toFixed(2)}` : '열 선 아직 없음'];
   if (age !== null) parts.push(`${age.toFixed(1)} s 전`);
-  if (grid.truncated) parts.push(grid.encoding === 'cells' ? '셀이 많아 가까운 것만' : '격자가 커서 셀을 못 받음');
+  if (grid.truncated) parts.push(grid.encoding === 'cells' ? '셀이 많아 가까운 것만 표시' : '격자가 커서 셀을 받지 못함');
   return [tag[0], tag[1], parts.join(' · ')];
 }
 
@@ -84,24 +88,46 @@ function cssVar(name, fallback) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
+// The path of the run when the executor sends no single_row_geometry (an older executor): the base poses of the grid
+// reads, one per poll, a new list when the run or the grid export starts again.
+export function trailStep(trail, status) {
+  const base = Array.isArray(status?.local_grid_map?.base_pose) ? status.local_grid_map.base_pose : null;
+  const run = status?.run ?? null, updates = num(status?.local_grid_map?.updates);
+  const fresh = !trail || trail.run !== run || (updates !== null && trail.updates !== null && updates < trail.updates);
+  const next = fresh ? { run, updates, points: [] } : { ...trail, updates, points: trail.points.slice(-299) };
+  if (base && base.slice(0, 2).every((v) => num(v) !== null)) {
+    const last = next.points[next.points.length - 1];
+    if (!last || Math.hypot(base[0] - last[0], base[1] - last[1]) >= 0.05) next.points.push([base[0], base[1]]);
+  }
+  return next;
+}
+
+const RUN_OPEN = new Set(['ready', 'armed', 'running', 'paused']);
+
 export function initLocalGrid(page) {
   const $ = (id) => document.getElementById(id);
   const panel = $('localGridPanel'), canvas = $('localGridCanvas');
   if (!panel || !canvas) return null;
-  let timer = null, busy = false, off = false, grid = null, cells = null, drawnKey = '';
-  // The block sits on the live map part of the LiDAR panel; it is hidden until a grid arrives, so the map part is watched.
-  const mapPart = $('liveMapPanel');
+  let timer = null, busy = false, off = false, grid = null, cells = null, scene = null, drawnKey = '', trail = null;
+  // The picture sits in the monitoring view of the 자율주행 tab (2026-11-19); it is hidden until the executor sends
+  // something to draw, so its always-visible block is watched (the live map part on an older page).
+  const watched = $('autoGridBlock') || $('liveMapPanel');
   let onScreen = null;
-  if (mapPart && typeof IntersectionObserver === 'function') {
-    new IntersectionObserver((entries) => { onScreen = Boolean(entries[entries.length - 1].isIntersecting); routeChanged(); }).observe(mapPart);
+  if (watched && typeof IntersectionObserver === 'function') {
+    new IntersectionObserver((entries) => { onScreen = Boolean(entries[entries.length - 1].isIntersecting); routeChanged(); }).observe(watched);
   }
   const active = () => page.currentRoute() === '/rover-control' && !document.hidden
-    && (onScreen === true || (onScreen === null && !(mapPart && typeof IntersectionObserver === 'function')));
+    && (onScreen === true || (onScreen === null && !(watched && typeof IntersectionObserver === 'function')));
 
   function show(on) {
     if (panel.hidden === !on) return;
     panel.hidden = !on;
     drawnKey = '';
+  }
+  function words(level, text, line) {
+    const tag = $('localGridState');
+    if (tag) { tag.className = `tag ${level}`.trim(); tag.textContent = text; }
+    if ($('localGridStatus')) $('localGridStatus').textContent = line;
   }
   async function poll() {
     if (busy || off) return;
@@ -109,76 +135,44 @@ export function initLocalGrid(page) {
     let reply = null;
     try { reply = await page.getJson('/api/executor/status?grid=1'); } catch (_) { reply = null; }
     finally { busy = false; }
-    if (reply && reply.configured === false) { off = true; stop(); show(false); return; }   // no executor here
-    const next = reply?.ok ? reply.status?.local_grid_map : undefined;
-    if (reply?.ok && (!next || next.schema !== SCHEMA)) { grid = null; cells = null; show(false); return; }
-    if (next) {
-      if (!grid || next.updates !== grid.updates || next.bits !== grid.bits || next.lines?.stamp !== grid.lines?.stamp) cells = gridCells(next);
-      grid = next;
+    if (reply && reply.configured === false) { off = true; stop(); show(false); words('', '실행기 없음', '자율주행 실행기가 설정되어 있지 않습니다.'); return; }
+    if (!reply?.ok) {
+      if (scene) words('bad', '실행기 연결 안 됨', grid ? describe(grid)[2] : '마지막 그림을 유지합니다.');
+      return;
     }
-    if (!grid) return;
+    const status = reply.status || {};
+    // After a run (ended / idle / latched) the executor keeps integrating scans into its grid; the picture stays
+    // the last one of the run until the next run opens.
+    if (scene && !RUN_OPEN.has(status.run_state)) {
+      words('', '멈춤', '마지막 주행의 그림입니다. 다음 주행에서 다시 그립니다.');
+      return;
+    }
+    const next = status.local_grid_map && status.local_grid_map.schema === SCHEMA ? status.local_grid_map : null;
+    if (next && (!grid || next.updates !== grid.updates || next.bits !== grid.bits || next.lines?.stamp !== grid.lines?.stamp)) cells = gridCells(next);
+    grid = next;
+    if (!next) cells = null;
+    trail = trailStep(trail, status);
+    scene = sceneFromStatus(next ? status : { ...status, local_grid_map: undefined });
+    if (scene && !scene.path.length && trail.points.length >= 2) scene.path = trail.points;
+    if (!scene) { show(false); words('', '대기', '주행 중에 그립니다.'); return; }
     show(true);
-    const [level, text, line] = reply?.ok ? describe(grid) : ['bad', '실행기 연결 안 됨', describe(grid)[2]];
-    const tag = $('localGridState');
-    if (tag) { tag.className = `tag ${level}`; tag.textContent = text; }
-    if ($('localGridStatus')) $('localGridStatus').textContent = line;
+    if (grid) words(...describe(grid));
+    else words('', '격자 없음', '실행기가 격자를 보내지 않아 경로와 차만 그립니다.');
     draw();
   }
   function draw() {
-    if (!grid || panel.hidden) return;
+    if (!scene || panel.hidden) return;
     const rect = canvas.getBoundingClientRect();
     if (!(rect.width > 0 && rect.height > 0)) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const bw = Math.round(rect.width * dpr), bh = Math.round(rect.height * dpr);
-    const key = `${bw}x${bh}:${grid.updates}:${grid.lines?.stamp}:${grid.bits?.length}:${grid.base_pose}`;
+    const key = `${bw}x${bh}:${grid?.updates}:${grid?.lines?.stamp}:${grid?.bits?.length}:${scene.pose}:${scene.path.length}:${scene.lookahead}`;
     if (key === drawnKey) return;
     drawnKey = key;
     if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const w = rect.width, h = rect.height;
-    ctx.clearRect(0, 0, w, h);
-    if (!(num(grid.cell_m) > 0 && Array.isArray(grid.origin_uv))) return;
-    const box = layout(grid, w, h);
-    const size = grid.cell_m * box.scale;
-    ctx.strokeStyle = cssVar('--chart-grid', '#888');
-    ctx.lineWidth = 1;
-    ctx.strokeRect(box.ox, box.oy, box.length * box.scale, box.width * box.scale);
-    ctx.fillStyle = cssVar('--color-media-text', '#ddd');
-    const nj = grid.shape[1];
-    for (const [i, j] of cells || []) {
-      ctx.fillRect(box.ox + i * size, box.oy + (nj - 1 - j) * size, Math.max(1, size), Math.max(1, size));
-    }
-    const lines = grid.lines || {};
-    const segment = (points, colour, dashed) => {
-      if (!Array.isArray(points) || points.length !== 2) return;
-      const [a, b] = points.map(([x, y]) => screenOf(grid, box, x, y));
-      ctx.save();
-      ctx.strokeStyle = colour;
-      ctx.lineWidth = 2;
-      if (dashed) ctx.setLineDash([8, 6]);
-      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
-      ctx.restore();
-    };
-    const blue = cssVar('--chart-1', '#2a78d6');
-    segment(lines.left, blue, false);
-    segment(lines.right, blue, false);
-    segment(lines.centre, cssVar('--chart-3', '#1baf7a'), true);
-    const pose = Array.isArray(grid.base_pose) && grid.base_pose.every((v) => num(v) !== null) ? grid.base_pose : null;
-    if (pose) {
-      const [px, py] = screenOf(grid, box, pose[0], pose[1]);
-      const heading = pose[2] - (num(grid.axis_rad) ?? 0);
-      const dx = Math.cos(heading), dy = -Math.sin(heading);
-      ctx.save();
-      ctx.fillStyle = cssVar('--chart-4', '#eda100');
-      ctx.beginPath();
-      ctx.moveTo(px + dx * 14, py + dy * 14);
-      ctx.lineTo(px - dx * 8 - dy * 7, py - dy * 8 + dx * 7);
-      ctx.lineTo(px - dx * 8 + dy * 7, py - dy * 8 - dx * 7);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
+    drawScene(ctx, scene, rect.width, rect.height, sceneColours(cssVar), cells);
   }
   function start() { if (!timer && !off) { timer = setInterval(poll, POLL_MS); poll(); } }
   function stop() { clearInterval(timer); timer = null; }
@@ -187,5 +181,5 @@ export function initLocalGrid(page) {
 
   function routeChanged() { if (active()) start(); else stop(); }
   routeChanged();
-  return { routeChanged, draw, state: () => grid };
+  return { routeChanged, draw, state: () => grid, scene: () => scene };
 }

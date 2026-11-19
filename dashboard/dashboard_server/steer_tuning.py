@@ -45,6 +45,7 @@ LABELS = {
     "trim_gain_rad_per_m_s": "조향 trim 이득", "trim_limit_deg": "조향 trim 한도", "steer_follow_limit_deg": "추종 조향 한도",
     "steer_filter_s": "조향 목표 필터", "d_scan_m": "스캔당 이동 한도", "d_blind_m": "루프 지연당 이동 한도",
     "loop_fixed_s": "루프 고정 지연", "corridor_weak_age_s": "통로 갱신 나이 한도", "lateral_slow_start_m": "횡오차 감속 시작",
+    "speed_window_s": "속도 입력 창(이동거리)", "speed_prior_floor": "duty 표 속도 하한 비율", "align_timeout_s": "정렬 시간 상한",
     "lateral_slow_full_m": "횡오차 최저 속도 지점", "lateral_accel_max_m_s2": "횡가속도 상한",
     "steer_slow_start": "조향 요구 감속 시작", "fresh_slow_age_s": "스캔 나이 감속 시작",
     "max_speed_m_s": "최고 속도", "front_margin_m": "앞 여유", "overspeed_margin_m_s": "과속 여유", "overspeed_s": "과속 지속",

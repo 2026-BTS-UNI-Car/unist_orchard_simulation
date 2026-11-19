@@ -1,8 +1,4 @@
-/* Screens and panels of the dashboard. Loaded after the design system sheets
-   (css/tokens.css, base.css, components.css, frame.css): colours, sizes and the
-   look of buttons, inputs, badges, panels and notices come from there. This
-   sheet places things inside the pages. No raw colours, no gradients, no
-   shadows here. */
+/* Screens and panels, loaded after css/tokens.css, base.css, components.css and … */
 
 /* ---- Page grids -------------------------------------------------------- */
 .dashboard-grid,
@@ -10,12 +6,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--page-gutter);
-}
-
-/* The CPU card has the most to show and takes a full row; the other four pair up
-   (the two cards of a row are equally tall). */
-.resource-grid > .resource-card:first-child {
-  grid-column: 1 / -1;
 }
 
 .wide {
@@ -109,8 +99,7 @@
   transform: rotate(90deg);
 }
 
-/* Name, value and detail cells in a grid (device probe, container details,
-   GPS read-outs): quiet tiles, not bordered boxes. */
+/* Name, value and detail cells in a grid (device probe, container details, GPS … */
 .probe-card,
 .container-detail-grid article,
 .gps-readouts > div {
@@ -141,7 +130,6 @@
   overflow-wrap: anywhere;
 }
 
-.probe-card small,
 .container-detail-grid small {
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
@@ -175,8 +163,7 @@
   height: 220px;
 }
 
-/* Read-out list beside a chart or under a sensor view. One row per value:
-   mark, name and value on a line, the detail below. */
+/* Read-out list beside a chart or under a sensor view. */
 .chart-readout {
   display: grid;
   align-content: start;
@@ -184,8 +171,7 @@
   min-width: 0;
 }
 
-/* Mark, name and value share a line; a value that does not fit beside its
-   name moves below it as a whole (an address is not cut in the middle). */
+/* Mark, name and value share a line; a value that does not fit beside its name moves … */
 .chart-readout .readout-row {
   display: flex;
   flex-wrap: wrap;
@@ -201,8 +187,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Beside a chart, and wherever the rows sit side by side, each row is a chip:
-   the legend of the chart. */
+/* Beside a chart, and wherever the rows sit side by side, each row is a chip: */
 .chart-frame > .chart-readout .readout-row,
 .network-mode-panel .chart-readout .readout-row,
 .sensor-overview .chart-readout .readout-row {
@@ -286,7 +271,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2) var(--space-5);
-  margin-top: var(--space-4);
 }
 
 .core {
@@ -302,17 +286,6 @@
 .core strong {
   color: var(--color-text);
   text-align: right;
-}
-
-.resource-card > .progress {
-  margin-top: var(--space-4);
-}
-
-.resource-card > small {
-  display: block;
-  margin-top: var(--space-2);
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
 }
 
 /* ---- LiDAR polar view -------------------------------------------------- */
@@ -493,11 +466,110 @@
   align-items: start;
 }
 
+/* Rover Control tabs (2026-11-19): data-tab picks the parts (data-rover-tab). */
+.rover-tabs {
+  gap: var(--space-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rover-tabs .tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tab-badge {
+  margin-left: var(--space-1);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ok-soft);
+  color: var(--color-ok-text);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+[data-tab="manual"] > :not([data-rover-tab~="manual"]),
+[data-tab="auto"] > :not([data-rover-tab~="auto"]),
+[data-tab="setup"] > :not([data-rover-tab~="setup"]),
+[data-tab="record"] > :not([data-rover-tab~="record"]) {
+  display: none;
+}
+
+/* Monitoring tiles: as many across as fit; the level colours the value. */
+.monitor-grid,
+.record-sensors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 136px), 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.monitor-grid > div {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+}
+
+.monitor-grid dt,
+.monitor-grid small,
+.record-sensors > legend {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  overflow-wrap: anywhere;
+}
+
+.monitor-grid dd {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+
+[data-level="ok"] > dd {
+  color: var(--color-ok-text);
+}
+
+[data-level="warn"] > dd {
+  color: var(--color-warning-text);
+}
+
+[data-level="bad"] > dd {
+  color: var(--color-danger-text);
+}
+
+.monitor-grid.stale dd {
+  color: var(--color-text-disabled);
+}
+
+.auto-metrics {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* The drive panel, the start panel and the monitoring view come first. */
+.rover-drive-panel,
+.rover-auto-monitor {
+  order: -1;
+}
+
+.rover-auto-panel {
+  order: -2;
+}
+
 /* Panels whose parts are stacked with one gap. */
 .rover-live-panel,
 .rover-drive-panel,
 .rover-record-panel,
 .rover-gps-panel,
+.rover-auto-panel,
+.rover-auto-monitor,
+.rover-setup-panel,
 .network-mode-panel,
 .wifi-stack,
 .fan-pwm-panel {
@@ -513,6 +585,9 @@
 .rover-drive-panel > .panel-head,
 .rover-record-panel > .panel-head,
 .rover-gps-panel > .panel-head,
+.rover-auto-panel > .panel-head,
+.rover-auto-monitor > .panel-head,
+.rover-setup-panel > .panel-head,
 .network-mode-panel > .panel-head,
 .fan-pwm-panel > .panel-head {
   margin-bottom: var(--space-1);
@@ -529,8 +604,7 @@
   min-width: 0;
 }
 
-/* Drive panel header: title, then the panel switch and STOP at the right. In
-   a narrow column the two buttons move below the title. */
+/* Drive panel header: title, then STOP at the right. */
 .rover-drive-panel h2 {
   white-space: nowrap;
 }
@@ -548,6 +622,9 @@
 }
 
 /* Every STOP has the STOP red, in both themes. */
+#steerCalStop,
+#steerDistStop,
+#autoStopButton,
 .drive-head-actions .action-button.danger {
   border-color: var(--color-stop);
   background: var(--color-stop);
@@ -557,27 +634,23 @@
 }
 
 @media (hover: hover) {
+  #steerCalStop:hover,
+  #steerDistStop:hover,
+  #autoStopButton:hover,
   .drive-head-actions .action-button.danger:not(:disabled):hover {
     border-color: var(--color-stop-hover);
     background: var(--color-stop-hover);
   }
 }
 
+#steerCalStop:active,
+#steerDistStop:active,
+#autoStopButton:active,
 .drive-head-actions .action-button.danger:not(:disabled):active,
 .rover-pad button[data-rover-drive="stop"]:active {
   border-color: var(--color-stop);
   background: var(--color-on-stop);
   color: var(--color-stop);
-}
-
-.rover-layout.drive-collapsed .rover-drive-panel > :not(.panel-head) {
-  display: none;
-}
-
-/* Only the header bar is left: it needs no rule under it. */
-.rover-layout.drive-collapsed .rover-drive-panel > .panel-head {
-  margin-bottom: calc(var(--panel-padding) * -1);
-  border-bottom: 0;
 }
 
 .rover-arm-controls {
@@ -586,9 +659,7 @@
   min-width: 0;
 }
 
-/* The arm button is the first step of driving: as tall as a touch control
-   everywhere. While driving is armed it has the tint of the armed badge in
-   the status bar. */
+/* The arm button: */
 .rover-arm-controls .action-button {
   min-height: 44px;
 }
@@ -751,8 +822,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   background: var(--color-on-accent);
 }
 
-/* Field tuning values (UI-12): a collapsed part of Rover Control (UI-16), a full row below 900px.
-   Its groups go as many across as fit; the change log takes a row of its own. */
+/* Field tuning values (UI-12): */
 .rover-tuning-panel {
   grid-column: 1 / -1;
 }
@@ -769,7 +839,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   grid-column: 1 / -1;
 }
 
-/* The executor's local grid under the live occupancy grid map (UI-09, UI-16). */
+/* The executor's local grid (UI-09). */
 .local-grid-block {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -852,27 +922,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   width: 100%;
 }
 
-/* Three equal buttons while every label fits. A button is never narrower than
-   its label ("LiDAR+Camera" is one word): the others give way first, and in a
-   very narrow panel the last button moves to a second row. */
-.record-button-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.record-button-grid .action-button {
-  flex: 1 1 0;
-  min-width: min-content;
-  padding: 6px var(--space-2);
-}
-
-/* Keep the label beside its check box and wrap the words inside the label. */
-.switch-control.record-imu-option {
-  flex-wrap: nowrap;
-  padding: var(--space-1) 0;
-}
-
 /* ---- Recordings: list, player, panels ---------------------------------- */
 .archive-layout {
   display: grid;
@@ -882,8 +931,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   container-type: inline-size;
 }
 
-/* A list of things to pick from (recordings, documents): rounded rows, the
-   picked one tinted, like the menu. */
+/* A list of things to pick from (recordings, documents): */
 .archive-list,
 .doc-group {
   display: grid;
@@ -1100,11 +1148,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 }
 
 /* ---- Network mode ------------------------------------------------------ */
-/* Both panels under the mode panel take the full row (the list of interfaces was a lone half). */
-.page[data-page="/network"] .dashboard-grid > .panel {
-  grid-column: 1 / -1;
-}
-
 .network-mode-actions {
   justify-content: flex-start;
 }
@@ -1243,8 +1286,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   width: 60%;
 }
 
-/* A list that was filled with nothing says so, like .empty-state (the page
-   script leaves the box empty, so the icon and the line are drawn here). */
+/* A list that was filled with nothing says so, like .empty-state (the page script … */
 .panel > .status-list[data-render-key]:empty {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
@@ -1462,8 +1504,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   overflow-wrap: anywhere;
 }
 
-/* The source path keeps its place beside the title while the title has at
-   least 200px; a longer path moves below the title and may break there. */
+/* The source path keeps its place beside the title while the title has at least … */
 .doc-reader-head > div {
   flex: 1 1 200px;
   min-width: 0;
@@ -1492,9 +1533,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   overflow-wrap: break-word;
 }
 
-/* Two panes that fill the height below the status bar and scroll on their
-   own. A short screen (a phone on its side) has no room for that: there the
-   page scrolls as a whole. */
+/* Two panes that fill the height below the status bar and scroll on their own. */
 @media (min-height: 600px) {
   .page[data-page="/docs"].active {
     height: calc(100dvh - var(--statusbar-height) - var(--banner-height) - 2 * var(--page-gutter));
@@ -1698,8 +1737,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   color: var(--color-warning-text);
 }
 
-/* Five read-outs. The position takes two tracks, so every row is full: 2+1 and 1+1+1 in three tracks,
-   2 / 1+1 / 1+1 in two tracks. The wide live panel shows all five in one row. */
+/* Five read-outs. */
 .gps-readouts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1733,8 +1771,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   margin: 0 0 var(--space-2);
 }
 
-/* Rover mark on the map. The map tiles are light in both themes, so the mark
-   keeps one colour pair. */
+/* Rover mark on the map. */
 .gps-rover-marker {
   width: 30px;
   height: 30px;
@@ -1970,35 +2007,36 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 
 /* ---- From 900px: three columns on Rover Control ------------------------ */
 @media (min-width: 900px) {
-  /* The first row is as tall as the drive panel; the rest of the tall sensor
-     panels goes to the second row, so no gap opens under the drive panel. */
   .rover-layout {
     grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) minmax(220px, 0.78fr);
-    grid-template-rows: auto 1fr;
   }
 
-  .rover-lidar-panel {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+  /* Each tab places its parts (row / column / row end / column end). */
+  [data-tab="manual"] > .rover-camera-panel {
+    grid-area: 1 / 2;
   }
 
-  .rover-camera-panel {
-    grid-column: 2;
-    grid-row: 1 / span 2;
+  [data-tab="manual"] > .rover-drive-panel {
+    grid-area: 1 / 3 / span 2;
   }
 
-  .rover-drive-panel {
-    grid-column: 3;
-    grid-row: 1;
+  [data-tab="manual"] > .rover-map-panel {
+    grid-column: 1 / span 2;
   }
 
-  .rover-record-panel {
-    grid-column: 3;
-    grid-row: 2;
+  [data-tab="manual"] > .rover-imu-panel {
+    grid-area: 3 / 1;
   }
 
-  /* Next to the IMU panel, so that row has no empty half. */
-  .rover-tuning-panel {
+  [data-tab="manual"] > .rover-gps-panel {
+    grid-column: 2 / span 2;
+  }
+
+  [data-tab="auto"] > .rover-auto-monitor {
+    grid-area: 1 / 2 / span 2 / span 2;
+  }
+
+  [data-tab="record"] > .rover-archive-panel {
     grid-column: 2 / span 2;
   }
 
@@ -2027,11 +2065,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   .rover-lidar-stage .lidar-map {
     width: min(100%, clamp(300px, 23vw, 430px));
   }
-
-  /* The full-width CPU card lists the cores four across. */
-  .core-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 /* A mouse does not need the tall hold buttons: the drive panel stays short. */
@@ -2052,14 +2085,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 
   .page[data-page="/connection"] .dashboard-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* The two half-width panels of the connection page share a row (they are not
-   neighbours in the markup; the wide panels keep their order). */
-@media (min-width: 1181px) {
-  .page[data-page="/connection"] .dashboard-grid {
-    grid-auto-flow: dense;
   }
 }
 
@@ -2099,14 +2124,6 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 
   .camera-frame {
     aspect-ratio: 4 / 3;
-  }
-
-  .record-button-grid {
-    flex-direction: column;
-  }
-
-  .record-button-grid .action-button {
-    flex: 0 0 auto;
   }
 
   .rover-sensor-controls {
@@ -2218,8 +2235,7 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
 }
 
 /* ---- Recordings: all sensors at a glance ------------------------------- */
-/* Compact synchronized archive view. No duplicate sensor subscriptions.
-   Replay cards use their container width; canvas height matches its stage. */
+/* Compact synchronized archive view. */
 .archive-layout:has(.sensor-overview) {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -2354,4 +2370,63 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   .archive-preview.sensor-overview {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* pages simple 20261120 */
+.order-first {
+  order: -1;
+}
+
+.order-last,
+[data-page="/network"] > .status-strip {
+  order: 1;
+}
+
+.fold {
+  margin-top: var(--space-3);
+}
+
+.fold-body {
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.panel .flush {
+  margin-top: calc(var(--space-4) * -1);
+  border-top: 0;
+}
+
+#overviewServices small,
+#cpuReadout > :nth-child(n + 2) {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .container-row {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+
+  .container-row > div,
+  .container-row > small {
+    grid-column: 1 / -1;
+  }
+
+  .container-row div small,
+  .doc-link small {
+    display: none;
+  }
+}
+
+/* rover simple 20261120 */
+.auto-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: var(--space-2);
+}
+
+.auto-status {
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
 }

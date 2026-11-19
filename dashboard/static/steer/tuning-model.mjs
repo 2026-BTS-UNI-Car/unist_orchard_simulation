@@ -3,27 +3,32 @@
 // tuning through GET /api/executor/tuning; the executor stays the final judge. Pure functions: tested without a page.
 
 export const GROUP_TEXT = {
-  basic: ['기본 묶음', '차가 정지했을 때 화면에서 바꾼다'],
-  advanced: ['고급 묶음', '파일에서만 바꾼다'],
-  locked: ['잠금 값', '파일에서만, 실행기를 다시 시작해야 바뀐다'],
+  basic: ['기본 묶음', '차가 멈춰 있을 때 화면에서 바꿀 수 있습니다'],
+  advanced: ['고급 묶음', '파일에서만 바꿀 수 있습니다'],
+  locked: ['잠금 값', '파일에서 바꾸고 실행기를 다시 시작해야 적용됩니다'],
 };
 // Reasons the dashboard or the executor gives (field_tuning, OPERATOR_API_KO.md 6) in screen words.
 export const ERROR_TEXT = {
-  tuning_locked_while_running: '주행(run)이 열려 있어 바꿀 수 없다', tuning_locked_while_armed: '구동 권한(Arm)을 쥐고 있어 바꿀 수 없다',
-  tuning_locked_vehicle_moving: '차가 움직이고 있어 바꿀 수 없다', tuning_locked: '실행기가 지금은 바꿀 수 없다고 한다',
-  no_field_tuning: '실행기에 현장 조정 묶음이 없다', tuning_not_writable: '실행기가 기본 파일을 쓰고 있어 저장할 수 없다',
-  invalid_params: '실행기가 값을 받지 않았다', tuning_save_failed: '파일 저장 실패', out_of_range: '범위 밖',
-  unknown_parameter: '모르는 값', locked_parameter: '잠긴 값', unknown_preset: '모르는 프리셋', bad_preset_name: '프리셋 이름이 맞지 않음',
-  bad_note: '메모가 너무 김', no_change: '바뀐 값이 없다', executor_unreachable: '실행기 연결 안 됨',
-  executor_not_configured: '실행기 설정 없음', executor_token_rejected: '실행기 토큰이 맞지 않음',
+  tuning_locked_while_running: '주행이 끝나지 않아 바꿀 수 없습니다.', tuning_locked_while_armed: '실행기가 조종 권한을 쥐고 있어 바꿀 수 없습니다.',
+  tuning_locked_vehicle_moving: '차가 움직이고 있어 바꿀 수 없습니다.', tuning_locked: '실행기가 지금은 바꿀 수 없다고 답했습니다.',
+  no_field_tuning: '실행기에 현장 조정 값이 없습니다.', tuning_not_writable: '실행기가 기본 파일을 쓰고 있어 저장할 수 없습니다.',
+  invalid_params: '실행기가 값을 받지 않았습니다.', tuning_save_failed: '파일에 저장하지 못했습니다.', out_of_range: '범위를 벗어난 값입니다.',
+  unknown_parameter: '실행기가 모르는 값입니다.', locked_parameter: '잠긴 값입니다.', unknown_preset: '없는 프리셋입니다.', bad_preset_name: '프리셋 이름이 규칙에 맞지 않습니다.',
+  bad_note: '메모 길이가 한도를 넘었습니다.', no_change: '바뀐 값이 없습니다.', executor_unreachable: '실행기에 연결하지 못했습니다.',
+  executor_not_configured: '실행기가 설정되어 있지 않습니다.', executor_token_rejected: '실행기 토큰이 맞지 않습니다.',
   // PW-10: the answer to the online-scale offer after a run (contract revision 6)
-  no_online_scale_offer: '저장할 온라인 배율이 없다', online_scale_offer_changed: '그 사이 다른 run의 배율로 바뀌었다',
-  online_scale_basis_changed: '그 사이 배율 값이 바뀌었다', online_scale_form: '온라인 배율 요청 형식이 맞지 않음',
-  no_scale: '배율이 아직 없다(주행 10초 미만)', no_forward_motion: 'LiDAR가 앞으로 가는 것을 못 봤다',
-  scale_set_in_config: '실행기 설정이 배율을 따로 정했다', online_scale_not_offered: '저장할 수 없는 배율',
+  no_online_scale_offer: '저장할 온라인 배율이 없습니다.', online_scale_offer_changed: '그사이 다른 주행의 배율로 바뀌었습니다.',
+  online_scale_basis_changed: '그사이 배율 값이 바뀌었습니다.', online_scale_form: '온라인 배율 요청 형식이 맞지 않습니다.',
+  no_scale: '주행이 10초보다 짧아 배율이 아직 없습니다.', no_forward_motion: 'LiDAR에서 앞으로 간 움직임이 확인되지 않았습니다.',
+  scale_set_in_config: '실행기 설정 파일에 배율이 따로 정해져 있습니다.', online_scale_not_offered: '저장할 수 없는 배율입니다.',
 };
 const ACTION_TEXT = { set: '값 바꿈', load_preset: '프리셋 불러옴', save: '파일에 저장', save_preset: '프리셋으로 저장',
                       online_scale: '온라인 배율을 전체 배율로', online_scale_dismiss: '온라인 배율 저장 안 함' };
+// What an accepted request did, as the sentence of the notice line.
+const DONE_TEXT = { set: '값을 적용했습니다.', load_preset: '프리셋 값을 적용했습니다.', save: '파일에 저장했습니다.', save_preset: '프리셋으로 저장했습니다.',
+                    online_scale: '온라인 배율을 전체 배율로 저장했습니다.', online_scale_dismiss: '온라인 배율을 저장하지 않았습니다.' };
+// The executor's run state in the words of the 자율주행 tab's chip (auto-model.mjs RUN_STATE).
+const RUN_STATE_TEXT = { idle: '대기', ready: '준비 미완료', armed: '출발 대기', running: '주행 중', paused: '일시정지', ended: '끝남', latched: '멈춤' };
 
 const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
 const decimals = (step) => (num(step) === null || step >= 1 ? 2 : Math.min(3, String(step).split('.')[1]?.length || 0));
@@ -47,26 +52,27 @@ export function screenState(view) {
   if (!view) return ['', '확인 중'];
   if (view.configured === false) return ['', '실행기 설정 없음'];
   if (!view.reachable) return ['bad', '실행기 연결 안 됨'];
-  if (view.available === false) return ['warn', '조정 묶음 없음'];
-  if (!view.applicable) return ['warn', '지금은 바꿀 수 없음'];
-  return ['ok', '바꿀 수 있음'];
+  if (view.available === false) return ['warn', '조정 값 없음'];
+  if (!view.applicable) return ['warn', '지금은 변경 불가'];
+  return ['ok', '변경 가능'];
 }
 
 // Why nothing can change now (empty when it can).
 export function whyNot(view) {
-  if (!view) return '실행기 조정 값을 읽고 있다.';
-  if (view.configured === false) return '자율 실행기 설정 없음: 이 대시보드에는 UBTS_EXECUTOR_URL이 없어 값을 읽거나 바꿀 수 없다.';
-  if (!view.reachable) return `실행기 연결 안 됨: 값을 읽을 수 없다(${ERROR_TEXT[view.error] || view.error || '응답 없음'}).`;
+  if (!view) return '실행기의 조정 값을 읽고 있습니다.';
+  if (view.configured === false) return '이 대시보드에는 자율주행 실행기 주소 설정 UBTS_EXECUTOR_URL이 없어 값을 읽거나 바꿀 수 없습니다.';
+  if (!view.reachable) return `실행기에서 조정 값을 읽을 수 없습니다. ${ERROR_TEXT[view.error] || (view.error ? `알려 온 이유는 ${view.error}입니다.` : '실행기가 응답하지 않습니다.')}`;
   if (view.applicable) return '';
-  const reason = ERROR_TEXT[view.why_not] || view.why_not || '이유 모름';
-  return `${reason}. 정지 상태(run을 끝내고 구동 권한을 놓은 뒤)에서 바꾼다. 지금 상태: ${view.run_state || '모름'}.`;
+  const reason = ERROR_TEXT[view.why_not] || (view.why_not ? `알려 온 이유는 ${view.why_not}입니다.` : '지금은 바꿀 수 없습니다.');
+  const state = RUN_STATE_TEXT[view.run_state];
+  return `${reason} 주행을 끝내고 차가 멈춘 뒤에 바꾸세요.${state ? ` 지금 실행기 상태는 ${state}입니다.` : ''}`;
 }
 
 // The line under the title: preset (a * when changed from it), revision, unsaved.
 export function presetLine(view) {
   const t = view?.tuning || {};
   if (!view?.available) return '판 --';
-  return `프리셋 ${t.preset ?? '--'} · 판 ${t.revision ?? '--'}${t.unsaved ? ' · 파일에 저장 안 함' : ''}`;
+  return `프리셋 ${t.preset ?? '--'} · 판 ${t.revision ?? '--'}${t.unsaved ? ' · 파일에 저장 전' : ''}`;
 }
 
 // Check the typed values (strings from the inputs, by name) against the executor's ranges. Returns
@@ -78,12 +84,12 @@ export function check(view, typed) {
     if (raw === undefined || String(raw).trim() === '') continue;
     const value = Number(String(raw).trim());
     if (!param.editable) {
-      if (num(param.value) === null || value !== param.value) problems.push({ name: param.name, label: param.label, text: '바꿀 수 없는 값' });
+      if (num(param.value) === null || value !== param.value) problems.push({ name: param.name, label: param.label, text: '값은 바꿀 수 없습니다.' });
       continue;
     }
-    if (!Number.isFinite(value)) { problems.push({ name: param.name, label: param.label, text: '수가 아님' }); continue; }
+    if (!Number.isFinite(value)) { problems.push({ name: param.name, label: param.label, text: '값이 숫자가 아닙니다.' }); continue; }
     if (value < param.min || value > param.max) {
-      problems.push({ name: param.name, label: param.label, text: `범위 밖(${withUnit(`${fmt(param.min, param.step)} ~ ${fmt(param.max, param.step)}`, param.unit)})` });
+      problems.push({ name: param.name, label: param.label, text: `값이 범위 ${withUnit(`${fmt(param.min, param.step)} ~ ${fmt(param.max, param.step)}`, param.unit)} 밖입니다.` });
       continue;
     }
     if (num(param.value) !== null && Math.abs(value - param.value) < 1e-9) continue;
@@ -111,12 +117,12 @@ export function replyText(view, code, reply) {
       const p = (view?.params || []).find((x) => x.name === c.key) || { label: c.key, step: 0.01 };
       return `${p.label} ${fmt(c.old, p.step)} → ${fmt(c.new, p.step)}`;
     });
-    const what = ACTION_TEXT[reply.action] || '적용';
-    return ['ok', `${what}: 판 ${reply.tuning?.revision ?? '--'}${changed.length ? ` · ${changed.join(', ')}` : ''}`];
+    const what = DONE_TEXT[reply.action] || '적용했습니다.';
+    return ['ok', `${what} 판 ${reply.tuning?.revision ?? '--'}${changed.length ? ` · ${changed.join(', ')}` : ''}`];
   }
-  const reason = ERROR_TEXT[reply?.error] || reply?.error || `HTTP ${code}`;
-  const problems = Array.isArray(reply?.problems) && reply.problems.length ? ` · ${reply.problems.join(' / ')}` : '';
-  return ['bad', `거절: ${reason}${problems}`];
+  const reason = ERROR_TEXT[reply?.error] || (reply?.error ? `알려 온 이유는 ${reply.error}입니다.` : `서버가 HTTP ${code} 오류로 답했습니다.`);
+  const problems = Array.isArray(reply?.problems) && reply.problems.length ? ` ${reply.problems.join(' / ')}` : '';
+  return ['bad', `요청이 거절됐습니다. ${reason}${problems}`];
 }
 
 const two = (n) => String(n).padStart(2, '0');

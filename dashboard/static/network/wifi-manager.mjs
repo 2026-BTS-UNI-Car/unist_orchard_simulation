@@ -21,10 +21,10 @@ const ERROR_TEXT = {
   ssid_not_in_scan: "최근 검색 결과에 없는 Wi-Fi입니다. 주변 검색을 다시 하세요.",
   scan_too_old: "검색한 지 10분이 지났습니다. 주변 검색을 다시 하세요.",
   ssid_already_saved: "이미 저장된 Wi-Fi입니다. 저장된 Wi-Fi 목록에서 연결하세요.",
-  security_not_supported: "이 Wi-Fi의 보안 방식(기업용 802.1X, WEP 등)은 대시보드에서 연결할 수 없습니다.",
+  security_not_supported: "기업용 802.1X나 WEP 같은 보안 방식의 Wi-Fi는 대시보드에서 연결할 수 없습니다.",
   password_required: "비밀번호를 넣으세요.",
-  password_invalid: "비밀번호는 영문·숫자·기호 8~63자(WPA3는 128자까지)입니다.",
-  password_length: "비밀번호 길이가 맞지 않습니다(WPA2 8~63자, 16진수 64자).",
+  password_invalid: "비밀번호는 영문, 숫자, 기호로 8~63자여야 합니다. WPA3는 128자까지 됩니다.",
+  password_length: "비밀번호 길이가 맞지 않습니다. WPA2는 8~63자이거나 16진수 64자여야 합니다.",
   password_characters: "비밀번호에는 영문·숫자·기호만 쓸 수 있습니다.",
   password_not_editable: "이 저장 Wi-Fi는 대시보드에서 비밀번호를 바꿀 수 없습니다.",
   open_network_takes_no_password: "비밀번호가 없는 Wi-Fi입니다. 비밀번호 칸을 비우세요.",
@@ -46,7 +46,7 @@ const STATE_TEXT = {
   busy: "다른 네트워크 변경이 진행 중입니다.",
   action_not_available: "지금 상태에서는 할 수 없습니다.",
   ethernet_ap_locked: "Ethernet이 연결되어 AP가 유지되는 동안은 바꿀 수 없습니다.",
-  scan_not_available: "지금은 주변 검색을 할 수 없습니다(AP 방식이거나 전환 중).",
+  scan_not_available: "AP 방식이거나 전환 중일 때는 주변 검색을 할 수 없습니다.",
   no_such_trial: "그 시험 연결은 이미 끝났습니다.",
   not_ready: "새 연결이 아직 준비되지 않았습니다.",
   controller_unavailable: "Jetson 네트워크 제어 서비스가 응답하지 않습니다.",
@@ -60,8 +60,8 @@ const REASON_TEXT = {
   operator_confirmed: "확인을 눌러",
   operator_revert: "직접 되돌려",
   not_confirmed_in_time: "제한 시간 안에 확인이 없어",
-  no_address_or_route_in_time: "주소(DHCP)나 게이트웨이를 받지 못해",
-  activation_failed: "연결하지 못해(비밀번호와 신호를 확인하세요)",
+  no_address_or_route_in_time: "DHCP 주소나 게이트웨이를 받지 못해",
+  activation_failed: "비밀번호나 신호 문제로 연결하지 못해",
   activation_rejected: "NetworkManager가 연결을 거부해",
   link_lost: "새 연결이 끊겨",
   ethernet_connected: "Ethernet이 연결되어",
@@ -245,7 +245,7 @@ export function initWifiManager(api) {
         : scan ? `${ageText(scan.age_s)} · ${networks.length}개${scan.hidden_count ? ` · 숨긴 Wi-Fi ${scan.hidden_count}개` : ""}` : "검색 전";
     }
     list.innerHTML = networks.length ? scanCardsHtml(networks, savedRows(), canChange())
-      : `<p class="control-note">${scan ? "찾은 Wi-Fi가 없습니다." : view.control.can_scan === false && view.control.ap_active ? "AP 방식에서는 주변 검색을 할 수 없습니다(무선랜이 하나). 저장된 Wi-Fi로는 연결할 수 있습니다." : "주변 검색을 누르면 Jetson이 찾은 Wi-Fi가 여기에 나옵니다."}</p>`;
+      : `<p class="control-note">${scan ? "찾은 Wi-Fi가 없습니다." : view.control.can_scan === false && view.control.ap_active ? "무선랜이 하나뿐이라 AP 방식에서는 주변 검색을 할 수 없습니다. 저장된 Wi-Fi로는 연결할 수 있습니다." : "주변 검색을 누르면 Jetson이 찾은 Wi-Fi가 여기에 나옵니다."}</p>`;
   }
 
   function renderSaved() {

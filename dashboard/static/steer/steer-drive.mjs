@@ -7,6 +7,8 @@
 // (stopRoverNow: one /api/rover/stop); here they only drop the steering lease at once.
 // The drag control (2026-11-16, bindSteerDrag): a precise angle while dragging, back to 0 when released; with an
 // absolute-target bridge (the ESP32-S3 'ABS-HOLD' firmware) A/D go to the full limit and the angle choices are hidden.
+// SMOOTH firmware (2026-11-16 evening, status steer_control.smooth): the same full-limit A/D is one continuous run of the
+// steering motor; the drag goes in 0.25 deg steps. The readout names the bridge's drive cap (drive.max_pwm).
 import './steer-control-rules.js';
 
 const R = globalThis.UbtsSteerRules;
@@ -17,18 +19,62 @@ const deg = (mrad) => (typeof mrad === 'number' && isFinite(mrad) ? R.mradToDeg(
 const fmtDeg = (value) => (value === null ? '--' : `${value >= 0 ? '' : '−'}${Math.abs(value).toFixed(1)}°`);
 // Drag value (deg, left positive as steer_mrad) as the operator reads it.
 export const dragText = (deg) => (!deg ? '0°' : `${deg > 0 ? '왼쪽' : '오른쪽'} ${Math.abs(deg).toFixed(1)}°`);
+// One short line under the pad (2026-11-19: "글씨도 쓸데없는 안내가 너무 많고"; 2026-11-20 shorter again); the full rules
+// are in Docs.
 export const HELP_TEXT = {
-  ramp: '조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 고른 각까지 조향, C는 누르는 동안 가운데로. A/D를 놓으면 가운데로 돌아온다(정지 중에는 한 번 5°까지, ‘각 유지’를 고르면 그대로). 막대를 끌면 그 각으로, 놓으면 0°로. STOP·Esc는 언제나.',
-  absolute: '조종 활성화 뒤 W/S는 누르는 동안 구동, A/D는 누르는 동안 왼쪽·오른쪽 끝까지, 놓으면 가운데로(‘각 유지’를 고르면 그대로), C는 가운데로. 막대를 끌면 그 각으로 가고 놓으면 0°로 돌아온다. 키와 막대는 먼저 잡은 쪽만 듣는다. STOP·Esc는 언제나.',
+  ramp: 'W/S 구동 · A/D 고른 각까지 조향 · C 가운데 · Esc 정지',
+  absolute: 'W/S 구동 · A/D 끝까지 조향 · C 가운데 · Esc 정지',
+  smooth: 'W/S 구동 · A/D 끝까지 끊김 없이 조향 · C 가운데 · Esc 정지',
 };
+// The drive readout's second line: what the MCU reports and the bridge's own drive cap (its install flag).
+export function driveCapText(cap) {
+  if (typeof cap !== 'number' || !isFinite(cap)) return 'MCU 보고 값 · 속도는 아님';
+  if (cap <= 0) return '구동 상한이 0이라 W/S가 꺼져 있습니다.';
+  return `MCU 보고 값 · 브리지 상한 PWM ${cap}`;
+}
 
 // The device chip (short) and, while not armed, the explanation in the status line (controller.device()).
 export const DEVICE_TEXT = {
   present: ['ok', '조향 장치 연결됨', ''],
-  none: ['warn', '조향 장치 없음', '조향 장치 없음: 조종 브리지가 조향 상태를 내지 않는다(V2 차동 브리지이거나 V3 펌웨어 없음). 조종 활성화를 할 수 없다.'],
-  unavailable: ['bad', '연결 안 됨', '연결 안 됨: 조종 브리지에 닿지 않는다. STOP은 계속 보낸다.'],
+  none: ['warn', '조향 장치 없음', '조종 브리지가 조향 상태를 보내지 않아 조종 활성화를 할 수 없습니다. 차동 구동용 브리지이거나 조향 펌웨어가 없을 때 이렇게 됩니다.'],
+  unavailable: ['bad', '연결 안 됨', '조종 브리지에 연결되지 않습니다. STOP은 계속 보냅니다.'],
   unknown: ['', '확인 중', ''],
 };
+
+const AD_RATE_KEY = 'ubts-steer-ad-rate';
+
+// '화면 초기화' (2026-11-18, a phone that never armed again while a fresh browser did): STOP first, then forget the
+// server session and everything this page stored in the browser, then load the page again.
+export async function resetScreen(ctl, page, env = {}) {
+  const ask = env.confirm || ((text) => globalThis.confirm(text));
+  if (!ask('이 브라우저에 저장된 화면 설정과 세션을 지우고 페이지를 다시 불러올까요? 조종 중이면 먼저 STOP을 보냅니다.')) return false;
+  if (ctl.lease) await Promise.resolve(ctl.stop('screen_reset')).catch(() => null);
+  await Promise.resolve((page.controlRequest || page.postJson)('/api/session/reset', {})).catch(() => null);
+  for (const store of [env.localStorage || globalThis.localStorage, env.sessionStorage || globalThis.sessionStorage]) {
+    try { store?.clear(); } catch (_) { /* nothing stored */ }
+  }
+  (env.reload || (() => globalThis.location.reload()))();
+  return true;
+}
+// The A/D steering speed as the operator reads it: the top of the range means the wheel's own speed (no ramp).
+export const adRateText = (degS, max) => (degS >= max ? '최대' : `${degS} °/s`);
+
+// Why the bridge would refuse Arm now (status steering_host.not_ready of the ESP32-S3 bridge), or null.
+export function boardNotReady(status) {
+  const host = status && typeof status === 'object' ? status.steering_host : null;
+  return host && typeof host === 'object' && typeof host.not_ready === 'string' && host.not_ready ? host.not_ready : null;
+}
+export function armBlockText(code) {
+  const why = {
+    pot_invalid: '가변저항 값이 범위 밖입니다. 배선을 확인하면 저절로 다시 준비됩니다.',
+    device_unavailable: '보드에 다시 연결하고 있습니다. 전원과 USB를 확인하세요. 보드가 연결되면 저절로 준비됩니다.',
+    esp32_not_ready: '보드에 다시 연결하고 있습니다. 보드의 시작 응답과 STOP 확인을 기다립니다.',
+    steering_status_stale: '조향 상태가 들어오지 않습니다. 보드와 USB를 확인하세요. 다시 들어오면 저절로 준비됩니다.',
+    firmware_mismatch: '펌웨어 이름이 다릅니다. 보드의 펌웨어를 확인하세요.',
+    stop_unconfirmed: 'STOP 확인을 받지 못해 보드에 다시 연결하고 있습니다.',
+  };
+  return `지금은 조종 활성화를 할 수 없습니다. ${why[code] || R.messageFor?.(code) || code}`;
+}
 
 // Short labels of the faults in the status (MCU bits and host latches), from the rules' catalogues.
 export function faultLabels(names) {
@@ -62,8 +108,15 @@ export function steerView(ctl, now) {
     targetPos: span(target), measuredPos: span(measured),
     duty: drive ? { left: drive.left, right: drive.right, en: drive.en } : null,
     deadlineMs: deadline, saturated: steering.saturated === true, faults: faultLabels(steering.faults),
+    // 2026-11-19 (user): the steering potentiometer on the manual tab: raw ADC count (-1 / absent = invalid) and the
+    // steering motor PWM the bridge reads from the firmware trace (16f9d5c)
+    potRaw: Number.isFinite(steering.raw) && steering.raw >= 0 ? steering.raw : null,
+    potInvalid: Array.isArray(steering.faults) && steering.faults.includes('pot_invalid'),
+    steerPwm: Number.isFinite(steering.pwm) ? steering.pwm : null,
+    steerPwmPeak: Number.isFinite(steering.pwm_peak) ? steering.pwm_peak : null,
     centreOff: target !== null && Math.abs(target) >= 0.5 && !ctl.centreReturn && !ctl.steeringActive(),
-    absolute: ctl.absoluteMode(), dragActive: ctl.drag.active, dragDeg: ctl.drag.active ? ctl.drag.deg : 0,
+    absolute: ctl.absoluteMode(), smooth: ctl.smoothMode(), dragStepDeg: ctl.dragStepDeg(), driveCapPwm: ctl.driveCapPwm(),
+    dragActive: ctl.drag.active, dragDeg: ctl.drag.active ? ctl.drag.deg : 0,
     dragPos: dragPosition(ctl, ctl.drag.active ? ctl.drag.deg : 0),
   };
 }
@@ -170,10 +223,18 @@ export function initSteerDrive(page) {
     button.addEventListener('contextmenu', (event) => event.preventDefault());
   });
   $('steerArmButton')?.addEventListener('click', () => (ctl.lease ? ctl.release() : ctl.arm()));
+  $('screenResetButton')?.addEventListener('click', () => resetScreen(ctl, page));
   const dragEl = $('steerDrag');
   const drag = dragEl ? bindSteerDrag(dragEl, ctl) : null;
   const slider = $('steerSpeedSlider');
   slider?.addEventListener('input', () => ctl.setSpeedCap(Number(slider.value)));
+  // A/D steering speed (2026-11-18): kept in this browser.
+  const adRate = $('steerAdRate');
+  try { const kept = Number(localStorage.getItem(AD_RATE_KEY)); if (kept) ctl.setAdRate(kept); } catch (_) { /* no storage */ }
+  adRate?.addEventListener('input', () => {
+    ctl.setAdRate(Number(adRate.value));
+    try { localStorage.setItem(AD_RATE_KEY, String(ctl.adRateDegS)); } catch (_) { /* this load only */ }
+  });
   root.querySelectorAll('[data-steer-angle]').forEach((button) => {
     button.addEventListener('click', () => ctl.setAngle(Number(button.dataset.steerAngle)));
   });
@@ -205,9 +266,15 @@ export function initSteerDrive(page) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { drag?.end('page_hidden'); if (ctl.lease) ctl.stop('page_hidden'); stopLoop(); } else startLoop();
   });
-  for (const id of ['frameStopButton', 'roverStopButton']) {
+  for (const id of ['frameStopButton', 'roverStopButton', 'autoStopButton']) {
     $(id)?.addEventListener('click', () => ctl.abandon('operator_stop'));   // their own handler sends the STOP
   }
+  // Leaving the 수동 조종 tab (2026-11-19) with the Arm held: the pad is no longer on screen, so STOP as a hidden page does.
+  window.addEventListener('ubts:rover-tab', (event) => {
+    if (event.detail?.before !== 'manual' || event.detail?.tab === 'manual') return;
+    drag?.end('tab_changed');
+    if (ctl.lease) ctl.stop('tab_changed');
+  });
   window.addEventListener('pagehide', () => {
     if (!ctl.lease) return;
     const body = new Blob([JSON.stringify({ reason: 'pagehide' })], { type: 'application/json' });
@@ -224,14 +291,19 @@ export function initSteerDrive(page) {
   function draw() {
     const now = Date.now();
     const v = steerView(ctl, now);
-    const [level, text, explain] = DEVICE_TEXT[v.device] || DEVICE_TEXT.unknown;
+    let [level, text, explain] = DEVICE_TEXT[v.device] || DEVICE_TEXT.unknown;
+    const notReady = boardNotReady(ctl.lastStatus);
+    if (v.device === 'present' && notReady) {
+      [level, text, explain] = ['warn', notReady === 'pot_invalid' ? '가변저항 확인' : '보드 준비 중', armBlockText(notReady)];
+    }
     const device = $('steerDevice');
     if (device) { device.className = `status-chip${level ? ` ${level}` : ''}`; setText('steerDevice', text); }
     const arm = $('steerArmButton');
     if (arm) {
       arm.textContent = ctl.arming ? '활성화 중…' : ctl.releasing ? '감속 뒤 해제 중…' : ctl.lease ? '조종 활성화 ON' : '조종 활성화 OFF';
       arm.setAttribute('aria-pressed', String(Boolean(ctl.lease)));
-      arm.disabled = ctl.arming || ctl.releasing || (!ctl.lease && v.device !== 'present');
+      arm.disabled = ctl.arming || ctl.releasing || (!ctl.lease && (v.device !== 'present' || Boolean(notReady)));
+      arm.title = !ctl.lease && notReady ? armBlockText(notReady) : '';
     }
     const gauge = (id, pos) => { const el = $(id); if (el) { el.hidden = pos === null; if (pos !== null) el.style.left = `${pos}%`; } };
     gauge('steerGaugeTarget', v.targetPos);
@@ -241,10 +313,15 @@ export function initSteerDrive(page) {
     const colours = page.chartColors();
     page.renderReadout('steerReadout', [
       { label: '목표 / 측정', value: `${fmtDeg(v.targetDeg)} / ${fmtDeg(v.measuredDeg)}`, sub: v.fresh ? `오차 ${fmtDeg(v.errorDeg)}` : '상태 오래됨', color: colours.cyan },
-      { label: '구동 duty', value: v.duty ? `${v.duty.left} / ${v.duty.right}` : '--', sub: 'MCU 보고 · 속도 아님', color: colours.blue },
+      { label: '구동 출력', value: v.duty ? `${v.duty.left} / ${v.duty.right}` : '--', sub: driveCapText(v.driveCapPwm), color: colours.blue },
       { label: '입력 기한', value: v.deadlineMs === null ? '--' : `${Math.round(v.deadlineMs)} ms`, sub: v.saturated ? '조향 포화' : '0.75 s · Esc 즉시 정지', color: colours.good },
+      { label: '가변저항', value: v.potRaw === null ? (v.potInvalid ? '값 이상' : '--') : String(v.potRaw),
+        sub: v.steerPwm === null ? '조향 PWM --' : `조향 PWM ${v.steerPwm}${v.steerPwmPeak ? ` · 최근 최대 ${v.steerPwmPeak}` : ''}`,
+        color: v.potInvalid ? colours.bad || colours.cyan : colours.blue },
     ]);
     setText('steerSpeedValue', `${ctl.speedCapPct}%`);
+    setText('steerAdRateValue', adRateText(ctl.adRateDegS, ctl.cfg.adRateMaxDegS));
+    if (adRate && document.activeElement !== adRate && Number(adRate.value) !== ctl.adRateDegS) adRate.value = String(ctl.adRateDegS);
     if (slider && document.activeElement !== slider && Number(slider.value) !== ctl.speedCapPct) slider.value = String(ctl.speedCapPct);
     if (dragEl) {
       const thumb = $('steerDragThumb');
@@ -259,7 +336,7 @@ export function initSteerDrive(page) {
     }
     const choices = $('steerAngleChoices');
     if (choices) choices.hidden = v.absolute;
-    setText('steerHelp', v.absolute ? HELP_TEXT.absolute : HELP_TEXT.ramp);
+    setText('steerHelp', v.smooth ? HELP_TEXT.smooth : v.absolute ? HELP_TEXT.absolute : HELP_TEXT.ramp);
     for (const choice of ctl.angleChoices()) {
       const button = root.querySelector(`[data-steer-angle="${choice.deg}"]`);
       if (!button) continue;
@@ -291,7 +368,7 @@ export function initSteerDrive(page) {
       const idleExplain = !ctl.lease && !ctl.lastStop && !ctl.lastLoss && explain;
       const kind = idleExplain ? level : ctl.message.kind === 'info' ? 'testing' : ctl.message.kind;
       const textValue = idleExplain ? explain
-        : v.centreOff && ctl.lease && ctl.message.kind === 'ok' ? `${ctl.message.text} · 가운데 아님: 가운데 버튼(C)` : ctl.message.text;
+        : v.centreOff && ctl.lease && ctl.message.kind === 'ok' ? `${ctl.message.text} 바퀴가 가운데에 있지 않습니다. 가운데 버튼이나 C를 누르세요.` : ctl.message.text;
       status.className = `test-result ${kind}`;
       setText('steerCommandStatus', textValue);
     }

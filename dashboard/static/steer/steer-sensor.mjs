@@ -11,6 +11,17 @@ const R = globalThis.UbtsSteerRules;
 const num = (value) => (typeof value === 'number' && isFinite(value) ? value : null);
 const angle = (mrad) => (num(mrad) === null ? '--' : `${mrad >= 0 ? '' : '−'}${Math.abs(R.mradToDeg(mrad)).toFixed(1)}° (${mrad} mrad)`);
 
+// How the steering firmware moves (status steer_control, 2026-11-17): the SMOOTH firmware runs to a target in one go,
+// SMOOTH=0 moves in pulses; an absolute-target bridge without the flag is an older firmware; no block is the ramp bridge.
+export function firmwareText(reply) {
+  const sc = reply && typeof reply.steer_control === 'object' && reply.steer_control ? reply.steer_control : null;
+  if (!sc) return '--';
+  if (sc.keys !== 'full_limit') return '단계 조향';
+  if (sc.smooth === true) return 'SMOOTH · 한 번에 끊김 없이';
+  if (sc.smooth === false) return 'PULSE · 끊어서 이동';
+  return '끝 목표 · SMOOTH 보고 없음';
+}
+
 // [chip level, chip text, rows [[name, value], ...]] of one status reply (pure: tested without a page).
 export function potView(reply) {
   const steering = reply && typeof reply.steering === 'object' && reply.steering ? reply.steering : null;
@@ -24,10 +35,11 @@ export function potView(reply) {
   const permille = num(steering.measured_permille);
   return [level, text, [
     ['측정 각도', angle(num(steering.measured_mrad))],
-    ['측정 위치', permille === null ? '--' : `${permille} ‰ (왼쪽 +)`],
+    ['측정 위치', permille === null ? '--' : `${permille} ‰ · 왼쪽이 +`],
     ['가변저항 원값', num(steering.raw) === null ? '--' : String(steering.raw)],
     ['보정', steering.calibrated === true ? '있음' : steering.calibrated === false ? '없음' : '--'],
-    ['상태 나이', num(steering.age_ms) === null ? '--' : `${steering.age_ms} ms${stale ? ' · 오래됨' : ''}`],
+    ['조향 펌웨어', firmwareText(reply)],
+    ['마지막 상태', num(steering.age_ms) === null ? '--' : `${steering.age_ms} ms 전${stale ? ' · 오래됨' : ''}`],
     ['결함', faults.length ? faults.map((f) => f.label).join(', ') : '없음'],
   ]];
 }
@@ -37,7 +49,8 @@ export function initSteerSensor(page) {
   const list = $('steerPotDetails');
   if (!list) return null;
   let timer = null, busy = false, reply;
-  const active = () => page.currentRoute() === '/rover-control' && !document.hidden;
+  // Only while its part is in the shown tab (보정·설정, 2026-11-19).
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden && (page.shown ? page.shown('steerPotPanel') : true);
 
   async function poll() {
     if (busy) return;

@@ -459,7 +459,8 @@ class RoutesBase:
         before = len(self.stack.rx())
         status, reply = old.post('/api/rover/arm', {})                 # 10-rover-control.js: postJson("/api/rover/arm")
         self.assertEqual(status, 200)
-        self.assertEqual(reply, {'ok': False, 'error': 'steer_profile_required'})
+        # the refusal; newer dashboard copies add 'vehicle_profile' and a 'message' for the page (e9ba565)
+        self.assertEqual((reply.get('ok'), reply.get('error')), (False, 'steer_profile_required'), reply)
         time.sleep(0.2)
         sent = self.stack.rx()[before:]
         self.assertFalse([line for line in sent if line.startswith(b'ARM')], 'no ARM reached the MCU')

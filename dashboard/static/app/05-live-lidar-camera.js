@@ -10,7 +10,7 @@ async function runLidarTest() {
     renderLidarTest(payload);
     await tick();
   } catch (err) {
-    setTestResult("bad", `상태 확인 실패: ${err.message}`);
+    setTestResult("bad", `상태를 확인하지 못했습니다. ${err.message}`);
   } finally {
     if (button) button.disabled = false;
   }
@@ -544,7 +544,7 @@ function startCameraLive() {
         state.cameraLive.deliveryState = "bandwidth_limited";
         state.cameraLive.error = "영상 응답 지연으로 일시 정지했습니다. 회선 상태나 전송 품질을 확인한 뒤 다시 시작하세요.";
       } else if (event.code === 1013 && String(event.reason || "").includes("viewer limit")) {
-        state.cameraLive.error = "카메라 시청자 수 제한 · 30초 뒤 다시 연결합니다.";
+        state.cameraLive.error = "카메라를 보는 화면 수가 한도에 닿았습니다. 30초 뒤 다시 연결합니다.";
       }
       const shouldReconnect = state.cameraLive.enabled && !state.cameraLive.userStopped && routeSupportsCameraLive();
       resetCameraWindowDecode(socket);

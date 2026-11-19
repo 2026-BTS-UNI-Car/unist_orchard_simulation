@@ -154,8 +154,8 @@ function enforceCameraSelection() {
 }
 
 const CAMERA_SETTINGS_ERRORS = {
-  camera_resolution_locked_while_recording: "녹화 중에는 해상도를 바꿀 수 없습니다. 녹화를 멈춘 뒤 바꾸세요(fps는 변경 가능)",
-  camera_resolution_change_needs_idle_recorder: "녹화기 상태를 확인할 수 없어 해상도를 바꾸지 않았습니다",
+  camera_resolution_locked_while_recording: "녹화 중에는 해상도를 바꿀 수 없습니다. 녹화를 멈춘 뒤 바꾸세요. fps는 바꿀 수 있습니다.",
+  camera_resolution_change_needs_idle_recorder: "녹화기 상태를 확인할 수 없어 해상도를 바꾸지 않았습니다.",
 };
 
 async function readJsonResponse(res) {
@@ -226,7 +226,7 @@ async function setCameraSettings(next) {
     } catch (_) {
       // Ignore storage failures.
     }
-    setCameraResult("bad", `카메라 설정 적용 실패: ${state.cameraLive.settingsError} · 이전 설정 유지`);
+    setCameraResult("bad", `카메라 설정을 적용하지 못해 이전 설정을 유지합니다. ${state.cameraLive.settingsError}`);
   } finally {
     clearTimeout(timeout);
     state.cameraLive.settingsInFlight = false;

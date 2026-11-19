@@ -9,24 +9,47 @@
 // A dashboard started without DASHBOARD_VEHICLE (differential) takes the steering panel when the control bridge says
 // vehicle_profile "front_steer" (the ESP32-S3 bridge, 2026-11-16): the differential pad cannot drive such a bridge (it
 // refuses left/right), so showing it would only mislead. The menu and the page groups do not change.
+// 2026-11-18 (battery swap in the field): while the board or the bridge restarted, the status had no vehicle_profile,
+// the page kept the differential pad, and its Arm (no vehicle_profile) got 'steer_profile_required'. A front-steer
+// bridge is now remembered in this browser (STEER_KIND_KEY) and taken at once on the next load, and every status or
+// refusal that names the profile is used; the page never goes back to the differential pad by itself.
+// 2026-11-19 (in-page tabs of Rover Control, static/app/10-rover-control.js): the steering panel and the autonomy
+// section load with the page as before; the parts of 보정·설정 (steering calibration, the tape corrections of the distance
+// move) load when that tab is shown the first time, the executor's local grid when 자율주행 is shown the first time, the
+// distance move when its folded part is opened (or 보정·설정 is shown), the tuning values when their folded part is opened.
 const steerVehicle = () => document.documentElement.dataset.vehicleKind === "front_steer";
+const STEER_KIND_KEY = "ubts-vehicle-kind-seen";
 
 function adoptBridgeVehicle(bridge) {
   const profile = bridge && typeof bridge === "object" ? bridge.vehicle_profile : bridge;
-  if (profile !== "front_steer" || steerVehicle()) return false;
+  if (profile !== "front_steer") return false;
+  try { localStorage.setItem(STEER_KIND_KEY, "front_steer"); } catch (_) { /* private mode: this load only */ }
+  if (steerVehicle()) return false;
   document.documentElement.dataset.vehicleKind = "front_steer";
   document.documentElement.dataset.vehicleKindFrom = "bridge";
   loadSteerScreens();
   return true;
 }
 
-const steerScreens = { drive: null, auto: null, tuning: null, grid: null, pot: null, driveScreen: null };
+function rememberedSteerVehicle() {
+  try { return localStorage.getItem(STEER_KIND_KEY) === "front_steer"; } catch (_) { return false; }
+}
+
+const steerScreens = { drive: null, auto: null, tuning: null, grid: null, pot: null, cal: null, dist: null, driveScreen: null };
 
 function steerPageApi() {
   // controlRequest: the one transport for driving requests (NET-05): high priority, never queued, with a time limit.
   // driveStatus: the steering panel's latest /api/rover/status reply, so the potentiometer rows on the same page do
   // not ask for it again.
-  return { getJson, postJson, controlRequest, currentRoute, renderReadout, chartColors, driveStatus: steerDriveStatus };
+  // driveController: the steering panel's controller (the distance move hands its lease chain to the server).
+  // roverTab / shown: the active in-page tab and whether an element is in a part of it (10-rover-control.js).
+  // recording: the recorder state and the start / stop of 11-recording.js (the autonomy tab's run recording).
+  const tabs = typeof roverTab === "function";
+  return { getJson, postJson, controlRequest, currentRoute, renderReadout, chartColors, driveStatus: steerDriveStatus,
+           driveController: () => steerScreens.driveScreen?.controller || null,
+           roverTab: () => (tabs ? roverTab() : null), shown: (id) => (tabs ? roverPartShown(id) : true),
+           recording: typeof recordingStatusView === "function"
+             ? { view: recordingStatusView, start: (options) => startRecording(options), stop: () => stopRecording() } : null };
 }
 
 function steerDriveStatus() {
@@ -49,27 +72,35 @@ function loadSteerScreens(route = currentRoute()) {
     loadSteerScreen("auto", "/static/steer/auto-panel.mjs", "initAutoPanel");
     loadSteerScreen("pot", "/static/steer/steer-sensor.mjs", "initSteerSensor");
   }
+  // The steering calibration (2026-11-16, ESP32-S3 runtime calibration): fetched when 보정·설정 is shown the first time.
+  if (steerVehicle() && (steerScreens.cal || (route === "/rover-control" && steerPartWanted.cal()))) {
+    loadSteerScreen("cal", "/static/steer/steer-calibration.mjs", "initSteerCalibration");
+  }
+  // The distance move section (2026-11-17): fetched when it is opened (or its tape part in 보정·설정 shown) the first time.
+  if (steerVehicle() && (steerScreens.dist || (route === "/rover-control" && steerPartWanted.dist()))) {
+    loadSteerScreen("dist", "/static/steer/drive-distance.mjs", "initDriveDistance");
+  }
   // The field tuning values (UI-12) are a part of Rover Control on every dashboard; without an executor they say so.
   if (steerScreens.tuning || (route === "/rover-control" && steerPartWanted.tuning())) loadSteerScreen("tuning", "/static/steer/tuning-page.mjs", "initTuningPage");
-  // The executor's local grid on the live occupancy grid map (UI-09): shown only when the executor sends one.
+  // The executor's local grid in the 자율주행 tab's monitoring view (UI-09): drawn only when the executor sends one.
   if (steerScreens.grid || (route === "/rover-control" && steerPartWanted.grid())) loadSteerScreen("grid", "/static/steer/local-grid.mjs", "initLocalGrid");
 }
 
-// When the two parts are wanted the first time. Without IntersectionObserver the local grid is wanted at once (as before).
+// When the parts are wanted the first time: a folded part when it is opened, a tab part when its tab is shown.
+const steerTabShown = (tab) => typeof roverTab === "function" && roverTab() === tab;
 const steerPartWanted = {
   tuning: () => Boolean($("tuningDetails")?.open),
-  mapSeen: typeof IntersectionObserver !== "function" || !$("liveMapPanel"),
-  grid: () => steerPartWanted.mapSeen,
+  cal: () => steerTabShown("setup"),
+  dist: () => Boolean($("steerDistDetails")?.open) || steerTabShown("setup"),
+  grid: () => steerTabShown("auto"),
 };
 $("tuningDetails")?.addEventListener("toggle", () => loadSteerScreens());
-if (!steerPartWanted.mapSeen) {
-  const mapWatch = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return;
-    steerPartWanted.mapSeen = true;
-    mapWatch.disconnect();
-    loadSteerScreens();
-  });
-  mapWatch.observe($("liveMapPanel"));
-}
+$("steerDistDetails")?.addEventListener("toggle", () => loadSteerScreens());
 
 window.addEventListener("ubts:route", (event) => loadSteerScreens(event.detail?.route));
+window.addEventListener("ubts:rover-tab", () => loadSteerScreens());
+if (!steerVehicle() && rememberedSteerVehicle()) {
+  document.documentElement.dataset.vehicleKind = "front_steer";
+  document.documentElement.dataset.vehicleKindFrom = "remembered";
+  loadSteerScreens();
+}

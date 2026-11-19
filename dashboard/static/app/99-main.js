@@ -52,7 +52,6 @@ initCanvasResize();
 initRangeFill();
 initLinkGrade();
 renderRoute();
-loadDocs().catch(console.error);
 tick();
 setInterval(tick, POLL_INTERVAL_MS);
 renderFrameClock();

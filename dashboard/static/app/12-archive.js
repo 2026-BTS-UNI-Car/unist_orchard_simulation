@@ -117,6 +117,8 @@ function clearArchiveFrameCache() {
     gpsFrames: [],
     motorFrames: [],
     motorKeys: new Set(),
+    executorFrames: [],
+    executorKeys: new Set(),
     lidarKeys: new Set(),
     cameraKeys: new Set(),
     imuKeys: new Set(),
@@ -124,6 +126,7 @@ function clearArchiveFrameCache() {
     objectUrls: new Map(),
     imageElements: new Map(),
   };
+  state.archivePlayback.lastExecutorKey = "";
   for(const task of state.archivePlayback.loadingTelemetry?.values()||[])task.controller.abort();
   state.archivePlayback.telemetrySegments = new Map();
   state.archivePlayback.loadingTelemetry = new Map();
@@ -239,6 +242,7 @@ function mergeArchiveTimelineSegment(timeline) {
   }
   cache.gpsFrames.sort((a, b) => a.t_s-b.t_s);
   mergeArchiveMotorSegment(timeline.motor);
+  if (typeof mergeArchiveExecutorSegment === "function") mergeArchiveExecutorSegment(timeline.executor);
   trimArchiveTimelineCache();
   state.archivePlayback.lastLidarRenderKey = "";
   state.archivePlayback.lastCameraRenderKey = "";
@@ -495,7 +499,16 @@ function renderRecordings() {
     renderRecordingDetail(null);
     return;
   }
-  for (const item of state.recordings.items) {
+  // The recordings of the tab (2026-11-19): 기록 shows the manual ones, 자율주행 the autonomy ones (tag; a recording
+  // without a tag is a manual one). The player keeps a selection made in the other tab.
+  const scope = archiveScopeTag();
+  text("roverArchiveScope", scope === "autonomy" ? "자율주행 기록" : "수동 주행 기록");
+  const items = state.recordings.items.filter((item) => recordingTag(item) === scope);
+  if (!items.length) {
+    target.innerHTML = `<span>${scope === "autonomy" ? "자율주행 기록 없음" : "수동 주행 기록 없음"}</span>`;
+    return;
+  }
+  for (const item of items) {
     const button = document.createElement("button");
     button.type = "button";
     button.classList.toggle("active", item.id === state.recordings.selectedId);
@@ -507,6 +520,102 @@ function renderRecordings() {
     button.addEventListener("click", () => selectRecording(item.id));
     target.append(button);
   }
+}
+
+function recordingTag(item) {
+  const tag = item?.tag ?? item?.metadata?.tag;
+  return tag === "autonomy" ? "autonomy" : "manual";
+}
+
+function archiveScopeTag() {
+  return typeof roverTab === "function" && roverTab() === "auto" ? "autonomy" : "manual";
+}
+
+// ---- Recorded executor state (2026-11-19) -------------------------------------------------------------------------
+// An autonomy recording carries /row_executor/state (schema ubts.row_executor.state.v1). When the server's telemetry
+// window of a recording has "executor": {"frames": [{"t_s", "state"}]} (the dashboard-telemetry-v1 profile, like the
+// motor and GPS sidecars) the player draws, at the playback time, the same picture as the 자율주행 tab: reference
+// centreline, travelled path, lookahead point and vehicle (static/steer/run-view.mjs), with the values of that moment.
+// The state at or before the playback time is used, never a later one.
+const ARCHIVE_EXECUTOR_KEEP = 3000;
+let archiveRunView = null;
+
+function mergeArchiveExecutorSegment(section) {
+  const frames = Array.isArray(section?.frames) ? section.frames : [];
+  if (!frames.length) return;
+  const cache = state.archivePlayback.cache;
+  cache.executorFrames ||= [];
+  cache.executorKeys ||= new Set();
+  for (const frame of frames) {
+    const t = Number(frame?.t_s);
+    const body = frame?.state ?? frame?.message ?? frame?.msg ?? frame?.data;
+    if (!Number.isFinite(t) || t < 0 || !body || typeof body !== "object") continue;
+    const key = t.toFixed(4);
+    if (cache.executorKeys.has(key)) continue;
+    cache.executorKeys.add(key);
+    cache.executorFrames.push({ t_s: t, state: body });
+  }
+  cache.executorFrames.sort((a, b) => a.t_s - b.t_s);
+  if (cache.executorFrames.length > ARCHIVE_EXECUTOR_KEEP) {
+    cache.executorFrames = cache.executorFrames.slice(-ARCHIVE_EXECUTOR_KEEP);
+    cache.executorKeys = new Set(cache.executorFrames.map((frame) => frame.t_s.toFixed(4)));
+  }
+}
+
+function archiveExecutorTiles(msg) {
+  const n = (value) => (typeof value === "number" && Number.isFinite(value) ? value : null);
+  const f = (value, digits, unit) => (n(value) === null ? "--" : `${value.toFixed(digits)}${unit}`);
+  const deg = (mrad) => (n(mrad) === null ? "--" : `${(mrad * 180 / Math.PI / 1000).toFixed(1)}°`);
+  const metrics = msg.metrics && typeof msg.metrics === "object" ? msg.metrics : {};
+  const gnss = msg.gnss && typeof msg.gnss === "object" ? msg.gnss : {};
+  return [
+    ["횡 오차", f(msg.lat_m, 2, " m")], ["방향 오차", f(msg.head_deg, 1, "°")],
+    ["조향 명령 / 측정", `${deg(msg.steer_cmd_mrad)} / ${deg(msg.steer_meas_mrad)}`], ["구동", f(msg.throttle_pct, 0, " %")],
+    ["속도", f(msg.speed_mps, 2, " m/s")], ["거리", f(msg.dist_m, 1, " m")],
+    ["통로", msg.corridor_ok === true ? `찾음${n(msg.width_m) === null ? "" : ` · 폭 ${msg.width_m.toFixed(2)} m`}` : msg.corridor_ok === false ? "못 찾음" : "--"],
+    ["횡 RMS", f(metrics.lat_rms_m, 3, " m")],
+    ["GPS", [gnss.mode, gnss.state].filter((v) => typeof v === "string").join(" · ") || "--"],
+  ];
+}
+
+function renderArchiveExecutor(frames, timeS) {
+  const panel = $("roverArchiveAutoPanel");
+  if (!panel) return;
+  const id = state.recordings.selectedId;
+  const item = state.recordings.items.find((row) => row.id === id) || state.recordings.selected?.recording || state.recordings.selected;
+  const list = Array.isArray(frames) ? frames : [];
+  const hidden = !id || (!list.length && recordingTag(item) !== "autonomy");
+  if (panel.hidden !== hidden) panel.hidden = hidden;
+  if (hidden) return;
+  const frame = archiveMotorFrameAtOrBefore(list, timeS);
+  const canvas = $("roverArchiveAutoCanvas");
+  const rect = canvas?.getBoundingClientRect?.() || { width: 0, height: 0 };
+  const key = `${id}:${frame?.t_s}:${Math.round(rect.width)}x${Math.round(rect.height)}`;
+  if (key === state.archivePlayback.lastExecutorKey) return;
+  state.archivePlayback.lastExecutorKey = key;
+  text("roverArchiveAutoTime", frame ? `${fmtNumber(frame.t_s, 1)} s` : "--");
+  text("roverArchiveAutoStatus", frame ? "재생 시각 이전에 기록된 마지막 실행기 상태입니다."
+    : list.length ? "이 시각 이전에 기록된 실행기 상태가 없습니다." : "이 기록에 실행기 상태가 없거나 서버가 아직 보내지 않았습니다.");
+  const grid = $("roverArchiveAutoGrid");
+  if (grid) {
+    const rows = frame ? archiveExecutorTiles(frame.state) : [];
+    const html = rows.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+    if (grid.dataset.key !== html) { grid.dataset.key = html; grid.innerHTML = html; }
+  }
+  if (!canvas || !(rect.width > 0 && rect.height > 0)) return;
+  archiveRunView ||= import("/static/steer/run-view.mjs").catch((err) => { archiveRunView = null; debugLog("archive", "run view", err); return null; });
+  archiveRunView.then((view) => {
+    if (!view || state.archivePlayback.lastExecutorKey !== key) return;
+    const earlier = frame ? list.filter((item) => item.t_s < frame.t_s).slice(-600).map((item) => item.state) : [];
+    const scene = frame ? view.sceneFromState(frame.state, earlier) : null;
+    const dpr = Math.min(window.devicePixelRatio || 1, DPR_LIMIT);
+    const bw = Math.round(rect.width * dpr), bh = Math.round(rect.height * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const read = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    view.drawScene(ctx, scene, rect.width, rect.height, view.sceneColours(read));
+  });
 }
 
 function renderRecordingDetail(detail, options = {}) {
@@ -525,11 +634,11 @@ function renderRecordingDetail(detail, options = {}) {
   setupArchivePlayback(payload, normalizedPreview, options);
   const rows = id ? [
     { title: "ID", sub: recordingSensorLabel(payload), ok: true, level: "ok", value: id },
-    { title: "Duration", sub: `${formatShortDate(payload.display_started_at || metadata.started_at)}${payload.clock_quality === "gnss_estimated" ? ` · GPS 시각 보정 (원본 ${formatShortDate(metadata.started_at)})` : ""}`, ok: true, level: "ok", value: metadata.duration_s ? `${fmtNumber(metadata.duration_s, 1)}s` : metadata.state || "--" },
+    { title: "길이", sub: `${formatShortDate(payload.display_started_at || metadata.started_at)}${payload.clock_quality === "gnss_estimated" ? ` · GPS 시각 보정 (원본 ${formatShortDate(metadata.started_at)})` : ""}`, ok: true, level: "ok", value: metadata.duration_s ? `${fmtNumber(metadata.duration_s, 1)}s` : metadata.state || "--" },
     { title: "기록 시각", sub: recordingClockDescription(payload), ok: ["gnss_estimated", "gnss_receiver_estimated"].includes(payload.clock_quality), level: ["gnss_estimated", "gnss_receiver_estimated"].includes(payload.clock_quality) ? "ok" : "warn", value: recordingClockLabel(payload) },
     { title: "Timeline", sub: `${payload?.timeline_summary?.lidar_frames || state.recordings.timeline?.lidar?.frames?.length || 0} lidar · ${payload?.timeline_summary?.camera_frames || state.recordings.timeline?.camera?.frames?.length || 0} camera · ${payload?.timeline_summary?.imu_frames || state.recordings.timeline?.imu?.frames?.length || 0} imu`, ok: Boolean(state.recordings.timeline), level: state.recordings.timeline ? "ok" : "warn", value: state.recordings.timeline ? "playable" : "preview only" },
   ] : [
-    { title: "Archive", sub: "기록을 선택하세요", ok: false, level: "warn", value: "--" },
+    { title: "기록", sub: "기록을 선택하세요", ok: false, level: "warn", value: "--" },
   ];
   renderStatusRows("roverArchiveDetails", rows);
   renderArchiveDownloadButton(payload, id);
@@ -869,6 +978,7 @@ function renderArchiveFrame(options={}) {
   const cache = state.archivePlayback.cache || {};
   window.RoverGps?.archive(cache.gpsFrames || [], timeS, state.recordings.selectedId, timeline?.gps?.enabled === true);
   renderArchiveMotor(timeline?.motor, cache.motorFrames || [], timeS);
+  if (typeof renderArchiveExecutor === "function") renderArchiveExecutor(cache.executorFrames || [], timeS);
   const lidarFrame = timeline ? nearestTimelineFrame(cache.lidarFrames || [], timeS) : null;
   const cameraFrame = timeline && state.archivePlayback.sync ? nearestTimelineFrame(cache.cameraFrames || [], timeS) : null;
   const nearestImuFrame = timeline ? nearestTimelineFrame(cache.imuFrames || [], timeS) : null;
@@ -931,7 +1041,7 @@ function renderArchiveFrame(options={}) {
     {
       label: "Roll / Pitch / Yaw",
       value: imuFrame ? `${fmtNumber(imuEuler.roll, 1)}° / ${fmtNumber(imuEuler.pitch, 1)}° / ${fmtNumber(imuEuler.yaw, 1)}°` : "--",
-      sub: imuFrame ? `${imuFrame.corrected ? "start-corrected" : "raw"} · calibration ${imuCalibrationState}` : waitingForImu?"IMU 버퍼 수신 중":"현재 재생 시각 안에 IMU frame 없음",
+      sub: imuFrame ? `${imuFrame.corrected ? "start-corrected" : "raw"} · calibration ${imuCalibrationState}` : waitingForImu?"IMU 기록을 받는 중":"이 재생 시각에는 IMU 기록 없음",
       color: imuFrame?.corrected ? colors.good : colors.amber,
     },
     { label: "가속도", value: imuFrame && vectorNorm(imuAcceleration) !== null ? `${fmtNumber(vectorNorm(imuAcceleration), 3)} m/s²` : "--", sub: `x ${fmtNumber(imuAcceleration.x, 3)} · y ${fmtNumber(imuAcceleration.y, 3)} · z ${fmtNumber(imuAcceleration.z, 3)}`, color: colors.good },
@@ -939,7 +1049,7 @@ function renderArchiveFrame(options={}) {
     { label: "자기장", value: imuFrame && vectorNorm(imuMagnetic) !== null ? `${fmtNumber(vectorNorm(imuMagnetic), 2)} µT` : "--", sub: imuFrame?.calibration_reference_id ? `reference ${imuFrame.calibration_reference_id}` : "magnetometer unavailable", color: colors.blue },
   ]);
   text("roverArchiveImuTime", imuFrame ? `IMU ${fmtNumber(imuFrame.t_s, 3)}s / Δ ${fmtNumber(imuSyncDeltaS, 3)}s` : "IMU -- / Δ --");
-  text("roverArchiveImuCaption", imuFrame ? `${imuFrame.corrected ? "/imu/data · base_link corrected" : "/imu/data_raw · sensor-native"} · playback ${fmtNumber(timeS, 3)}s` : waitingForImu?"IMU 버퍼 수신 중 · 재생 시각 동기화 대기":"동기 IMU sample 대기");
+  text("roverArchiveImuCaption", imuFrame ? `${imuFrame.corrected ? "/imu/data · base_link corrected" : "/imu/data_raw · sensor-native"} · playback ${fmtNumber(timeS, 3)}s` : waitingForImu?"IMU 기록을 받아 재생 시각에 맞추고 있습니다.":"재생 시각에 맞는 IMU 기록을 기다립니다.");
   drawImuAttitude($("roverArchiveImuCanvas"), Number(imuEuler.roll), Number(imuEuler.pitch), Number(imuEuler.yaw));
   const mapWait = state.archivePlayback.mapBuffering ? (window.LiveMap?.waitReason?.() || '지도 버퍼링') : '';
   text("roverArchiveTime", `${fmtClock(timeS)} / ${fmtClock(state.archivePlayback.durationS)}${mapWait ? ` · ${mapWait}` : ''}`);

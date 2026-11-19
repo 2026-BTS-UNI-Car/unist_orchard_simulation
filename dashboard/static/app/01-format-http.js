@@ -120,6 +120,15 @@ async function getJson(path, options = {}) {
   }
 }
 
+// A refused request: the same message as before ("<path>: <status>"), and the reply body when it is JSON
+// (err.status, err.body: the autonomy panel shows the executor's own refusal, 2026-11-19).
+async function httpError(path, res) {
+  const err = new Error(`${path}: ${res.status}`);
+  err.status = res.status;
+  try { err.body = typeof res.json === "function" ? await res.json() : null; } catch (_) { err.body = null; }
+  return err;
+}
+
 async function postJson(path, payload = {}) {
   const res = await fetch(path, {
     method: "POST",
@@ -127,7 +136,7 @@ async function postJson(path, payload = {}) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload || {}),
   });
-  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  if (!res.ok) throw await httpError(path, res);
   return res.json();
 }
 
@@ -150,6 +159,10 @@ async function postJson(path, payload = {}) {
 // the kept copy, exactly as if the server had sent it again.
 const CONTROL_TIMEOUT_MS = { stop: 8000, other: 5000 };
 const REQUEST_LIMIT = { normal: 4, constrained: 2 };
+// 2026-11-19 field (phone): a queued request that never answered (a dropped connection) kept its slot for good,
+// the status polls then failed behind it and the bar stayed '연결 끊김' until a reload. Every queued request now
+// gives its slot back after this long (the caller sees an abort, as for its own timeout).
+const REQUEST_TIMEOUT_MS = { status: 12000, bulk: 90000 };
 const BULK_REQUEST = /^\/api\/(?:recordings(?:$|\/(?!status$))|live\/recordings\/|live\/mapping-jobs|docker\/container\/|docs|plan$|site-map$|maps\/status$)/;
 const requestQueue = { active: 0, bulkActive: 0, waiting: [] };
 const CONDITIONAL_CACHE = { entries: new Map(), maxEntries: 24, maxBytes: 65536 };
@@ -173,10 +186,10 @@ async function controlRequest(path, payload = {}, options = {}) {
     });
     // The control round trip is also a link sample (NET-10), without the server's own time.
     window.LinkGrade?.note?.(performance.now() - started - serverTimeMs(res), res.ok, "control");
-    if (!res.ok) throw new Error(`${path}: ${res.status}`);
+    if (!res.ok) throw await httpError(path, res);
     return await res.json();
   } catch (err) {
-    if (err?.name === "AbortError") throw new Error(`${path}: 응답 없음 ${Math.round(timeoutMs / 1000)}초`);
+    if (err?.name === "AbortError") throw new Error(`${path}: ${Math.round(timeoutMs / 1000)}초 동안 응답이 없었습니다.`);
     throw err;
   } finally {
     clearTimeout(timer);
@@ -233,14 +246,25 @@ function limitedFetch(input, init) {
       signal?.removeEventListener?.("abort", abort);
       requestQueue.active += 1;
       if (kind === "bulk") requestQueue.bulkActive += 1;
+      // The slot's own deadline; the caller's abort still ends the request at once.
+      const deadline = new AbortController();
+      const timer = setTimeout(() => deadline.abort(), REQUEST_TIMEOUT_MS[kind] || REQUEST_TIMEOUT_MS.status);
+      const relay = () => deadline.abort();
+      if (signal) {
+        if (signal.aborted) deadline.abort();
+        else signal.addEventListener?.("abort", relay, { once: true });
+      }
+      const runInit = { ...(init || {}), signal: deadline.signal };
       let request;
       try {
-        request = kind === "status" ? conditionalFetch(input, init)
-          : pageFetch(input, { priority: "low", ...(init || {}) });
+        request = kind === "status" ? conditionalFetch(input, runInit)
+          : pageFetch(input, { priority: "low", ...runInit });
       } catch (err) {
         request = Promise.reject(err);
       }
       request.then(resolve, reject).finally(() => {
+        clearTimeout(timer);
+        signal?.removeEventListener?.("abort", relay);
         requestQueue.active -= 1;
         if (kind === "bulk") requestQueue.bulkActive -= 1;
         startQueuedRequests();

@@ -340,6 +340,8 @@ function updateCoreChart(el, core) {
 function renderDisks(disks) {
   const primary = disks[0];
   text("diskSummary", primary ? `${primary.mount} · ${fmtBytes(primary.used)} / ${fmtBytes(primary.total)} · ${fmtPercent(primary.percent)}` : "--");
+  text("systemStripDisk", primary ? fmtPercent(primary.percent) : "--");
+  text("systemStripDiskText", primary ? `여유 ${fmtBytes(primary.free)}` : "--");
   syncItems("diskList", disks, (disk) => disk.mount, createDiskRow, updateDiskRow);
 }
 
@@ -573,7 +575,7 @@ function renderContainerDetail(detailPayload, logsPayload) {
   }
   if (logs) {
     if (!logsPayload?.ok) {
-      logs.textContent = `로그 읽기 실패: ${logsPayload?.error || "unknown"}`;
+      logs.textContent = `로그를 읽지 못했습니다. ${logsPayload?.error || ""}`.trim();
     } else if ((logsPayload.lines || []).length) {
       // S33: this runs every 2.5 s. Rewrite only when the text changed, so an
       // unchanged log keeps the reader's text selection.
@@ -658,8 +660,8 @@ function initDockerControls() {
     if (!button || button.disabled) return;
     // UI-13: stopping or restarting a container can stop a sensor, the drive bridge or the recorder; ask first.
     const verb = { stop: "중지", restart: "재시작" }[button.dataset.containerAction];
-    if (verb && !window.confirm(`컨테이너 ${button.dataset.containerName || button.dataset.containerId}을(를) ${verb}할까요?
-센서·조종·기록 서비스라면 그동안 화면 연결과 조종이 끊긴다.`)) return;
+    if (verb && !window.confirm(`${button.dataset.containerName || button.dataset.containerId} 컨테이너를 ${verb}할까요?
+센서, 조종, 기록 서비스라면 그동안 화면 연결과 조종이 끊어집니다.`)) return;
     await postContainerAction(button.dataset.containerId, button.dataset.containerAction);
   });
 }
@@ -684,7 +686,7 @@ async function postContainerAction(containerId, action) {
     await loadSelectedContainer(true);
   } catch (err) {
     debugLog("docker", `${action} failed`, err);
-    renderContainerDetailError(`컨테이너 ${action} 실패: ${err.message}`);
+    renderContainerDetailError(`컨테이너 ${{ start: "시작", stop: "중지", restart: "재시작" }[action] || action} 요청이 실패했습니다. ${err.message}`);
   }
 }
 
@@ -705,7 +707,7 @@ async function postFanJson(path, payload) {
     await tick();
   } catch (err) {
     debugLog("fan", `${path} failed`, err);
-    setFanStatus("bad", `Fan API 실패: ${err.message}`);
+    setFanStatus("bad", `팬 제어 요청이 실패했습니다. ${err.message}`);
   }
 }
 

@@ -32,7 +32,9 @@ const CAMERA_BINARY_HEADER_SIZE = 9;
 const IMU_RECORD_ENABLED_KEY = "ubts-record-imu-enabled-v1";
 const ROVER_SPEED_KEY = "ubts-rover-speed-v1";
 const ROVER_RECORD_KIND_KEY = "ubts-rover-record-kind-v1";
-const ROVER_PANEL_COLLAPSED_KEY = "ubts-rover-panel-collapsed-v1";
+// Rover Control in-page tab (2026-11-19) and the recording sensor choice, kept per browser.
+const ROVER_TAB_KEY = "ubts-rover-tab-v1";
+const ROVER_RECORD_SENSORS_KEY = "ubts-record-sensors-v1";
 const ROVER_CONTROL_INTERVAL_MS = 140;
 const ROVER_MAX_LINEAR_MPS = 0.45;
 const ROVER_MAX_ANGULAR_RPS = 1.4;
@@ -51,6 +53,7 @@ const state = {
   telemetry: null,
   plan: null,
   docs: [],
+  docsRequested: false,
   activeDoc: null,
   history: Object.fromEntries(HISTORY_KEYS.map((key) => [key, []])),
   visualHistory: Object.fromEntries(HISTORY_KEYS.map((key) => [key, []])),
@@ -167,7 +170,6 @@ const state = {
 	    inFlight: false,
 	    lastCommandAt: null,
 	    lastError: "",
-	    panelCollapsed: false,
 	  },
 	  recordings: {
 	    status: null,
@@ -180,6 +182,8 @@ const state = {
 	    kind: "both",
 	    includeImu: true,
 	    includeGps: true,
+	    // One check box per sensor (2026-11-19). Default: everything but the camera (recordings stay small).
+	    sensors: ["lidar", "imu", "gps", "drive", "steering", "executor", "tf"],
 	    lastStatusAt: 0,
 	  },
 	  archivePlayback: {

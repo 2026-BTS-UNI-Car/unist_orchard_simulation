@@ -25,7 +25,9 @@ export function initTuningPage(page) {
   const LOG_FIRST = 10;                 // rows shown before "전체 보기" (the dashboard keeps the last 50)
   // Asked for only while the collapsed part (#tuningDetails) is open on a visible Rover Control.
   const details = $('tuningDetails');
-  const active = () => page.currentRoute() === '/rover-control' && !document.hidden && (!details || details.open);
+  // ... and its tab (보정·설정, 2026-11-19) is shown.
+  const active = () => page.currentRoute() === '/rover-control' && !document.hidden && (!details || details.open)
+    && (page.shown ? page.shown('tuningPanel') : true);
 
   async function load() {
     try { view = await page.getJson('/api/executor/tuning'); } catch (_) { view = view ? { ...view, reachable: false } : null; }
@@ -98,7 +100,7 @@ export function initTuningPage(page) {
     }
     const can = !busy && Boolean(view?.applicable);
     const apply = $('tuneApply');
-    if (apply) { apply.disabled = !can; apply.textContent = busy ? '보내는 중…' : '적용'; }
+    if (apply) { apply.disabled = !can; apply.textContent = busy ? '보내는 중…' : '입력 값 적용'; }
     const writable = view?.tuning?.writable === true;
     if ($('tuneLoadPreset')) $('tuneLoadPreset').disabled = !can || !(view?.tuning?.presets || []).length;
     if ($('tuneSave')) $('tuneSave').disabled = !can || !writable;
@@ -106,7 +108,7 @@ export function initTuningPage(page) {
     if ($('tunePreset')) $('tunePreset').disabled = busy || !view?.available;
     if ($('tuneSaveName')) $('tuneSaveName').disabled = busy || !writable;
     const notice = $('tuneNotice');
-    const words = message || (view?.applicable ? (writable || !view?.available ? null : ['', ERROR_TEXT.tuning_not_writable + ' (실차는 tuning_file을 패키지 밖에 둔다).'])
+    const words = message || (view?.applicable ? (writable || !view?.available ? null : ['', ERROR_TEXT.tuning_not_writable + ' 실제 차에서는 설정의 tuning_file을 패키지 밖에 두고 씁니다.'])
                                                : ['warn', whyNot(view)]);
     if (notice) { notice.hidden = !words?.[1]; notice.className = `test-result ${words?.[0] || ''}`; notice.textContent = words?.[1] || ''; }
   }
@@ -117,7 +119,7 @@ export function initTuningPage(page) {
     const more = $('tuneLogMore');
     if (more) {
       more.hidden = logEntries.length <= LOG_FIRST;
-      more.textContent = logAll ? `최근 ${LOG_FIRST}건만` : `전체 보기 (${logEntries.length}건)`;
+      more.textContent = logAll ? `최근 ${LOG_FIRST}건만 보기` : `전체 ${logEntries.length}건 보기`;
     }
     body.replaceChildren(...(rows.length ? rows : [['--', '기록 없음', '', '', '']]).map((cells) => {
       const tr = document.createElement('tr');
@@ -130,7 +132,7 @@ export function initTuningPage(page) {
   async function send(payload, question) {
     if (busy || !view) return;
     if (!window.confirm(question)) return;
-    busy = true; message = ['testing', '보내는 중']; draw();
+    busy = true; message = ['testing', '보내고 있습니다.']; draw();
     try {
       const [code, reply] = await post('/api/executor/params', payload);
       message = replyText(view, code, reply);
@@ -138,7 +140,7 @@ export function initTuningPage(page) {
         document.querySelectorAll('#tuneForm input[name]').forEach((input) => { input.value = ''; });
       }
     } catch (_) {
-      message = ['bad', `거절: ${ERROR_TEXT.executor_unreachable}`];
+      message = ['bad', ERROR_TEXT.executor_unreachable];
     } finally {
       busy = false;
       await load();
@@ -150,20 +152,20 @@ export function initTuningPage(page) {
     if (busy || !view) return;
     const typed = Object.fromEntries([...document.querySelectorAll('#tuneForm input[name]')].map((input) => [input.name, input.value]));
     const { changes, problems } = check(view, typed);
-    if (problems.length) { message = ['bad', `적용하지 않음: ${problems.map((p) => `${p.label} ${p.text}`).join(', ')}`]; draw(); return; }
+    if (problems.length) { message = ['bad', `적용하지 않았습니다. ${problems.map((p) => `${p.label} ${p.text}`).join(' ')}`]; draw(); return; }
     if (!Object.keys(changes).length) { message = ['warn', ERROR_TEXT.no_change]; draw(); return; }
     send(changes, `실행기에 적용할까요?\n${describeChanges(view, changes).join('\n')}`);
   }
   $('tuneForm')?.addEventListener('submit', submit);
   $('tuneLoadPreset')?.addEventListener('click', () => {
     const name = $('tunePreset')?.value;
-    if (name) send({ preset: name }, `프리셋 ${name}을(를) 불러올까요? 기본 묶음과 고급 묶음 값이 그 프리셋 값으로 바뀐다.`);
+    if (name) send({ preset: name }, `${name} 프리셋을 불러올까요? 기본 묶음과 고급 묶음의 값에 이 프리셋의 값이 들어갑니다.`);
   });
   $('tuneSave')?.addEventListener('click', () => send({ save: true }, '지금 값을 실행기의 조정 파일에 저장할까요?'));
   $('tuneSavePreset')?.addEventListener('click', () => {
     const name = ($('tuneSaveName')?.value || '').trim();
-    if (!presetNameOk(name)) { message = ['bad', `${ERROR_TEXT.bad_preset_name}: 영문·숫자·_ - . 1~40자, default 아님`]; draw(); return; }
-    send({ save_preset: name, note: '' }, `지금 값을 프리셋 ${name}(으)로 저장할까요?`);
+    if (!presetNameOk(name)) { message = ['bad', '프리셋 이름은 영문, 숫자, _ - . 으로 1~40자여야 하고 default는 쓸 수 없습니다.']; draw(); return; }
+    send({ save_preset: name, note: '' }, `지금 값을 ${name} 프리셋으로 저장할까요?`);
   });
   $('tuneLogMore')?.addEventListener('click', () => { logAll = !logAll; renderLog(); });
   $('tuneClear')?.addEventListener('click', () => {
