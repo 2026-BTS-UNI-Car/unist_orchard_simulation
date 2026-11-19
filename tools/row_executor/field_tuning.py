@@ -136,6 +136,8 @@ KEYS = (
     _k('overspeed_margin_m_s', 'locked', 'real', 0., .2, .05, 'm/s', ('lock_controller', 'overspeed_margin_m_s'),
        'overspeed: above max_speed + this ...'),
     _k('overspeed_s', 'locked', 'real', .2, 3., 1., 's', ('lock_controller', 'overspeed_s'), '... for longer: pause'),
+    _k('overspeed_confirm_s', 'locked', 'real', 0., .9, 0., 's', ('lock_controller', 'overspeed_confirm_s'),
+       'overspeed duty cut only after this long above the line (0 = at once; < overspeed_s; 2026-11-20 opt-in)'),
     _k('duty_cap_pct', 'locked', 'int', 1, 100, 75, '%', ('config', 'duty_cap_pct'), 'executor output guard duty cap'),
     _k('lidar_max_age_s', 'locked', 'real', .1, 1., .45, 's', ('config', 'lidar_max_age_s'), 'scan freshness'),
     _k('imu_max_age_s', 'locked', 'real', .05, 1., .4, 's', ('config', 'imu_max_age_s'), 'IMU freshness'),

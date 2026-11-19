@@ -94,6 +94,7 @@
    "lidar_max_age_s": 0.45,
    "max_speed_m_s": 0.5,
    "operator_timeout_s": 1.0,
+   "overspeed_confirm_s": 0.0,
    "overspeed_margin_m_s": 0.05,
    "overspeed_s": 1.0,
    "prior_predict_max_m": 0.5,

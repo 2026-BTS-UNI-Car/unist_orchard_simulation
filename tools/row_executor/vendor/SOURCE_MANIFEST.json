@@ -2,9 +2,9 @@
  "copy_method": "git show <commit>:<source_path> (byte-exact, as stored)",
  "derivation": {
   "note": "rewritten by tools/steer_sim/regen_vendor.py; check with tools/steer_sim/check_vendor_sync.py",
-  "previous_manifest_SHA256": "b5f6e49da5cfdd0bb02400fcdc3a376bd3f89f1c9d0eb393e401f75616a6fef5",
+  "previous_manifest_SHA256": "f0ba121618cc87e88d34eaab288ca83801307c26607f9377ee2effc37ff205a2",
   "previous_source_branch": "main",
-  "previous_source_commit": "9f1027dd5074c5be23103b126a5b618330724439",
+  "previous_source_commit": "716c96b2b6a42c9a7c61ecce5f5f17250a54f56e",
   "previous_source_repository": "2026-BTS-UNI-Car/unist_orchard_simulation"
  },
  "files": [
@@ -44,9 +44,9 @@
    "vendored_path": "closed_loop_copy/single_row.py"
   },
   {
-   "bytes": 34975,
-   "git_blob": "794260fa507e458ad43acad5fdb71648647aefb5",
-   "sha256": "2d3f2263605d3b2c9249eb43bc78ac017344b63a795e47ff050063e537eca954",
+   "bytes": 36171,
+   "git_blob": "af213ab018a845059b26063b28d353ad89f50d15",
+   "sha256": "886c366b1e36db6ec64008fcc3bf73ab2ed9785878ee3e7a7c13be31e7ca1b98",
    "source_path": "sim/ubts/closed_loop/steer_control.py",
    "vendored_path": "closed_loop_copy/steer_control.py"
   },
@@ -70,7 +70,7 @@
  "modified": false,
  "schema": "ubts.row_executor.vendor_manifest.v1",
  "source_branch": "main",
- "source_commit": "716c96b2b6a42c9a7c61ecce5f5f17250a54f56e",
+ "source_commit": "d58f39cf9df0b8b6675fa0b9b99cd52a7dede54e",
  "source_repository": "2026-BTS-UNI-Car/unist_orchard_simulation",
  "verification": "row_executor.core.load_vendor() recomputes every sha256 before import and refuses on mismatch, imports the copies under row_executor.vendor (the SIM-tree name orchard_perception points at the vendored copy only while the vendored estimator is imported) and checks the imported files again; closed_loop_copy/single_row.py is imported next to the verified controllers module (core.single_row_module) and its sha256 is checked again at import"
 }
