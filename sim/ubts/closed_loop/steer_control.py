@@ -45,6 +45,13 @@ kept the start ramp rising past the target, true speed 0.54 m/s with the vehicle
 A reference below min_speed_m_s stops the run (speed_cap_below_min): no creeping inside the drive deadband.
 Overspeed (V2-4 item 6): a LiDAR speed above max_speed_m_s + overspeed_margin_m_s sets the duty to the table duty of the
 minimum speed; for longer than overspeed_s it stops the run (overspeed, a pause).
+overspeed_confirm_s (2026-11-20, 0 = off: the cut on the first tick above the line, bit-identical): with > 0 the duty cut
+waits until the speed has stayed above the line for overspeed_confirm_s (< overspeed_s); until then the speed PI runs
+(it never raises the duty while faster than the reference and lowers it at duty_fall_pct_s). The stop after overspeed_s,
+counted from the first tick above the line, is unchanged. Measured cause (2026-11-18/19 corridor tick logs, 5 of 13
+runs): a one-scan jump of the LiDAR speed when the along-track ICP match caught up (0.396 -> 0.650 -> 0.422 m/s while the
+path distance gave 0.29 m/s) cut the duty 36 -> 16 % at once and the car stood 2-3 s while the duty rose at
+duty_rise_pct_s. It relaxes a locked rule by at most overspeed_confirm_s: opt-in, for the operator to decide.
 Speed input (speed_window_s, 2026-11-19 corridor field data; 0 = off, the LiDAR speed alone, bit-identical): the
 estimator's LiDAR speed is the median of its last five per-scan ICP steps; in a uniform corridor (parallel walls, the end
 beyond the ICP range) the along-track match sticks near its seed and catches up in 60-150 mm jumps, so that median read
@@ -149,6 +156,7 @@ class SteerFollowConfig:
     d_map_m: float = .20                 # map cap hook (only with a map age in the snapshot: PC-07, off)
     overspeed_margin_m_s: float = .05    # locked: LiDAR speed above max_speed + this ...
     overspeed_s: float = 1.              # ... for longer than this: stop (overspeed)
+    overspeed_confirm_s: float = 0.      # > 0: the duty cut waits until the overspeed lasted this long (docstring)
     speed_table: tuple = DEFAULT_SPEED_TABLE
     speed_scale: float = 1.
     speed_kp_pct_s_per_m: float = 30.
@@ -186,7 +194,7 @@ class SteerFollowConfig:
             raise ValueError('steer_follow_invalid: steering rates, wheelbase, gains')
         if not (self.lateral_accel_max_m_s2 > 0. and 0. < self.steer_slow_start < 1. and self.d_map_m > 0.
                 and 0. < self.fresh_slow_age_s < self.lidar_max_age_s and self.overspeed_margin_m_s >= 0.
-                and self.overspeed_s > 0.):
+                and self.overspeed_s > 0. and 0. <= self.overspeed_confirm_s < self.overspeed_s):
             raise ValueError('steer_follow_invalid: curvature, steering demand, freshness or overspeed settings')
         if not (0. <= self.speed_window_s <= 5. and 0. <= self.speed_prior_floor <= 1.):
             raise ValueError('steer_follow_invalid: speed_window_s must be in [0, 5], speed_prior_floor in [0, 1]')
@@ -500,7 +508,9 @@ class RowFollowController:
             if t - self.over_since > cfg.overspeed_s:
                 return self._stop(t, s, 'overspeed')
         self._set_phase(t, 'APPROACH_END' if bound == 'end' else 'FOLLOW')
-        throttle, feedforward = self._throttle(v_ref, speed, dt, over)
+        # overspeed_confirm_s > 0 (docstring): the duty cut only once the overspeed has lasted that long
+        cut = over and (cfg.overspeed_confirm_s <= 0. or t - self.over_since >= cfg.overspeed_confirm_s)
+        throttle, feedforward = self._throttle(v_ref, speed, dt, cut)
         target, detail = self._steer_target(s, speed, dt, True)
         steer = self._shape(t, self.steer if target is None else target, throttle, dt)
         self._telemetry = dict(detail, phase=self._phase, target_speed_m_s=round(v_ref, 3), cap=bound,
