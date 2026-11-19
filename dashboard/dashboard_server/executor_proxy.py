@@ -15,7 +15,10 @@ With neither the relay is "not configured": the status says so and every action 
 executor checks Host, Origin and the X-Row-Token header and takes JSON bodies of at most 4 KiB; this module sends
 exactly that, with only the fields of the contract. The status is reduced to the fields the screens show (no GNSS
 coordinates). Only the map screen's ?grid=1 read carries the run's own odometry geometry (local grid, estimator band,
-the recent path of this run: run-local metres from the start pose, never GNSS). Standard library only.
+the recent path of this run: run-local metres from the start pose, never GNSS). Every read carries "pose", the
+vehicle's place in that odometry (x m, y m, yaw rad; three numbers, 2026-11-20): the moving picture of the monitoring
+view glides between the autonomy panel's two reads a second instead of asking for the geometry more often. Standard
+library only.
 
 GPS per run (2026-11-19, user request 'gps를 자율주행에 쓸지 안쓸지를 이제 결정해서 자율주행을 굴릴 수 있으면'): POST
 /api/executor/start may carry "gnss_mode" (off | log_only | geofence | weak_constraint); null or absent = the executor's
@@ -246,6 +249,10 @@ def page_status(raw, grid=False) -> dict:
     metrics = page_metrics(raw.get("metrics"))
     if metrics is not None:
         out["metrics"] = metrics
+    geometry = raw.get("single_row_geometry")
+    pose = _numbers(geometry.get("base"), 3) if isinstance(geometry, dict) else None
+    if pose is not None:
+        out["pose"] = pose                 # run odometry (x m, y m, yaw rad), not GNSS
     if grid:
         local = page_grid(raw.get("local_grid_map"))
         if local is not None:

@@ -2430,3 +2430,13 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   font-size: var(--text-md);
   line-height: var(--leading-md);
 }
+
+.auto-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#localGridCanvas {
+  max-width: 480px;
+  height: 440px;
+  margin: 0 auto;
+}

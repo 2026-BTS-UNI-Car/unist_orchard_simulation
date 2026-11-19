@@ -213,12 +213,72 @@ function closeSensorForHiddenPanel(name) {
 }
 
 function toggleLidarLive() {
+  autoLidar.borrowed = false;            // the button is the user's own choice from here on
   if (state.lidarLive.connected || state.lidarLive.socket) {
     stopLidarLive("사용자가 실시간 연결을 중지했습니다.");
     return;
   }
   startLidarLive();
 }
+
+// LiDAR in the 자율주행 tab (2026-11-20, user: "자율주행 시에 라이다 데이터라도 실시간으로 받아오게 하면 좋을 듯", in the
+// place of the live occupancy grid map of that tab). The LiDAR picture of Rover Control is a part of 수동 조종 and of
+// 자율주행 (one element, one socket, the same drawing). In 자율주행 it needs no button:
+//   - a stream the user did not stop follows its picture as on 수동 조종 (the rule above: open while the picture is on
+//     screen, closed after 1 s off screen or in a hidden page, opened again by itself);
+//   - a stream the user stopped (the LiDAR button of 수동 조종 or of Connection) is started when 자율주행 is shown, and
+//     stopped again as the user left it when that tab or the page is left. Only this borrowed start is undone here.
+// The 자율주행 tab shows one sentence under the picture instead of the button (autoLidarSentence, drawn by
+// renderLidarLiveState and once a second while the tab is shown). A picture that is no longer fed is named as such: no
+// message for AUTO_LIDAR_STALE_MS (the bridge sends 3 to 10 scans a second), a status without scans, or a lost
+// connection leave the last scan on the canvas, and the sentence says that it is the last one.
+// The autonomy buttons, the heartbeat and the run recording do not depend on any of this.
+const AUTO_LIDAR_STALE_MS = 3000;
+const autoLidar = { borrowed: false };
+function autoLidarShown() {
+  return currentRoute() === "/rover-control" && typeof roverTab === "function" && roverTab() === "auto";
+}
+function syncAutoLidar() {
+  const shown = autoLidarShown();
+  if (shown && state.lidarLive.userStopped) {
+    autoLidar.borrowed = true;
+    state.lidarLive.userStopped = false;
+    state.lidarLive.reconnectAttempt = 0;
+    startLidarLive();
+  } else if (!shown && autoLidar.borrowed) {
+    autoLidar.borrowed = false;
+    stopLidarLive("자율주행 탭을 떠나 LiDAR 수신을 멈춥니다.");
+  }
+  if (currentRoute() === "/rover-control") renderLidarLiveState();   // the button or the sentence of the tab now shown
+}
+function autoLidarSentence(now = Date.now()) {
+  const live = state.lidarLive;
+  const drawn = Boolean(state.lidarScan?.points?.length);       // a scan is on the canvas
+  const fresh = live.lastMessageAt !== null && live.lastMessageAt !== undefined && now - live.lastMessageAt <= AUTO_LIDAR_STALE_MS;
+  if (live.connected && live.scanTopicAlive && fresh) return "LiDAR를 실시간으로 받고 있습니다.";
+  if (live.connected) return drawn ? "LiDAR 스캔이 오지 않습니다. 그림은 마지막으로 받은 스캔입니다." : "LiDAR에 연결했습니다. 스캔을 기다리고 있습니다.";
+  if (live.socket) return "LiDAR에 연결하고 있습니다.";
+  if (live.enabled) {
+    return drawn ? "LiDAR 연결이 끊겼습니다. 그림은 마지막으로 받은 스캔입니다."
+      : "LiDAR에 연결하지 못했습니다. 자율주행 조작은 그대로 할 수 있습니다.";
+  }
+  return "이 그림이 화면에 보이면 LiDAR를 받기 시작합니다.";
+}
+// The sentence of the tab (and the button of the other tab); nothing else of the LiDAR part is drawn here.
+function renderAutoLidarNote() {
+  const inAutoTab = autoLidarShown();
+  const button = $("roverLidarToggle");
+  if (button) button.hidden = inAutoTab;
+  const note = $("roverLidarNote");
+  if (!note) return;
+  note.hidden = !inAutoTab;
+  const text = inAutoTab ? autoLidarSentence() : "";
+  if (note.textContent !== text) note.textContent = text;
+}
+window.addEventListener("ubts:rover-tab", syncAutoLidar);
+window.addEventListener("ubts:route", syncAutoLidar);
+// A stream that went quiet sends nothing that would redraw the sentence: look once a second while the tab is shown.
+setInterval(() => { if (!document.hidden && autoLidarShown()) renderAutoLidarNote(); }, 1000);
 
 function startLidarLive() {
   if (!routeSupportsLidarLive()) {

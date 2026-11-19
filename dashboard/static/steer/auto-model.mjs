@@ -426,6 +426,50 @@ export function scaleOffer(reply) {
            text: `${measured} 지금 전체 배율은 ${fixed(now, 3, '')}입니다. ${fixed(next, 3, '')} 값으로 바꿔 저장할까요?` };
 }
 
+// ---- Speed of the run (2026-11-20, user: "자율주행 속도 설정은 따로 못 하나?") -----------------------------------------
+// The speed choice of the tab is the executor's field tuning key target_speed_m_s. Everything it needs comes with the
+// status the panel already reads (status.tuning; simulation repository tools/row_executor/field_tuning.py State.status):
+//   - the range: basic[].low / high of the key, offered in SPEED_STEP_M_S steps;
+//   - the executor's own rule between values (field_tuning.cross_problems: min_speed_m_s < target <= max_speed_m_s): a
+//     step it would refuse is not offered (with the 2026-11 values 0.20 is in the range and refused, 0.25 .. 0.50 are
+//     taken); without those two values every step of the range is offered and the executor judges;
+//   - the value now (also when another screen or the field tuning part changed it; a value between the steps is shown
+//     as a choice of its own);
+//   - whether a change is taken now: tuning.editable (executor_main._tuning_lock: not while a run is open, i.e. ready,
+//     armed, running or paused, not while the bridge is still armed, not while the vehicle moves);
+//   - the overspeed line max_speed_m_s + overspeed_margin_m_s for the one line of caution.
+// Without the range the choice is off and shows the value now only. Returns { value, options, enabled, limit, note }.
+export const SPEED_KEY = 'target_speed_m_s';
+export const SPEED_STEP_M_S = 0.05;
+export const SPEED_NEAR_LIMIT_M_S = 0.10;       // a value this close to the overspeed line gets the line of caution
+const hundredths = (value) => Math.round(value * 100) / 100;
+export const speedLabel = (value) => `${value.toFixed(2)} m/s`;
+export function speedNote(value, limit) {
+  if (num(value) === null || num(limit) === null || limit - value > SPEED_NEAR_LIMIT_M_S + 1e-9) return '';
+  return `과속 한도(${limit.toFixed(2)} m/s)에 가까워 주행 중 잠깐 느려질 때가 있습니다.`;
+}
+export function speedChoice(reply, nowMs = Date.now()) {
+  const s = usable(reply, nowMs);
+  if (!s) return { value: null, options: [], enabled: false, limit: null, note: '' };
+  const tuning = s.tuning && typeof s.tuning === 'object' ? s.tuning : {};
+  const entry = Array.isArray(tuning.basic) ? tuning.basic.find((item) => item && item.name === SPEED_KEY) : null;
+  const values = tuning.values && typeof tuning.values === 'object' ? tuning.values : {};
+  const value = num(values.basic?.[SPEED_KEY]) ?? num(entry?.value) ?? num(s.speed?.target_mps);
+  const top = num(values.locked?.max_speed_m_s), margin = num(values.locked?.overspeed_margin_m_s);
+  const limit = top !== null && margin !== null ? hundredths(top + margin) : null;
+  const note = speedNote(value, limit);
+  const low = num(entry?.low), high = num(entry?.high);
+  if (low === null || high === null || !(high >= low)) return { value, options: value === null ? [] : [value], enabled: false, limit, note };
+  const floor = num(values.advanced?.min_speed_m_s);
+  const options = [];
+  for (let k = Math.ceil(low / SPEED_STEP_M_S - 1e-9); k * SPEED_STEP_M_S <= high + 1e-9; k += 1) {
+    const step = hundredths(k * SPEED_STEP_M_S);
+    if ((floor === null || step > floor + 1e-9) && (top === null || step <= top + 1e-9)) options.push(step);
+  }
+  if (value !== null && !options.some((step) => Math.abs(step - value) < 1e-9)) { options.push(value); options.sort((a, b) => a - b); }
+  return { value, options, enabled: options.length > 0 && tuning.editable === true && !HEARTBEAT_STATES.has(s.run_state), limit, note };
+}
+
 // A random session id of the operator link (contract: 4 to 64 characters).
 export function newSession(random = globalThis.crypto) {
   const bytes = new Uint8Array(12);

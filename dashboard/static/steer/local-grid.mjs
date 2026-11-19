@@ -1,14 +1,20 @@
 // The executor's local grid in Rover Control's 자율주행 tab (UI-09, 2026-11-19 monitoring view): the occupied cells of the
-// row executor's local grid, its last row-line fit (left and right row lines, centre line), the estimator band's
-// centreline, the travelled path, the lookahead point and the vehicle, from GET /api/executor/status?grid=1
+// row executor's local grid, its last row-line fit (left and right row lines), the centre line of the estimator band,
+// the travelled path, the lookahead point and the vehicle, from GET /api/executor/status?grid=1
 // (status.local_grid_map, schema ubts.row_executor.local_grid.v1, simulation repository docs/steering/LOCAL_GRID_KO.md;
-// status.single_row_geometry). The frame is the run's odometry (not a map, not GNSS). The grid axis (the row direction)
-// points right on the screen, the left of the row up (static/steer/run-view.mjs draws it). When the executor sends
-// nothing to draw the picture stays hidden; without an executor the module stops asking. It asks at most once a second
-// and only while its block (#autoGridBlock, in the 자율주행 tab) is on screen. Loaded by static/app/14-steer.js when that
-// tab is opened the first time.
+// status.single_row_geometry). The frame is the run's odometry (not a map, not GNSS).
+// 2026-11-20: a moving picture (static/steer/minimap.mjs): the car stays at one place, the row axis points up, one fixed
+// scale, and the ground moves under the car. The cells, lines and path come with the ?grid=1 read (at most once a
+// second, only while the block #autoGridBlock of the 자율주행 tab is on screen); the pose between those reads comes from
+// the autonomy panel's own status read (page.executorStatus, status.pose, twice a second; no request of this module),
+// and without that panel from the ?grid=1 read itself. The frames (requestAnimationFrame, at most 30 a second) run only
+// while a run is open, the block is on screen and the page is visible; a frame that would show the same picture is not
+// drawn. With prefers-reduced-motion the picture changes once per sample and does not glide. After a run the last
+// picture stays. When the executor sends nothing to draw the picture stays hidden; without an executor the module
+// stops asking. Loaded by static/app/14-steer.js when that tab is opened the first time.
 
-import { drawScene, sceneColours, sceneFromStatus } from './run-view.mjs';
+import { pose as poseOf, sceneColours, sceneFromStatus } from './run-view.mjs';
+import { FRAME_MS, drawMinimap, easeAxis, follow, fromCar, lookahead, poseAt, rowAxis, spanLine, tail, viewBox } from './minimap.mjs';
 
 export const POLL_MS = 1000;              // placeholder: the executor makes a new export at most every 0.5 s
 export const STALE_S = 2.0;               // an export older than this is shown as old
@@ -103,12 +109,19 @@ export function trailStep(trail, status) {
 }
 
 const RUN_OPEN = new Set(['ready', 'armed', 'running', 'paused']);
+const CELL_PX = 4;                        // the picture of the cells: pixels a cell
+const clock = () => (globalThis.performance ? performance.now() : Date.now());
 
 export function initLocalGrid(page) {
   const $ = (id) => document.getElementById(id);
   const panel = $('localGridPanel'), canvas = $('localGridCanvas');
   if (!panel || !canvas) return null;
   let timer = null, busy = false, off = false, grid = null, cells = null, scene = null, drawnKey = '', trail = null;
+  // the moving picture: the pose glide, the eased axis, the frames
+  let glide = null, axis = null, axisAt = 0, runOpen = false, raf = 0, lastFrame = 0, version = 0;
+  let sharedAt = null, sharedUsed = -Infinity, aimStatus = null, colours = null, picture = null, pictureOf = null, pictureInk = '';
+  const calmQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const calm = () => Boolean(calmQuery && calmQuery.matches);
   // The picture sits in the monitoring view of the 자율주행 tab (2026-11-19); it is hidden until the executor sends
   // something to draw, so its always-visible block is watched (the live map part on an older page).
   const watched = $('autoGridBlock') || $('liveMapPanel');
@@ -129,6 +142,13 @@ export function initLocalGrid(page) {
     if (tag) { tag.className = `tag ${level}`.trim(); tag.textContent = text; }
     if ($('localGridStatus')) $('localGridStatus').textContent = line;
   }
+  // The run is over: the car goes to its last sample, the frames stop, the picture stays.
+  function closeRun(now) {
+    if (!runOpen) return;
+    runOpen = false;
+    if (glide) glide = { ...glide, from: glide.to, dur: 0 };
+    paint(now, false);
+  }
   async function poll() {
     if (busy || off) return;
     busy = true;
@@ -141,9 +161,11 @@ export function initLocalGrid(page) {
       return;
     }
     const status = reply.status || {};
+    const now = clock(), open = RUN_OPEN.has(status.run_state);
     // After a run (ended / idle / latched) the executor keeps integrating scans into its grid; the picture stays
     // the last one of the run until the next run opens.
-    if (scene && !RUN_OPEN.has(status.run_state)) {
+    if (scene && !open) {
+      closeRun(now);
       words('', '멈춤', '마지막 주행의 그림입니다. 다음 주행에서 다시 그립니다.');
       return;
     }
@@ -153,33 +175,102 @@ export function initLocalGrid(page) {
     if (!next) cells = null;
     trail = trailStep(trail, status);
     scene = sceneFromStatus(next ? status : { ...status, local_grid_map: undefined });
+    if (scene && !scene.pose) scene = null;         // the picture is drawn around the car
     if (scene && !scene.path.length && trail.points.length >= 2) scene.path = trail.points;
-    if (!scene) { show(false); words('', '대기', '주행 중에 그립니다.'); return; }
+    if (!scene) { runOpen = false; show(false); words('', '대기', '주행 중에 그립니다.'); return; }
     show(true);
     if (grid) words(...describe(grid));
-    else words('', '격자 없음', '실행기가 격자를 보내지 않아 경로와 차만 그립니다.');
-    draw();
+    else words('', '격자 없음', '실행기가 격자를 보내지 않아 나무 줄 없이 그립니다.');
+    if (open && !runOpen) glide = null;             // a run opens: its first sample is shown at once
+    // The pose of this read is a sample only while the autonomy panel's faster reads carry none.
+    if (!glide || !(now - sharedUsed < 2 * POLL_MS)) {
+      glide = follow(glide, scene.pose, now, open && !calm());
+      aimStatus = status;
+    }
+    runOpen = open;
+    version += 1;
+    colours = null;
+    if (!raf) paint(now, false);        // while the frames run the next one draws it
+    kick();
   }
-  function draw() {
+  // The autonomy panel's status read (static/app/14-steer.js executorStatus): a pose sample when it is a new one.
+  function intake(now) {
+    const shared = page.executorStatus ? page.executorStatus() : null;
+    if (!shared || shared.at === sharedAt) return;
+    sharedAt = shared.at;
+    const status = shared.reply && shared.reply.ok ? shared.reply.status : null;
+    if (!status) return;
+    if (!RUN_OPEN.has(status.run_state)) { closeRun(now); return; }
+    const sample = poseOf(status.pose);
+    if (!sample) return;
+    sharedUsed = now;
+    glide = follow(glide, sample, shared.at, !calm());
+    aimStatus = status;
+  }
+  // The occupied cells as one picture (a dot a cell), made again only for a new bitmap or other colours.
+  function cellsPicture() {
+    if (!grid || !cells || !cells.length) return null;
+    if (pictureOf === cells && pictureInk === colours.cells) return picture;
+    pictureOf = cells; pictureInk = colours.cells; picture = null;
+    const [ni, nj] = grid.shape;
+    const sheet = ni * CELL_PX <= 4096 && nj * CELL_PX <= 4096 ? document.createElement('canvas') : null;
+    const pen = sheet && typeof sheet.getContext === 'function' ? sheet.getContext('2d') : null;
+    if (!pen) return null;
+    sheet.width = ni * CELL_PX; sheet.height = nj * CELL_PX;
+    pen.fillStyle = colours.cells;
+    for (const [i, j] of cells) { pen.beginPath(); pen.arc((i + 0.5) * CELL_PX, (j + 0.5) * CELL_PX, CELL_PX * 0.75, 0, 2 * Math.PI); pen.fill(); }
+    picture = sheet;
+    return picture;
+  }
+  // One picture. smooth: the axis is eased (a frame of the moving picture); otherwise it is set at once.
+  function paint(now, smooth) {
     if (!scene || panel.hidden) return;
     const rect = canvas.getBoundingClientRect();
     if (!(rect.width > 0 && rect.height > 0)) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const bw = Math.round(rect.width * dpr), bh = Math.round(rect.height * dpr);
-    const key = `${bw}x${bh}:${grid?.updates}:${grid?.lines?.stamp}:${grid?.bits?.length}:${scene.pose}:${scene.path.length}:${scene.lookahead}`;
+    const pose = poseAt(glide, now) || scene.pose;
+    const wanted = rowAxis(scene);
+    axis = smooth ? easeAxis(axis, wanted, now - axisAt) : wanted;
+    axisAt = now;
+    const aim = lookahead(aimStatus);
+    const key = `${bw}x${bh}:${version}:${pose[0].toFixed(3)}:${pose[1].toFixed(3)}:${pose[2].toFixed(4)}:${axis.toFixed(4)}:${aim}`;
     if (key === drawnKey) return;
     drawnKey = key;
     if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
+    if (!colours) {
+      const base = sceneColours(cssVar);
+      colours = { ...base, ground: cssVar('--color-media-bg', '#000'), target: base.vehicle };
+    }
+    const sheet = cellsPicture();
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawScene(ctx, scene, rect.width, rect.height, sceneColours(cssVar), cells);
+    drawMinimap(ctx, viewBox(rect.width, rect.height), {
+      pose, axis, grid, image: sheet, imageK: CELL_PX, cells: sheet ? null : cells, rows: scene.rows,
+      centre: spanLine(scene.reference, pose) || scene.centre, tail: tail(scene.path, pose),
+      lookahead: scene.lookahead || (aim ? fromCar(pose, aim[0], aim[1]) : null),
+    }, colours);
   }
+  // The frames of the moving picture: only while a run is open, the block is on screen and the page is visible.
+  const wantLoop = () => runOpen && Boolean(scene) && !panel.hidden && active() && typeof requestAnimationFrame === 'function';
+  function frame() {
+    raf = 0;
+    if (!wantLoop()) return;
+    raf = requestAnimationFrame(frame);
+    const now = clock();
+    if (now - lastFrame < FRAME_MS - 3) return;
+    lastFrame = now;
+    intake(now);
+    paint(now, !calm());
+  }
+  function kick() { if (!raf && wantLoop()) raf = requestAnimationFrame(frame); }
   function start() { if (!timer && !off) { timer = setInterval(poll, POLL_MS); poll(); } }
   function stop() { clearInterval(timer); timer = null; }
-  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { drawnKey = ''; draw(); }).observe(canvas);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { drawnKey = ''; if (!raf) paint(clock(), false); }).observe(canvas);
   document.addEventListener('visibilitychange', () => routeChanged());
 
-  function routeChanged() { if (active()) start(); else stop(); }
+  function routeChanged() { if (active()) { start(); kick(); } else stop(); }
   routeChanged();
-  return { routeChanged, draw, state: () => grid, scene: () => scene };
+  return { routeChanged, draw: () => paint(clock(), false), state: () => grid, scene: () => scene,
+           view: () => ({ pose: poseAt(glide, clock()), axis, open: runOpen, frames: Boolean(raf) }) };
 }

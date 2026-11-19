@@ -1,10 +1,10 @@
 {
- "bytes": 5194540,
- "commit": "e9ba5658c78cb12f4bac7cf638fa5f66f1c91226",
+ "bytes": 5226127,
+ "commit": "f097be682b69d5a632ec672abdc6b87ab0dac1f1",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
- "file_count": 140,
+ "file_count": 141,
  "files": {
   "config/dashboard.json": {
    "blob": "67f0ec8e55737a0efc71fe54601cd188cd8765d6",
@@ -91,10 +91,10 @@
    "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
   },
   "dashboard_server/executor_proxy.py": {
-   "blob": "b1d0497f8202b0d93077b2a8ad6f3bf6a57ebd4f",
-   "bytes": 24170,
+   "blob": "bbee6bdadb5215852c39d51dad0cf4e94b56a779",
+   "bytes": 24670,
    "mode": "100644",
-   "sha256": "9047aa42e54e5e9036921fb422f139c7f76b7c9bfcb4ea15b8d1eb748b51c8ab"
+   "sha256": "27e7630b18028dfd08ca5f0b856e921db9d7e28adc7d4bf8787bcf6f916c56fc"
   },
   "dashboard_server/extensions.py": {
    "blob": "18110aea03888e63eac5eb1de435277b18171aef",
@@ -421,10 +421,10 @@
    "sha256": "71ffb80562d1c6f7a5178327ffab9330b0df1d433d7217df1fcaeaf813dffb5d"
   },
   "static/app/05-live-lidar-camera.js": {
-   "blob": "49b2e2eaa0530ea8e8f700c9e1601d906a652a2d",
-   "bytes": 45441,
+   "blob": "c439b96465e93cbf5834aa063b111626067a0a19",
+   "bytes": 49405,
    "mode": "100644",
-   "sha256": "720f8f0113a77506cb1c0b86967361ea050a95f3697a8d9b76393658c73bb739"
+   "sha256": "77652a8075747610d513b6472df7041ca426073118c671da8329de085637cfe4"
   },
   "static/app/06-live-imu.js": {
    "blob": "a6a40d0abb773cd2a92ce87c6af343e52cbcd6ae",
@@ -433,10 +433,10 @@
    "sha256": "9ceef71e82a25e300dc31dc5dec8f594e18e0ed25500378af5f01f07814a9456"
   },
   "static/app/07-lidar-data.js": {
-   "blob": "daac5ba1a7ea8e8f9e71078b7217098dfe3a0c5f",
-   "bytes": 16888,
+   "blob": "6036d617a500e400ebb329a4dc31ccaf694d0ab5",
+   "bytes": 17036,
    "mode": "100644",
-   "sha256": "b85a51436256c9049898f60a1bdfaff485bb09c5dd944b53dcc9e04619aea41a"
+   "sha256": "88dfb34335ac90330c690045bea9f8265a35a36e6ebb15224f150f1bd49adfe7"
   },
   "static/app/08-system-panels.js": {
    "blob": "49e5adc3144819b806242df95e05cac12287942c",
@@ -475,10 +475,10 @@
    "sha256": "654b2a2b22a2a5265f3e3b49dfeedfee806dfc341f11ccb1d5319a6398d8e18f"
   },
   "static/app/14-steer.js": {
-   "blob": "c34c9d733ce823e8793a7b52b8e2f771e9199bb4",
-   "bytes": 7451,
+   "blob": "722d41d33d3d3ea51962484ec4fb1e66de7c3417",
+   "bytes": 8019,
    "mode": "100644",
-   "sha256": "188326949f68e335c622b714e20ed529232f259e7e5751c0ae38eef2ff391c80"
+   "sha256": "52bea19eb50e0ddf7f3b5bf60d1ccbe226f50fb9e632e9468ee2c30bb2f85b61"
   },
   "static/app/99-main.js": {
    "blob": "680698cf98d8f6eb4fef2d2e6421bfc99687c1e3",
@@ -589,10 +589,10 @@
    "sha256": "ec7afaf62937e54e67e1b096151a3769d8c4e14af20c198d23f7a061e3ae4136"
   },
   "static/index.html": {
-   "blob": "26d440c9c27b42a683497e0f6583b0801b6e7bbe",
-   "bytes": 64054,
+   "blob": "175f143ac27297918be00c5953df98a74593e3dd",
+   "bytes": 64335,
    "mode": "100644",
-   "sha256": "6c24a93b1a3196e4be413f310866418e6082ee72c5c57d76cf4c4ff0b4489de5"
+   "sha256": "db8e999bdb1a9697922946502f742f68e8370518caeaaec703b7c5d8717846fc"
   },
   "static/live-map-delta.mjs": {
    "blob": "58e4f2a8fd54a378d89aa233bf70f230b1d39bcf",
@@ -643,16 +643,16 @@
    "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb"
   },
   "static/steer/auto-model.mjs": {
-   "blob": "b1ee53c61329a1b58b23313306a1e93941ab12ae",
-   "bytes": 40397,
+   "blob": "19955992b6c224edc1342a7399f18f7952b06113",
+   "bytes": 43955,
    "mode": "100644",
-   "sha256": "e6a8303d1be54e813e92e9ddac22efd2d5cda778292d4b6f63517d3fc6388e7a"
+   "sha256": "79211a31227aa58603c1c3624a40c4fd1edd1cb47dd4b592b2e2bbf7f1167b26"
   },
   "static/steer/auto-panel.mjs": {
-   "blob": "8c966d2848e57196a64a5893f4c3fff6cc663c67",
-   "bytes": 23118,
+   "blob": "ba93efff303c6ea59ee67bcdcc80ea90ec2ee585",
+   "bytes": 26141,
    "mode": "100644",
-   "sha256": "62e30a30a35b730e03f1ea3d6d99d7b9b36ffa022265f2a94f9b4663a5488aba"
+   "sha256": "3813da7bfb5417fea27892b3ba6da5410309ebb7bbaa66fe30969dfd057c95ec"
   },
   "static/steer/drive-distance.mjs": {
    "blob": "f97c2fd7072cbdb41ed671b6232e9ed148e008f7",
@@ -661,10 +661,16 @@
    "sha256": "c9124464211fe29217f5ee77c28c07223e1a016e05f074c30ac15a067b5a1907"
   },
   "static/steer/local-grid.mjs": {
-   "blob": "f420145ee25dd515e9ab8ebd3e011bc61e40072b",
-   "bytes": 10147,
+   "blob": "33b3e1ac0e244471a457a0c5c0314157a1130b95",
+   "bytes": 15475,
    "mode": "100644",
-   "sha256": "2dba5189054019e1788311a33a465fa169b9519cfa91940e1f7ec646221a3a72"
+   "sha256": "ef8fd52d23a8771ef7c39bc51f63ccbe6586cef3363ed420d63e3fec002aa74d"
+  },
+  "static/steer/minimap.mjs": {
+   "blob": "1fd8c2fda69ae1032ed6ff68619e861c3c9a0428",
+   "bytes": 13735,
+   "mode": "100644",
+   "sha256": "39fdf2ab71e7a7df7f99645a354de121818d0bbe82ecf55b7d069fa57d751d26"
   },
   "static/steer/run-view.mjs": {
    "blob": "31a78af8f3abe0b5b348b0cf552e7d37cfb81de9",
@@ -697,10 +703,10 @@
    "sha256": "97c71f126ecfc7155d21e9a82455355195ef750ae3f6ed43f50c850e50feac8a"
   },
   "static/steer/tuning-model.mjs": {
-   "blob": "643239531ac8622be7a87e9b72794d6dab37b558",
-   "bytes": 10699,
+   "blob": "b3c55174b1e5d3ca4a748c0372dc7028a1a50a8f",
+   "bytes": 11034,
    "mode": "100644",
-   "sha256": "f8d469441c0bb946d2fe4fac6cdf1f2579c037e35e5ec5782d94a65259b95517"
+   "sha256": "b8bfddd40764aceadfd130771f2f54580009f1bfec54a024b92eb6e9aa717d62"
   },
   "static/steer/tuning-page.mjs": {
    "blob": "44fff794ee7af78fc13c840103bfd14859f3bc73",
@@ -709,10 +715,10 @@
    "sha256": "a07a6c84e15049a247e609d583a425b0b77e159fcd341a8fad5bbd1ac1f02165"
   },
   "static/styles.css": {
-   "blob": "f9e220d78d79657b7f3fdb30874355aab81c2e14",
-   "bytes": 50846,
+   "blob": "8a68c0d8a4ef401a121c05e0d1cbfea4f098c264",
+   "bytes": 50993,
    "mode": "100644",
-   "sha256": "c578dec39905c36315a240b5ae7bb3050ebda68893515eb9af400775faa76960"
+   "sha256": "01f0fbb6efd56831a61b50104cb2bb2b5f24b20abc6cd272b30d7771cc9f8b40"
   },
   "static/ui-kit.html": {
    "blob": "7c9dcaaca29bab8cdfe95f59b38de053da43cb06",
@@ -847,7 +853,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "d345f9a27869b0e124604e72681b1cfbefacbf9564688ff22e8694b47e2be091",
+ "files_sha256": "9ef373806bdba88f78070373bba59f2a654daa36f149878c07500bb0ceb8b037",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

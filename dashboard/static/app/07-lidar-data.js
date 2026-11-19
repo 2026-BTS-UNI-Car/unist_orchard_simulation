@@ -198,6 +198,8 @@ function renderLidarLiveState(overrideLabel) {
       : state.lidarLive.connected ? "LiDAR 중지" : "LiDAR 시작";
     roverButton.classList.toggle("active", state.lidarLive.connected);
   }
+  // 자율주행 tab (2026-11-20): no button there (the stream starts by itself), one sentence under the picture instead.
+  renderAutoLidarNote();
   const socketText = overrideLabel || (state.lidarLive.connected ? "connected" : state.lidarLive.error || "disconnected");
   const pointLabel = state.lidarLive.pointCount
     ? `${state.lidarLive.pointCount}/${state.lidarLive.sourcePointCount || state.lidarLive.pointCount}`

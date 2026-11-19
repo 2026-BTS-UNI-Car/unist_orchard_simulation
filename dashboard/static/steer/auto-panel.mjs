@@ -18,15 +18,20 @@
 //   recording of every sensor (tag autonomy) starts right before the go; without it the go is not sent. A recording
 //   that is already running with every sensor is kept. The one this panel started stops when the run ends or is
 //   stopped (ended, latched, idle); a recording somebody started by hand is never stopped here.
+// - Speed (user 2026-11-20: "자율주행 속도 설정은 따로 못 하나?"): a choice of the executor's target_speed_m_s in 0.05 m/s
+//   steps (auto-model.mjs speedChoice: range, value now, lock and overspeed line from the status this panel reads).
+//   A change sends that one key the way the field tuning part does (POST /api/executor/params, its refusal table); it
+//   is not saved to the file (보정·설정 does that). Refused: the choice goes back to the executor's value and the status
+//   line says why. Off while a run is open (the executor takes tuning changes at rest only).
 // - Monitoring view: six tiles of auto-model.mjs monitorView (executor status of this poll, the steering panel's bridge
 //   status: no request of its own); the other tiles, status.metrics, the online scale and its question, the mode chip,
 //   the executor's own codes and 'run 끝내기' are in the folded 자세히. The local grid picture is local-grid.mjs.
 // - The heartbeat keeps going in every tab of Rover Control (STOP stays in the status bar); leaving the page or hiding
 //   it stops it, and then the executor stops the vehicle by itself.
-import { EXEC_ERROR, GNSS_MODES, GO_BLOCKER, HEARTBEAT_MS, PREPARE_STEP, RUN_RECORD_SENSORS, START_ERROR, STATUS_MS, autoButtons,
+import { EXEC_ERROR, GNSS_MODES, GO_BLOCKER, HEARTBEAT_MS, PREPARE_STEP, RUN_RECORD_SENSORS, SPEED_KEY, START_ERROR, STATUS_MS, autoButtons,
          autoView, heartbeatWanted, metricsView, modeChip, monitorView, newSession, prepareFailText, prepareSequence, recordAfterRun,
-         reasonSentence, recordBeforeGo, runActive, scaleLine, scaleOffer, statusLine } from './auto-model.mjs';
-import { ERROR_TEXT } from './tuning-model.mjs';
+         reasonSentence, recordBeforeGo, runActive, scaleLine, scaleOffer, speedChoice, speedLabel, statusLine } from './auto-model.mjs';
+import { ERROR_TEXT, refusalReason } from './tuning-model.mjs';
 
 const HTTP_TEXT = { 403: '화면 세션이 끝났습니다. 화면을 새로 고치세요.', 409: '실행기가 요청을 거절했습니다.', 502: '실행기에 연결하지 못했습니다.',
                     503: '실행기가 설정되어 있지 않습니다.', 400: '요청 값이 올바르지 않습니다.', 413: '요청 크기가 한도를 넘었습니다.' };
@@ -47,7 +52,7 @@ export function initAutoPanel(page) {
   const root = $('autoPanel');
   if (!root) return null;
   const session = newSession();
-  let reply = null, pollTimer = null, beatTimer = null, polling = false, beating = false;
+  let reply = null, replyAt = 0, pollTimer = null, beatTimer = null, polling = false, beating = false;
   let busy = '';             // '' or the words of the step in progress (the buttons are off meanwhile, 멈추기 is not)
   let error = null;          // { text, key, beat }: a failed action, shown until the state moves on (key) or a new press
   let stops = 0;             // 멈추기 presses: a 준비 in progress gives up
@@ -74,7 +79,7 @@ export function initAutoPanel(page) {
   async function fetchStatus() {
     const turn = asked += 1;
     const fresh = await page.getJson('/api/executor/status');
-    if (turn > taken) { taken = turn; reply = fresh; }
+    if (turn > taken) { taken = turn; reply = fresh; replyAt = globalThis.performance ? performance.now() : Date.now(); }
     return reply;
   }
   async function poll() {
@@ -236,6 +241,32 @@ export function initAutoPanel(page) {
     if (!reply || reply.configured === false) return;
     if (runActive(reply) || !reply.ok) send('stop').then(readStatus).then(() => { pinError(); draw(); });   // a run, or a state not known: the executor latches
   }
+  // POST /api/executor/params that keeps the reply body on a refusal (the executor's reason and problems are shown),
+  // as the field tuning part sends it: [HTTP status, reply or null].
+  async function postParams(payload) {
+    const res = await fetch('/api/executor/params', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+                                                      body: JSON.stringify(payload) });
+    let body = null;
+    try { body = await res.json(); } catch (_) { body = null; }
+    return [res.status, body];
+  }
+  // The speed choice: one key, not saved to the file. The status read after it shows the executor's value (the new one,
+  // or the old one after a refusal: the choice goes back by itself).
+  const speedSelect = $('autoSpeed');
+  function changeSpeed() {
+    const now = speedChoice(reply);
+    const wanted = Number(speedSelect?.value);
+    if (!now.enabled || !(wanted > 0) || (now.value !== null && Math.abs(wanted - now.value) < 1e-9)) { draw(); return null; }
+    return act('속도를 바꾸고 있습니다.', async () => {
+      try {
+        const [code, body] = await postParams({ [SPEED_KEY]: wanted });
+        if (!body?.ok) fail(`속도를 바꾸지 못했습니다. ${refusalReason(code, body)}`);
+      } catch (_) {
+        fail(`속도를 바꾸지 못했습니다. ${ERROR_TEXT.executor_unreachable}`);
+      }
+    });
+  }
+  speedSelect?.addEventListener('change', changeSpeed);
   // PW-10: the answer to the online-scale offer after a run (POST /api/executor/params; the reply body is kept on a
   // refusal so the executor's reason shows). The status poll above carries the offer: no polling of its own.
   async function answerScale(answer) {
@@ -246,11 +277,8 @@ export function initAutoPanel(page) {
     const failed = accept ? '배율을 저장하지 못했습니다.' : '배율 제안을 닫지 못했습니다.';
     await act(accept ? '배율을 저장하고 있습니다.' : '배율 제안을 닫고 있습니다.', async () => {
       try {
-        const res = await fetch('/api/executor/params', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
-                                                          body: JSON.stringify({ online_scale: answer, run_id: offer.runId }) });
-        let body = null;
-        try { body = await res.json(); } catch (_) { body = null; }
-        if (!res.ok || !body?.ok) fail(`${failed} ${reasonSentence(ERROR_TEXT[body?.error] || body?.error || `서버가 HTTP ${res.status} 오류로 답했습니다.`)}`);
+        const [code, body] = await postParams({ online_scale: answer, run_id: offer.runId });
+        if (!(code >= 200 && code < 300) || !body?.ok) fail(`${failed} ${reasonSentence(ERROR_TEXT[body?.error] || body?.error || `서버가 HTTP ${code} 오류로 답했습니다.`)}`);
       } catch (_) {
         fail(`${failed} ${ERROR_TEXT.executor_unreachable}`);
       }
@@ -313,6 +341,25 @@ export function initAutoPanel(page) {
     if (gnssSelect) gnssSelect.disabled = locked;
     const rowLen = $('autoRowLen');
     if (rowLen) rowLen.disabled = locked;
+    // The speed choice follows the executor: its steps, its value now (also one changed elsewhere), its lock.
+    const speed = speedChoice(reply);
+    if (speedSelect) {
+      const key = JSON.stringify(speed.options);
+      if (speedSelect.dataset.key !== key) {
+        speedSelect.dataset.key = key;
+        speedSelect.replaceChildren(...(speed.options.length ? speed.options : [null]).map((step) => {
+          const option = document.createElement('option');
+          option.value = step === null ? '' : String(step);
+          option.textContent = step === null ? '--' : speedLabel(step);
+          return option;
+        }));
+      }
+      const shown = speed.value === null ? '' : String(speed.value);
+      if (!busy && speedSelect.value !== shown) speedSelect.value = shown;      // while a change is on its way: the pick
+      speedSelect.disabled = Boolean(busy) || !speed.enabled;
+    }
+    const speedNote = $('autoSpeedNote');
+    if (speedNote) { speedNote.hidden = !speed.note; setText(speedNote, speed.note); }
     const timeout = Number(s?.operator_link?.timeout_s);
     if (timeout > 0) setText($('autoHint'), `화면을 끄거나 가리면 ${Number.isInteger(timeout) ? timeout : timeout.toFixed(1)}초 뒤 차가 멈춥니다.`);
     // The tab badge: a run that holds the vehicle shows in the tab row from every tab.
@@ -372,6 +419,7 @@ export function initAutoPanel(page) {
 
   function routeChanged() { if (active()) start(); else stop(); draw(); }
   routeChanged();
-  return { routeChanged, draw, prepare, go, session: () => session, state: () => reply, autoRecording: () => autoRecordId,
+  return { routeChanged, draw, prepare, go, changeSpeed, session: () => session, state: () => reply, stateAt: () => replyAt,
+           autoRecording: () => autoRecordId,
            busy: () => busy };
 }

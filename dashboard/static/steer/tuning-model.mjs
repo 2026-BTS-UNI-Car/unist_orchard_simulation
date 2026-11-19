@@ -120,9 +120,15 @@ export function replyText(view, code, reply) {
     const what = DONE_TEXT[reply.action] || '적용했습니다.';
     return ['ok', `${what} 판 ${reply.tuning?.revision ?? '--'}${changed.length ? ` · ${changed.join(', ')}` : ''}`];
   }
+  return ['bad', `요청이 거절됐습니다. ${refusalReason(code, reply)}`];
+}
+
+// Why a POST /api/executor/params was refused: the sentence of the table (a code the table does not know is named in a
+// sentence), then the executor's own problem lines. Also used by the speed choice of the 자율주행 tab (auto-panel.mjs).
+export function refusalReason(code, reply) {
   const reason = ERROR_TEXT[reply?.error] || (reply?.error ? `알려 온 이유는 ${reply.error}입니다.` : `서버가 HTTP ${code} 오류로 답했습니다.`);
   const problems = Array.isArray(reply?.problems) && reply.problems.length ? ` ${reply.problems.join(' / ')}` : '';
-  return ['bad', `요청이 거절됐습니다. ${reason}${problems}`];
+  return `${reason}${problems}`;
 }
 
 const two = (n) => String(n).padStart(2, '0');

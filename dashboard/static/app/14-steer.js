@@ -35,7 +35,8 @@ function rememberedSteerVehicle() {
   try { return localStorage.getItem(STEER_KIND_KEY) === "front_steer"; } catch (_) { return false; }
 }
 
-const steerScreens = { drive: null, auto: null, tuning: null, grid: null, pot: null, cal: null, dist: null, driveScreen: null };
+const steerScreens = { drive: null, auto: null, tuning: null, grid: null, pot: null, cal: null, dist: null, driveScreen: null,
+                       autoScreen: null };
 
 function steerPageApi() {
   // controlRequest: the one transport for driving requests (NET-05): high priority, never queued, with a time limit.
@@ -44,8 +45,11 @@ function steerPageApi() {
   // driveController: the steering panel's controller (the distance move hands its lease chain to the server).
   // roverTab / shown: the active in-page tab and whether an element is in a part of it (10-rover-control.js).
   // recording: the recorder state and the start / stop of 11-recording.js (the autonomy tab's run recording).
+  // executorStatus: the autonomy panel's latest /api/executor/status reply and when it came (performance.now()), so
+  // the moving picture of the monitoring view takes the pose from it and asks for nothing more.
   const tabs = typeof roverTab === "function";
   return { getJson, postJson, controlRequest, currentRoute, renderReadout, chartColors, driveStatus: steerDriveStatus,
+           executorStatus: steerExecutorStatus,
            driveController: () => steerScreens.driveScreen?.controller || null,
            roverTab: () => (tabs ? roverTab() : null), shown: (id) => (tabs ? roverPartShown(id) : true),
            recording: typeof recordingStatusView === "function"
@@ -57,10 +61,20 @@ function steerDriveStatus() {
   return ctl && ctl.lastStatusAt !== null ? { reply: ctl.lastStatus, at: ctl.lastStatusAt } : null;
 }
 
+function steerExecutorStatus() {
+  const screen = steerScreens.autoScreen;
+  return screen && screen.stateAt() ? { reply: screen.state(), at: screen.stateAt() } : null;
+}
+
 function loadSteerScreen(name, url, init) {
   if (!steerScreens[name]) {
     steerScreens[name] = import(url)
-      .then((module) => { const screen = module[init](steerPageApi()); if (name === "drive") steerScreens.driveScreen = screen; return screen; })
+      .then((module) => {
+        const screen = module[init](steerPageApi());
+        if (name === "drive") steerScreens.driveScreen = screen;
+        if (name === "auto") steerScreens.autoScreen = screen;
+        return screen;
+      })
       .catch((err) => { steerScreens[name] = null; console.warn(`front-steer ${name}`, err); });
   }
   steerScreens[name]?.then((screen) => screen?.routeChanged());
