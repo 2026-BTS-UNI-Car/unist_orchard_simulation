@@ -266,6 +266,7 @@ const refusal = (answer) => ({ ...(answer && answer.error ? { error: answer.erro
 // itself makes (ready, armed) counts; idle or ended means "not yet". Returns { ok, step, runState[, error, text] }.
 export const PREPARE_WAIT_MS = 3000;
 export const PREPARE_STEP_MS = 150;
+export const ARM_SHOWN_MS = 2000;
 export async function armAfterStart({ started, send, readStatus, sleep, aborted = () => false, waitMs = PREPARE_WAIT_MS,
                                       stepMs = PREPARE_STEP_MS, now = () => Date.now() }) {
   const t0 = now();
@@ -276,7 +277,16 @@ export async function armAfterStart({ started, send, readStatus, sleep, aborted 
     if (runState === 'ready') {
       if (aborted()) return { ok: false, step: 'aborted', runState };
       const armed = await send('arm', {});
-      return armed.ok ? { ok: true, step: 'arm', runState } : { ok: false, step: 'arm', runState, ...refusal(armed) };
+      if (!armed.ok) return { ok: false, step: 'arm', runState, ...refusal(armed) };
+      // The arm was accepted: stay in this step until the executor's status shows it (at most ARM_SHOWN_MS). Without
+      // this the status line read "준비가 끝나지 않았습니다" for the half second until the next status read.
+      for (const from = now(); now() - from < ARM_SHOWN_MS;) {
+        await sleep(stepMs);
+        const fresh = await readStatus();
+        const shown = fresh && fresh.ok && fresh.status ? fresh.status.run_state : null;
+        if (shown && shown !== 'ready') break;
+      }
+      return { ok: true, step: 'arm', runState };
     }
     if (runState === 'latched') return { ok: false, step: 'latched', runState };
     if (now() - t0 >= waitMs) return { ok: false, step: 'wait', runState };

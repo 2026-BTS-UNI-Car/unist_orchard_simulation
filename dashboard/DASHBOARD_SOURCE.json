@@ -1,6 +1,6 @@
 {
- "bytes": 5270640,
- "commit": "b633f8e4296984f80678bbadcea43b7fdb8b6b57",
+ "bytes": 5271207,
+ "commit": "bde93c16d6c8fa83695d16c6672871f6bb8ba0f0",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
@@ -649,10 +649,10 @@
    "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb"
   },
   "static/steer/auto-model.mjs": {
-   "blob": "410991eec494f2c5636a7ab64c31ca7a447512a9",
-   "bytes": 50334,
+   "blob": "a2d2aa79a083dbbe573bbdb48c499edf2368e31f",
+   "bytes": 50901,
    "mode": "100644",
-   "sha256": "734002cba784c9ae4523390c0f4810908bb9c2b680d23bc032fac36a24815340"
+   "sha256": "46e5a33532c85b52d52653fbe410bed1cdf45429c291e216f77f60215ae69aa9"
   },
   "static/steer/auto-panel.mjs": {
    "blob": "3cc6dcc3ac77e61a6e51743b340f0cbbebc2fef5",
@@ -859,7 +859,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "634afe219729f194337b5f98dc985d14a33c43c8243d55bf8f1af78bb5bf9414",
+ "files_sha256": "eff9cc92eb213296d2d93e0d3df099757e5258da85041a071efe1fb1289c7426",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [
