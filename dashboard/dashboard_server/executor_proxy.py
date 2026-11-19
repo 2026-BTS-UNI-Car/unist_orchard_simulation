@@ -52,7 +52,9 @@ STATUS_FIELDS = {
     # the tick record of a front_steer executor: run id, throttle T (%), steering target S (mrad), corridor width
     "run": None, "T": None, "S": None, "width": None, "corridor": None,
     "steer": ("meas", "age", "sat"),
-    "operator_link": ("fresh", "age_s", "timeout_s"),
+    # go_active (2026-11-20): the go of this screen still drives the run (or is held through the input warm-up); the
+    # recording of a stretch is not stopped while it is true
+    "operator_link": ("fresh", "age_s", "timeout_s", "go_active"),
     "speed": ("target_mps", "limit_mps", "limit_reason"),
     "single_row": ("phase", "lateral_error_m", "heading_error_deg", "distance_m", "speed_m_s", "target_speed_m_s",
                    "stop_reason", "stop_category", "confidence", "throttle_pct", "steer_mrad", "end_remaining_m",

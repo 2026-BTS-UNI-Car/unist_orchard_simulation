@@ -1,10 +1,10 @@
 {
- "bytes": 5226127,
- "commit": "f097be682b69d5a632ec672abdc6b87ab0dac1f1",
+ "bytes": 5270640,
+ "commit": "b633f8e4296984f80678bbadcea43b7fdb8b6b57",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
- "file_count": 141,
+ "file_count": 142,
  "files": {
   "config/dashboard.json": {
    "blob": "67f0ec8e55737a0efc71fe54601cd188cd8765d6",
@@ -43,10 +43,10 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "d1548a69bc6a910367ca24213908bd7bd982158c",
-   "bytes": 104641,
+   "blob": "cea944224913867aa71b6d17b095db80615279b8",
+   "bytes": 107292,
    "mode": "100644",
-   "sha256": "67ef21c2c46d0b9e8c6d064b4aa0cd61b1c02f329fd45e33ab8f4b5ff25f5032"
+   "sha256": "f4e43e3031fba069c9fe7168fde62c2c626dd5154d6efab75e71856235b9a947"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
@@ -91,10 +91,10 @@
    "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
   },
   "dashboard_server/executor_proxy.py": {
-   "blob": "bbee6bdadb5215852c39d51dad0cf4e94b56a779",
-   "bytes": 24670,
+   "blob": "541182a39ee6ae1908aa266ba15a2723083e6be3",
+   "bytes": 24861,
    "mode": "100644",
-   "sha256": "27e7630b18028dfd08ca5f0b856e921db9d7e28adc7d4bf8787bcf6f916c56fc"
+   "sha256": "39675f57fdc778d88bd1816f57417694bf6a5a6bfe620df688dc112eb232c726"
   },
   "dashboard_server/extensions.py": {
    "blob": "18110aea03888e63eac5eb1de435277b18171aef",
@@ -312,6 +312,12 @@
    "mode": "100644",
    "sha256": "c69f3573ab3966e5e1334943263daef9763f298021ae93c5f8a39c821664741f"
   },
+  "dashboard_server/run_recording.py": {
+   "blob": "9879fc2aa784a52d4200c2728425a98adf1a930b",
+   "bytes": 29498,
+   "mode": "100644",
+   "sha256": "2c752bb2dc7b1d5e89f55f754fe15968723c6084285b6d52e9c49053754d0627"
+  },
   "dashboard_server/source_live_mapping.py": {
    "blob": "a9a0d03e37ac02ac361036ee3871c2131bdbdb20",
    "bytes": 29160,
@@ -457,16 +463,16 @@
    "sha256": "b4df930f0a95392227b9ac75ba1e30a35ce1f4af83fd8aafb37e56d5cc4ec55a"
   },
   "static/app/11-recording.js": {
-   "blob": "4e94646fde72c9377a9f2e6b31ec722279266af4",
-   "bytes": 14512,
+   "blob": "67043fc991f4a5535b85645e19d8fd5011d07e88",
+   "bytes": 14781,
    "mode": "100644",
-   "sha256": "7211bd3faf3b9a291ad40bcb34309ffdf22a1e0ccff6ce389259f81cdce7adc1"
+   "sha256": "1a9f96b496cd3ac48741763f7abdb72be03f3cae16923016ed723cbd0ad56e7b"
   },
   "static/app/12-archive.js": {
-   "blob": "6a80b666444dcbd221dc735a1dbc168a60fc2f2f",
-   "bytes": 60255,
+   "blob": "54284cc0f5ccb7f47eb85424fa32426154635250",
+   "bytes": 62025,
    "mode": "100644",
-   "sha256": "d355ab44600a471e1369983ce13f019e5ad8b53181ec7c739a3b1fabba1549ad"
+   "sha256": "372cbb937fed16851c1da3d070bae041025b78e36cc8dca286f89e8697cf275f"
   },
   "static/app/13-charts-canvas.js": {
    "blob": "66a60f76636dc179901796c73a5bf04bb26cf3fe",
@@ -643,16 +649,16 @@
    "sha256": "a3f06b9b5f2ac398ab40bfe45b64b4cdce58c0d43d30c9fa15a64edaa1f44adb"
   },
   "static/steer/auto-model.mjs": {
-   "blob": "19955992b6c224edc1342a7399f18f7952b06113",
-   "bytes": 43955,
+   "blob": "410991eec494f2c5636a7ab64c31ca7a447512a9",
+   "bytes": 50334,
    "mode": "100644",
-   "sha256": "79211a31227aa58603c1c3624a40c4fd1edd1cb47dd4b592b2e2bbf7f1167b26"
+   "sha256": "734002cba784c9ae4523390c0f4810908bb9c2b680d23bc032fac36a24815340"
   },
   "static/steer/auto-panel.mjs": {
-   "blob": "ba93efff303c6ea59ee67bcdcc80ea90ec2ee585",
-   "bytes": 26141,
+   "blob": "3cc6dcc3ac77e61a6e51743b340f0cbbebc2fef5",
+   "bytes": 29896,
    "mode": "100644",
-   "sha256": "3813da7bfb5417fea27892b3ba6da5410309ebb7bbaa66fe30969dfd057c95ec"
+   "sha256": "aecb4dc7a32bf93919e20c3a901ba839b7326829fccbce50669e6d03f7399742"
   },
   "static/steer/drive-distance.mjs": {
    "blob": "f97c2fd7072cbdb41ed671b6232e9ed148e008f7",
@@ -853,7 +859,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "9ef373806bdba88f78070373bba59f2a654daa36f149878c07500bb0ceb8b037",
+ "files_sha256": "634afe219729f194337b5f98dc985d14a33c43c8243d55bf8f1af78bb5bf9414",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

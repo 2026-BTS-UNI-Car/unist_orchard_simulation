@@ -100,7 +100,8 @@ function recordingSensorsLabel(sensors) {
   return list.map((name) => RECORDING_SENSOR_LABEL[name]).join("+") || "센서 없음";
 }
 
-// The recorder state as the panels read it: known only within the 5 s freshness gate.
+// The recorder state as the panels read it: known only within the 5 s freshness gate. segment: the server's record of
+// the newest stretch of an autonomy run (dashboard_server/run_recording.py; the autonomy tab reads its times).
 function recordingStatusView() {
   const status = state.recordings.status || {};
   const ageMs = performance.now() - state.recordings.lastStatusSteadyAt;
@@ -109,7 +110,8 @@ function recordingStatusView() {
     && Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= 5000;
   return { known, active: known && status.active, status, busy: Boolean(state.recordings.actionInFlight),
            id: known && status.active ? status.recording_id || null : null, tag: status.tag || null,
-           sensors: Array.isArray(status.sensors) ? status.sensors : null };
+           sensors: Array.isArray(status.sensors) ? status.sensors : null,
+           segment: status.autonomy_segment && typeof status.autonomy_segment === "object" ? status.autonomy_segment : null };
 }
 
 // options: {sensors, tag} (the autonomy panel: every sensor, tag "autonomy"); without them the check boxes.

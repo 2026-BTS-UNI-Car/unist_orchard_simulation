@@ -7,17 +7,26 @@
 //     준비            every step by itself (auto-model.mjs prepareSequence): acknowledge a latch, end a run that is still
 //                     open, start a run (row length, GPS choice), Arm. On while the vehicle is not driving.
 //     자율 주행 시작    on only when the run is armed and nothing but the operator link is in the way (the corridor is
-//                     acquired). A recording of every sensor first (no recording: no go), a heartbeat, then the go.
-//                     After a pause the same button reads 다시 출발.
+//                     acquired). A recording of every sensor first (no recording: no go), a short wait, a heartbeat,
+//                     then the go. After a pause the same button reads 다시 출발.
 //     멈추기           always on: the page's STOP (bridge stop by the drive panel's handler) and the executor stop.
 //   The status sentence above them (auto-model.mjs statusLine) says the state and what to do next; a failed action
 //   shows there until the state moves on or a button is pressed again. Why a run stopped stays in it until 준비.
 // - GPS per run (user: "gps를 자율주행에 쓸지 안쓸지를 이제 결정해서 자율주행을 굴릴 수 있으면"): the choice goes with 준비
 //   (POST /api/executor/start gnss_mode). It is kept per browser. A refusal of the executor is shown in its words.
-// - Recording (user 2026-11-20: "자율주행 시작 버튼 누르는 순간 기록 시작 동시에 진행되게"): no button of its own. A
-//   recording of every sensor (tag autonomy) starts right before the go; without it the go is not sent. A recording
-//   that is already running with every sensor is kept. The one this panel started stops when the run ends or is
-//   stopped (ended, latched, idle); a recording somebody started by hand is never stopped here.
+// - Recording (user 2026-11-20: "자율주행 시작 버튼 누르는 순간 기록 시작 동시에 진행되게"): no button of its own. One
+//   recording per driven stretch (auto-model.mjs recordBeforeGo / recordStopWanted): a new recording of every sensor
+//   (tag autonomy) starts right before every go, the first one and 다시 출발; without it the go is not sent. It stops
+//   as soon as the run does not drive any more, whatever stopped it (a pause too), so the stretch is saved up to that
+//   place. A recording somebody started by hand with every sensor is kept and never stopped here. A page that is
+//   closed can not stop anything: the dashboard server stops a run recording nobody stops and writes the record of
+//   every stretch (which run, which stretch, a start again or not, why it stopped, how long and how far;
+//   dashboard_server/run_recording.py).
+// - The wait (GO_AFTER_RECORD_MS): a recording that was just started runs that long before the heartbeat and the go
+//   (the recorder's start load made the steering bridge stand still for a moment; a run that left then ended at once).
+//   멈추기 during the wait: no go, and the recording that was just started stops.
+// - Driving time: the status sentence and a tile show how long the run drove (the executor's count of its driving
+//   ticks, auto-model.mjs runTimes), and after a start again also the stretch since then.
 // - Speed (user 2026-11-20: "자율주행 속도 설정은 따로 못 하나?"): a choice of the executor's target_speed_m_s in 0.05 m/s
 //   steps (auto-model.mjs speedChoice: range, value now, lock and overspeed line from the status this panel reads).
 //   A change sends that one key the way the field tuning part does (POST /api/executor/params, its refusal table); it
@@ -28,9 +37,10 @@
 //   the executor's own codes and 'run 끝내기' are in the folded 자세히. The local grid picture is local-grid.mjs.
 // - The heartbeat keeps going in every tab of Rover Control (STOP stays in the status bar); leaving the page or hiding
 //   it stops it, and then the executor stops the vehicle by itself.
-import { EXEC_ERROR, GNSS_MODES, GO_BLOCKER, HEARTBEAT_MS, PREPARE_STEP, RUN_RECORD_SENSORS, SPEED_KEY, START_ERROR, STATUS_MS, autoButtons,
-         autoView, heartbeatWanted, metricsView, modeChip, monitorView, newSession, prepareFailText, prepareSequence, recordAfterRun,
-         reasonSentence, recordBeforeGo, runActive, scaleLine, scaleOffer, speedChoice, speedLabel, statusLine } from './auto-model.mjs';
+import { EXEC_ERROR, GNSS_MODES, GO_AFTER_RECORD_MS, GO_BLOCKER, GO_WAIT_STEP_MS, HEARTBEAT_MS, PREPARE_STEP, RUN_RECORD_SENSORS, SPEED_KEY,
+         START_ERROR, STATUS_MS, autoButtons, autoView, heartbeatWanted, metricsView, modeChip, monitorView, newSession, prepareFailText,
+         prepareSequence, reasonSentence, recordBeforeGo, recordStopWanted, runActive, scaleLine, scaleOffer, speedChoice, speedLabel,
+         statusLine } from './auto-model.mjs';
 import { ERROR_TEXT, refusalReason } from './tuning-model.mjs';
 
 const HTTP_TEXT = { 403: '화면 세션이 끝났습니다. 화면을 새로 고치세요.', 409: '실행기가 요청을 거절했습니다.', 502: '실행기에 연결하지 못했습니다.',
@@ -57,10 +67,16 @@ export function initAutoPanel(page) {
   let error = null;          // { text, key, beat }: a failed action, shown until the state moves on (key) or a new press
   let stops = 0;             // 멈추기 presses: a 준비 in progress gives up
   let autoRecordId = null, recordBusy = false, recordStopFailed = false;
+  // The stretch of the recording: the go on its way, when it was accepted, whether the run was seen driving since; the
+  // stop of the recording that is on its way; the server's record of the newest stretch (for the times).
+  let going = false, goAt = null, sawRunning = false, recordStop = null, segment = null;
+  const steady = () => (globalThis.performance ? performance.now() : Date.now());
   const store = (() => { try { return globalThis.localStorage || null; } catch (_) { return null; } })();
   const read = (key) => { try { return store?.getItem(key) ?? null; } catch (_) { return null; } };
   const write = (key, value) => { try { store?.setItem(key, value); } catch (_) { /* this load only */ } };
   const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+  // The wait between a new recording and its go (a test page gives a shorter one).
+  const goWaitMs = Number.isFinite(page.goWaitMs) ? page.goWaitMs : GO_AFTER_RECORD_MS;
 
   const gnssSelect = $('autoGnssMode');
   if (gnssSelect) {
@@ -160,18 +176,29 @@ export function initAutoPanel(page) {
 
   // Why the recorder refused, as a sentence (an unknown reason of the recorder is named in one).
   const recordWhy = (answer) => reasonSentence(RECORD_ERROR[answer?.error] || answer?.error || '');
-  // Right before a go: a recording of every sensor, or no go.
+  // Right before a go: a recording of its own for the stretch, or no go. { ok, fresh } (fresh: started just now).
   async function recordForGo() {
-    const decision = recordBeforeGo(recording(), true, RUN_RECORD_SENSORS);
-    if (decision === 'keep') return true;
+    if (recordStop) {
+      // the recording of the stretch before is still being stopped (다시 출발 right after a pause)
+      busy = '이전 구간의 기록을 저장하고 있습니다.'; draw();
+      await recordStop;
+    }
+    const before = recording();
+    const decision = recordBeforeGo(before, true, RUN_RECORD_SENSORS);
+    if (decision === 'keep') return { ok: true, fresh: false };
     if (decision === 'unknown' || !page.recording) {
       fail('기록 상태를 확인할 수 없어 출발하지 않았습니다. 기록 탭에서 녹화기 상태를 확인하세요.');
-      return false;
+      return { ok: false };
     }
     if (decision === 'restart') {
-      // a recording without every sensor (e.g. started on the 기록 tab without the camera): stop it, then all sensors
+      // a recording of an earlier stretch that nobody stopped, or one without every sensor (e.g. started on the 기록
+      // tab without the camera): stop it, then a new one of every sensor
       const stopped = await page.recording.stop();
-      if (!stopped || stopped.ok === false) { fail(`진행 중인 기록을 모든 센서 기록으로 바꾸지 못해 출발하지 않았습니다. ${recordWhy(stopped)}`); return false; }
+      if (!stopped || stopped.ok === false) {
+        fail(`${before.tag === 'autonomy' ? '이전 구간의 기록을 끝내지 못해' : '진행 중인 기록을 모든 센서 기록으로 바꾸지 못해'} 출발하지 않았습니다. ${recordWhy(stopped)}`);
+        return { ok: false };
+      }
+      busy = '기록을 시작하고 있습니다.'; draw();
     }
     // The recorder may still be finishing the previous recording: try again for up to 5 s, only for that reason.
     let answer = null;
@@ -183,23 +210,36 @@ export function initAutoPanel(page) {
     }
     if (!answer || answer.ok === false) {
       fail(`기록을 시작하지 못해 출발하지 않았습니다. ${recordWhy(answer)}`);
-      return false;
+      return { ok: false };
     }
     // '?' until the recorder names it (the next status read)
     autoRecordId = answer.recording_id || answer.status?.recording_id || recording()?.id || '?';
     recordStopFailed = false;
-    return true;
+    goAt = null; sawRunning = false;
+    return { ok: true, fresh: true };
   }
+  // The go did not happen (멈추기, a refusal): the recording that was started for it stops; one that was kept stays.
+  async function dropRecording(record) {
+    if (!record.fresh || !autoRecordId) return;
+    let answer = null;
+    try { answer = await page.recording.stop(); } catch (_) { answer = null; }
+    if (answer && answer.ok !== false) autoRecordId = null;
+    else recordStopFailed = true;
+  }
+  // After every status read: the recording of the stretch stops as soon as the run does not drive any more.
   function afterRun() {
     const rec = recording();
+    if (rec?.segment) segment = rec.segment;
     if (autoRecordId === '?' && rec?.active && rec.id) autoRecordId = rec.id;
-    if (autoRecordId && rec?.known && !rec.active) { autoRecordId = null; recordStopFailed = false; return; }     // stopped elsewhere
-    if (!recordAfterRun(reply, autoRecordId, rec) || recordBusy) return;
+    // stopped elsewhere (the server's keeper, the 기록 tab)
+    if (autoRecordId && !going && !recordBusy && rec?.known && !rec.active) { autoRecordId = null; recordStopFailed = false; return; }
+    if (autoRecordId && reply && reply.ok && reply.status && reply.status.run_state === 'running') sawRunning = true;
+    if (recordBusy || !recordStopWanted(reply, autoRecordId, rec, { going, sawRunning, sinceGoMs: goAt === null ? null : steady() - goAt })) return;
     recordBusy = true;
-    Promise.resolve(page.recording.stop()).then((answer) => {
+    recordStop = Promise.resolve().then(() => page.recording.stop()).then((answer) => {
       recordStopFailed = !(answer && answer.ok !== false);
       if (!recordStopFailed) autoRecordId = null;
-    }).catch(() => { recordStopFailed = true; }).finally(() => { recordBusy = false; draw(); });
+    }).catch(() => { recordStopFailed = true; }).finally(() => { recordBusy = false; recordStop = null; draw(); });
   }
 
   // 준비: whatever the executor's state needs, then a new run and Arm (auto-model.mjs prepareSequence).
@@ -222,17 +262,33 @@ export function initAutoPanel(page) {
       } else if (!result.ok) fail(prepareFailText(result, words));
     });
   }
-  // 자율 주행 시작 / 다시 출발: every sensor recorded first, the operator link fresh, then the go.
+  // 자율 주행 시작 / 다시 출발: a recording of its own for the stretch, a wait while a new recording settles, the
+  // operator link fresh, then the go. 멈추기 anywhere before the go: no go, and the new recording stops.
   function go() {
     if (!autoButtons(reply).go) return null;
     return act('기록을 시작하고 있습니다.', async () => {
       const mark = stops;
-      if (!(await recordForGo())) return;
-      if (stops !== mark) { fail('멈추기를 눌러 출발하지 않았습니다.'); return; }   // 멈추기 while the recording started: no go
-      busy = '출발 요청을 보내고 있습니다.'; draw();
-      await beat();                                   // the link is fresh before the go (go_blockers: operator link)
-      if (stops !== mark) { fail('멈추기를 눌러 출발하지 않았습니다.'); return; }
-      await send('go', { session });
+      const halted = () => stops !== mark;
+      going = true;
+      try {
+        const record = await recordForGo();
+        if (!record.ok) return;
+        if (record.fresh && !halted()) {
+          busy = '기록을 시작했습니다. 잠시 뒤 출발합니다.'; draw();
+          for (let waited = 0; waited < goWaitMs && !halted(); waited += GO_WAIT_STEP_MS) await sleep(Math.min(GO_WAIT_STEP_MS, goWaitMs - waited));
+        }
+        if (!halted()) {
+          busy = '출발 요청을 보내고 있습니다.'; draw();
+          await beat();                                 // the link is fresh before the go (go_blockers: operator link)
+        }
+        if (halted()) {
+          await dropRecording(record);
+          fail('멈추기를 눌러 출발하지 않았습니다.');
+          return;
+        }
+        if (await send('go', { session })) goAt = steady();
+        else await dropRecording(record);
+      } finally { going = false; }
     });
   }
   // Every STOP of the page also stops a run (their own handlers keep sending the bridge STOP).
@@ -326,7 +382,7 @@ export function initAutoPanel(page) {
     // A failure belongs to the state it happened in: once the run state or the start button moved on, it goes.
     if (error && !error.beat && error.key !== null && error.key !== stateKey()) error = null;
     if (error && error.beat && !heartbeatWanted(reply)) error = null;
-    const [level, text] = busy ? ['testing', busy] : error ? ['bad', error.text] : statusLine(reply);
+    const [level, text] = busy ? ['testing', busy] : error ? ['bad', error.text] : statusLine(reply, Date.now(), segment);
     const line = $('autoStatus');
     if (line) {
       const name = `test-result auto-status${level ? ` ${level}` : ''}`;
@@ -373,8 +429,9 @@ export function initAutoPanel(page) {
     const rec = recording();
     const shared = page.driveStatus?.();
     const bridge = shared && Date.now() - shared.at <= SHARED_BRIDGE_MS ? shared.reply : null;
+    if (rec?.segment) segment = rec.segment;
     const monitor = monitorView(reply, bridge, rec ? { ...rec, auto: Boolean(autoRecordId && rec.id === autoRecordId),
-                                                       stopFailed: recordStopFailed } : null, gnssChoice());
+                                                       stopFailed: recordStopFailed } : null, gnssChoice(), Date.now(), segment);
     tiles($('autoMonitorGrid'), monitor.tiles, monitor.stale);
     tiles($('autoMoreGrid'), monitor.more, monitor.stale);
     const monitorState = $('autoMonitorState');

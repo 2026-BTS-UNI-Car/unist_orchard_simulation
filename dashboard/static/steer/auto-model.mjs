@@ -161,8 +161,58 @@ function waitWords(s, most = 2) {
   return [...new Set(open.slice(0, most).map((code) => GO_BLOCKER[code] || '출발 조건이 아직 맞지 않습니다.'))].join(' ');
 }
 
+// A time in words: 35초, 1분 45초, 1시간 2분.
+export function durationText(seconds) {
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) return `${total}초`;
+  const minutes = Math.floor(total / 60) % 60, rest = total % 60;
+  if (total < 3600) return `${minutes}분${rest ? ` ${rest}초` : ''}`;
+  return `${Math.floor(total / 3600)}시간${minutes ? ` ${minutes}분` : ''}`;
+}
+
+// How long and how far the run of this status drove (2026-11-20, user request: show for how many seconds it drove):
+// { time_s, distance_m, part, source }. The time is the executor's own count of the driving ticks (status.metrics
+// time_s: standing still does not count, a start again goes on counting), so a reload of the page loses nothing.
+// part: { time_s, distance_m } of the stretch since the last 다시 출발, from the server's record of that stretch
+// (segment: /api/recordings/status autonomy_segment; null for a run that was not started again). An executor without
+// the metrics: the server's clock of the stretches (source 'clock'). null fields = not known.
+export function runTimes(reply, segment = null) {
+  const s = reply && reply.ok && reply.status ? reply.status : null;
+  if (!s) return { time_s: null, distance_m: null, part: null, source: null };
+  const sr = s.single_row || {};
+  const run = num(s.run);
+  const m = s.metrics && typeof s.metrics === 'object' && (num(s.metrics.run_id) === null || run === null || s.metrics.run_id === run) ? s.metrics : null;
+  const seg = segment && typeof segment === 'object' && run !== null && segment.run === run ? segment : null;
+  const start = (seg && seg.start) || {};
+  const distance = num(sr.distance_m) ?? (m ? num(m.distance_m) : null) ?? num(s.dist);
+  let time = m ? num(m.time_s) : null, source = time === null ? null : 'executor';
+  if (time === null && seg) {
+    const went = num(seg.go?.epoch_s), at = num(reply.received_at);
+    if (seg.end) time = num(seg.run_drive_time_s);
+    else if (num(start.run_drive_time_s) !== null) time = start.run_drive_time_s + (s.run_state === 'running' && went !== null && at !== null ? Math.max(0, at - went) : 0);
+    source = time === null ? null : 'clock';
+  }
+  let part = null;
+  if (seg && (seg.resumed === true || (num(seg.segment) ?? 0) >= 2)) {
+    const t = seg.end ? num(seg.drive_time_s) : time !== null && num(start.run_drive_time_s) !== null ? Math.max(0, time - start.run_drive_time_s) : null;
+    const d = seg.end ? num(seg.distance_m) : distance !== null && num(start.run_distance_m) !== null ? Math.max(0, distance - start.run_distance_m) : null;
+    if (t !== null) part = { time_s: t, distance_m: d };
+  }
+  return { time_s: time, distance_m: distance, part, source };
+}
+
+// The run's driving in a sentence (after it stopped or paused); '' when it did not drive or the time is not known.
+// A run that was started again says the whole run first ("모두") and then the stretch since the last start.
+export function tripSentence(times) {
+  if (!times || num(times.time_s) === null || Math.round(times.time_s) < 1) return '';
+  const said = (t, d) => (num(d) === null ? `${durationText(t)} 동안 주행했습니다.` : `${durationText(t)} 동안 ${d.toFixed(1)} m를 주행했습니다.`);
+  if (!times.part) return said(times.time_s, times.distance_m);
+  return `모두 ${said(times.time_s, times.distance_m)} 다시 출발한 뒤로는 ${said(times.part.time_s, times.part.distance_m)}`;
+}
+
 // One sentence: the state now and what to do next. Returns [level, text]; level: '' | ok | warn | bad | testing.
-export function statusLine(reply, nowMs = Date.now()) {
+// segment: the server's record of the newest recorded stretch (runTimes), or null.
+export function statusLine(reply, nowMs = Date.now(), segment = null) {
   if (!reply) return ['', '자율주행 실행기를 확인하고 있습니다.'];
   if (reply.configured === false) return ['warn', '자율주행 실행기가 설정되어 있지 않아 자율주행을 쓸 수 없습니다.'];
   if (!reply.ok || !reply.status) {
@@ -176,20 +226,24 @@ export function statusLine(reply, nowMs = Date.now()) {
   const why = s.stop_detail === 'operator_end' ? null : stopClause(s);
   const sr = s.single_row || {};
   const again = '다시 하려면 준비를 누르세요.';
+  const times = runTimes(reply, segment);
+  const trip = tripSentence(times), tripAfter = trip ? ` ${trip}` : '';
   switch (s.run_state) {
     case 'idle': case undefined: case null: return ['', `준비를 누르세요.${shadow}`];
     case 'ended':
       if (!why) return ['', `준비를 누르세요.${shadow}`];
-      return (s.stop_reason || sr.stop_category) === 'ROW_END' ? ['ok', `${why} 멈췄습니다.`] : ['warn', `${why} 멈췄습니다. ${again}`];
-    case 'latched': return ['bad', `${why ? `${why} 멈췄습니다.` : '멈췄습니다.'} ${again}`];
+      return (s.stop_reason || sr.stop_category) === 'ROW_END' ? ['ok', `${why} 멈췄습니다.${tripAfter}`] : ['warn', `${why} 멈췄습니다.${tripAfter} ${again}`];
+    case 'latched': return ['bad', `${why ? `${why} 멈췄습니다.` : '멈췄습니다.'}${tripAfter} ${again}`];
     case 'ready': return ['warn', leaseLost(s) ? GO_BLOCKER.lease_lost : '준비가 끝나지 않았습니다. 준비를 다시 누르세요.'];
     case 'armed': return goAllowed(s) ? ['ok', `출발할 수 있습니다.${shadow}`] : ['testing', waitWords(s)];
     case 'running': {
+      // the distance and the time are the whole run's (the tile says the stretch since a start again)
       const distance = num(sr.distance_m) ?? num(s.dist), speed = num(sr.speed_m_s) ?? num(s.v);
       return ['ok', ['주행 중', distance === null ? null : `${distance.toFixed(1)} m`,
-                     speed === null ? null : `${speed.toFixed(2)} m/s`].filter(Boolean).join(' · ')];
+                     speed === null ? null : `${speed.toFixed(2)} m/s`,
+                     times.time_s === null ? null : durationText(times.time_s)].filter(Boolean).join(' · ')];
     }
-    case 'paused': return ['warn', `${why ? `${why} 잠시 멈췄습니다.` : '잠시 멈췄습니다.'} ${goAllowed(s) ? '다시 출발을 누르세요.' : waitWords(s, 1)}`];
+    case 'paused': return ['warn', `${why ? `${why} 잠시 멈췄습니다.` : '잠시 멈췄습니다.'}${tripAfter} ${goAllowed(s) ? '다시 출발을 누르세요.' : waitWords(s, 1)}`];
     default: return ['', '실행기 상태를 알 수 없습니다.'];
   }
 }
@@ -509,8 +563,9 @@ export function gnssTile(status, requested = '') {
 
 // The tiles [label, value, sub, level]: tiles = the six on the screen, more = the others (folded 자세히). bridge: the
 // bridge status reply of the steering panel (or null); recording: {known, active, tag, auto, stopFailed} (auto =
-// started by this panel for the run; stopFailed = its stop after the run was refused).
-export function monitorView(reply, bridge = null, recording = null, requestedGnss = '', nowMs = Date.now()) {
+// started by this panel for the stretch; stopFailed = its stop after the stretch was refused). segment: the server's
+// record of the newest recorded stretch (runTimes).
+export function monitorView(reply, bridge = null, recording = null, requestedGnss = '', nowMs = Date.now(), segment = null) {
   const s = reply && reply.ok && reply.status ? reply.status : null;
   const isStale = stale(reply, nowMs);
   const tiles = [], more = [];
@@ -525,6 +580,9 @@ export function monitorView(reply, bridge = null, recording = null, requestedGns
     tiles.push(['횡 오차', fixed(num(sr.lateral_error_m) ?? num(s.lat), 2, ' m'), '+는 왼쪽', '']);
     const distance = num(sr.distance_m) ?? num(s.dist);
     tiles.push(['남은 거리', fixed(num(sr.end_remaining_m), 1, ' m'), distance === null ? '' : `간 거리 ${distance.toFixed(1)} m`, '']);
+    // the run's driving time (standing still does not count); under it the stretch since a start again
+    const times = runTimes(reply, segment);
+    tiles.push(['주행 시간', times.time_s === null ? '--' : durationText(times.time_s), times.part ? `다시 출발 뒤 ${durationText(times.part.time_s)}` : '', '']);
     more.push(['방향 오차', fixed(num(sr.heading_error_deg) ?? num(s.head), 1, '°'), '', '']);
     // the limit and what binds it, while the executor sends one (not driving: limit null, reason 'not_running')
     more.push(['속도 제한', fixed(num(speed.limit_mps), 2, ' m/s'), num(speed.limit_mps) === null ? '' : label(LIMIT_REASON, speed.limit_reason) || '', '']);
@@ -532,7 +590,8 @@ export function monitorView(reply, bridge = null, recording = null, requestedGns
   }
   tiles.push(['GPS', ...gnssTile(s, requestedGnss)]);
   if (recording) {
-    const driving = Boolean(s) && (s.run_state === 'running' || s.run_state === 'paused');
+    // one recording per driven stretch (2026-11-20): only a run that drives without one is a warning
+    const driving = Boolean(s) && s.run_state === 'running';
     const rec = !recording.known ? ['확인 중', '', ''] : recording.active
       ? ['기록 중', recording.stopFailed ? '자동으로 멈추지 못했습니다. 기록 탭에서 중지하세요.'
         : recording.auto ? '모든 센서 자동 기록' : recording.tag === 'autonomy' ? '자율주행 기록' : '직접 시작한 기록',
@@ -584,22 +643,43 @@ export function metricsView(reply) {
   return tiles.length ? { tiles, source: typeof m.reference === 'string' ? m.reference : '기준 중심선과 실제 경로 비교' } : null;
 }
 
-// Recording of a run (2026-11-19, user: "자율주행시에는 반드시 모든 센서가 녹화되도록"). Before a go: start one (every sensor,
-// tag autonomy) unless one is running; after the run ended or was stopped: stop only the one this panel started.
+// Recording of a run (2026-11-19, user: "자율주행시에는 반드시 모든 센서가 녹화되도록"; 2026-11-20: one recording per driven
+// stretch, user request: a run that stops is recorded up to that place, and a start again begins a new recording). Before a
+// go (the first one or 다시 출발): a new recording of every sensor (tag autonomy). When the run stops driving, whatever
+// stops it (a pause too): the recording this panel started stops at once. A recording somebody started by hand with
+// every sensor is kept and never stopped here. The dashboard server stops a run recording that no page stops
+// (dashboard_server/run_recording.py).
 export const RUN_RECORD_SENSORS = ['lidar', 'camera', 'imu', 'gps', 'drive', 'steering', 'executor', 'tf'];
 export const RUN_OVER_STATES = new Set(['ended', 'idle', 'latched']);
+// A new recording runs this long before the heartbeat and the go are sent. Measured 2026-11-20 (SIM on the bench PC):
+// 2.1 s after a recording started the steering bridge process stood still for 0.35 s (the recorder's start load), and a
+// run that left at that moment ended with steering_feedback_stale (4 of 9 runs). Placeholder until the Jetson is timed.
+export const GO_AFTER_RECORD_MS = 2500;
+export const GO_WAIT_STEP_MS = 100;       // 멈추기 is looked at this often while waiting
+// After a go the run may show 'running' this much later (the executor holds the press through the input warm-up); a
+// recording is not stopped for "not driving" before that.
+export const GO_SETTLE_MS = 4000;
 // needed (2026-11-20): the sensor groups an autonomy run must record; a running recording without all of them is
-// restarted with every sensor ('restart'), one that has them is kept.
+// restarted with every sensor ('restart'), one by hand that has them is kept. A running recording with the tag
+// autonomy is the one of an earlier stretch that nobody stopped yet: it is ended and a new one started ('restart').
 export function recordBeforeGo(recording, wanted, needed = null) {
   if (!wanted) return 'skip';
   if (!recording || !recording.known) return 'unknown';
   if (!recording.active) return 'start';
+  if (recording.tag === 'autonomy') return 'restart';
   if (!Array.isArray(needed) || !needed.length) return 'keep';
   const have = Array.isArray(recording.sensors) ? recording.sensors : [];
   return needed.every((s) => have.includes(s)) ? 'keep' : 'restart';
 }
-export function recordAfterRun(reply, autoId, recording) {
+// True when the recording this panel started for a stretch (autoId) stops now: the run does not drive any more.
+// going: the go of this recording is still on its way (recording, wait, heartbeat, go); sawRunning: the run was seen
+// driving since; sinceGoMs: time since the go was accepted (null: no go yet). A status that is not known: wait (the
+// server's keeper decides).
+export function recordStopWanted(reply, autoId, recording, { going = false, sawRunning = false, sinceGoMs = null } = {}) {
+  if (!autoId || !recording || !recording.known || !recording.active || recording.id !== autoId) return false;
   const s = reply && reply.ok && reply.status ? reply.status : null;
-  if (!autoId || !s || !RUN_OVER_STATES.has(s.run_state)) return false;
-  return Boolean(recording && recording.known && recording.active && recording.id === autoId);
+  if (!s || going || s.run_state === 'running') return false;
+  if (RUN_OVER_STATES.has(s.run_state)) return true;
+  if ((s.operator_link || {}).go_active === true) return false;      // the press is still held: the run may yet leave
+  return sawRunning || sinceGoMs === null || sinceGoMs > GO_SETTLE_MS;
 }

@@ -142,6 +142,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
     page_filter = None          # changes the page text (simulation mode, vehicle kind); None = the page as it is
     # Relay of the row executor's operator API (dashboard_server/executor_proxy.py); None = not configured.
     executor_client = None
+    # The recordings of an autonomy run (dashboard_server/run_recording.py): one per driven stretch, its record, the
+    # keeper that stops a recording nobody stops; None = the plain recorder routes.
+    run_recordings = None
     # Change log of the tuning screen (dashboard_server/steer_tuning.py); create_server() sets it.
     tuning_log = None
     # Distance moves (dashboard_server/drive_distance.py); create_server() sets the store and the runner.
@@ -177,13 +180,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._recording_media_action()
         elif path == "/api/recordings/start":
             payload = self._read_json_body()
-            self._send_json(self.provider.start_recording(payload))
-        elif path == "/api/recordings/stop":
-            result = self.provider.stop_recording()
-            if result.get('ok') and result.get('recording_id'):
-                try:self.archive_mapping.regenerate(str(result['recording_id']))
-                except ValueError:pass
+            result = self.provider.start_recording(payload)
+            keeper = self.run_recordings
+            if keeper is not None:
+                keeper.recording_started(payload, result)       # tag autonomy: the record of this stretch
+                result = keeper.with_segment(result)
             self._send_json(result)
+        elif path == "/api/recordings/stop":
+            keeper = self.run_recordings
+            self._send_json(keeper.with_segment(keeper.stop("page")) if keeper is not None else stop_recording_now())
         elif path == "/api/imu/zero":
             self._send_json(self.provider.zero_imu(), status=410)
         elif path == "/api/link-log":
@@ -288,9 +293,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == "/api/recordings/media-jobs":
             self._send_json(self.provider._recorder_get("/media-jobs"))
         elif path == "/api/recordings/status":
-            self._send_json(self.provider.recording_status())
+            keeper = self.run_recordings
+            status = self.provider.recording_status()
+            self._send_json(keeper.with_segment(status) if keeper is not None else status)
         elif path == "/api/recordings":
-            self._send_json(self.provider.recordings())
+            keeper = self.run_recordings
+            listing = self.provider.recordings()
+            self._send_json(keeper.decorate(listing) if keeper is not None else listing)
         elif path.startswith("/api/recordings/"):
             self._send_recording_payload(path, parsed.query)
         elif path == "/api/plan":
@@ -377,6 +386,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     if handed:
                         dashboard_log("executor.manual_lease", result=handed)
                 status, reply = client.action(name, body)
+                keeper = self.run_recordings
+                if keeper is not None and status == 200 and isinstance(reply, dict) and reply.get("ok"):
+                    if name == "start":
+                        keeper.run_started(body, reply)         # the row length and GPS mode of this run
+                    elif name == "go":
+                        keeper.go_sent(reply)                   # the stretch that is being recorded starts now
         except proxy.ExecutorError as exc:
             if name == "stop":
                 dashboard_log("executor.stop_failed", error=exc.error)
@@ -1821,6 +1836,31 @@ class DashboardHandler(BaseHTTPRequestHandler):
         return True
 
 
+def stop_recording_now():
+    """Stop the recorder and make the archive map of that recording again (the stop route, the run recording keeper)."""
+    result = DashboardHandler.provider.stop_recording()
+    if result.get('ok') and result.get('recording_id'):
+        try:
+            DashboardHandler.archive_mapping.regenerate(str(result['recording_id']))
+        except ValueError:
+            pass
+    return result
+
+
+def executor_status_raw():
+    """The executor's own status (GET /api/status) for the run recording keeper, or None when it cannot be read."""
+    client = DashboardHandler.executor_client
+    current = getattr(client, "current", None)
+    client = current() if callable(current) else client
+    if client is None:
+        return None
+    try:
+        code, raw = client.call("GET", "/api/status")
+    except Exception:
+        return None
+    return raw if code == 200 and isinstance(raw, dict) else None
+
+
 class DashboardServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -1884,6 +1924,10 @@ def create_server(host: str, port: int, config: str | None = None, *, autonomy_b
     DashboardHandler.archive_mapping=ManagedArchiveMapping(DashboardHandler.provider.recording_archive_dir,DashboardHandler.live_mapping)
     DashboardHandler.mapping_operations=MappingOperations(DashboardHandler.live_mapping,DashboardHandler.archive_mapping)
     DashboardHandler.autonomy_settings=AutonomySettings(ROOT/'runtime/autonomy_settings.json')
+    from dashboard_server.run_recording import RunRecordings
+    DashboardHandler.run_recordings = RunRecordings(
+        DashboardHandler.provider.recording_archive_dir, ROOT / "runtime/autonomy_segments", executor_status_raw,
+        lambda: DashboardHandler.provider.recording_status(), stop_recording_now, log=dashboard_log)
     native_path=os.environ.get('UBTS_NATIVE_STREAM_SOCKET')
     DashboardHandler.native_observation_client=None
     DashboardHandler.native_map_preview_enabled=os.environ.get('UBTS_NATIVE_MAP_PREVIEW','0')=='1'
@@ -1944,12 +1988,17 @@ def main():
             return
         dashboard_log("static.warm", ms=round((time.monotonic() - started) * 1000), mime_ms=mime_ms, page_version=version)
     threading.Thread(target=warm_static, name="static-assets-warm", daemon=True).start()
+    # The keeper of the run recordings: it only looks while a recording with the tag autonomy is running.
+    if DashboardHandler.run_recordings is not None:
+        DashboardHandler.run_recordings.start_thread()
     dashboard_log("server.listen", url=f"http://{args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if DashboardHandler.run_recordings is not None:
+            DashboardHandler.run_recordings.close()
         DashboardHandler.live_mapping.close()
         DashboardHandler.archive_mapping.close()
         server.server_close()

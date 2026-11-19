@@ -512,9 +512,12 @@ function renderRecordings() {
     const button = document.createElement("button");
     button.type = "button";
     button.classList.toggle("active", item.id === state.recordings.selectedId);
+    // An autonomy recording is one driven stretch: which one of its run, a start again or not, and how it went.
+    const stretch = recordingStretchText(item);
     button.innerHTML = `
-      <span>${escapeHtml(recordingSensorLabel(item))}</span>
+      <span>${escapeHtml(stretch ? stretch[0] : recordingSensorLabel(item))}</span>
       <strong>${escapeHtml(item.id)}</strong>
+      ${stretch && stretch[1] ? `<small>${escapeHtml(stretch[1])}</small>` : ""}
       <small>${escapeHtml(formatShortDate(item.display_started_at || item.started_at || item.created_at))} · ${escapeHtml(recordingClockLabel(item))} · ${escapeHtml(item.duration_s ? `${fmtNumber(item.duration_s, 1)}s` : item.state || "ready")} · L${escapeHtml(item.timeline?.lidar_frames ?? 0)} C${escapeHtml(item.timeline?.camera_frames ?? 0)} I${escapeHtml(item.timeline?.imu_frames ?? 0)} G${escapeHtml(item.timeline?.gps_frames ?? 0)}</small>
     `;
     button.addEventListener("click", () => selectRecording(item.id));
@@ -525,6 +528,29 @@ function renderRecordings() {
 function recordingTag(item) {
   const tag = item?.tag ?? item?.metadata?.tag;
   return tag === "autonomy" ? "autonomy" : "manual";
+}
+
+// A time in words (35초, 1분 45초, 1시간 2분), as static/steer/auto-model.mjs durationText.
+function fmtDurationWords(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  if (total < 60) return `${total}초`;
+  const minutes = Math.floor(total / 60) % 60, rest = total % 60;
+  if (total < 3600) return `${minutes}분${rest ? ` ${rest}초` : ""}`;
+  return `${Math.floor(total / 3600)}시간${minutes ? ` ${minutes}분` : ""}`;
+}
+
+// The stretch record of an autonomy recording (2026-11-20, dashboard_server/run_recording.py: item.segment) as two
+// short lines for the list: ["자율주행 · 2번 구간 · 다시 출발", "1분 45초 · 43.2 m · 열 끝 도착"]. null without a record.
+function recordingStretchText(item) {
+  const record = item?.segment;
+  if (!record || typeof record !== "object") return null;
+  const head = ["자율주행", Number.isInteger(record.segment) ? `${record.segment}번 구간` : null, record.resumed === true ? "다시 출발" : null];
+  const time = Number(record.drive_time_s), distance = Number(record.distance_m);
+  const line = record.ended !== true ? ["기록 중"]
+    : [record.drive_time_s != null && Number.isFinite(time) ? fmtDurationWords(time) : null,
+       record.distance_m != null && Number.isFinite(distance) ? `${distance.toFixed(1)} m` : null,
+       typeof record.end_text === "string" && record.end_text ? record.end_text : null];
+  return [head.filter(Boolean).join(" · "), line.filter(Boolean).join(" · ")];
 }
 
 function archiveScopeTag() {
