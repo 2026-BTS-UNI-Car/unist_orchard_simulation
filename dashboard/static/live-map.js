@@ -188,8 +188,12 @@ async function pollArchive(id,epoch){
   let value;
   try{
     value=await request(`/api/live/recordings/${encodeURIComponent(id)}/map?${query}`,undefined,pending.controller.signal);
-    if(value.mapping_generation)archiveMappingGeneration=value.mapping_generation;
     if(value.map_frame)value=(await decodeArchiveWindow(value)).seed;
+    // 2026-11-21: read the control generation after unwrapping. A recording that already has map cells answers with
+    // a wrapped reply whose generation sits in the seed; read from the wrapper it was never learned, so a recording
+    // whose map work the server had ended (15 s after a pause or after its player left) refused every later play
+    // with mapping_control_revoked_refresh until the dashboard was restarted. Only for the recording still selected.
+    if(epoch===archiveEpoch&&value.mapping_generation)archiveMappingGeneration=value.mapping_generation;
     if(epoch!==archiveEpoch||(!followGeneration&&(target===null||target>archiveTimeS+.001)))return;
     if(inlinePlaybackMap&&!bufferedCursorMap&&archivePlaying)return;
     await acceptArchiveMap(value);

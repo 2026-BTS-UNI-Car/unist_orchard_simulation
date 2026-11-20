@@ -1,6 +1,6 @@
 {
- "bytes": 5303241,
- "commit": "f29fc3cb918ab9ef958219e6f31d10149897cfb3",
+ "bytes": 5303729,
+ "commit": "88eefd34803471c4a02823a4b4442df49593416e",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
@@ -607,10 +607,10 @@
    "sha256": "5678167c62f0a1899619eebfb960a969aff8ccfb86fa635b4773b40a0a968625"
   },
   "static/live-map.js": {
-   "blob": "741277732122678981dc94185eec800356ab9668",
-   "bytes": 35578,
+   "blob": "99796b7a49494c4b612479d41d168748a21999bc",
+   "bytes": 36066,
    "mode": "100644",
-   "sha256": "b4370437a82107e2fb4de9c6867590fd20abbc1cf63215fc144d72a74daf4518"
+   "sha256": "69e211ce5220b9f99c47927f24b834cfd8d564bf1a89aa93106a4f27015a4d4c"
   },
   "static/mapping-jobs.mjs": {
    "blob": "27a72b20e5eebefc04c674364ac80b37613a93a3",
@@ -865,7 +865,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "b853ab2d9c93f34478b6ea223c7391fc487d0143c6fc3975771d10b2ca64ba37",
+ "files_sha256": "eec62e76e9078479a4b7ad27e530d383ec87ce5b658ec24389d4bacde2a0f462",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [
