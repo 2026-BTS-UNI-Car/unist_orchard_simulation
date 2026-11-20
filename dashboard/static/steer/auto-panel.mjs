@@ -40,7 +40,7 @@
 import { EXEC_ERROR, GNSS_MODES, GO_AFTER_RECORD_MS, GO_BLOCKER, GO_WAIT_STEP_MS, HEARTBEAT_MS, PREPARE_STEP, RUN_RECORD_SENSORS, SPEED_KEY,
          START_ERROR, STATUS_MS, autoButtons, autoView, heartbeatWanted, metricsView, modeChip, monitorView, newSession, prepareFailText,
          prepareSequence, reasonSentence, recordBeforeGo, recordStopWanted, runActive, scaleLine, scaleOffer, speedChoice, speedLabel,
-         statusLine } from './auto-model.mjs';
+         stampReply, statusLine } from './auto-model.mjs';
 import { ERROR_TEXT, refusalReason } from './tuning-model.mjs';
 
 const HTTP_TEXT = { 403: '화면 세션이 끝났습니다. 화면을 새로 고치세요.', 409: '실행기가 요청을 거절했습니다.', 502: '실행기에 연결하지 못했습니다.',
@@ -95,7 +95,8 @@ export function initAutoPanel(page) {
   async function fetchStatus() {
     const turn = asked += 1;
     const fresh = await page.getJson('/api/executor/status');
-    if (turn > taken) { taken = turn; reply = fresh; replyAt = globalThis.performance ? performance.now() : Date.now(); }
+    // stamped with this page's clock: how old a status is does not depend on the Jetson's clock (stampReply)
+    if (turn > taken) { taken = turn; reply = stampReply(fresh); replyAt = globalThis.performance ? performance.now() : Date.now(); }
     return reply;
   }
   async function poll() {

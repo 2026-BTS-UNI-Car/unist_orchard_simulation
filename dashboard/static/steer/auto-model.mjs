@@ -386,9 +386,16 @@ export function leaseLost(s) {
     || (Array.isArray(s.go_blockers) && s.go_blockers.includes('lease_lost'))));
 }
 
+// The age of a reply is measured on the page's own clock: the panel stamps page_ms when the reply arrives. Until
+// 2026-11-20 it was the page's clock minus the Jetson's clock (received_at), so a Jetson that started without a network
+// time (its clock behind) made every status read "끊김" and 준비 never came on. A reply without the stamp is stale.
+export function stampReply(reply, nowMs = Date.now()) {
+  return reply && typeof reply === 'object' ? { ...reply, page_ms: nowMs } : reply;
+}
+
 export function stale(reply, nowMs = Date.now()) {
-  const at = reply && num(reply.received_at);
-  return at === null || nowMs - at * 1000 > STALE_MS;
+  const at = reply ? num(reply.page_ms) : null;
+  return at === null || nowMs - at > STALE_MS;
 }
 
 export function heartbeatWanted(reply, nowMs = Date.now()) {

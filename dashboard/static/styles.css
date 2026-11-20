@@ -2435,8 +2435,13 @@ html[data-vehicle-kind="front_steer"] [data-vehicle="differential"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-#localGridCanvas {
+#localGridCanvas,
+#roverArchiveAutoCanvas {
   max-width: 480px;
   height: 440px;
   margin: 0 auto;
+}
+
+.sensor-overview #roverArchiveAutoCanvas {
+  height: 100%;
 }

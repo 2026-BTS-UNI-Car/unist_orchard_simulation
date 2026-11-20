@@ -127,6 +127,7 @@ function clearArchiveFrameCache() {
     imageElements: new Map(),
   };
   state.archivePlayback.lastExecutorKey = "";
+  if (typeof archiveGridReset === "function") archiveGridReset();
   for(const task of state.archivePlayback.loadingTelemetry?.values()||[])task.controller.abort();
   state.archivePlayback.telemetrySegments = new Map();
   state.archivePlayback.loadingTelemetry = new Map();
@@ -383,6 +384,7 @@ async function loadArchiveTimelineSegment(id, startS, durationS, options = {}) {
           state.recordings.timeline.coordinate_frame = payload.timeline.coordinate_frame;
         }
         mergeArchiveTimelineSegment(payload.timeline);
+        if (typeof archiveGridIngest === "function") archiveGridIngest(payload.timeline, start, duration);
         state.archivePlayback.segmentCache.set(key, {
           start_s: start,
           duration_s: duration,
@@ -557,14 +559,23 @@ function archiveScopeTag() {
   return typeof roverTab === "function" && roverTab() === "auto" ? "autonomy" : "manual";
 }
 
-// ---- Recorded executor state (2026-11-19) -------------------------------------------------------------------------
+// ---- Recorded executor state (2026-11-19) and its moving picture (2026-11-20) -------------------------------------
 // An autonomy recording carries /row_executor/state (schema ubts.row_executor.state.v1). When the server's telemetry
 // window of a recording has "executor": {"frames": [{"t_s", "state"}]} (the dashboard-telemetry-v1 profile, like the
-// motor and GPS sidecars) the player draws, at the playback time, the same picture as the 자율주행 tab: reference
-// centreline, travelled path, lookahead point and vehicle (static/steer/run-view.mjs), with the values of that moment.
-// The state at or before the playback time is used, never a later one.
+// motor and GPS sidecars) the player shows the values of the state at or before the playback time (never a later one)
+// and the moving picture of the 자율주행 tab for that time: the car at one place, the row axis up, the centre line, the
+// row lines, the travelled path and the lookahead point (static/steer/minimap.mjs). A recording does not hold the
+// executor's grid, so the cells are built again from the recorded LiDAR frames at or before the playback time, each
+// placed with the pose of its own moment (static/steer/recorded-grid.mjs, loaded with the first autonomy recording).
+// The player's own cache keeps only the LiDAR frames around the playback time, so every loaded window is also handed
+// to the picture's store (archiveGridIngest). After a jump in time the windows of the seconds before it are asked for
+// (archiveGridBackfill): the newest first, one at a time, only while the picture is on screen.
 const ARCHIVE_EXECUTOR_KEEP = 3000;
-let archiveRunView = null;
+const ARCHIVE_GRID_TELEMETRY_S = 24;      // the length of a telemetry window (ensureArchiveTelemetryForTime)
+const ARCHIVE_GRID_SETTLE_MS = 350;       // a jump in time rests this long before older frames are asked for
+const ARCHIVE_GRID_RETRY_MS = 5000;       // after a load that failed
+const ARCHIVE_GRID_POINT_FIELDS = ["x_m", "y_m", "distance_m", "quality", "angle_deg"];   // as expandArchiveLidarPoints
+const archiveGrid = { load: null, view: null, pending: [], onScreen: null, timer: null, busy: false, retryAt: 0, calm: null };
 
 function mergeArchiveExecutorSegment(section) {
   const frames = Array.isArray(section?.frames) ? section.frames : [];
@@ -580,6 +591,7 @@ function mergeArchiveExecutorSegment(section) {
     if (cache.executorKeys.has(key)) continue;
     cache.executorKeys.add(key);
     cache.executorFrames.push({ t_s: t, state: body });
+    cache.executorVersion = (cache.executorVersion || 0) + 1;
   }
   cache.executorFrames.sort((a, b) => a.t_s - b.t_s);
   if (cache.executorFrames.length > ARCHIVE_EXECUTOR_KEEP) {
@@ -587,6 +599,16 @@ function mergeArchiveExecutorSegment(section) {
     cache.executorKeys = new Set(cache.executorFrames.map((frame) => frame.t_s.toFixed(4)));
   }
 }
+
+// The recorded GPS mode and state in the words of the autonomy tab (static/steer/auto-model.mjs GNSS_MODE_TEXT,
+// GNSS_STATE); an unknown code is shown as recorded.
+const ARCHIVE_GNSS_MODE = { off: "사용 안 함", log_only: "기록만", geofence: "범위 감시", weak_constraint: "사용함" };
+const ARCHIVE_GNSS_STATE = {
+  ok: "정상", accepted: "받아들임", rejected: "거부", none: "수신 없음", absent: "수신 없음", no_fix: "미확정", fix: "확정",
+  rtk: "RTK", stale: "오래됨", unused: "쓰지 않음", off: "꺼짐", waiting: "대기", fence_tripped: "범위 벗어남",
+  no_run: "주행 없음", rejected_no_fix: "위치 미확정", rejected_hacc: "정확도 낮음", rejected_jump: "위치 급변",
+  rejected_quality: "품질 낮음",
+};
 
 function archiveExecutorTiles(msg) {
   const n = (value) => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -600,48 +622,154 @@ function archiveExecutorTiles(msg) {
     ["속도", f(msg.speed_mps, 2, " m/s")], ["거리", f(msg.dist_m, 1, " m")],
     ["통로", msg.corridor_ok === true ? `찾음${n(msg.width_m) === null ? "" : ` · 폭 ${msg.width_m.toFixed(2)} m`}` : msg.corridor_ok === false ? "못 찾음" : "--"],
     ["횡 RMS", f(metrics.lat_rms_m, 3, " m")],
-    ["GPS", [gnss.mode, gnss.state].filter((v) => typeof v === "string").join(" · ") || "--"],
+    ["GPS", [ARCHIVE_GNSS_MODE[gnss.mode] ?? gnss.mode, gnss.mode === "off" ? null : (ARCHIVE_GNSS_STATE[gnss.state] ?? gnss.state)]
+      .filter((v) => typeof v === "string").join(" · ") || "--"],
   ];
+}
+
+// The recorded executor part is shown for a recording with executor states, and for an autonomy recording before they arrive.
+function archiveGridWanted(list) {
+  const id = state.recordings.selectedId;
+  if (!id) return false;
+  if (Array.isArray(list) && list.length) return true;
+  const item = state.recordings.items?.find((row) => row.id === id) || state.recordings.selected?.recording || state.recordings.selected;
+  return recordingTag(item) === "autonomy";
+}
+
+// Another recording (or the same one opened again): nothing of the old one stays in the picture.
+function archiveGridReset() {
+  archiveGrid.pending = [];
+  clearTimeout(archiveGrid.timer);
+  archiveGrid.timer = null;
+  archiveGrid.retryAt = 0;
+  archiveGrid.view?.grid.reset();
+  archiveGrid.view?.painter.forget();
+}
+
+// The LiDAR frames of a loaded window [startS, startS + durationS) for the picture's store.
+function archiveGridIngest(timeline, startS, durationS) {
+  if (!archiveGridWanted(state.archivePlayback.cache?.executorFrames)) return;
+  const fields = timeline?.playback?.lidar_point_fields;
+  const part = { frames: timeline?.lidar?.frames || [], fields: Array.isArray(fields) && fields.length ? fields : ARCHIVE_GRID_POINT_FIELDS,
+    frame: timeline?.coordinate_frame || null, startS, endS: startS + durationS };
+  if (archiveGrid.view) archiveGrid.view.grid.ingest(part.frames, part);
+  else {
+    archiveGrid.pending.push(part);                 // the module is on its way
+    if (archiveGrid.pending.length > 12) archiveGrid.pending.shift();
+  }
+}
+
+function archiveGridRedraw() {
+  renderArchiveExecutor(state.archivePlayback.cache?.executorFrames || [], Math.max(0, Number(state.archivePlayback.timeS) || 0));
+}
+
+function archiveGridStart() {
+  const canvas = $("roverArchiveAutoCanvas");
+  if (archiveGrid.load || !canvas || performance.now() < archiveGrid.retryAt) return;
+  archiveGrid.load = import("/static/steer/recorded-grid.mjs").then((mod) => {
+    const read = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    const grid = new mod.RecordedGrid();
+    archiveGrid.view = { grid, painter: mod.recordedPainter(canvas, read, DPR_LIMIT) };
+    // what arrived while the module was on its way, and the frames the player holds now
+    for (const part of archiveGrid.pending.splice(0)) grid.ingest(part.frames, part);
+    grid.ingest(state.archivePlayback.cache?.lidarFrames || [], { frame: state.recordings.timeline?.coordinate_frame || null });
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver((entries) => {
+        const box = entries[entries.length - 1].contentRect;
+        archiveGrid.view.painter.resized(box.width, box.height);
+        archiveGridRedraw();
+      }).observe(canvas);
+    }
+    const panel = $("roverArchiveAutoPanel");
+    if (panel && typeof IntersectionObserver === "function") {
+      new IntersectionObserver((entries) => {
+        const seen = Boolean(entries[entries.length - 1].isIntersecting);
+        if (seen === archiveGrid.onScreen) return;
+        archiveGrid.onScreen = seen;
+        if (seen) archiveGridRedraw();
+      }).observe(panel);
+    }
+    archiveGridRedraw();
+  }).catch((err) => {
+    archiveGrid.load = null;
+    archiveGrid.retryAt = performance.now() + ARCHIVE_GRID_RETRY_MS;
+    debugLog("archive", "recorded grid", err);
+  });
+}
+
+// After a jump in time the picture lacks the LiDAR frames of the seconds before it (and their poses). They are asked
+// for one window at a time, the newest first, once the jump has rested. A new jump ends the asking (scheduleArchiveSeek
+// aborts loads far from it) and the next picture starts it again for the new time.
+function archiveGridBackfill(timeS) {
+  const view = archiveGrid.view, playback = state.archivePlayback;
+  if (!view || archiveGrid.busy || archiveGrid.timer || !state.recordings.timeline || performance.now() < archiveGrid.retryAt) return;
+  const windowS = Math.max(1, Number(playback.segmentDurationS) || ARCHIVE_SEGMENT_SECONDS);
+  if (!view.grid.missing(timeS, windowS).length) return;
+  const id = state.recordings.selectedId;
+  archiveGrid.timer = setTimeout(async () => {
+    archiveGrid.timer = null;
+    archiveGrid.busy = true;
+    let poses = false;
+    try {
+      for (let asked = 0; asked < 12 && id === state.recordings.selectedId && archiveGrid.view === view && archiveGrid.onScreen !== false; asked += 1) {
+        const at = Math.max(0, Number(playback.timeS) || 0);
+        const start = view.grid.missing(at, windowS)[0];
+        if (start === undefined) break;
+        // the poses of those seconds are in the telemetry window before the one of the playback time
+        const earlier = (Math.floor(at / ARCHIVE_GRID_TELEMETRY_S) - 1) * ARCHIVE_GRID_TELEMETRY_S;
+        if (!poses && earlier >= 0 && start < earlier + ARCHIVE_GRID_TELEMETRY_S) {
+          poses = true;
+          await Promise.allSettled([...playback.loadingTelemetry.values()].map((task) => task.promise));
+          if (id !== state.recordings.selectedId) break;
+          await loadArchiveTelemetrySegment(id, earlier).catch((err) => debugLog("archive", "recorded grid poses", err));
+        }
+        const payload = await loadArchiveTimelineSegment(id, start, windowS);
+        if (!payload || payload.ok === false) { archiveGrid.retryAt = performance.now() + ARCHIVE_GRID_RETRY_MS; break; }
+        // a window the player already holds answers without frames: its frames came in when it was loaded
+        if (id === state.recordings.selectedId && !view.grid.covered(start)) view.grid.ingest([], { startS: start, endS: start + windowS });
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") archiveGrid.retryAt = performance.now() + ARCHIVE_GRID_RETRY_MS;
+      debugLog("archive", "recorded grid history", err);
+    } finally {
+      archiveGrid.busy = false;
+    }
+  }, ARCHIVE_GRID_SETTLE_MS);
 }
 
 function renderArchiveExecutor(frames, timeS) {
   const panel = $("roverArchiveAutoPanel");
   if (!panel) return;
   const id = state.recordings.selectedId;
-  const item = state.recordings.items.find((row) => row.id === id) || state.recordings.selected?.recording || state.recordings.selected;
   const list = Array.isArray(frames) ? frames : [];
-  const hidden = !id || (!list.length && recordingTag(item) !== "autonomy");
+  const hidden = !archiveGridWanted(list);
   if (panel.hidden !== hidden) panel.hidden = hidden;
   if (hidden) return;
   const frame = archiveMotorFrameAtOrBefore(list, timeS);
-  const canvas = $("roverArchiveAutoCanvas");
-  const rect = canvas?.getBoundingClientRect?.() || { width: 0, height: 0 };
-  const key = `${id}:${frame?.t_s}:${Math.round(rect.width)}x${Math.round(rect.height)}`;
-  if (key === state.archivePlayback.lastExecutorKey) return;
-  state.archivePlayback.lastExecutorKey = key;
-  text("roverArchiveAutoTime", frame ? `${fmtNumber(frame.t_s, 1)} s` : "--");
-  text("roverArchiveAutoStatus", frame ? "재생 시각 이전에 기록된 마지막 실행기 상태입니다."
-    : list.length ? "이 시각 이전에 기록된 실행기 상태가 없습니다." : "이 기록에 실행기 상태가 없거나 서버가 아직 보내지 않았습니다.");
-  const grid = $("roverArchiveAutoGrid");
-  if (grid) {
-    const rows = frame ? archiveExecutorTiles(frame.state) : [];
-    const html = rows.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
-    if (grid.dataset.key !== html) { grid.dataset.key = html; grid.innerHTML = html; }
+  // the cells are drawn for a state with a pose in a recording with LiDAR frames
+  const lidar = Number(state.recordings.timeline?.sync?.lidar_frames) > 0 && Boolean(frame?.state?.pose);
+  const key = `${id}:${frame?.t_s}:${lidar}`;
+  if (key !== state.archivePlayback.lastExecutorKey) {
+    // the values of the moment: the state at or before the playback time
+    state.archivePlayback.lastExecutorKey = key;
+    text("roverArchiveAutoTime", frame ? `${fmtNumber(frame.t_s, 1)} s` : "--");
+    text("roverArchiveAutoStatus", frame ? `재생 시각 이전에 기록된 마지막 실행기 상태입니다.${lidar ? " 나무 줄은 기록된 LiDAR로 다시 그렸습니다." : ""}`
+      : list.length ? "이 시각 이전에 기록된 실행기 상태가 없습니다." : "이 기록에 실행기 상태가 없거나 서버가 아직 보내지 않았습니다.");
+    const grid = $("roverArchiveAutoGrid");
+    if (grid) {
+      const rows = frame ? archiveExecutorTiles(frame.state) : [];
+      const html = rows.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+      if (grid.dataset.key !== html) { grid.dataset.key = html; grid.innerHTML = html; }
+    }
   }
-  if (!canvas || !(rect.width > 0 && rect.height > 0)) return;
-  archiveRunView ||= import("/static/steer/run-view.mjs").catch((err) => { archiveRunView = null; debugLog("archive", "run view", err); return null; });
-  archiveRunView.then((view) => {
-    if (!view || state.archivePlayback.lastExecutorKey !== key) return;
-    const earlier = frame ? list.filter((item) => item.t_s < frame.t_s).slice(-600).map((item) => item.state) : [];
-    const scene = frame ? view.sceneFromState(frame.state, earlier) : null;
-    const dpr = Math.min(window.devicePixelRatio || 1, DPR_LIMIT);
-    const bw = Math.round(rect.width * dpr), bh = Math.round(rect.height * dpr);
-    if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; }
-    const ctx = canvas.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const read = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-    view.drawScene(ctx, scene, rect.width, rect.height, view.sceneColours(read));
-  });
+  // the moving picture of the playback time
+  archiveGridStart();
+  const view = archiveGrid.view;
+  if (!view || archiveGrid.onScreen === false) return;
+  view.grid.states(list, `${id}:${state.archivePlayback.cache?.executorVersion || 0}:${list.length}`);
+  archiveGrid.calm ||= typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+  view.painter.paint(view.grid.picture(timeS, !archiveGrid.calm.matches));
+  archiveGridBackfill(timeS);
 }
 
 function renderRecordingDetail(detail, options = {}) {
