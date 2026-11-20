@@ -83,6 +83,7 @@
   2513,
   20
  ],
+ "steer_esp32_cal_tolerance_counts": 0,
  "steer_esp32_mark_deg": 18.9,
  "steer_esp32_require_fw_watchdog": true,
  "steer_limit_left_mrad": 281,

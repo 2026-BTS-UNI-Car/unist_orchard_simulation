@@ -1000,14 +1000,38 @@ class Esp32AbsHoldAdapter:
         return out
 
 
+def esp32_cal_accepted(cal, expect_cal, tolerance_counts=0):
+    """True when a configuration made for the CAL line expect_cal may drive with the line the board reports (both
+    (RIGHT, CENTER, LEFT, MAX_COMMAND)): the same line, or - only with tolerance_counts > 0
+    (steer_esp32_cal_tolerance_counts; 2026-11-20: the marks are moved on the calibration tab in the field, and an
+    exact match refused every Arm after it) - integer marks RIGHT < CENTER < LEFT with the same MAX_COMMAND, each mark
+    at most tolerance_counts from the configured one and each side at least half as wide as the configured side.
+    The command scale (steer_esp32_mark_deg) stays the configured one: a moved centre makes the wheel angle per
+    command degree differ between the sides by the ratio of the side widths."""
+    cal, expect_cal = tuple(cal), tuple(expect_cal)
+    if cal == expect_cal:
+        return True
+    if type(tolerance_counts) is not int or tolerance_counts <= 0 or len(cal) != 4 or len(expect_cal) != 4 or \
+            not all(type(v) is int for v in cal):
+        return False
+    right, center, left, full = cal
+    e_right, e_center, e_left, e_full = expect_cal
+    if full != e_full or not right < center < left:
+        return False
+    if 2 * (center - right) < e_center - e_right or 2 * (left - center) < e_left - e_center:
+        return False
+    return all(abs(got - want) <= tolerance_counts for got, want in zip(cal[:3], expect_cal[:3]))
+
+
 def esp32_arm_precheck(status, *, expect_cal, require_fw_watchdog, status_max_age_s=.3, snapshot_max_age_s=2.,
-                       now=None, rearm=False):
+                       now=None, rearm=False, cal_tolerance_counts=0):
     """None when a normalised ESP32 bridge status allows an executor arm, else the first problem found.
 
     Checked: the status is ok and connected; the bridge is the ESP32 one (esp_kind) with the ABS-HOLD firmware and the
     front_steer profile; its steering limit is the command +-20 deg (349 mrad); the drive direction was verified in the
     field (bridge ROVER_ESP32_DIRECTION_VERIFIED=1); the firmware has a drive watchdog (unless not required); the
-    steering block is calibrated and its CAL line equals the configured one (none configured: refused); no fault
+    steering block is calibrated and its CAL line is the configured one or, with cal_tolerance_counts > 0, within
+    that many counts of it (esp32_cal_accepted; none configured: refused); no fault
     (rearm=True: the latches the arm clears may stand); a fresh status (not stale, age_ms <= status_max_age_s) with a
     finite measured angle; a confirmed STOP; nobody holds the lease and nothing moves; a recent snapshot."""
     if not isinstance(status, dict) or status.get('ok') is not True:
@@ -1039,7 +1063,8 @@ def esp32_arm_precheck(status, *, expect_cal, require_fw_watchdog, status_max_ag
         return 'calibration_id_not_configured'
     cal = steering.get('cal')
     keys = ('right', 'center', 'left', 'max_command')
-    if not isinstance(cal, dict) or tuple(cal.get(k) for k in keys) != tuple(expect_cal):
+    if not isinstance(cal, dict) or not esp32_cal_accepted(tuple(cal.get(k) for k in keys), expect_cal,
+                                                           cal_tolerance_counts):
         return 'calibration_mismatch'
     faults = [str(name) for name in steering.get('faults') or ()]
     if faults and not rearm:
@@ -1071,11 +1096,14 @@ class Esp32SteerBridgeClient(SteerBridgeClient):
     arm precheck is esp32_arm_precheck (expect_cal: the configured CAL line)."""
 
     def __init__(self, adapter, owner=None, timeout=.6, snapshot_max_age_s=2., *, limit_left_mrad, limit_right_mrad,
-                 expect_cal, require_fw_watchdog=True, status_max_age_s=.3, clock=time.monotonic, wall=time.time):
+                 expect_cal, require_fw_watchdog=True, status_max_age_s=.3, clock=time.monotonic, wall=time.time,
+                 cal_tolerance_counts=0):
         if not isinstance(adapter, Esp32AbsHoldAdapter):
             raise ValueError('an Esp32AbsHoldAdapter is required')
         if expect_cal is not None and (len(tuple(expect_cal)) != 4 or not all(type(v) is int for v in expect_cal)):
             raise ValueError('expect_cal must be None or four ints')
+        if type(cal_tolerance_counts) is not int or cal_tolerance_counts < 0:
+            raise ValueError('cal_tolerance_counts must be an int >= 0')
         for name, value in (('limit_left_mrad', limit_left_mrad), ('limit_right_mrad', limit_right_mrad)):
             if type(value) is int and value * adapter.scale > ESP32_BRIDGE_LIMIT_MRAD + 1e-9:
                 raise ValueError('%s beyond the ESP32 bridge command range' % name)
@@ -1086,6 +1114,7 @@ class Esp32SteerBridgeClient(SteerBridgeClient):
         self.adapter = adapter
         self.expect_cal = None if expect_cal is None else tuple(expect_cal)
         self.require_fw_watchdog = bool(require_fw_watchdog)
+        self.cal_tolerance_counts = cal_tolerance_counts
 
     @classmethod
     def from_config(cls, cfg, adapter=None, owner=None, clock=time.monotonic, wall=time.time):
@@ -1095,12 +1124,12 @@ class Esp32SteerBridgeClient(SteerBridgeClient):
         return cls(adapter, owner=owner, timeout=cfg.bridge_timeout_s, limit_left_mrad=int(cfg.steer_limit_left_mrad),
                    limit_right_mrad=int(cfg.steer_limit_right_mrad), expect_cal=cfg.steer_esp32_cal,
                    require_fw_watchdog=cfg.steer_esp32_require_fw_watchdog, status_max_age_s=cfg.steer_status_max_age_s,
-                   clock=clock, wall=wall)
+                   clock=clock, wall=wall, cal_tolerance_counts=cfg.steer_esp32_cal_tolerance_counts)
 
     def _arm_problem(self, status, rearm):
         return esp32_arm_precheck(status, expect_cal=self.expect_cal, require_fw_watchdog=self.require_fw_watchdog,
                                   status_max_age_s=self.status_max_age_s, snapshot_max_age_s=self.snapshot_max_age_s,
-                                  now=self.wall(), rearm=rearm)
+                                  now=self.wall(), rearm=rearm, cal_tolerance_counts=self.cal_tolerance_counts)
 
     def snapshot(self):
         out = super().snapshot()

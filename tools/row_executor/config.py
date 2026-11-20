@@ -364,6 +364,9 @@ class ExecutorConfig:
                                                  # field: the B3 measurement. Needed with steer_bridge_kind esp32_abs_hold
     steer_esp32_cal: object = None               # [RIGHT, CENTER, LEFT, MAX_COMMAND] of the firmware CAL line the bridge
                                                  # must report (the calibration identity; the V3 bridge has steer_cal_id)
+    steer_esp32_cal_tolerance_counts: int = 0    # 0: the board's CAL line must equal steer_esp32_cal. > 0: each mark
+                                                 # may be this many counts off (the marks are moved on the calibration
+                                                 # tab in the field; bridge_client.esp32_cal_accepted, 2026-11-20)
     steer_esp32_require_fw_watchdog: bool = True  # arm only when the firmware reports a drive watchdog (FW DRIVE_WD=):
                                                  # the board firmware of 2026-11-16 has none (EXECUTOR_ESP32_KO.md 4)
     steer_wheelbase_m: object = None             # wheelbase of the row-follow controller and of the ESP32 adapter's
@@ -754,6 +757,7 @@ _SPEC.update({
     'steer_rotation_centre_x_m': (_REAL, -1.5, 1.5), 'steer_rotation_centre_sd_m': (_REAL, 0., .5),
     'steer_bridge_kind': (str,), 'steer_esp32_mark_deg': (_REAL, 5., 40., 'nullable'),
     'steer_esp32_cal': ('esp32_cal',), 'steer_esp32_require_fw_watchdog': (bool,),
+    'steer_esp32_cal_tolerance_counts': (int, 0, 600),
     'steer_wheelbase_m': (_REAL, .2, 3., 'nullable'),
 })
 # Autonomous start and operator link (design v2 V2-2): separate block for the same reason.

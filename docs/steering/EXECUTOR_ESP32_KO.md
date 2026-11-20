@@ -180,6 +180,7 @@ ESP32-S3 + BTS7960(20 kHz, 8 비트 PWM)으로 돌린다. 배터리 상태는 �
   그대로다. 고른 정책은 어댑터 상태 `esp32_adapter.policy`·클라이언트 스냅샷 `adapter.policy`(`smooth`/`pulse`)와 계수 `smooth_drives`로
   보인다. SHADOW 실행기는 브리지에 붙지 않으므로 이 값은 MOTOR 에서만 생긴다. 땅에 닿은 차에서는 아직 재지 않았다.
 - `steer_esp32_require_fw_watchdog` 는 true. 보드 펌웨어가 `DRIVE_WD=300`을 보고해 브리지 상태의 `drive.firmware_watchdog_ms` 가 300 이다.
+- `steer_esp32_cal_tolerance_counts`(기본 0)가 0이면 보드의 CAL 줄이 설정 `steer_esp32_cal`과 같아야 Arm 한다. 0보다 크면 각 표시(RIGHT, CENTER, LEFT)가 설정 값에서 그 수만큼까지 달라도 Arm 한다. 이때도 MAX_COMMAND 는 같아야 하고, 좌우 폭은 각각 설정 폭의 절반 이상이어야 한다(`bridge_client.esp32_cal_accepted`). 2026-11-20 과수원에서 보정 탭으로 가운데를 옮긴 뒤 Arm 이 `calibration_mismatch`로 매번 거절돼 넣었다. 명령 배율(`steer_esp32_mark_deg`)은 그대로이므로, 가운데가 옮겨지면 명령 1°당 바퀴 각이 좌우 폭의 비만큼 서로 달라진다(확인하지 않은 근사).
   실행기는 펌웨어 이름(`ABS-HOLD-8-REBOUND-LIMITS`)만 보고 FW 줄의 다른 낱말(`SMOOTH=1` 등)은 보지 않는다. 브리지(대시보드 da39e8a 부터)가
   `SMOOTH=1`을 읽어 간격·단위를 고른다.
 - 보드 NVS 의 표시가 지워지거나 읽히지 않으면 펌웨어는 기본 표시 1681 / 1900 / 2180(STORE=DEFAULT)으로 돌아간다. 그때 CAL 줄이 설정과

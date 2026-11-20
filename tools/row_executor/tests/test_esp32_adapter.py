@@ -10,6 +10,7 @@ import rowexec_testlib as L  # noqa: F401  (path setup)
 from row_executor import config as C
 from row_executor.bridge_client import (ESP32_INEFFECTIVE, ESP32_POLICY, ESP32_SMOOTH_POLICY, ESP32_TRACK,
                                         Esp32AbsHoldAdapter, Esp32SteerBridgeClient, LATCHED, esp32_arm_precheck,
+                                        esp32_cal_accepted,
                                         esp32_smooth_hold, steer_arm_precheck)
 
 PACKAGE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -348,6 +349,27 @@ class Precheck(unittest.TestCase):
         self.assertIsNone(self.check(esp_status(watchdog=300), require_fw_watchdog=True))
         self.assertIsNone(self.check(esp_status(faults=['steer_hold_cancelled'])))       # an event, not a fault
         self.assertIsNone(self.check(esp_status(faults=['pot_invalid']), rearm=True))   # the bridge judges the re-arm
+
+    def test_cal_tolerance(self):
+        # 2026-11-20 (orchard): the centre was moved on the calibration tab and every Arm was refused. With a
+        # tolerance the configured line may be off by that many counts per mark; without one nothing changes.
+        board = (1681, 1900, 2180, 20)                                   # the line esp_status() reports
+        for expect, tolerance, ok in (
+                (board, 0, True), (board, 300, True),
+                ((1681, 1860, 2180, 20), 0, False),                      # centre 40 off, exact match asked
+                ((1681, 1860, 2180, 20), 39, False), ((1681, 1860, 2180, 20), 40, True),
+                ((1651, 1860, 2230, 20), 50, True), ((1651, 1860, 2231, 20), 50, False),   # every mark counts
+                ((1681, 1900, 2180, 18), 300, False),                    # another command scale
+                ((1681, 1700, 2180, 20), 300, True),                     # left side 280 of the configured 480: kept
+                ((1081, 1700, 2180, 20), 600, False),                    # right side 219, less than half of 619
+                ((1681, 1700, 2780, 20), 600, False)):                   # left side 280, less than half of 1080
+            problem = self.check(esp_status(), expect_cal=expect, cal_tolerance_counts=tolerance)
+            self.assertEqual(problem, None if ok else 'calibration_mismatch', (expect, tolerance))
+        self.assertFalse(esp32_cal_accepted((1681, 1900.0, 2180, 20), (1681, 1890, 2180, 20), 50))   # not an int
+        self.assertFalse(esp32_cal_accepted((1681, None, 2180, 20), (1681, 1890, 2180, 20), 50))
+        self.assertFalse(esp32_cal_accepted((1950, 1900, 2180, 20), (1681, 1900, 2180, 20), 600))    # RIGHT > CENTER
+        self.assertFalse(esp32_cal_accepted((1681, 1890, 2180, 20), (1681, 1900, 2180, 20), True))   # a bool is no tolerance
+        self.assertTrue(esp32_cal_accepted((1330, 2005, 2440, 20), (1330, 1885, 2440, 20), 300))     # the orchard case
 
 
 class Client(unittest.TestCase):
