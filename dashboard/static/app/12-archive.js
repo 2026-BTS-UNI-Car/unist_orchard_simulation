@@ -921,7 +921,7 @@ function archiveVideoTime(timeS) {
 
 function archiveRenderClock({sampleMedia=true}={}) {
   const p=state.archivePlayback,video=archiveNativeVideo();
-  if(sampleMedia && p.playing && !p.mapBuffering && p.nativeVideoReady && !p.nativeVideoError
+  if(sampleMedia && p.playing && p.nativeVideoReady && !p.nativeVideoError
       && !Number.isFinite(p.sourceSwitchTimeS) && video && video.readyState>=1 && !video.seeking) {
     const media=Number(video.currentTime),offset=Number(p.nativeVideoOffsetS||0),next=media+offset;
     if(Number.isFinite(media) && media>=0 && Number.isFinite(offset) && Number.isFinite(next)) {
@@ -1042,8 +1042,7 @@ function stopArchivePlayback(reset = false) {
   state.archivePlayback.playing = false;
   state.archivePlayback.videoPlayRequested=false;
   state.archivePlayback.videoPlayRevision=(state.archivePlayback.videoPlayRevision||0)+1;
-  state.archivePlayback.mapBuffering = false;
-  state.archivePlayback.mapResumeRevision=(state.archivePlayback.mapResumeRevision||0)+1;
+  state.archivePlayback.mapLagS = 0;
   resumeLiveCameraAfterArchive();
   const video = archiveNativeVideo();
   if (video && !video.paused) video.pause();
@@ -1062,27 +1061,17 @@ function stopArchivePlayback(reset = false) {
   renderArchiveFrame();
 }
 
-function syncArchiveMapClock(next,now,video){
-  const playback=state.archivePlayback;
-  if(window.LiveMap?.archiveReady(state.recordings.selectedId,next)===false){
-    playback.mapBuffering=true;
-    if(video){if(!video.paused)video.pause();}
-    else{playback.startTimeS=next;playback.startedAt=now;}
-    return;
-  }
-  if(!playback.mapBuffering)return;
-  playback.mapBuffering=false;
-  if(video?.paused){
-    const revision=(playback.mapResumeRevision||0)+1;playback.mapResumeRevision=revision;
-    Promise.resolve(video.play()).then(()=>{
-      if(!playback.playing && !playback.videoPlayRequested)video.pause();
-    }).catch(error=>{
-      if(playback.playing&&revision===playback.mapResumeRevision){
-        playback.mapBuffering=true;playback.nativeVideoError=error?.message||'video resume failed';
-      }
-    });
-  }
+function syncArchiveMapClock(next){
+  // 2026-11-21: the video and the sensors do not wait for the recorded map any more. The map of a recording is
+  // built on the Jetson while the recording is played (about 1.6 times real time, measured), one request per step,
+  // so over a link with a 0.2 s round trip it is always some tenths of a second behind the video. Holding the video
+  // until the map had caught up paused it several times a second (measured through the tunnel: 26 s of playback in
+  // 45 s) and for minutes after a jump forward. The map now follows the playback; how far it is behind only puts
+  // a note in the time label, from ARCHIVE_MAP_LAG_NOTE_S on.
+  const lag=Number(window.LiveMap?.archiveLag?.(state.recordings.selectedId,next));
+  state.archivePlayback.mapLagS=Number.isFinite(lag)&&lag>0?lag:0;
 }
+const ARCHIVE_MAP_LAG_NOTE_S=2;
 
 function archivePlaybackTick(now = performance.now()) {
   if (!state.archivePlayback.playing) return;
@@ -1092,14 +1081,14 @@ function archivePlaybackTick(now = performance.now()) {
   const video = archiveNativeVideo();
   const elapsed = (now - state.archivePlayback.startedAt) / 1000;
   const next = video ? Number(video.currentTime) + (state.archivePlayback.nativeVideoOffsetS || 0) :
-    state.archivePlayback.mapBuffering?state.archivePlayback.timeS:state.archivePlayback.startTimeS + elapsed;
+    state.archivePlayback.startTimeS + elapsed;
   if (next >= state.archivePlayback.durationS) {
     state.archivePlayback.timeS = state.archivePlayback.durationS;
     stopArchivePlayback(false);
     return;
   }
   state.archivePlayback.timeS = next;
-  syncArchiveMapClock(next,now,video);
+  syncArchiveMapClock(next);
   scheduleArchiveSegmentsForTime(next).catch((err) => debugLog("archive", "playback segment load failed", err));
   if (now - (state.archivePlayback.lastPlaybackRenderAt || 0) >= 50) {
     state.archivePlayback.lastPlaybackRenderAt = now;
@@ -1205,7 +1194,8 @@ function renderArchiveFrame(options={}) {
   text("roverArchiveImuTime", imuFrame ? `IMU ${fmtNumber(imuFrame.t_s, 3)}s / Δ ${fmtNumber(imuSyncDeltaS, 3)}s` : "IMU -- / Δ --");
   text("roverArchiveImuCaption", imuFrame ? `${imuFrame.corrected ? "/imu/data · base_link corrected" : "/imu/data_raw · sensor-native"} · playback ${fmtNumber(timeS, 3)}s` : waitingForImu?"IMU 기록을 받아 재생 시각에 맞추고 있습니다.":"재생 시각에 맞는 IMU 기록을 기다립니다.");
   drawImuAttitude($("roverArchiveImuCanvas"), Number(imuEuler.roll), Number(imuEuler.pitch), Number(imuEuler.yaw));
-  const mapWait = state.archivePlayback.mapBuffering ? (window.LiveMap?.waitReason?.() || '지도 버퍼링') : '';
+  const mapLagS = state.archivePlayback.playing ? Number(state.archivePlayback.mapLagS) || 0 : 0;
+  const mapWait = mapLagS >= ARCHIVE_MAP_LAG_NOTE_S ? (window.LiveMap?.waitReason?.() || `지도는 ${Math.round(mapLagS)}초 뒤에 따라옵니다`) : '';
   text("roverArchiveTime", `${fmtClock(timeS)} / ${fmtClock(state.archivePlayback.durationS)}${mapWait ? ` · ${mapWait}` : ''}`);
   const scrubber = $("roverArchiveScrubber");
   if (scrubber && document.activeElement !== scrubber) scrubber.value = String(timeS);

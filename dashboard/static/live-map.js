@@ -22,6 +22,15 @@ let cursorMapping=false,playbackPending=null,lastPlaybackPush=-Infinity;
 let triedCausalMap=false,nextExplicitResume=false,lastJobsPoll=0,liveActionBusy=false,archiveMappingGeneration=null;
 let liveMapEpoch=null,archiveMapEpoch=null,liveActionError='';
 let archiveWaitReason='';
+// 2026-11-21: a refused map control does not pause the recording any more (see pushPlayback). The reason stays in the
+// map's status line while the video and the sensors keep playing, and the request is tried again after a pause.
+const MAP_CONTROL_REFUSED={
+  another_device_controls_this_recording:'다른 기기가 이 기록의 지도를 만들고 있습니다. 영상과 센서는 그대로 재생됩니다.',
+  another_recording_mapping_active_stop_it_first:'다른 기록의 지도를 만드는 중입니다. 그 작업이 끝나면 이 기록의 지도를 이어서 그립니다.',
+  mapping_stopped_press_play_to_resume:'이 기록의 지도 만들기가 멈춰 있습니다. 재생을 다시 누르면 이어서 그립니다.',
+  mapping_control_revoked_refresh:'지도 만들기가 다른 곳에서 바뀌었습니다. 재생을 다시 누르면 이어서 그립니다.'};
+const MAP_CONTROL_RETRY_MS=3000,MAP_CONTROL_ERROR_RETRY_MS=1000;
+let archiveControlNote='',playbackRetryAt=-Infinity;
 // S17: a poll that departed before (or during) a New map/Start/Stop action
 // must not bring back the previous map or epoch.
 let liveActionSeq=0,liveRttMs=0,autonomyPending=false;
@@ -133,6 +142,7 @@ async function selectArchive(id){
   clearTimeout(archiveTimer);archiveTimer=null;archivePending?.controller.abort();
   mapBuffer=null;nextMapBuffer=null;windowSupported=null;mapWindowPending?.controller.abort();mapWindowPending=null;
   archiveTimeS=0;archivePlaying=false;followGeneration=false;archiveGenerating=false;cursorMapping=false;lastPlaybackPush=-Infinity;
+  archiveControlNote='';playbackRetryAt=-Infinity;
   triedCausalMap=false;inlinePlaybackMap=false;immutableCursorMap=false;bufferedCursorMap=false;availableCursorPrefix=0;
   playbackPending?.controller.abort();playbackPending=null;segments.reset();archive.set({});$('liveArchiveRegenerate').disabled=!id;
   if(!id){text('liveArchiveStatus','기록을 선택하세요.');return;}
@@ -217,7 +227,7 @@ async function acceptArchiveMap(value){
     // A causal worker can be interrupted by New map. Only the legacy bulk
     // regeneration requires waiting; it must not lock this new workflow.
     archiveGenerating=!cursorMapping&&value.state==='regenerating';$('liveArchiveRegenerate').disabled=archiveGenerating;
-    text('liveArchiveStatus',archiveWaitReason?`${archiveWaitReason} · 마지막 지도 유지`:value.mapping_error?`지도 처리 오류 · ${value.mapping_error} · 이전 지도 유지`:value.regeneration_error?`재생성 실패 · ${value.regeneration_error}`:
+    text('liveArchiveStatus',archiveControlNote?archiveControlNote:archiveWaitReason?`${archiveWaitReason} · 마지막 지도 유지`:value.mapping_error?`지도 처리 오류 · ${value.mapping_error} · 이전 지도 유지`:value.regeneration_error?`재생성 실패 · ${value.regeneration_error}`:
       cursorMapping?`${value.grid?(archivePlaying?'재생하며 지도 저장 중':'저장된 지도 유지'):'재생하면 새 지도가 쌓입니다'} · ${(value.frame_t_s||0).toFixed(1)}초${archiveQuality(value)}`:
       value.state==='regenerating'?(generation.stage==='localizing'?'LiDAR·IMU 위치 추정 계산 중…':`지도 생성 ${Math.round((generation.progress||0)*100)}% · ${(generation.processed_t_s||0).toFixed(1)} / ${duration.toFixed(1)}초`):
       value.needs_regeneration?'이전 방식의 지도입니다. 새 지도 만들기 후 재생하세요.':
@@ -277,6 +287,8 @@ function archiveTime(id,timeS,playing,seekRequested=false){
   if(cursorMapping)bufferedCursorMap=!archive.snapshot.needs_regeneration&&
     (immutableCursorMap||availableCursorPrefix>=archiveTimeS+3);
   if(playChanged&&!archivePlaying){
+    // The note about a refused map control belongs to the playback that was refused.
+    archiveControlNote='';playbackRetryAt=-Infinity;
     clearTimeout(archiveTimer);archiveTimer=null;
     // Supersede an old Play immediately. Server sequence checks prevent a
     // delayed request from reviving processing after this newer Pause.
@@ -303,13 +315,23 @@ function archiveReady(id,timeS){
   // deadlock playback by demanding an invented new map pose in a sensor gap.
   return time<=Math.max(availableCursorPrefix,Number(archive.snapshot.frame_t_s)||0)+.35;
 }
+// Seconds the recorded map is behind the playback time; 0 while it keeps up or when there is no map to wait for.
+// Only for the note in the player's time label (2026-11-21): the playback itself does not wait for the map.
+function archiveLag(id,timeS){
+  if(archiveReady(id,timeS))return 0;
+  const cursor=bufferedCursorMap&&windowSupported!==false?0:availableCursorPrefix;
+  return Math.max(0,Math.max(0,Number(timeS)||0)-Math.max(cursor,Number(archive.snapshot.frame_t_s)||0));
+}
 async function pushPlayback(force=false){
   // Complete causal histories are immutable. Timed cell windows can render
   // every retained scan locally; there is no remaining localization to drive.
   if(immutableCursorMap)return;
   if((!cursorMapping && (triedCausalMap||!archivePlaying))||!selected||playbackPending||(!force&&performance.now()-lastPlaybackPush<250))return;
+  // After a refusal or an error the next try waits; an explicit play, pause or seek (force) goes out at once.
+  if(!force&&performance.now()<playbackRetryAt)return;
   const id=selected,epoch=archiveEpoch,time=archiveTimeS,playing=archivePlaying;
   const pending={controller:new AbortController(),epoch};playbackPending=pending;lastPlaybackPush=performance.now();
+  let failed=false;
   try{
     const value=await request(`/api/live/recordings/${encodeURIComponent(id)}/map-playback`,{
       t_s:time,playing,control:{client:playbackClient,sequence:++playbackSequence},resume_mapping:nextExplicitResume,
@@ -319,7 +341,9 @@ async function pushPlayback(force=false){
       ...(bufferedCursorMap?{}:{transport:'tiles',codec:'xor2-deflate-v1',tile_epoch:archive.tileEpoch,tile_since:archive.snapshot.tile_version||0})
     },pending.controller.signal);
     if(epoch===archiveEpoch){
-      nextExplicitResume=false;
+      // The reason of an earlier refusal must not stay on screen once the control is accepted.
+      if(archiveControlNote&&playing)text('liveArchiveStatus','이 기록의 지도를 이어서 그립니다.');
+      nextExplicitResume=false;archiveControlNote='';playbackRetryAt=-Infinity;
       triedCausalMap=true;
       // S15: remember why the recorded map is waiting, for the playback label.
       updateArchiveWaitReason(value);
@@ -348,15 +372,27 @@ async function pushPlayback(force=false){
       if(archiveWaitReason)text('liveArchiveStatus',`${archiveWaitReason} · 마지막 지도 유지`);
     }
   }catch(error){if(epoch===archiveEpoch&&error.name!=='AbortError'){
-    if(['another_device_controls_this_recording','another_recording_mapping_active_stop_it_first','mapping_stopped_press_play_to_resume','mapping_control_revoked_refresh'].includes(error.code)){
-      archivePlaying=false;nextExplicitResume=false;window.setArchiveTime?.(archiveTimeS,{pause:true});
+    failed=true;
+    if(Object.hasOwn(MAP_CONTROL_REFUSED,error.code)){
+      // 2026-11-21: the recording keeps playing. Until now a refusal paused the player, so a recording could not be
+      // played for up to 15 s after another one had been watched (the other recording's map work ends by itself
+      // 15 s after its player has gone), and not at all while someone else watched another recording. The explicit
+      // resume flag is kept: a play pressed with an outdated generation goes through once the reading below has
+      // brought the current one. A map stopped in the job list stays stopped: without that flag the server refuses.
+      archiveControlNote=MAP_CONTROL_REFUSED[error.code];playbackRetryAt=performance.now()+MAP_CONTROL_RETRY_MS;
+      inlinePlaybackMap=false;
+      text('liveArchiveStatus',archiveControlNote);
+      scheduleArchive(500);
+    }else{
+      playbackRetryAt=performance.now()+MAP_CONTROL_ERROR_RETRY_MS;
+      text('liveArchiveStatus',`${error.message} · 마지막 지도 유지`);
+      if(!archivePlaying)scheduleArchive(500);
     }
-    text('liveArchiveStatus',`${error.message} · 마지막 지도 유지`);
-    if(!archivePlaying)scheduleArchive(500);
   }}
   finally{
     if(playbackPending===pending)playbackPending=null;
-    if(epoch===archiveEpoch&&(Math.abs(time-archiveTimeS)>.05||playing!==archivePlaying))pushPlayback(true);
+    // A failed request is tried again by the next playback tick after its wait, not at once in a tight loop.
+    if(!failed&&epoch===archiveEpoch&&(Math.abs(time-archiveTimeS)>.05||playing!==archivePlaying))pushPlayback(true);
   }
 }
 $('liveArchiveRegenerate').addEventListener('click',async()=>{
@@ -453,7 +489,7 @@ async function pollJobs(){
 }
 $('mappingJobsPanel')?.addEventListener('toggle',()=>{if($('mappingJobsPanel').open)pollJobs().catch(error=>text('mappingJobsResources',error.message));});
 function routeChanged(){live.draw();archive.draw();if(active())poll();if(archiveActive()&&selected)scheduleArchive();}
-window.LiveMap={selectArchive,archiveTime,archiveReady,routeChanged,waitReason:()=>archiveWaitReason};
+window.LiveMap={selectArchive,archiveTime,archiveReady,archiveLag,routeChanged,waitReason:()=>archiveControlNote?'지도는 잠시 멈춰 있습니다':archiveWaitReason};
 document.addEventListener('visibilitychange',routeChanged);window.addEventListener('popstate',routeChanged);
 // The main application exposes route changes through the GPS hook.
 const gps=window.RoverGps;if(gps){const original=gps.routeChanged;gps.routeChanged=(...args)=>{original?.(...args);routeChanged();};}
