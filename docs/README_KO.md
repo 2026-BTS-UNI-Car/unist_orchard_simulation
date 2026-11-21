@@ -1,7 +1,7 @@
 # 문서 색인
 
 이 저장소의 문서가 어디에 있는지와, 지금 기준인 문서와 지난 단계의 기록을 나눠 적었다. 처음이면 1절 순서대로 읽는다.
-모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13, DOC-09. 2026-11-17 고침: 그 뒤 생긴 문서와 빠진 문서를 더함)
+모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13, DOC-09. 2026-11-17 고침: 그 뒤 생긴 문서와 빠진 문서를 더함. 2026-11-22: 알고리즘 기술 문서와 GPS 유무 비교를 더함)
 
 ## 1. 처음 읽을 것
 
@@ -10,6 +10,7 @@
 | 1 | [`../README.md`](../README.md) | 저장소 첫 화면: 목표, 그림, 구성, 빠른 시작, 결과 요약, 한계 |
 | 2 | [`ARCHITECTURE_KO.md`](ARCHITECTURE_KO.md) | 도식 6개: 시스템 구성, SIM 스택, 자료 흐름, 제어 루프, 추정기 층, 실행기 상태 |
 | 2a | [`SYSTEM_REFERENCE_KO.md`](SYSTEM_REFERENCE_KO.md) | 코드 기준 참고: 노드·토픽·QoS, 제어 소켓·운영자 API, 실행기 틱과 한도, 잰 처리 시간, 추정·제어 상세, 평가 정의, 기록 형식, 매개변수 근거 |
+| 2b | [`AUTONOMY_ALGORITHM_KO.md`](AUTONOMY_ALGORITHM_KO.md) | 자율주행 알고리즘 기술 문서: 기술 지도, 단계별 수식, 기술 이름(한·영), 매개변수의 코드 기본값과 2026-11-20 현장 값, 코드 위치. 보고서를 쓸 때의 참고 |
 | 3 | [`HARDWARE_KO.md`](HARDWARE_KO.md) | 차량·센서·보드의 알려진 사양과 SIM 자리값, 모르는 것 |
 | 4 | [`RESULTS_KO.md`](RESULTS_KO.md) | 합격 검사 A1~A26과 사전등록 판정 결과(불합격 포함) |
 | 5 | [`steering/DESIGN_v1_KO.md`](steering/DESIGN_v1_KO.md) + [`steering/DESIGN_v2_KO.md`](steering/DESIGN_v2_KO.md) | 설계. 둘이 다르면 v2가, v2와 결정 기록이 다르면 결정 기록이 앞선다 |
@@ -55,6 +56,7 @@
 | [`LOCAL_GRID_KO.md`](steering/LOCAL_GRID_KO.md) | L2 국소 격자 층과 재생·SIM 비교 |
 | [`GNSS_LAYER_KO.md`](steering/GNSS_LAYER_KO.md) | L3 GNSS 약한 층 |
 | [`GNSS_RTK_KO.md`](steering/GNSS_RTK_KO.md), [`PREREG_GNSS_RTK_KO.md`](steering/PREREG_GNSS_RTK_KO.md), [`GNSS_RTK_RESULT_KO.md`](steering/GNSS_RTK_RESULT_KO.md) | L3의 RTK 약한 제약 모드(`weak_constraint`, 기본 꺼짐), 빠른 SIM 행렬의 사전등록과 결과 |
+| [`GPS_COMPARE_KO.md`](steering/GPS_COMPARE_KO.md) | GPS 유무에 따른 성능 비교(2026-11-22): 2026-11-20 현장 기록의 GPS 켬·끔 주행, 빠른 SIM 개발 측정(끔 / 일반 수신기 / RTK FIXED, 170 run) |
 | [`STEER_EXT_MODEL_KO.md`](steering/STEER_EXT_MODEL_KO.md) | 벨트 가변저항·조향 급전·외란 토크 모형 |
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |
