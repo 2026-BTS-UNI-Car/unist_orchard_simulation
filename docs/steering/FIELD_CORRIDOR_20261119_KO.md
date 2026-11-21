@@ -3,8 +3,13 @@
 - 작성: 2026-11-19. 브랜치 `field-1119`(main 32c49bb에서).
 - 자료: 실내 타일 복도(폭 3.1 m, 길이 약 22 m)에서 한 MOTOR run의 실행기 틱 기록 7개 파일, 같은 시각 녹화의 센서 곁파일(/scan, /imu/data_raw).
   잰 값은 **잰 기록(실내 타일 복도, 2026-11-18/19 UTC; 과수원 아님)**으로, SIM 값은 **자리값 기반 SIM 결과**로 적는다. 어느 쪽도 과수원 현장 성능이 아니다.
-- 기록 폴더(레포 밖): `D:/Develop/UBTS/steering-sim-20261108/runs/sim_field_20261119/`(data, analysis, replay, sim, proposals, NOTES_KO.txt).
+- 기록 폴더(레포 밖): 작업 폴더 `runs/sim_field_20261119/`(data, analysis, replay, sim, proposals, NOTES_KO.txt).
 - 잰 값 묶음: `sim/ubts/steering/field_records/corridor_indoor_20261119.yaml`(과수원 값·차량 실행기 설정·SIM 프로필을 바꾸지 않는다).
+
+> 2026-11-22 덧붙임 (아래 본문은 2026-11-19 에 쓴 그대로 둔다)
+>
+> - **run 수.** 자율 run 은 2026-11-19 01:08~02:36 KST(2026-11-18 16:08~17:36 UTC)에 달렸다. 3.1절의 "run 14개(주행 틱 4,738개)"는 앞벽 기준 속도가 있는 run 만 센 것이고, 그 무렵 다른 곳에 적은 "13 run"은 짧은 확인 run 도 뺀 셈이다. 실행기의 `start` 사건 가운데 구동 명령(throttle > 0)이 나간 틱이 하나라도 있는 run 을 세면 **15번**(185.8 m)이고, 두 날을 모은 통합 분석은 이 정의를 쓴다([`AUTONOMY_RUNS_ANALYSIS_KO.md`](AUTONOMY_RUNS_ANALYSIS_KO.md) 3절·9절 6). 그 밖에 정렬 중 `steering_not_following`으로 끝난 run 하나와 주행 없이 끝낸 준비 4번이 있다.
+> - **그 뒤.** 7절의 남은 일 가운데 실행기 설치는 했다(2026-11-20 과수원 실행기 키트 `ee5804e`, 현장 조정 `speed_window_s` 1.5 s). 과수원에서는 GNSS 속도 중앙값이 LiDAR 속도와 0.05 m/s 안에서 맞아 복도 같은 속도 치우침이 보이지 않았다([`AUTONOMY_RUNS_ANALYSIS_KO.md`](AUTONOMY_RUNS_ANALYSIS_KO.md) 7.1절). 조향 영점(F1)은 따로 재지 않았고 2026-11-20 현장에서 조향 가운데를 다시 잡았다. 차량 주행 시험은 2026-11-20 이 마지막이라(2026-11-22 결정) 나머지는 하지 않았다.
 
 ## 1. 무엇을 바꿨나
 

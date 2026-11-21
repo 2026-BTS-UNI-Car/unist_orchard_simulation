@@ -1,13 +1,14 @@
 # 문서 색인
 
 이 저장소의 문서가 어디에 있는지와, 지금 기준인 문서와 지난 단계의 기록을 나눠 적었다. 처음이면 1절 순서대로 읽는다.
-모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13, DOC-09. 2026-11-17 고침: 그 뒤 생긴 문서와 빠진 문서를 더함. 2026-11-22: 알고리즘 기술 문서와 GPS 유무 비교를 더함)
+모든 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다. (작성 2026-11-13. 2026-11-17 고침: 그 뒤 생긴 문서와 빠진 문서를 더함. 2026-11-22: 알고리즘 기술 문서, 시뮬레이션 환경 문서, 현장 결과 문서 묶음을 더함)
 
 ## 1. 처음 읽을 것
 
 | 순서 | 문서 | 무엇 |
 |---|---|---|
-| 1 | [`../README.md`](../README.md) | 저장소 첫 화면: 목표, 그림, 구성, 빠른 시작, 결과 요약, 한계 |
+| 1 | [`../README.md`](../README.md) | 저장소 첫 화면: 무엇인지, 결과 요약, 동작 방식, 실행, 한계 |
+| 1a | [`SIMULATION_KO.md`](SIMULATION_KO.md) | 두 시뮬레이터, 차량 파라미터와 모델 그림, 지형별 구동 표, 세계·센서 모델, ROS 노드, 실행기 한 틱, 평가 지표와 기록, SIM 판정 요약, SIM 대시보드 |
 | 2 | [`ARCHITECTURE_KO.md`](ARCHITECTURE_KO.md) | 도식 6개: 시스템 구성, SIM 스택, 자료 흐름, 제어 루프, 추정기 층, 실행기 상태 |
 | 2a | [`SYSTEM_REFERENCE_KO.md`](SYSTEM_REFERENCE_KO.md) | 코드 기준 참고: 노드·토픽·QoS, 제어 소켓·운영자 API, 실행기 틱과 한도, 잰 처리 시간, 추정·제어 상세, 평가 정의, 기록 형식, 매개변수 근거 |
 | 2b | [`AUTONOMY_ALGORITHM_KO.md`](AUTONOMY_ALGORITHM_KO.md) | 자율주행 알고리즘 기술 문서: 기술 지도, 단계별 수식, 기술 이름(한·영), 매개변수의 코드 기본값과 2026-11-20 현장 값, 코드 위치. 보고서를 쓸 때의 참고 |
@@ -45,7 +46,7 @@
 | [`SIM_DASHBOARD_KO.md`](steering/SIM_DASHBOARD_KO.md) | SIM 대시보드(대시보드 저장소 사본 + SIM 확장) |
 | [`FIELD_TUNING_KO.md`](steering/FIELD_TUNING_KO.md) | 현장 조정 파일(기본·고급·잠금 묶음) |
 | [`PATHS_KO.md`](steering/PATHS_KO.md) | 저장소 밖 자료의 경로 설정 |
-| [`FIELD_EVAL_METHOD_KO.md`](steering/FIELD_EVAL_METHOD_KO.md) | 실차 주행 평가 방법(계획)과 오프라인 평가 도구 `tools/field_eval/`(빠른 SIM 기록으로만 확인, 실차 기록으로는 아직 안 돌림) |
+| [`FIELD_EVAL_METHOD_KO.md`](steering/FIELD_EVAL_METHOD_KO.md) | 실차 주행 평가 방법(계획으로 남음)과 오프라인 평가 도구 `tools/field_eval/`(빠른 SIM 기록으로만 확인, 실차 기록으로는 돌리지 않음) |
 
 추정기 층과 모형
 
@@ -56,20 +57,25 @@
 | [`LOCAL_GRID_KO.md`](steering/LOCAL_GRID_KO.md) | L2 국소 격자 층과 재생·SIM 비교 |
 | [`GNSS_LAYER_KO.md`](steering/GNSS_LAYER_KO.md) | L3 GNSS 약한 층 |
 | [`GNSS_RTK_KO.md`](steering/GNSS_RTK_KO.md), [`PREREG_GNSS_RTK_KO.md`](steering/PREREG_GNSS_RTK_KO.md), [`GNSS_RTK_RESULT_KO.md`](steering/GNSS_RTK_RESULT_KO.md) | L3의 RTK 약한 제약 모드(`weak_constraint`, 기본 꺼짐), 빠른 SIM 행렬의 사전등록과 결과 |
-| [`GPS_COMPARE_KO.md`](steering/GPS_COMPARE_KO.md) | GPS 유무에 따른 성능 비교(2026-11-22): 2026-11-20 현장 기록의 GPS 켬·끔 주행, 빠른 SIM 개발 측정(끔 / 일반 수신기 / RTK FIXED, 170 run) |
-| [`AUTONOMY_RUNS_ANALYSIS_KO.md`](steering/AUTONOMY_RUNS_ANALYSIS_KO.md) | 앞바퀴 조향 차의 자율주행 run 33번(실내 복도 2026-11-19, 과수원 2026-11-20) 통합 분석: run 표, 묶음 통계, 속도 상한과 τ, 조향 사용량, trim 재구성, 복도 수렴, Jetson 시간, 기존 문서와 다른 것 |
-| [`ORCHARD_MEASURED_KO.md`](steering/ORCHARD_MEASURED_KO.md) | 2026-11-20 과수원의 줄자 행 폭과 대조한 평가: 행 확인, LiDAR 폭 대 줄자, 실측 지도 위 위치 오차와 행 길이 정규화, 주행거리계 방향 흐름, GPS 켬·끔, 저녁 조각. 줄자 자료 `steering/orchard_tape/` |
 | [`STEER_EXT_MODEL_KO.md`](steering/STEER_EXT_MODEL_KO.md) | 벨트 가변저항·조향 급전·외란 토크 모형 |
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |
 | [`ABS_HOLD8_SIM_KO.md`](steering/ABS_HOLD8_SIM_KO.md), [`PREREG_STEER_FOLLOW_REALDIMS_KO.md`](steering/PREREG_STEER_FOLLOW_REALDIMS_KO.md), [`STEER_FOLLOW_REALDIMS_RESULT_KO.md`](steering/STEER_FOLLOW_REALDIMS_RESULT_KO.md) | 2026-11-16 실제 치수 프로필과 새 조향 보드 펌웨어(ESP32-S3, ABS-HOLD-8) 흉내, 그 프로필로 열 추종 다시 재기의 사전등록과 결과 |
 | [`SMOOTH_R5_SIM_KO.md`](steering/SMOOTH_R5_SIM_KO.md), [`PREREG_STEER_FOLLOW_SMOOTH_KO.md`](steering/PREREG_STEER_FOLLOW_SMOOTH_KO.md), [`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](steering/STEER_FOLLOW_SMOOTH_RESULT_KO.md) | 2026-11-16 밤부터 차 조향 보드가 쓰는 SMOOTH 유지 r5 의 흉내(`steer_fw_mode smooth_r5`)와 현장 프로필 `front_steer_v2_field_20261116`, 그 프로필로 열 추종 재기의 사전등록과 결과(2026-11-17) |
 | [`SMOOTH_R5_DISTURBANCE_KO.md`](steering/SMOOTH_R5_DISTURBANCE_KO.md), [`PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md`](steering/PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md) | SMOOTH r5 넓은 조건 실패 분석, 차의 감시 묶음을 맞춘 프로필 v2.1(스키마 v6)과 SIM 제안 r6p(v2.2, 차의 펌웨어 아님), 재판정 사전등록 `steer_follow_smooth_r5_v2`(결과는 `STEER_FOLLOW_SMOOTH_RESULT_KO.md` 8절, 2026-11-17) |
-| [`FIELD_CORRIDOR_20261119_KO.md`](steering/FIELD_CORRIDOR_20261119_KO.md), [`ROW_EXECUTOR_STATE_TOPIC_KO.md`](steering/ROW_EXECUTOR_STATE_TOPIC_KO.md) | 실내 복도 시험(2026-11-18/19, 잰 기록)의 속도 추정 치우침·흔들림·정지 정렬 분석과 실행기 개선(run마다 GNSS 고르기, run 지표, 속도 입력 선택), 실행기 상태 토픽 `/row_executor/state` 규약 |
-| [`OVERSPEED_CONFIRM_20261120_KO.md`](steering/OVERSPEED_CONFIRM_20261120_KO.md) | 출발 뒤 잠깐 멈춤의 원인(LiDAR 속도 순간 튐에 과속 규칙이 듀티를 자름), 선택 키 `overspeed_confirm_s`(기본 0, 켜는 것은 사용자 결정), 10/10 기록의 속도 튐 통계와 금요일 목표 0.4 유지 |
-| [`ORCHARD_1120_KO.md`](steering/ORCHARD_1120_KO.md), [`ORCHARD_1120_RESULT_KO.md`](steering/ORCHARD_1120_RESULT_KO.md) | 과수원 날(2026-11-20): 성긴 열에서의 실행기 동작 사전 조사, 첫 자율주행 결과(현장 기록: 주행 18번, 횡 오차, 다른 센서와의 대조, 멈춘 원인 조사, 한계). 녹화 확인 도구는 [`tools/field_records/`](../tools/field_records/README_KO.md) |
 
-결과
+현장 기록과 결과 (2026-11-18~20, 판정이 아닌 현장 기록)
+
+| 문서 | 무엇 |
+|---|---|
+| [`ORCHARD_1120_KO.md`](steering/ORCHARD_1120_KO.md), [`ORCHARD_1120_RESULT_KO.md`](steering/ORCHARD_1120_RESULT_KO.md) | 과수원 날(2026-11-20): 성긴 열에서의 실행기 동작 사전 조사, 첫 자율주행 결과(현장 기록: 주행 18번, 횡 오차, 다른 센서와의 대조, 멈춘 원인 조사, 한계). 녹화 확인 도구는 [`tools/field_records/`](../tools/field_records/README_KO.md) |
+| [`FIELD_CORRIDOR_20261119_KO.md`](steering/FIELD_CORRIDOR_20261119_KO.md), [`ROW_EXECUTOR_STATE_TOPIC_KO.md`](steering/ROW_EXECUTOR_STATE_TOPIC_KO.md) | 실내 복도 시험(자율 run 15번, 2026-11-19 01:08~02:36 KST)의 속도 추정 치우침·흔들림·정지 정렬 분석과 실행기 개선(run마다 GNSS 고르기, run 지표, 속도 입력 선택), 실행기 상태 토픽 `/row_executor/state` 규약 |
+| [`OVERSPEED_CONFIRM_20261120_KO.md`](steering/OVERSPEED_CONFIRM_20261120_KO.md) | 출발 뒤 잠깐 멈춤의 원인(LiDAR 속도 순간 튐에 과속 규칙이 듀티를 자름), 선택 키 `overspeed_confirm_s`(기본 0, 켜는 것은 사용자 결정), 10/10 기록의 속도 튐 통계와 금요일 목표 0.4 유지 |
+| [`AUTONOMY_RUNS_ANALYSIS_KO.md`](steering/AUTONOMY_RUNS_ANALYSIS_KO.md) | 앞바퀴 조향 차의 자율주행 run 33번(실내 복도 2026-11-19, 과수원 2026-11-20) 통합 분석: run 표, 묶음 통계, 속도 상한과 τ, 조향 사용량, trim 재구성, 복도 수렴, Jetson 시간, 기존 문서와 다른 것 |
+| [`ORCHARD_MEASURED_KO.md`](steering/ORCHARD_MEASURED_KO.md) | 2026-11-20 과수원의 줄자 행 폭과 대조한 평가: 행 확인, LiDAR 폭 대 줄자, 실측 지도 위 위치 오차와 행 길이 정규화, 주행거리계 방향 흐름, GPS 켬·끔, 저녁 조각. 줄자 자료 `steering/orchard_tape/` |
+| [`GPS_COMPARE_KO.md`](steering/GPS_COMPARE_KO.md) | GPS 유무에 따른 성능 비교(2026-11-22): 2026-11-20 현장 기록의 GPS 켬·끔 주행, 시험 설계와 줄자 지도 위 Ē, 빠른 SIM 개발 측정(끔 / 일반 수신기 / RTK FIXED, 170 run) |
+
+SIM 결과
 
 | 문서 | 무엇 |
 |---|---|
