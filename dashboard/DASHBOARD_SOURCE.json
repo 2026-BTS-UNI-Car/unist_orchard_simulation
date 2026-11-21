@@ -1,6 +1,6 @@
 {
- "bytes": 5303729,
- "commit": "88eefd34803471c4a02823a4b4442df49593416e",
+ "bytes": 5314652,
+ "commit": "eb1352dc84197b28c1b866807d8f5c63da144ebb",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
@@ -43,10 +43,10 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "cea944224913867aa71b6d17b095db80615279b8",
-   "bytes": 107292,
+   "blob": "afc69f40fa009a6dc59632aa5c7feff78cfb1a59",
+   "bytes": 107542,
    "mode": "100644",
-   "sha256": "f4e43e3031fba069c9fe7168fde62c2c626dd5154d6efab75e71856235b9a947"
+   "sha256": "802dae058d9c3f0a182b5931139076a8d725263ca574a39ad4e1be243913fab5"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
@@ -73,10 +73,10 @@
    "sha256": "de392b0687eb18a8259bf48b7327edcb48d22d1a002483b39f768e84b4a2ee9f"
   },
   "dashboard_server/continuous_mapping.py": {
-   "blob": "71c23f7fb9519486e02e04fd3df7457394b69454",
-   "bytes": 4740,
+   "blob": "2a0e3859895d49c48ec46b59dc9eb8d31c0a81bd",
+   "bytes": 5091,
    "mode": "100644",
-   "sha256": "70f4efd330c6a2349864672fa0c3598456b469777e3555c0e5289d04b06fec7a"
+   "sha256": "a4ba99cf293c0859b2843e0743387c149bce62583b07656c8c600b8916bed126"
   },
   "dashboard_server/drive_distance.py": {
    "blob": "0275fe43c654279aac32ad3a27b1e2344460117d",
@@ -235,10 +235,10 @@
    "sha256": "e07634278372fea3bb0e50e2b5ffc60633ca0aa50fc33136749d9d59ebab97e7"
   },
   "dashboard_server/playback_mapping.py": {
-   "blob": "be3c73d47cd2bccd346ed2e497de9447b0cbbdc4",
-   "bytes": 15513,
+   "blob": "08d090c6cafd0434e76fe345afcbe85093620305",
+   "bytes": 16098,
    "mode": "100644",
-   "sha256": "7cdc0505fbeb94f33de7aa6ad18161508493112640d7258ed79b1ce4e760b9d9"
+   "sha256": "6097db59399bb827508b8970f19f9da9f90f7744e9a56b178d3a5492b858f6ea"
   },
   "dashboard_server/playback_profile.py": {
    "blob": "b4650b522d2c5e55b8a39ebff568c53d3c959d37",
@@ -253,10 +253,10 @@
    "sha256": "edddc58d0677d340b66284238904fb0c2176aff3639b9d800baa9f53113edc32"
   },
   "dashboard_server/raw_mapping/continuous_localization.py": {
-   "blob": "e95b26bab200eaa01bd87ccbf294abf0f07d3172",
-   "bytes": 16611,
+   "blob": "9316b92f568cbff3db99e4ab91ed56de70c0f395",
+   "bytes": 24217,
    "mode": "100644",
-   "sha256": "9811f30b3748b0fb48090383bc3bff31c01709afea45ef161a89c0e02e75424a"
+   "sha256": "a5cb3f86a0d096aa9229ee317ce72f5618bd1a9c1d4dc16c6cb11bbf0bdad7e8"
   },
   "dashboard_server/raw_mapping/fit_workers.py": {
    "blob": "ad0499075b83d5dd2f3e468019bc98175e2a898a",
@@ -295,10 +295,10 @@
    "sha256": "2f830c235d763dffb012f8d2dcd71c2c8ac4f93408beb44d988de3cef7df931c"
   },
   "dashboard_server/replay_state.py": {
-   "blob": "739fa6d738e74f0b9d67c86376d9cbaec28d10bb",
-   "bytes": 13887,
+   "blob": "d86402198bfdece2b526bc16cf9d51d5e9cbe375",
+   "bytes": 16018,
    "mode": "100644",
-   "sha256": "29b7efe947b54ab3255cabf40794a3d0a3090fb1f685e96ddce3dd8654c88984"
+   "sha256": "be912deb9ce901e4092af29671fb2f1241ca9ac368158a83945cb9fb2ae1dd5e"
   },
   "dashboard_server/resumable_playback.py": {
    "blob": "061944c89728227323643f26cc32ce0709bba1a2",
@@ -865,7 +865,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "eec62e76e9078479a4b7ad27e530d383ec87ce5b658ec24389d4bacde2a0f462",
+ "files_sha256": "86a035160f884371f04fbc1e1ac7dc699201aa662ccefb8ffaad38a6fb9ba8d2",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

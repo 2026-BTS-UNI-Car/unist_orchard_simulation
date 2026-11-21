@@ -18,7 +18,7 @@ import multiprocessing
 from .occupancy_map import atomic_json,read_json
 from .integrated_archive import (rows,digest,localization_fingerprint,raster_fingerprint)
 from .integrated_mapping import integrate
-from .raw_mapping.continuous_localization import ContinuousLocalization
+from .raw_mapping.continuous_localization import ContinuousLocalization,heading_offset
 from .raw_mapping.raw_localization import source_stamp
 from .raw_mapping.gnss_constraints import UniqueGNSS,robust_rigid_alignment
 from .tile_transport import StreamingOccupancyMap
@@ -57,6 +57,14 @@ class SourceCursorLocalizer:
                 stamp=source_stamp(message);index=bisect.bisect_right(self.stamps,stamp)-1
                 self.pending_imus.sort(key=source_stamp)
                 while self.pending_imus and source_stamp(self.pending_imus[0])<=stamp:engine.imu(self.pending_imus.pop(0))
+                # The heading of a sweep is read near its middle. Orientation samples up to there, and one
+                # past it when it has already arrived, are shown to the engine now; they stay in the
+                # queue, so the gyro integral still advances exactly to each scan stamp as before.
+                middle=stamp+heading_offset(message)
+                for later in self.pending_imus:
+                    if source_stamp(later)>middle+.05:break
+                    engine.orientation(later)
+                    if source_stamp(later)>middle:break
                 result=engine.add(message,self.imus[index] if index>=0 else None);self.input_scans+=1
         return result,dict(input_scans=self.input_scans,rejected_scans=engine.rejected,
                           motion_prior_scans=engine.motion_prior_count),self.note

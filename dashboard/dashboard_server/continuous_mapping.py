@@ -10,6 +10,7 @@ import time
 from collections import deque
 import numpy as np
 from .playback_mapping import SourceCursorLocalizer
+from .raw_mapping.continuous_localization import heading_offset
 from .raw_mapping.raw_localization import source_stamp
 from .integrated_mapping import integrate
 from .tile_transport import StreamingOccupancyMap
@@ -55,7 +56,9 @@ class ContinuousMapping:
         with self.lock:
             if self.closed:raise ValueError('mapping_engine_closed')
             if imu is not None:self.imu(imu)
-            keys=sorted((k for k in self.pending if k[1]<=stamp),key=lambda k:(k[1],k[0]))
+            # IMU samples up to just past the middle of the sweep go along: the heading is read there.
+            ahead=stamp+heading_offset(scan)+.05
+            keys=sorted((k for k in self.pending if k[1]<=(ahead if k[0]=='/imu/data_raw' else stamp)),key=lambda k:(k[1],k[0]))
             batch=[]
             for topic,t in keys:
                 batch.append(dict(topic=topic,message=self.pending.pop((topic,t))))
@@ -87,5 +90,6 @@ class ContinuousMapping:
             runtime_authority=False,autonomy_eligible=False,pose_accuracy_validated=False,
             mount_height_m=.60,mount_rotation_calibrated=False,deskew_applied=False,
             gnss=dict(self.source.note),diagnostic=dict(self.diagnostic),no_encoder=True,
-            PWM_used_as_odometry=False,camera_used_for_mapping=False,
+            PWM_used_as_odometry=False,steering_used_for_mapping=False,camera_used_for_mapping=False,
+            heading_source='IMU_orientation_turn_between_scans',
             note='GPS·IMU·LiDAR 통합 · 같은 좌표계 유지 · 정합 불확실 시 이전 지도 보존')

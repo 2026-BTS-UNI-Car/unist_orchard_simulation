@@ -1,7 +1,13 @@
 """Causal fixed-frame scan/keyframe tracking. A lost fit never resets the map.
 
-Gyro is projected on gravity using the native quaternion; no absolute IMU yaw,
-wheel signal, known orchard, camera or invented sensor mounting angle is used.
+Heading between two scans comes first from the IMU's own orientation: the turn
+about the vertical between the two orientation samples around the middle of each
+sweep (2026-11-21). Measured on the 2026-11-20 orchard runs, that turn followed
+the row direction within 1.5 deg over 100 m, while headings from scan matching
+alone bent the same row by 7 to 18 deg. Only the change of orientation is used;
+no absolute IMU yaw, wheel signal, steering angle, drive command, known orchard,
+camera or invented sensor mounting angle is used. Without a usable orientation
+pair the gyro, projected on gravity and integrated, is the looser prior as before.
 Failures retain the last pose and cells, without integrating an unknown pose.
 """
 import math
@@ -13,7 +19,54 @@ from .raw_point_support import point_support_registration,proposal
 from .fit_workers import evaluate
 
 
+def scan_middle(scan):
+    """Seconds from the header stamp (first beam) to the middle of the sweep; 0 when the scan does not say."""
+    try:
+        span=float(scan.get('scan_time') or 0.)
+        if not math.isfinite(span) or not 0<span<=.5:
+            span=float(scan.get('time_increment') or 0.)*len(scan['ranges'])
+        return span*.5 if math.isfinite(span) and 0<span<=.5 else 0.
+    except (TypeError,ValueError,KeyError,AttributeError):return 0.
+
+
+# The IMU orientation that fits a sweep best carries a stamp a little later than the middle of the sweep. Measured
+# on the vehicle's recordings of 2026-11-20 (IMU 33 Hz, 14 runs): 0.062 to 0.075 s after the scan stamp, with the
+# middle of the sweep at 0.049 s. The October recordings (IMU 20 Hz) gave 0.075 to 0.093 s (middle 0.052 s).
+HEADING_LAG_S=.017
+
+
+def heading_offset(scan):
+    """Seconds after the scan stamp at which the IMU heading of this sweep is read; 0 for a scan without sweep timing."""
+    middle=scan_middle(scan)
+    return middle+HEADING_LAG_S if middle>0 else 0.
+
+
+def vertical_turn(first,second):
+    """Signed turn about the vertical from orientation `first` to `second` (x,y,z,w; sensor to a gravity-aligned frame)."""
+    ax,ay,az,aw=second;bx,by,bz,bw=-first[0],-first[1],-first[2],first[3]
+    x=aw*bx+ax*bw+ay*bz-az*by;y=aw*by-ax*bz+ay*bw+az*bx
+    z=aw*bz+ax*by-ay*bx+az*bw;w=aw*bw-ax*bx-ay*by-az*bz
+    if w<0:x,y,z,w=-x,-y,-z,-w
+    norm=math.sqrt(x*x+y*y+z*z)
+    return 0. if norm<1e-12 else 2*math.atan2(norm,w)*z/norm
+
+
 class ContinuousLocalization:
+    # Standard deviation of the orientation turn between two scans: a floor, a part that grows with the time
+    # between them and a part that grows with the turn itself (rad, rad/s, ratio). The time part is 2.5 times the
+    # largest drift against the row direction seen in the 2026-11-20 runs (0.004 deg/s). With a floor of 0.01 deg
+    # the scan matching still pulled the heading of a 100 m row by up to 2.5 deg; with 0.005 deg by up to 1 deg,
+    # and repeated observations fell on each other equally well.
+    HEADING_SIGMA=(math.radians(.005),math.radians(.01),.02)
+    HEADING_GAP_S=1.0            # a longer silence may hide an IMU restart: the turn across it is not used
+    HEADING_MAX_RATE=6.0         # rad/s; a faster apparent turn is an orientation jump, not the vehicle
+    HEADING_HOLD_S=.12           # newest orientation sample may be this much older than the middle of the sweep
+    # The orientation is fused with the magnetometer inside the IMU and can step where the field is disturbed; the
+    # gyro cannot. Both are compared over the very same interval (rad, rad/s, share of the turn). In the 2026-11-20
+    # recordings the two differed by at most 0.54 deg over 0.1 s and 0.77 deg over 4 s. The share of the turn is
+    # wide because the gyro, sampled at 20 to 33 Hz, loses part of a fast turn that the orientation keeps.
+    HEADING_GYRO_TOLERANCE=(math.radians(1.),math.radians(.05),.25)
+
     def __init__(self):
         self.pose=np.zeros(3);self.previous=None;self.anchor=None;self.segment=0
         self.last_seen=None;self.gyro_time=None;self.gyro_rate=None
@@ -25,6 +78,67 @@ class ContinuousLocalization:
         self.position_prior=None
         self.gps_speed=None;self.direction=None;self.last_geometry_stamp=None
         self.motion_prior_count=0;self.path_break_pending=False
+        self.heading=0.;self.heading_q=None;self.heading_time=None;self.heading_epoch=0
+        self.heading_samples=[];self._scan_heading=None;self._scan_heading_for=None
+        self.heading_gyro=None;self.heading_disagreements=0;self._disagreed=False
+
+    def orientation(self,message):
+        """Take the orientation of an IMU sample for the heading only (also for samples after the scan stamp)."""
+        try:self._orientation(source_stamp(message),quaternion(message))
+        except (ValueError,KeyError,TypeError):return
+
+    def _orientation(self,t,q):
+        if self.heading_time is not None:
+            dt=t-self.heading_time
+            if dt<=0:return
+            step=vertical_turn(self.heading_q,q)
+            if dt>self.HEADING_GAP_S or abs(step)>self.HEADING_MAX_RATE*dt+math.radians(1):
+                # The turn across a silence or a jump is unknown: later scans do not use this pair.
+                self.heading_epoch+=1;self.heading_samples=[]
+            else:self.heading+=step
+        self.heading_q=np.asarray(q,dtype=float);self.heading_time=t
+        self.heading_samples.append((t,self.heading))
+        if len(self.heading_samples)>8:self.heading_samples.pop(0)
+
+    def _heading_at(self,t):
+        """(heading, seconds the newest sample is older than t, turn rate then) or None."""
+        samples=self.heading_samples
+        if not samples:return None
+        last_t,last=samples[-1]
+        if t>=last_t:
+            if t-last_t>self.HEADING_HOLD_S:return None
+            rate=0.
+            if len(samples)>1 and last_t>samples[-2][0]:rate=abs(last-samples[-2][1])/(last_t-samples[-2][0])
+            return last,t-last_t,rate
+        for i in range(len(samples)-1,0,-1):
+            t0,h0=samples[i-1];t1,h1=samples[i]
+            if t0<=t<=t1:return h0+(h1-h0)*(t-t0)/(t1-t0),0.,0.
+        return None
+
+    def _turn(self,reference,stamp):
+        """Signed rotation since `reference` as the IMU saw it, with its standard deviation, or None.
+
+        First choice is the orientation turn between the middles of the two sweeps. It is never given more
+        freedom than the gyro prior had before. The integrated gyro remains for a missing orientation pair.
+        """
+        dt=stamp-reference['stamp'];loose=math.radians(.35+.3*min(dt,10))
+        now=self._scan_heading if self._scan_heading_for==stamp else None
+        if (now is not None and dt>0 and reference.get('heading') is not None
+                and reference.get('heading_epoch')==self.heading_epoch):
+            if (self.heading_gyro is not None and reference.get('heading_gyro') is not None
+                    and self._gyro_covered(reference,stamp)):
+                gyro=self.gyro_integral-reference['gyro'];floor,drift,scale=self.HEADING_GYRO_TOLERANCE
+                if abs(self.heading_gyro-reference['heading_gyro']-gyro)>floor+drift*dt+scale*abs(gyro):
+                    # Orientation and gyro disagree about this very interval: this pair is matched as before
+                    # 2026-11-21, on the gyro with the loose allowance, and the scans decide the heading.
+                    if not self._disagreed:self.heading_disagreements+=1
+                    self._disagreed=True
+                    return gyro,loose
+            yaw=now[0]-reference['heading'];floor,drift,scale=self.HEADING_SIGMA
+            sigma=floor+drift*dt+scale*abs(yaw)+now[1]*now[2]+reference.get('heading_slack',0.)
+            return yaw,min(sigma,loose)
+        if self._gyro_covered(reference,stamp):return self.gyro_integral-reference['gyro'],loose
+        return None
 
     @staticmethod
     def _header_ns(message):
@@ -65,8 +179,9 @@ class ContinuousLocalization:
         if self.direction is None or self.gps_speed is None or self.last_geometry_stamp is None:return None
         dt=stamp-self.previous['stamp'];gps_t,speed=self.gps_speed
         if not 0<dt<=1.5 or stamp-self.last_geometry_stamp>1.5 or not 0<=stamp-gps_t<=1.5:return None
-        if not self._gyro_covered(self.previous,stamp):return None
-        yaw=self.gyro_integral-self.previous['gyro']
+        turn=self._turn(self.previous,stamp)
+        if turn is None:return None
+        yaw=turn[0]
         return dict(xy=rotate(yaw*.5)@self.direction*speed*dt,yaw=yaw,rmse_m=0.)
 
     def gps_prior(self,stamp,local_xy,scale_m):
@@ -81,18 +196,16 @@ class ContinuousLocalization:
         signed prior. This is a consistency check, not a new pose source.
         """
         if fit is None:return False
-        dt=stamp-reference['stamp']
-        if self._gyro_covered(reference,stamp):
-            gyro=self.gyro_integral-reference['gyro']
-            sigma=math.radians(.35+.3*min(dt,10))
-            return abs(fit['yaw']-gyro)<=max(math.radians(2),3*sigma)
+        turn=self._turn(reference,stamp)
+        if turn:return abs(fit['yaw']-turn[0])<=max(math.radians(2),3*turn[1])
         return True
 
     def _recover(self,current,q,stamp):
         reference=self.previous;dt=stamp-reference['stamp']
         if dt<.6 or stamp-self.last_recovery<.75:return None
         self.last_recovery=stamp
-        gyro=self.gyro_integral-reference['gyro']
+        turn=self._turn(reference,stamp)
+        gyro=turn[0] if turn else self.gyro_integral-reference['gyro']
         rotation=Rotation.from_quat(reference['q']).inv()*Rotation.from_quat(q)
         gravity=Rotation.from_quat(reference['q']).inv().apply([0.,0.,1.])
         quaternion_yaw=float(np.dot(rotation.as_rotvec(),gravity))
@@ -125,6 +238,7 @@ class ContinuousLocalization:
     def imu(self,message):
         try:
             t=source_stamp(message);q=quaternion(message)
+            self._orientation(t,q)
             w=np.array([message['angular_velocity'][k] for k in 'xyz'],dtype=float)
             if (message.get('angular_velocity_covariance') or [0])[0]<0 or not np.all(np.isfinite(w)):return
             rate=float(Rotation.from_quat(q).apply(w)[2])
@@ -138,6 +252,8 @@ class ContinuousLocalization:
                         gap_ns=ns-self.gyro_time_ns
                         if 0<gap_ns<=200_000_000:self.gyro_valid_ns+=gap_ns
             self.gyro_time=t;self.gyro_rate=rate;self.gyro_time_ns=self._header_ns(message)
+            # the orientation heading at the end of the gyro integral, for the cross-check of the two
+            self.heading_gyro=next((value for at,value in reversed(self.heading_samples) if at==t),None)
         except (ValueError,KeyError,TypeError):return
 
     def reject(self,stamp,reason):
@@ -149,12 +265,10 @@ class ContinuousLocalization:
         dt=stamp-reference['stamp'];angle=angular_change(reference['q'],q)
         predicted=rotate(-reference['pose'][2])@(self.pose[:2]-reference['pose'][:2])
         delta_yaw=self.pose[2]-reference['pose'][2]
-        gyro=self.gyro_integral-reference['gyro'];coverage=self.gyro_valid_s-reference['gyro_valid']
-        prior=None
-        if self._gyro_covered(reference,stamp):
-            # Noise/bias floor grows with keyframe age. A prior is not a zero
-            # rotation rule and never overrides the scan observability gates.
-            prior=(gyro,math.radians(.35+.3*min(dt,10)))
+        # The IMU turn and its standard deviation, which grows with keyframe age and with the
+        # turn. A prior is not a zero rotation rule and never overrides the scan observability gates.
+        prior=self._turn(reference,stamp)
+        gyro=prior[0] if prior else None
         max_xy=min(3.,max(.35,.12+3*min(dt,1.)))
         max_yaw=min(math.radians(70),angle+math.radians(5))
         seeds=[(gyro if prior else delta_yaw,predicted)]
@@ -185,6 +299,9 @@ class ContinuousLocalization:
     def add(self,scan,imu):
         stamp=source_stamp(scan)
         self._scan_header_ns=self._header_ns(scan);self._scan_stamp_for_ns=stamp
+        # A sweep that is not straightened sits best at the pose of its middle beam.
+        self._scan_heading=self._heading_at(stamp+heading_offset(scan));self._scan_heading_for=stamp
+        self._disagreed=False
         if self.last_seen is not None and stamp<=self.last_seen:return self.reject(stamp,'scan_clock_nonmonotonic')
         self.last_seen=stamp
         try:
@@ -223,10 +340,11 @@ class ContinuousLocalization:
                 dt=stamp-self.previous['stamp'];reference=self.previous
                 if 0<dt<=3:
                     alternative=point_support_registration(reference['surfaces'],current,angular_change(reference['q'],q),dt,self.velocity)
-                    gyro=self.gyro_integral-reference['gyro']
-                    if alternative['accepted'] and (not self._gyro_covered(reference,stamp) or abs(alternative['yaw']-gyro)<math.radians(3)):
+                    turn=self._turn(reference,stamp)
+                    if alternative['accepted'] and (turn is None or abs(alternative['yaw']-turn[0])<math.radians(3)):
                         fit=alternative;used='dense_surface_validated_fit'
-                if fit is None and 0<dt<=.35 and self._gyro_covered(reference,stamp):
+                if fit is None and 0<dt<=.35 and turn is not None:
+                    gyro=turn[0]
                     prediction=np.zeros(2) if self.velocity is None else self.velocity*dt
                     partial=proposal(reference['surfaces'],current,gyro,prediction,
                         min(1.,.1+3*dt),abs(gyro)+math.radians(2),
@@ -255,8 +373,11 @@ class ContinuousLocalization:
         # Sampling is for the query scan only. Sparse reference anchors created
         # artificial empty gaps along distant walls and rejected valid matches.
         dense_reference=surfaces(current.dense,maximum=len(current.dense))
+        now=self._scan_heading
         value=dict(stamp=stamp,surfaces=dense_reference,q=q,pose=self.pose.copy(),gyro=self.gyro_integral,gyro_valid=self.gyro_valid_s,
-                   stamp_ns=self._scan_header_ns,gyro_valid_ns=self.gyro_valid_ns)
+                   stamp_ns=self._scan_header_ns,gyro_valid_ns=self.gyro_valid_ns,
+                   heading=None if now is None else now[0],heading_epoch=self.heading_epoch,
+                   heading_slack=0. if now is None else now[1]*now[2],heading_gyro=self.heading_gyro)
         self.previous=value
         if (self.anchor is None or used=='short_GNSS_speed_IMU_motion_prior' or np.linalg.norm(self.pose[:2]-self.anchor['pose'][:2])>1.25
                 or abs(self.pose[2]-self.anchor['pose'][2])>math.radians(15)):
@@ -268,4 +389,5 @@ class ContinuousLocalization:
             map_eligible=used!='short_GNSS_speed_IMU_motion_prior',
             motion_prior=used=='short_GNSS_speed_IMU_motion_prior',
             path_break=path_break,motion_prior_scans=self.motion_prior_count,
-            fit_rmse_m=fit['rmse_m'] if fit else 0.,autonomy_eligible=False)
+            fit_rmse_m=fit['rmse_m'] if fit else 0.,autonomy_eligible=False,
+            heading_prior='gyro_after_disagreement' if self._disagreed else 'IMU_orientation' if now is not None else 'gyro_or_none')

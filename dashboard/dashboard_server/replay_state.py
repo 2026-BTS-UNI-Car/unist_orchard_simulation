@@ -19,7 +19,11 @@ from .tile_transport import StreamingOccupancyMap
 SCHEMA='ubts.recorded_prefix_state.v1'
 LIMIT=64*1024*1024
 SCALARS=('last_seen','gyro_time','gyro_rate','gyro_integral','gyro_valid_s',
-         'rejected','accepted','last_geometry_stamp','motion_prior_count','path_break_pending')
+         'rejected','accepted','last_geometry_stamp','motion_prior_count','path_break_pending',
+         'gyro_time_ns','gyro_valid_ns','heading','heading_time','heading_epoch','heading_gyro','heading_disagreements')
+# Since 2026-11-21 the state also holds the heading read from the IMU orientation and the integer gyro clocks.
+# Without them a restarted map had no IMU turn for its first fits and differed from an uninterrupted one.
+REFERENCE_NUMBERS=('gyro','gyro_valid','heading_slack')
 
 def plain(value):
     if isinstance(value,np.ndarray):return value.tolist()
@@ -38,10 +42,18 @@ def number(value,optional=False):
     if type(value) not in (int,float) or not math.isfinite(value):raise ValueError('invalid_resume_number')
     return value
 
+def whole(value,optional=False,limit=2**63-1):
+    if optional and value is None:return None
+    if type(value) is not int or not 0<=value<=limit:raise ValueError('invalid_resume_integer')
+    return value
+
 def reference(value):
     if value is None:return None
     surface=value['surfaces']
     return plain(dict(**{k:value[k] for k in ('stamp','q','pose','gyro','gyro_valid')},
+        stamp_ns=value.get('stamp_ns'),gyro_valid_ns=value.get('gyro_valid_ns',0),
+        heading=value.get('heading'),heading_epoch=value.get('heading_epoch',0),heading_slack=value.get('heading_slack',0.),
+        heading_gyro=value.get('heading_gyro'),
         surfaces=dict(points=surface.points,normals=surface.normals,denominator=surface.denominator,dense=surface.dense)))
 
 def restore_reference(value):
@@ -53,7 +65,10 @@ def restore_reference(value):
     q=array(value['q'],(4,))
     if abs(np.linalg.norm(q)-1)>1e-5:raise ValueError('invalid_resume_quaternion')
     return dict(stamp=number(value['stamp']),q=q,pose=array(value['pose'],(3,)),
-        gyro=number(value['gyro']),gyro_valid=number(value['gyro_valid']),
+        **{k:number(value[k]) for k in REFERENCE_NUMBERS},
+        stamp_ns=whole(value['stamp_ns'],optional=True),gyro_valid_ns=whole(value['gyro_valid_ns']),
+        heading=number(value['heading'],optional=True),heading_epoch=whole(value['heading_epoch'],limit=1000000),
+        heading_gyro=number(value['heading_gyro'],optional=True),
         surfaces=Surfaces(points,normals,cKDTree(points),s['denominator'],dense,cKDTree(dense)))
 
 def export_localizer(source):
@@ -63,6 +78,7 @@ def export_localizer(source):
         engine=dict(**{k:getattr(engine,k) for k in SCALARS},pose=engine.pose,velocity=engine.velocity,
             direction=engine.direction,position_prior=engine.position_prior,gps_speed=engine.gps_speed,
             last_recovery=engine.last_recovery if math.isfinite(engine.last_recovery) else None,
+            heading_q=engine.heading_q,heading_samples=engine.heading_samples,
             previous=reference(engine.previous),anchor=reference(engine.anchor),anchor_is_previous=engine.anchor is engine.previous),
         imus=source.imus,stamps=source.stamps,pending_imus=source.pending_imus,
         input_scans=source.input_scans,note=source.note,basis=source.basis,
@@ -86,7 +102,16 @@ def restore_localizer(value):
     for key in ('accepted','rejected','motion_prior_count'):
         if type(e[key]) is not int or not 0<=e[key]<=1000000:raise ValueError('invalid_resume_scan_count')
     for key in ('last_seen','gyro_time','gyro_rate','last_geometry_stamp'):number(e[key],optional=True)
-    for key in ('gyro_integral','gyro_valid_s'):number(e[key])
+    for key in ('gyro_integral','gyro_valid_s','heading'):number(e[key])
+    number(e['heading_time'],optional=True);whole(e['gyro_time_ns'],optional=True);whole(e['gyro_valid_ns'])
+    whole(e['heading_epoch'],limit=1000000);whole(e['heading_disagreements'],limit=1000000)
+    number(e['heading_gyro'],optional=True)
+    engine.heading_q=None if e['heading_q'] is None else array(e['heading_q'],(4,))
+    if engine.heading_q is not None and abs(np.linalg.norm(engine.heading_q)-1)>1e-5:raise ValueError('invalid_resume_quaternion')
+    if (engine.heading_q is None)!=(e['heading_time'] is None):raise ValueError('invalid_resume_heading')
+    if type(e['heading_samples']) is not list or len(e['heading_samples'])>8:raise ValueError('invalid_resume_heading_samples')
+    engine.heading_samples=[(number(t),number(h)) for t,h in e['heading_samples']]
+    if [t for t,_ in engine.heading_samples]!=sorted({t for t,_ in engine.heading_samples}):raise ValueError('invalid_resume_heading_samples')
     if type(e['path_break_pending']) is not bool or type(e['anchor_is_previous']) is not bool:raise ValueError('invalid_resume_path_flag')
     engine.pose=array(e['pose'],(3,));engine.velocity=None if e['velocity'] is None else array(e['velocity'],(2,))
     engine.direction=None if e['direction'] is None else array(e['direction'],(2,))
