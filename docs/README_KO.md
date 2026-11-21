@@ -58,6 +58,7 @@
 | [`GNSS_RTK_KO.md`](steering/GNSS_RTK_KO.md), [`PREREG_GNSS_RTK_KO.md`](steering/PREREG_GNSS_RTK_KO.md), [`GNSS_RTK_RESULT_KO.md`](steering/GNSS_RTK_RESULT_KO.md) | L3의 RTK 약한 제약 모드(`weak_constraint`, 기본 꺼짐), 빠른 SIM 행렬의 사전등록과 결과 |
 | [`GPS_COMPARE_KO.md`](steering/GPS_COMPARE_KO.md) | GPS 유무에 따른 성능 비교(2026-11-22): 2026-11-20 현장 기록의 GPS 켬·끔 주행, 빠른 SIM 개발 측정(끔 / 일반 수신기 / RTK FIXED, 170 run) |
 | [`AUTONOMY_RUNS_ANALYSIS_KO.md`](steering/AUTONOMY_RUNS_ANALYSIS_KO.md) | 앞바퀴 조향 차의 자율주행 run 33번(실내 복도 2026-11-19, 과수원 2026-11-20) 통합 분석: run 표, 묶음 통계, 속도 상한과 τ, 조향 사용량, trim 재구성, 복도 수렴, Jetson 시간, 기존 문서와 다른 것 |
+| [`ORCHARD_MEASURED_KO.md`](steering/ORCHARD_MEASURED_KO.md) | 2026-11-20 과수원의 줄자 행 폭과 대조한 평가: 행 확인, LiDAR 폭 대 줄자, 실측 지도 위 위치 오차와 행 길이 정규화, 주행거리계 방향 흐름, GPS 켬·끔, 저녁 조각. 줄자 자료 `steering/orchard_tape/` |
 | [`STEER_EXT_MODEL_KO.md`](steering/STEER_EXT_MODEL_KO.md) | 벨트 가변저항·조향 급전·외란 토크 모형 |
 | [`STEER_PROFILE_V02_KO.md`](steering/STEER_PROFILE_V02_KO.md), [`STEER_PROFILE_V03_KO.md`](steering/STEER_PROFILE_V03_KO.md) | 프로필 v0.2·v0.3과 자격 판정 |
 | [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md), [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md) | 조향 사양이 오면 할 일, 사양·실측 질문 Q1~Q29 |

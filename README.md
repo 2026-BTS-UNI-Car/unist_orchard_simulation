@@ -17,6 +17,7 @@
 | 실내 복도 시험 (2026-11-19) | 15번 주행, 약 186 m. 18~22° 비스듬히 놓고 출발해도 12.5~12.9 m 안에 중심선으로 돌아왔다 [현장 기록, 실행기 자체 추정] |
 | 엔코더 없는 추정 | 휠 엔코더 없이 2D LiDAR 키프레임 ICP와 IMU만으로 거리·속도·자세를 잰다. 과수원에서 달린 거리는 GNSS 직선 거리와 GNSS 정확도(4~8 m) 수준에서, 횡 위치는 스캔에서 바로 잰 좌우 거리와 3.7 cm 안에서 맞았다 |
 | SIM과 실차가 같은 코드 | 빠른 SIM(결정적, 측정 전 기준 등록)과 Gazebo 스택이 차에서 도는 실행기 코드를 그대로 돌린다. 기본 열 추종 15/15 합격, 넓은 조건 행렬과 실패 원인까지 기록 [SIM · 자리값] |
+| 줄자 실측과 대조 | 현장에서 줄자로 잰 행 폭(사과 2행 100 m 21점, 배 1행 40 m 11점)과 비교해, 실행기가 LiDAR로 잰 통로 폭은 사과 2행 −3.3 cm(RMS 4.8 cm), 배 1행 −7.5 cm(RMS 10.4 cm) 차이였다. 실측 지도 위에서 위치 오차를 적분해 행 길이로 나눈 값은 끝까지 간 사과 4번 평균 2.0 cm, 배 5번 평균 3.1 cm다 [실측·줄자 + 실행기 자체 추정] |
 | 측정으로 정리한 것 | GPS 유무 비교(지금 설정에서 차이 없음, RTK FIXED만 비킨 나무 구간 30 % 이득), 속도를 정한 원인(제어 지연 상한과 그 안의 자리값 0.24 s), 15:23 치우친 주행의 원인(조향 영점 보정 한도) |
 | 문서 | [자율주행 알고리즘 기술 문서](docs/AUTONOMY_ALGORITHM_KO.md)(수식·기법 이름·매개변수), [자율주행 run 통합 분석](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md), [과수원 결과](docs/steering/ORCHARD_1120_RESULT_KO.md), [GPS 유무 비교](docs/steering/GPS_COMPARE_KO.md) |
 
@@ -351,6 +352,20 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 주행 표, 대조, 멈춘 원인 조사, 한계: [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md).
 복도와 과수원의 자율주행 33번을 한 정의로 모은 표, 속도·조향·Jetson 시간 분석, 그림 10장: [`docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md`](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md).
 
+### 7.4 줄자 실측과 대조 (2026-11-20 행 폭)
+
+| 항목 | 결과 |
+|---|---|
+| 어느 행을 달렸나 | 100 m 주행은 사과 2행, 40 m 주행은 배 1행(길이, 폭 크기와 변화, 나무 줄 끝 위치로 확인) |
+| LiDAR 통로 폭 − 줄자 폭 | 사과 2행 −3.3 cm(RMS 4.8 cm), 배 1행 −7.5 cm(RMS 10.4 cm). 스캔의 가장 가까운 반사로 잰 폭은 약 −31~−33 cm(통로 쪽 가지·잎) |
+| 실측 지도 위 위치 오차, 행 길이로 정규화 | 끝까지 간 사과 4번 1.7~2.6 cm(평균 2.0), 배 5번 2.2~3.7 cm(평균 3.1), 조향 가운데를 옮기기 전 15:23은 41.8 cm |
+| 주행거리계 경로를 그대로 지도에 놓으면 | 실행기 odometry의 방향이 사과 98 m 동안 8~10° 흘러 cm 수준의 평가가 되지 않는다(IMU 자세는 1.1° 안). 줄자 지도로 위치를 재려면 RTK 같은 바깥 기준이 필요하다 |
+
+![줄자 폭으로 그린 사과 2행 지도 위의 경로](docs/steering/figures/orchard_measured/fig3_map_apple.png)
+
+[실측·줄자 2026-11-20 + 현장 기록, 실행기 자체 추정] 줄자 폭으로 그린 사과 2행(직선 중심선·좌우 대칭 가정)과 다섯 주행의 경로. 위가 가로세로 같은 비율의 전체, 아래 둘이 옆 방향을 키운 상세다.
+방법, 행 확인 근거, 한계: [`docs/steering/ORCHARD_MEASURED_KO.md`](docs/steering/ORCHARD_MEASURED_KO.md).
+
 <!-- gps-compare:begin -->
 ### 7.3 GPS 유무 비교 (2026-11-22)
 
@@ -418,6 +433,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 | [`docs/RESULTS_KO.md`](docs/RESULTS_KO.md) | 모든 검사 결과 |
 | [`docs/HARDWARE_KO.md`](docs/HARDWARE_KO.md) | 하드웨어 사양과 자리값 표 |
 | [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md) | 2026-11-20 과수원 첫 자율주행 결과(현장 기록) |
+| [`docs/steering/ORCHARD_MEASURED_KO.md`](docs/steering/ORCHARD_MEASURED_KO.md) | 줄자로 잰 행 폭과의 대조: 행 확인, LiDAR 폭 대 줄자, 실측 지도 위 위치 오차(행 길이로 정규화), 주행거리계 흐름, 저녁 조각 |
 | [`docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md`](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md) | 자율주행 run 33번(복도 15, 과수원 18) 통합 분석: run 표, 묶음 통계, 속도·조향·trim·Jetson 시간, 그림 10장 |
 | [`docs/steering/DESIGN_v2_KO.md`](docs/steering/DESIGN_v2_KO.md) | 설계(입력, 시작·정지, 추정기 층, 속도) |
 | [`docs/steering/DECISIONS_KO.md`](docs/steering/DECISIONS_KO.md) | 결정 기록 |
