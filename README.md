@@ -1,21 +1,32 @@
 # unist_orchard_simulation
 
 과수원 로버가 **행간 하나를 시작점에서 끝점까지 따라가 열 끝에서 서는 자율주행**을 만들고 검증하는 시뮬레이션 저장소입니다.
-로버는 어린이용 4륜 전동차를 개조한 차이고, 좌우 바퀴 속도 차로 돌던 방식에서 **앞바퀴 조향 장치**를 다는 방식으로 바꾸는 중입니다.
+로버는 어린이용 4륜 전동차를 개조한 차이고, 2026년 11월부터 좌우 바퀴 속도 차로 돌던 방식 대신 **앞바퀴 조향 장치**로 방향을 잡습니다.
 지도를 만들지 않고, 매 순간 2D LiDAR로 양쪽 나무 열을 찾아 그 가운데(행간 중심선)를 따라갑니다.
 
 > **English summary.** Simulation of a converted ride-on orchard rover that follows one orchard row from start to end
-> along the centre line between two tree rows and stops at the row end (no mapping, no U-turn). The rover is being
-> refitted from differential (left/right speed) turning to front-wheel steering. Main inputs: 2D LiDAR and raw IMU;
-> drive PWM and steering angle are bounded priors; GNSS is an optional weak layer. A fast deterministic simulator and a
-> Gazebo/ROS 2 stack run the same row executor. All results are simulation results: the main vehicle dimensions were
-> measured on 2026-11-16, most steering-hardware values are still placeholders, and no autonomous run on the steered
-> vehicle has been made yet. Documents are in Korean.
+> along the centre line between two tree rows and stops at the row end (no mapping, no U-turn). The rover was refitted
+> from differential (left/right speed) turning to front-wheel steering in November 2026. Main inputs: 2D LiDAR and raw
+> IMU; drive PWM and steering angle are bounded priors; GNSS is an optional weak layer. A fast deterministic simulator
+> and a Gazebo/ROS 2 stack run the same row executor that runs on the vehicle. Results are simulation results unless
+> marked as field records: the main vehicle dimensions were measured on 2026-11-16 and most steering-hardware values
+> are still placeholders. The first autonomous runs on the vehicle were made in an orchard on 2026-11-20 (18 runs,
+> about 772 m; 10 reached the end of the row, all stopped by the distance limit; lateral error 2.6 to 6.4 cm RMS by
+> the executor's own estimate, with no tape or survey reference). Documents are in Korean.
 
 ![Gazebo 과수원에서 한 행을 따라가는 차량 카메라](docs/assets/video/row_follow_wf7_user_10x.gif)
 
 [SIM · 자리값] Gazebo 과수원(W1) 한 행을 처음부터 열 끝까지 달린 차량 카메라(약 99 s를 10배속). 실행기는 `/scan`과 raw IMU만 보고
 조향과 구동을 정한다. 2026-11-13 자리값 차량(프로필 v0.1)으로 찍은 영상이다.
+
+> **지금 상태 (2026-11-21).** 같은 실행기가 2026-11-20 과수원에서 조향 차를 처음 자율로 몰았다(현장 기록): 18번 출발, 약 772 m, 10번은 열 끝까지
+> (98 m 다섯 번, 38 m 다섯 번). 조향 가운데를 옮긴 뒤 끝까지 간 9번의 횡 오차는 RMS 2.6~6.4 cm였다(실행기 자체 추정, 줄자 대조 없음). 모두 운영자가 넣은
+> 열 길이의 거리 한도에서 섰고, LiDAR로 열 끝을 보고 선 적은 없다. 브리지 오류 7번과 Jetson 재시작 1번은 원인을 확정하지 못했다.
+> 결과: [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md). 아래 SIM 결과와 조향 사양 값은 여전히 자리값 기반이다.
+
+![2026-11-20 과수원 자율주행 18번](docs/steering/figures/orchard_1120/day_runs.png)
+
+[현장 기록 · 2026-11-20] 출발 시각별 달린 거리와 끝난 이유. 거리는 실행기가 스스로 잰 값이다(휠 엔코더 없음).
 
 ## 1. 목적과 구현 범위
 
@@ -26,8 +37,8 @@
 |---|---|
 | 구현됨, SIM에서 확인 | LiDAR·IMU 기반 통로(행간) 추정, 주시점 추종 조향 제어, 속도 조절, 열 끝 정지, 한 번 눌러 시작·STOP·신호 끊김 정지, 빠른 SIM과 Gazebo 스택, 대시보드 연동, 기록 |
 | 구현됨, 기본 꺼짐 | 구동기 사전값 예측(L1, 기록만), 국소 점유 격자(L2), GNSS 층(L3, RTK 약한 제약 포함) |
-| 실차에 설치만 됨 | Jetson에 실행기를 SHADOW(조종 출력 없음)로 설치해 실제 `/scan`·IMU를 받는 것까지 확인(2026-11-16). 2026-11-17 보드 보정과 10월 기록의 구동 값(C2·C3·C7)으로 다시 설치, 여전히 SHADOW |
-| 하지 않음 | 조향 장치를 단 차의 실차 주행, 실차 조향·구동 식별 시험, 카메라 인식, 지도 작성, 유턴 |
+| 실차에서 달림 | 2026-11-20 과수원 두 열(100 m, 40 m)에서 실행기 MOTOR 모드로 18번, 약 772 m. 10번은 열 끝까지 갔고 모두 거리 한도에서 섰다([결과](docs/steering/ORCHARD_1120_RESULT_KO.md)). 그 전에 실내 복도 시험(2026-11-18·19, [기록](docs/steering/FIELD_CORRIDOR_20261119_KO.md)) |
+| 하지 않음 | 현장에서 LiDAR 열 끝 인식으로 서는 것의 확인, 줄자·측량 기준과의 대조, 정해 둔 벤치·실내 식별 시험 전부, 카메라 인식, 지도 작성, 유턴 |
 
 ## 2. 시스템 구조와 데이터 흐름
 
@@ -260,7 +271,7 @@ duty는 구동 응답 표의 역함수에 PI 보정(비례 30, 적분 15, 70 % �
 
 - 모든 컨테이너는 ROS 도메인 43, 로컬 전용 DDS를 쓴다. 실행기는 `/scan`을 BEST_EFFORT(깊이 2), `/imu/data_raw`를 BEST_EFFORT(깊이 50)로 받는다.
 - 실차에서는 같은 실행기가 Jetson의 ROS 2 Iron 컨테이너에서 실제 `/scan`·`/imu/data_raw`를 받고, 조종 출력은 ESP32-S3 보드용 브리지
-  (대시보드 저장소)로 보낸다. 지금은 SHADOW라 출력을 보내지 않는다.
+  (대시보드 저장소)로 보낸다. 2026-11-20부터 MOTOR(실제 구동)로 달렸다. SHADOW(출력을 보내지 않음)로도 설치할 수 있다.
 
 QoS, 제어 소켓 요청 형식, 운영자 HTTP 목록은 [`docs/SYSTEM_REFERENCE_KO.md`](docs/SYSTEM_REFERENCE_KO.md) 1~3절.
 
@@ -295,7 +306,8 @@ Gazebo 이미지 `ubts-steer-sim`은 `docker/Dockerfile.ubts-steer`로 개발 PC
 
 ![SIM 대시보드 조향 화면](docs/steering/figures/sim_dashboard_steer_w1.png)
 
-[SIM · 자리값] SIM 대시보드(127.0.0.1:18090): LiDAR, 차량 카메라, 조향 패널(목표·측정 조향각, 구동 duty, 입력 기한).
+[SIM · 자리값] SIM 대시보드(127.0.0.1:18090): LiDAR, 차량 카메라, 조향 패널(목표·측정 조향각, 구동 duty, 입력 기한). Rover Control을 탭 네 개로 나누기 전(2026-11-19 전)의
+화면이다. 지금 배치(수동 조종, 자율주행, 보정·설정, 기록 탭)는 대시보드 저장소 README에 있다.
 
 <img src="docs/assets/dashboard/sim_dashboard_steer_drag.png" alt="SIM 대시보드 조향 패널, 끌어서 조향" width="240" align="right">
 
@@ -320,7 +332,7 @@ Gazebo 이미지 `ubts-steer-sim`은 `docker/Dockerfile.ubts-steer`로 개발 PC
 참 중심선은 W0에서는 두 기둥 줄의 가운데, Gazebo W1에서는 출발 통로 양쪽 나무 줄기에 맞춘 두 직선의 평균, W2에서는 실제로 비어 있는
 통로의 가운데다.
 
-### 결과 (모두 SIM)
+### SIM 결과
 
 | 실험 | 조건 | 결과 |
 |---|---|---|
@@ -341,6 +353,23 @@ Gazebo 이미지 `ubts-steer-sim`은 `docker/Dockerfile.ubts-steer`로 개발 PC
 검사 A1~A26 전체(불합격·미실행 포함)는 [`docs/RESULTS_KO.md`](docs/RESULTS_KO.md), 매체 목록은
 [`GSIM_MEDIA_KO.md`](docs/steering/GSIM_MEDIA_KO.md).
 
+### 현장 결과 (2026-11-20, 현장 기록)
+
+조향 차의 첫 과수원 자율주행이다. 값은 실행기가 스스로 잰 것이고 참값이나 줄자 대조가 없어, 위 SIM 판정과 같은 뜻의 수가 아니다.
+
+| 항목 | 값 |
+|---|---|
+| 주행 | 18번, 약 772 m. 열 끝까지 10번(98 m 다섯 번, 38 m 다섯 번), 브리지 오류로 선 것 7번, Jetson 재시작 1번 |
+| 횡 오차 RMS(실행기 자체 추정) | 조향 가운데를 옮긴 뒤 끝까지 간 9번 2.6~6.4 cm. 옮기기 전 한 번은 45 cm(필요한 조향 7.8°가 영점 보정 한도 ±3°를 넘음) |
+| 다른 센서와 대조 | 거리: GNSS 직선 거리와 0~7 m 차(GNSS 정확도 4~8 m). 횡 위치: 스캔에서 바로 잰 값과 13번에서 3.7 cm 안 |
+| 속도 | 목표 0.40 m/s, 실제 0.28(100 m 열)·0.34 m/s(40 m 열) |
+| 열 끝 정지 | 10번 모두 거리 한도(열 길이 − 2 m). LiDAR 열 끝 인식으로 선 적 없음 |
+
+![조향 가운데를 옮긴 뒤 끝까지 간 9번의 횡 위치](docs/steering/figures/orchard_1120/lateral_after_centre.png)
+
+[현장 기록 · 2026-11-20] 선 하나가 주행 한 번이다. 실행기가 LiDAR로 잡은 자기 중심선 기준의 횡 위치다. 주행 표, 대조, 멈춘 원인 조사, 한계는
+[`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md).
+
 ### 기록과 재현
 
 | 기록 | 내용 |
@@ -358,27 +387,35 @@ SIM에서 정했고, 바꿀 때마다 현장 조정 파일의 기록과 설정 d
 
 ## 8. 실차 검증 단계와 현재 한계
 
-**실차 검증 단계.** 조향 장치를 단 차로는 바퀴를 띄운 조향 보정과 계단 응답만 했다(2026-11-16, 구동 없음). 정의된 단계:
+**실차 검증 단계.** 조향 장치를 단 차로 한 것: 바퀴를 띄운 조향 보정과 계단 응답(2026-11-16), 실내 복도 시험(2026-11-18·19,
+[기록](docs/steering/FIELD_CORRIDOR_20261119_KO.md)), 과수원 한 행 자율주행(2026-11-20, [결과](docs/steering/ORCHARD_1120_RESULT_KO.md)). 아래 식별 시험과 구동 보정 가운데
+재지 않은 것은 현재 한계에 적었다. 정의된 단계:
 
 1. 벤치(바퀴를 띄움): 조향 극성, 끝점, 명령 대 바퀴 각, 최소 출력, 조향 속도, 유격, 가변저항 잡음(B0~B7, [`IDENT_KO.md`](docs/steering/IDENT_KO.md)).
 2. 실내 평지: 서서 조향, 저속 전후진, 고정 조향 원, duty별 직진·정지, 조향 0 왕복(F1~F5).
 3. 구동 보정: 출발 duty, duty→속도, 정지 거리(C2·C3·C7). 지금 실행기 설정은 10월 기록 값을 쓴다(위 지형별 구동 표).
-4. 실행기 SHADOW로 실제 행에서 사람이 몰며 추정만 확인한 뒤, 낮은 속도로 한 행 자율주행.
+4. 실행기 SHADOW로 실제 행에서 사람이 몰며 추정만 확인한 뒤, 낮은 속도로 한 행 자율주행. 한 행 자율주행은 2026-11-20 과수원에서 했다([결과](docs/steering/ORCHARD_1120_RESULT_KO.md)).
 
 실차 횡오차를 기둥·줄기 지도 기반 LiDAR 위치 추정으로 재는 오프라인 도구 `tools/field_eval/`가 있다(빠른 SIM 참값과만 비교, 실차 기록 미확인).
 기준선·바닥 자국·줄기 측량·RTK 절차는 계획이다([`FIELD_EVAL_METHOD_KO.md`](docs/steering/FIELD_EVAL_METHOD_KO.md)).
 
 **현재 한계.**
 
-- 모든 결과는 SIM이다. 조향 모터·가변저항·벨트·유격·질량은 자리값이다.
+- SIM 결과는 자리값 기반이다(조향 모터·가변저항·벨트·유격·질량). 현장 결과는 2026-11-20 하루, 과수원 두 열의 기록이고, 횡 오차와 거리는 실행기의 자체 추정이며
+  줄자·측량과 대조하지 않았다.
+- 현장에서 LiDAR로 열 끝을 보고 선 적이 없다(끝까지 간 10번 모두 운영자가 넣은 열 길이의 거리 한도에서 섰다). 속도는 목표 0.40 m/s에 못 미쳤다(0.28, 0.34 m/s).
+  조향 영점이 7.8° 어긋나 있던 주행에서는 영점 보정 한도(±3°) 때문에 중심선에서 45 cm 치우친 채 달렸다.
+- 2026-11-20의 브리지 오류 7번(Jetson에서 보드로 가는 명령이 잠깐 끊김)과 주행 중 Jetson 재시작 1번은 원인을 확정하지 못했다.
 - 새 보드의 처음 펄스 조향은 펄스 사이에 드라이버를 놓아 조향축 외란에 밀린다(빠른 SIM, 외란 크기는 자리값). 지금의 SMOOTH r5 흉내도
   같은 두 외란 조건 6회 가운데 5회 실패한다(넓은 조건 52/60, [`STEER_FOLLOW_SMOOTH_RESULT_KO.md`](docs/steering/STEER_FOLLOW_SMOOTH_RESULT_KO.md)).
   차의 감시 묶음(v2.1)으로 다시 재도 6회 모두 실패한다: PWM_MAX 80 으로 자리값 외력을 못 버티고 취소 뒤 바퀴를 놓는다. 외력 대응을 더한 SIM 제안 r6p
   (차의 펌웨어 아님)는 같은 75회를 모두 통과했다([`SMOOTH_R5_DISTURBANCE_KO.md`](docs/steering/SMOOTH_R5_DISTURBANCE_KO.md)).
 - 실차 설정의 조향 출발 문턱과 변화율 한도는 바퀴를 띄운 시험에서 잰 조향 속도(13.1 °/s, SMOOTH 펌웨어)의 0.8배다. 땅에 닿은 조향 속도,
-  조향 극성(B0), 각도계 범위(B2/B3), 조향 시작 PWM(B4)은 아직 재지 않았고 0점(F1)은 눈으로 잡은 가운데에서 0° 로 추정했다. 실행기는 SHADOW다.
+  조향 극성(B0), 각도계 범위(B2/B3), 조향 시작 PWM(B4)은 아직 재지 않았다. 0점(F1)은 2026-11-20 현장에서 곧게 가는 위치로 다시 잡았다(가변저항 1885 → 2005).
+  그 뒤에도 곧게 달릴 때의 가변저항 값은 주행마다 1953~2053 사이에서 달랐다.
 - Gazebo 열 추종은 장면 하나(W1, 30 m)이고, 열 끝 정지가 +0.45 m로 빠른 SIM보다 뒤다(끝 기둥까지 행으로 봄).
-- 호스트가 바쁘면 실행기 틱이 늦어 입력 나이 한도로 선다. Jetson 처리 시간은 재지 않았다.
+- 호스트가 바쁘면 실행기 틱이 늦어 입력 나이 한도로 선다. Jetson에서는 2026-11-20 주행 중(16:13~18:02) 실행기 루프가 150 ms를 넘은 틱이 6번이었다
+  (브리지 응답을 기다린 5번, 스캔 처리 123 ms 한 번). 스캔 처리 시간의 분포는 따로 정리하지 않았다.
 - 국소 격자(L2)는 10/10 기록 재생에서 빠른 층과 41.3 %만 맞아 표시용이다. 일반 GNSS 오차(수 m)는 행 간격보다 커서 쓰지 않는다.
 - Jetson의 `/gps/fix`는 RTK FIXED와 FLOAT를 가르지 않아, RTK 약한 제약은 실차에서 켜지지 않는다.
 
@@ -393,6 +430,7 @@ SIM에서 정했고, 바꿀 때마다 현장 조정 파일의 기록과 설정 d
 | `dashboard/`, `dashboard_sim/` | 대시보드 저장소 사본과 SIM 확장 |
 | `ros2_ws/src/orchard_gazebo/` | 과수원 월드 생성기 |
 | `tools/steer_sim/`, `tools/drive_response/` | 저장소 검사·그림·사양 적용, 주행 기록의 duty→속도 분석 |
+| `tools/field_records/` | 현장 녹화(rosbag)를 읽어 실행기 값을 GNSS·스캔과 맞춰 보는 도구 |
 | `docker/`, `compose.ubts-steer*.yaml` | Gazebo 스택 이미지와 구성 |
 | `docs/` | 문서([색인](docs/README_KO.md)), 그림 `docs/assets/` |
 
@@ -406,6 +444,7 @@ SIM에서 정했고, 바꿀 때마다 현장 조정 파일의 기록과 설정 d
 | [`docs/HARDWARE_KO.md`](docs/HARDWARE_KO.md) | 하드웨어 사양과 자리값 표 |
 | [`docs/steering/DECISIONS_KO.md`](docs/steering/DECISIONS_KO.md) | 결정 기록 |
 | [`docs/steering/DESIGN_v2_KO.md`](docs/steering/DESIGN_v2_KO.md) | 설계(입력, 시작·정지, 추정기 층, 속도) |
+| [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md) | 2026-11-20 과수원 첫 자율주행 결과(현장 기록): 주행 18번, 횡 오차, 다른 센서와의 대조, 멈춘 원인 조사, 한계 |
 
 ## 라이선스
 

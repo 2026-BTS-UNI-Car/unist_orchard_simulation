@@ -63,6 +63,7 @@
 | [`SMOOTH_R5_DISTURBANCE_KO.md`](steering/SMOOTH_R5_DISTURBANCE_KO.md), [`PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md`](steering/PREREG_STEER_FOLLOW_SMOOTH_V2_KO.md) | SMOOTH r5 넓은 조건 실패 분석, 차의 감시 묶음을 맞춘 프로필 v2.1(스키마 v6)과 SIM 제안 r6p(v2.2, 차의 펌웨어 아님), 재판정 사전등록 `steer_follow_smooth_r5_v2`(결과는 `STEER_FOLLOW_SMOOTH_RESULT_KO.md` 8절, 2026-11-17) |
 | [`FIELD_CORRIDOR_20261119_KO.md`](steering/FIELD_CORRIDOR_20261119_KO.md), [`ROW_EXECUTOR_STATE_TOPIC_KO.md`](steering/ROW_EXECUTOR_STATE_TOPIC_KO.md) | 실내 복도 시험(2026-11-18/19, 잰 기록)의 속도 추정 치우침·흔들림·정지 정렬 분석과 실행기 개선(run마다 GNSS 고르기, run 지표, 속도 입력 선택), 실행기 상태 토픽 `/row_executor/state` 규약 |
 | [`OVERSPEED_CONFIRM_20261120_KO.md`](steering/OVERSPEED_CONFIRM_20261120_KO.md) | 출발 뒤 잠깐 멈춤의 원인(LiDAR 속도 순간 튐에 과속 규칙이 듀티를 자름), 선택 키 `overspeed_confirm_s`(기본 0, 켜는 것은 사용자 결정), 10/10 기록의 속도 튐 통계와 금요일 목표 0.4 유지 |
+| [`ORCHARD_1120_KO.md`](steering/ORCHARD_1120_KO.md), [`ORCHARD_1120_RESULT_KO.md`](steering/ORCHARD_1120_RESULT_KO.md) | 과수원 날(2026-11-20): 성긴 열에서의 실행기 동작 사전 조사, 첫 자율주행 결과(현장 기록: 주행 18번, 횡 오차, 다른 센서와의 대조, 멈춘 원인 조사, 한계). 녹화 확인 도구는 [`tools/field_records/`](../tools/field_records/README_KO.md) |
 
 결과
 
