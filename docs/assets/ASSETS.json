@@ -621,8 +621,7 @@
      "sha256": "6a8e489bd67cefa1d9b012c491730e2b0b7583149f1e39fbf7ddffdb4b3c2e2e",
      "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
     }
-   },
-   "role": "readme_hero"
+   }
   },
   {
    "path": "docs/assets/video/row_follow_wf7_user_camera_10x.mp4",
@@ -807,6 +806,121 @@
      "date": "2026-11-15",
      "sha256": "454ad424e290aa4862b96eeea3c12930f02170b0afdd62a724e9b4675d1f04d4",
      "note": "2026-11-15 다시 만든 뒤 GIF 처음·가운데·끝, mp4 0.5·5·9 s, 사진을 한 장 모음으로 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰·화면 밖 정보 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/video/row_follow_wf17_user_10x.gif",
+   "kind": "animation",
+   "bytes": 4420188,
+   "sha256": "27f32e19a08bb7426b243c32d7ae15c97a39446691120d06a72a2a2c5a2aa5ed",
+   "width": 480,
+   "height": 226,
+   "tag": "[SIM · 자리값]",
+   "caption": "사용자 로컬 명령 그대로(sim_stack.py start, sim_auto.py start), 이미지 wf17, 측정 치수 차, SIM 시계로 G-SIM 과수원(W1) 통로 하나를 열 끝까지 달린 차량 카메라 화면(출발부터 열 끝까지 약 96 s를 10배속, 480 폭). 실행기가 /scan과 raw IMU만 보고 조향과 구동을 정하고 열 끝(ROW_END, 33.2 m)에서 섰다",
+   "origin": {
+    "source": "<runs>/sim_media_1121/sessions/cam_run_2/media/cam/frames",
+    "made_by": "이미지 ubts-steer-sim:wf17(시뮬레이션 main 586bf35 의 코드, 대시보드 사본 eb1352d), 측정 치수 프로필, 장면 w1_force, SIM 시계, 사용자 로컬 명령(tools/local_env/sim_stack.py start, sim_auto.py start). 판정 run 이 아니다(매체용). 2026-11-21 run 2 를 tools/steer_sim/capture_media.py camera 로 받은 프레임(29.96 fps). 출발 무렵부터 열 끝 정지까지 1 s 마다 한 장",
+    "command": "python -B <runs>/sim_media_1121/scripts/hero_gif.py gif <runs>/sim_media_1121/sessions/cam_run_2/media/cam --out row_follow_wf17_user_10x.gif --first 540 --stop 3420",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    },
+    "frames": "96장 (540..3420, 30장마다)",
+    "font": "malgun.ttf"
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-21",
+     "sha256": "27f32e19a08bb7426b243c32d7ae15c97a39446691120d06a72a2a2c5a2aa5ed",
+     "note": "GIF 처음·4분의 1·가운데·4분의 3·끝 장면을 직접 봄: 아래 차체 띠 없음, Gazebo 과수원·하늘·글자 띠만 있음. 사람·이름·주소·좌표·토큰 없음"
+    }
+   },
+   "role": "readme_hero"
+  },
+  {
+   "path": "docs/assets/dashboard/sim_dashboard_rover_control_w1.png",
+   "kind": "image",
+   "bytes": 276800,
+   "sha256": "cd75e3a37d4b03f0389bd48aab20875f8b6ea6a1c0c6a0db9a962ceaf78aa86d",
+   "width": 1440,
+   "height": 900,
+   "tag": "[SIM · 자리값]",
+   "caption": "SIM 대시보드 Rover Control 수동 조종 탭(탭 네 개로 나눈 뒤의 화면): Gazebo LiDAR, 차량 카메라, 조향 패널. 조종 활성화 뒤 W+A 를 누른 순간(목표 10.0° / 측정 10.6°)",
+   "origin": {
+    "source": "<runs>/sim_media_1121/shots/manual3_nav/manual_wa_1440x900.png",
+    "made_by": "이미지 ubts-steer-sim:wf17(시뮬레이션 main 586bf35 의 코드, 대시보드 사본 eb1352d), 측정 치수 프로필, 장면 w1_force, SIM 시계, 사용자 로컬 명령(tools/local_env/sim_stack.py start, sim_auto.py start). 판정 run 이 아니다(매체용). Overview 에서 메뉴로 Rover Control 에 들어가 Chrome(playwright)으로 찍음",
+    "command": "python -B <runs>/sim_media_1121/scripts/finalize_png.py <source png> sim_dashboard_rover_control_w1.png",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    }
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-21",
+     "sha256": "cd75e3a37d4b03f0389bd48aab20875f8b6ea6a1c0c6a0db9a962ceaf78aa86d",
+     "note": "1440×900 화면을 직접 봄: SIM 표시 띠, 메뉴 8개, 상태 띠, 탭 네 개, LiDAR·카메라·조향 패널. 주소는 SIM 장치 경로뿐이고 IP·토큰·좌표·사람 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/dashboard/sim_dashboard_autonomy_tab_w1.png",
+   "kind": "image",
+   "bytes": 185038,
+   "sha256": "cb6650f7d1e03d000686b787780514eba2fa127396a530f5765009e48ca39990",
+   "width": 1440,
+   "height": 1180,
+   "tag": "[SIM · 자리값]",
+   "caption": "SIM 대시보드 자율주행 탭, 한 번 눌러 출발한 run 이 달리는 중(출발 뒤 약 50 s, 12.8 m): 상태 한 줄, 버튼 셋, 주행 감시 타일, 실행기 국소 격자의 움직이는 그림, 실시간 LiDAR. 이 run 은 1분 47초 동안 33.3 m 를 달려 열 끝(ROW_END)에서 섰다",
+   "origin": {
+    "source": "<runs>/sim_media_1121/shots/auto1_nav/auto_running_t050.png",
+    "made_by": "이미지 ubts-steer-sim:wf17(시뮬레이션 main 586bf35 의 코드, 대시보드 사본 eb1352d), 측정 치수 프로필, 장면 w1_force, SIM 시계, 사용자 로컬 명령(tools/local_env/sim_stack.py start, sim_auto.py start). 판정 run 이 아니다(매체용). 화면의 준비 → 자율 주행 시작을 눌러 출발시키고 Chrome(playwright)으로 찍음",
+    "command": "python -B <runs>/sim_media_1121/scripts/finalize_png.py <source png> sim_dashboard_autonomy_tab_w1.png",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    }
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-21",
+     "sha256": "cb6650f7d1e03d000686b787780514eba2fa127396a530f5765009e48ca39990",
+     "note": "1440×1180 화면을 직접 봄: 자율주행 탭, 주행 감시, 국소 격자 그림, LiDAR. IP·토큰·좌표·사람 없음"
+    }
+   }
+  },
+  {
+   "path": "docs/assets/dashboard/sim_dashboard_steer_drag_tabs.png",
+   "kind": "image",
+   "bytes": 48922,
+   "sha256": "3de7c7ad52a72e2dce85d41ef1347c2e55ddd7dfbe44ed41812186107b35d156",
+   "width": 273,
+   "height": 790,
+   "tag": "[SIM · 자리값]",
+   "caption": "SIM 대시보드 조향 패널(탭으로 나눈 뒤): 끌어서 조향 각. 전진 W 를 누른 채 막대를 왼쪽 5°로 끈 순간(목표 5.0° / 측정 4.9°). 놓으면 0°로 돌아온다. 좌우 한계 16.1°는 측정 치수 프로필의 소프트 한계",
+   "origin": {
+    "source": "<runs>/sim_media_1121/shots/manual1/steer_panel_moving_drag.png",
+    "made_by": "이미지 ubts-steer-sim:wf17(시뮬레이션 main 586bf35 의 코드, 대시보드 사본 eb1352d), 측정 치수 프로필, 장면 w1_force, SIM 시계, 사용자 로컬 명령(tools/local_env/sim_stack.py start, sim_auto.py start). 판정 run 이 아니다(매체용). 조종 활성화 뒤 W 를 누른 채 막대를 끄는 순간을 Chrome(playwright)으로 찍어 패널만 자름",
+    "command": "python -B <runs>/sim_media_1121/scripts/finalize_png.py <source png> sim_dashboard_steer_drag_tabs.png",
+    "tools": {
+     "python": "3.13.2",
+     "pillow": "11.2.1",
+     "ffmpeg": "7.1.1-essentials_build-www.gyan.dev"
+    }
+   },
+   "privacy": {
+    "metadata": "none (다시 인코딩, 문자·EXIF·주석 블록 없음)",
+    "visual_check": {
+     "date": "2026-11-21",
+     "sha256": "3de7c7ad52a72e2dce85d41ef1347c2e55ddd7dfbe44ed41812186107b35d156",
+     "note": "조향 패널만 자른 그림을 직접 봄: 조종 활성화, 끌기 막대 왼쪽 5°, 목표·측정, 구동 출력, 입력 기한, 가변저항(SIM). IP·토큰·좌표 없음"
     }
    }
   }

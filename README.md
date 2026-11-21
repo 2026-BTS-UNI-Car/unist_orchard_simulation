@@ -14,10 +14,10 @@
 > about 772 m; 10 reached the end of the row, all stopped by the distance limit; lateral error 2.6 to 6.4 cm RMS by
 > the executor's own estimate, with no tape or survey reference). Documents are in Korean.
 
-![Gazebo 과수원에서 한 행을 따라가는 차량 카메라](docs/assets/video/row_follow_wf7_user_10x.gif)
+![Gazebo 과수원에서 한 행을 따라가는 차량 카메라](docs/assets/video/row_follow_wf17_user_10x.gif)
 
-[SIM · 자리값] Gazebo 과수원(W1) 한 행을 처음부터 열 끝까지 달린 차량 카메라(약 99 s를 10배속). 실행기는 `/scan`과 raw IMU만 보고
-조향과 구동을 정한다. 2026-11-13 자리값 차량(프로필 v0.1)으로 찍은 영상이다.
+[SIM · 자리값] Gazebo 과수원(W1) 한 행을 처음부터 열 끝까지 달린 차량 카메라(출발부터 열 끝까지 약 96 s를 10배속). 실행기는 `/scan`과 raw IMU만 보고
+조향과 구동을 정하고 열 끝(33.2 m)에서 섰다. 2026-11-21 측정 치수 차(이미지 wf17, 사용자 로컬 명령 그대로)로 찍은 영상이다.
 
 > **지금 상태 (2026-11-21).** 같은 실행기가 2026-11-20 과수원에서 조향 차를 처음 자율로 몰았다(현장 기록): 18번 출발, 약 772 m, 10번은 열 끝까지
 > (98 m 다섯 번, 38 m 다섯 번). 조향 가운데를 옮긴 뒤 끝까지 간 9번의 횡 오차는 RMS 2.6~6.4 cm였다(실행기 자체 추정, 줄자 대조 없음). 모두 운영자가 넣은
@@ -308,14 +308,16 @@ Gazebo 이미지 `ubts-steer-sim`은 `docker/Dockerfile.ubts-steer`로 개발 PC
 `docker/Dockerfile.base`는 아직 빌드·검증하지 않았다([`BASE_IMAGE_KO.md`](docs/provenance/BASE_IMAGE_KO.md)). 스택 운영 규칙은
 [`STACK_OPERATIONS_KO.md`](docs/steering/STACK_OPERATIONS_KO.md), SIM 대시보드는 [`SIM_DASHBOARD_KO.md`](docs/steering/SIM_DASHBOARD_KO.md).
 
-![SIM 대시보드 조향 화면](docs/steering/figures/sim_dashboard_steer_w1.png)
+| 수동 조종 탭 | 자율주행 탭(달리는 중) |
+|---|---|
+| ![SIM 대시보드 수동 조종 탭](docs/assets/dashboard/sim_dashboard_rover_control_w1.png) | ![SIM 대시보드 자율주행 탭](docs/assets/dashboard/sim_dashboard_autonomy_tab_w1.png) |
 
-[SIM · 자리값] SIM 대시보드(127.0.0.1:18090): LiDAR, 차량 카메라, 조향 패널(목표·측정 조향각, 구동 duty, 입력 기한). Rover Control을 탭 네 개로 나누기 전(2026-11-19 전)의
-화면이다. 지금 배치(수동 조종, 자율주행, 보정·설정, 기록 탭)는 대시보드 저장소 README에 있다.
+[SIM · 자리값] SIM 대시보드(127.0.0.1:18090), 2026-11-21 측정 치수 차(이미지 wf17). 왼쪽: Rover Control 수동 조종 탭(Gazebo LiDAR, 차량 카메라, 조향 패널, W+A로 왼쪽 10°).
+오른쪽: 자율주행 탭에서 준비 → 자율 주행 시작을 눌러 출발한 run 이 달리는 중(상태 한 줄, 주행 감시, 실행기 국소 격자, LiDAR). 그 run 은 1분 47초 동안 33.3 m를 달려 열 끝에서 섰다.
 
-<img src="docs/assets/dashboard/sim_dashboard_steer_drag.png" alt="SIM 대시보드 조향 패널, 끌어서 조향" width="240" align="right">
+<img src="docs/assets/dashboard/sim_dashboard_steer_drag_tabs.png" alt="SIM 대시보드 조향 패널, 끌어서 조향" width="240" align="right">
 
-[SIM · 자리값] 오른쪽: 측정 치수 차의 조향 패널. 막대를 끌어 왼쪽 6.5°로 조향하는 중(목표 6.5° / 측정 6.7°, 소프트 한계 16.1°).
+[SIM · 자리값] 오른쪽: 측정 치수 차의 조향 패널. 막대를 끌어 왼쪽 5°로 조향하는 중(목표 5.0° / 측정 4.9°, 소프트 한계 16.1°).
 대시보드 자체는 [대시보드 저장소](https://github.com/2026-BTS-UNI-Car/unist_orachard_dashboard#readme)에 있고 이 저장소에는 사본과 SIM 확장이 있다.
 <br clear="right">
 
