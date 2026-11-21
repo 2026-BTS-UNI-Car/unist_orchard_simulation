@@ -9,6 +9,19 @@
 | ![Gazebo 과수원에서 한 행을 따라가는 차량 카메라](docs/assets/video/row_follow_wf17_user_10x.gif) | ![과수원 100 m 열을 자율로 달린 차량 카메라](docs/steering/figures/orchard_1120/run_1626_camera_20x.gif) |
 | [SIM · 자리값] 측정 치수 차(이미지 wf17)가 W1 과수원 한 행을 열 끝(33.2 m)까지 달린 차량 카메라. 실행기는 `/scan`과 raw IMU만 본다 | [현장 기록 · 2026-11-20] 16:26에 출발한 자율주행(98 m, 337 s). 실차의 차량 카메라 |
 
+## 주요 성과
+
+| 성과 | 내용 |
+|---|---|
+| 과수원 첫 자율주행 (2026-11-20) | 같은 실행기로 18번 출발, 약 772 m. 10번은 열 끝까지 갔다(100 m 열 다섯 번, 40 m 열 다섯 번). 조향 가운데를 옮긴 뒤 끝까지 간 9번의 횡 오차는 run마다 RMS 2.6~6.4 cm, 모은 주행 틱으로 3.6 cm, ±10 cm 안 98.4 % [현장 기록, 실행기 자체 추정] |
+| 실내 복도 시험 (2026-11-19) | 15번 주행, 약 186 m. 18~22° 비스듬히 놓고 출발해도 12.5~12.9 m 안에 중심선으로 돌아왔다 [현장 기록, 실행기 자체 추정] |
+| 엔코더 없는 추정 | 휠 엔코더 없이 2D LiDAR 키프레임 ICP와 IMU만으로 거리·속도·자세를 잰다. 과수원에서 달린 거리는 GNSS 직선 거리와 GNSS 정확도(4~8 m) 수준에서, 횡 위치는 스캔에서 바로 잰 좌우 거리와 3.7 cm 안에서 맞았다 |
+| SIM과 실차가 같은 코드 | 빠른 SIM(결정적, 측정 전 기준 등록)과 Gazebo 스택이 차에서 도는 실행기 코드를 그대로 돌린다. 기본 열 추종 15/15 합격, 넓은 조건 행렬과 실패 원인까지 기록 [SIM · 자리값] |
+| 측정으로 정리한 것 | GPS 유무 비교(지금 설정에서 차이 없음, RTK FIXED만 비킨 나무 구간 30 % 이득), 속도를 정한 원인(제어 지연 상한과 그 안의 자리값 0.24 s), 15:23 치우친 주행의 원인(조향 영점 보정 한도) |
+| 문서 | [자율주행 알고리즘 기술 문서](docs/AUTONOMY_ALGORITHM_KO.md)(수식·기법 이름·매개변수), [자율주행 run 통합 분석](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md), [과수원 결과](docs/steering/ORCHARD_1120_RESULT_KO.md), [GPS 유무 비교](docs/steering/GPS_COMPARE_KO.md) |
+
+못 한 것도 같이 적는다: 현장에서 LiDAR로 열 끝을 보고 선 적은 없고(끝까지 간 주행은 모두 입력한 열 길이의 거리 한도로 섰다), 줄자·측량 기준과의 대조가 없으며, 2026-11-20의 브리지 오류 7번은 원인을 확정하지 못했다. 실차 주행 시험은 2026-11-20으로 마쳤다.
+
 ## 목차
 
 1. [한눈에](#1-한눈에)
@@ -323,7 +336,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 | 주행 | 18번, 약 772 m. 열 끝까지 10번(98 m 다섯 번, 38 m 다섯 번), 브리지 오류로 선 것 7번, Jetson 재시작 1번 |
 | 횡 오차 RMS (실행기 자체 추정) | 조향 가운데를 옮긴 뒤 끝까지 간 9번 2.6~6.4 cm. 옮기기 전 한 번은 45 cm(필요한 조향 7.8°가 영점 보정 한도 ±3°를 넘음) |
 | 다른 센서와 대조 | 거리: GNSS 직선 거리와 0~7 m 차(GNSS 정확도 4~8 m). 횡 위치: 스캔에서 바로 잰 값과 13번에서 3.7 cm 안 |
-| 속도 | 목표 0.40 m/s, 실제 0.28(100 m 열)·0.34 m/s(40 m 열) |
+| 속도 | 목표 0.45 m/s(오후)·0.40 m/s(저녁), 실제 0.28(100 m 열)·0.34 m/s(40 m 열). 속도는 제어 지연 상한이 정했다 |
 | 열 끝 정지 | 10번 모두 거리 한도(열 길이 − 2 m). LiDAR 열 끝 인식으로 선 적 없음 |
 
 | 하루의 주행 18번 | 끝까지 간 9번의 횡 위치 |
@@ -336,6 +349,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 [현장 기록 · 2026-11-20] 15:23(조향 가운데를 옮기기 전)과 16:26 주행의 기록된 LiDAR를 실행기의 자세 추정으로 놓아 다시 그린 열 지도와 차가 지나간 길(관측 전체 범위, 측량한 지도가 아니다).
 
 주행 표, 대조, 멈춘 원인 조사, 한계: [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md).
+복도와 과수원의 자율주행 33번을 한 정의로 모은 표, 속도·조향·Jetson 시간 분석, 그림 10장: [`docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md`](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md).
 
 <!-- gps-compare:begin -->
 ### 7.3 GPS 유무 비교 (2026-11-22)
@@ -372,7 +386,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 |---|---|
 | 값의 근거 | SIM 결과는 자리값 기반이다(조향 모터·가변저항·벨트·유격·질량). 현장 결과는 2026-11-20 하루, 과수원 두 열의 기록이고 횡 오차와 거리는 실행기의 자체 추정이다 |
 | 열 끝 | 현장에서 LiDAR로 열 끝을 보고 선 적이 없다(끝까지 간 10번 모두 거리 한도에서 섰다) |
-| 속도 | 목표 0.40 m/s에 못 미쳤다(0.28, 0.34 m/s) |
+| 속도 | 목표(0.45·0.40 m/s)에 못 미쳤다(0.28, 0.34 m/s). 제어 지연 상한 안의 고정 지연 0.24 s가 Jetson에서 잰 적 없는 자리값이다 |
 | 조향 영점 | 영점이 7.8° 어긋나 있던 주행에서는 보정 한도(±3°) 때문에 45 cm 치우친 채 달렸다. 영점을 다시 잡은 뒤에도 곧게 달릴 때의 가변저항 값이 주행마다 1953~2053 사이에서 달랐다 |
 | 브리지·Jetson | 2026-11-20의 브리지 오류 7번(Jetson에서 보드로 가는 명령이 잠깐 끊김)과 주행 중 Jetson 재시작 1번은 원인을 확정하지 못했다 |
 | 조향축 외란 | SMOOTH r5 흉내는 두 외란 조건 6회 가운데 5회 실패하고, 차의 감시 묶음(v2.1)으로는 6회 모두 실패한다(PWM_MAX 80으로 자리값 외력을 못 버팀). 외력 대응을 더한 SIM 제안 r6p(차의 펌웨어 아님)는 75회를 모두 통과했다([`SMOOTH_R5_DISTURBANCE_KO.md`](docs/steering/SMOOTH_R5_DISTURBANCE_KO.md)) |
@@ -404,6 +418,7 @@ UBTS_STEER_SCENE=w1_force docker compose -p ubts-steer -f compose.ubts-steer.yam
 | [`docs/RESULTS_KO.md`](docs/RESULTS_KO.md) | 모든 검사 결과 |
 | [`docs/HARDWARE_KO.md`](docs/HARDWARE_KO.md) | 하드웨어 사양과 자리값 표 |
 | [`docs/steering/ORCHARD_1120_RESULT_KO.md`](docs/steering/ORCHARD_1120_RESULT_KO.md) | 2026-11-20 과수원 첫 자율주행 결과(현장 기록) |
+| [`docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md`](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md) | 자율주행 run 33번(복도 15, 과수원 18) 통합 분석: run 표, 묶음 통계, 속도·조향·trim·Jetson 시간, 그림 10장 |
 | [`docs/steering/DESIGN_v2_KO.md`](docs/steering/DESIGN_v2_KO.md) | 설계(입력, 시작·정지, 추정기 층, 속도) |
 | [`docs/steering/DECISIONS_KO.md`](docs/steering/DECISIONS_KO.md) | 결정 기록 |
 
