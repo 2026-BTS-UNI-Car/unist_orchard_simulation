@@ -1,7 +1,7 @@
 # 조향 SIM 결정 기록
 
 - 시작: 2026-11-08
-- 설계 기준: 같은 폴더 `DESIGN_v1_KO.md`(저장소 밖 원본 `D:/Develop/UBTS/steering-sim-20261108/DESIGN_v1_KO.md`, SHA-256 `41efde0e5771b0f131b9e129cf194c5c87e3e89b99caa2cf0f3b721a9acc1c51`). 설계와 이 문서가 다르면 이 문서가 우선한다.
+- 설계 기준: 같은 폴더 `DESIGN_v1_KO.md`(저장소 밖 원본 `<작업 폴더>/DESIGN_v1_KO.md`, SHA-256 `41efde0e5771b0f131b9e129cf194c5c87e3e89b99caa2cf0f3b721a9acc1c51`). 설계와 이 문서가 다르면 이 문서가 우선한다.
 - 새 결정은 아래에 번호를 이어 붙인다. 이미 적은 결정은 지우지 않고, 바꿀 때는 새 번호로 "R#을 바꾼다"라고 적는다.
 - 2026-11-12부터 설계 기준에 v1의 개정 문서 `DESIGN_v2_KO.md`를 더한다(R30). v1과 v2가 다르면 v2가 우선하고, 둘과 이 문서가 다르면 이 문서가 우선한다.
 
@@ -33,20 +33,20 @@
 
 - 커밋과 push는 작성자·커미터 `udonsari0101 <yeappidw@gmail.com>`로만 한다. 공동 작성자 trailer, 보조 도구 이름, 생성 표시 줄을 커밋 메시지·파일 내용·파일 이름·브랜치 이름에 넣지 않는다.
 - 커밋은 한 사람(작업 통합 담당)만 한다. 나머지 작업은 파일만 바꾸고 git 쓰기 명령(commit, push, checkout, reset, stash, branch, tag, rebase, merge, cherry-pick)을 쓰지 않는다. 읽기 명령(status, diff, log, show, archive)은 쓴다.
-- push 전에 저장소 밖 검사(`D:/Develop/UBTS/steering-sim-20261108/tools/safe_push.py`)를 돈다: 새 커밋 전부의 작성자·커미터, 메시지·추가된 줄·파일 이름·브랜치 이름의 금지어, GitHub CLI와 자격 증명 관리자의 계정. 통과하면 `HEAD:refs/heads/steering-sim-20261108`로 push한다. 강제 push는 하지 않는다. 이 브랜치에는 upstream을 두지 않는다(main으로 잘못 push하지 않게).
+- push 전에 저장소 밖 검사(`<작업 폴더>/tools/safe_push.py`)를 돈다: 새 커밋 전부의 작성자·커미터, 메시지·추가된 줄·파일 이름·브랜치 이름의 금지어, GitHub CLI와 자격 증명 관리자의 계정. 통과하면 `HEAD:refs/heads/steering-sim-20261108`로 push한다. 강제 push는 하지 않는다. 이 브랜치에는 upstream을 두지 않는다(main으로 잘못 push하지 않게).
 - `tools/steer_sim/check_pins.py`가 통과해야 커밋한다.
 
 ## R4. 사용자 확인 질문은 기본값으로 진행한다
 
 - 설계 9절 Q1~Q16과 L1~L5는 모두 표의 기본값으로 진행한다. 답을 기다리며 멈추지 않는다.
-- 질문과 필요한 실측은 `VEHICLE_SPEC_REQUEST_KO.md`에 모은다. 답이 오면 새 프로필 파일을 만들고 민감도 시험을 다시 돈다(P9).
+- 질문과 필요한 실측은 `VEHICLE_SPEC_REQUEST_KO.md`에 모은다(이 질문서는 2026-11-22 공개 정리 때 저장소에서 뺐다. 정해지지 않은 값의 목록은 [`../HARDWARE_KO.md`](../HARDWARE_KO.md)). 답이 오면 새 프로필 파일을 만들고 민감도 시험을 다시 돈다(P9).
 - 특히 Q1(가변저항 = 앞바퀴 조향각 센서), Q3(지금 배선 유지, 4륜, 좌·우 같은 duty), Q4(조향 위치 루프는 ESP), Q5(같은 ESP8266, enable 묶음 A안), Q6(끊김 때 측정 위치 2 s 유지 뒤 출력 0), Q8(가변저항 각은 위치 추정 입력이 아님)을 기본으로 쓴다.
 
 ## R5. Docker와 다른 작업
 
 - 새 컨테이너·이미지·볼륨 이름은 `ubts-steer` 접두사를 쓴다. 짧은 점검은 `--rm`과 CPU·메모리 제한을 둔다.
 - 기존 `ubts-sim*` 컨테이너·볼륨, 다른 프로젝트 컨테이너(`ctf_agent_local*`), Jetson은 건드리지 않는다. `prune`, `volume prune`, `rm -v`를 쓰지 않는다.
-- `D:/Develop/UBTS/HOLD_MEASUREMENT`가 있으면 무거운 작업(시험 묶음, 빌드, 행렬)을 시작하지 않는다. `HOLD_SIM_MATRIX`(2026-10-21 생성, 다른 작업)는 지우지 않는다. 큰 조건 행렬(P8)만 미루고 작은 개발 실행은 한다(L1).
+- `<개발 폴더>/HOLD_MEASUREMENT`가 있으면 무거운 작업(시험 묶음, 빌드, 행렬)을 시작하지 않는다. `HOLD_SIM_MATRIX`(2026-10-21 생성, 다른 작업)는 지우지 않는다. 큰 조건 행렬(P8)만 미루고 작은 개발 실행은 한다(L1).
 
 ## R6. Python 버전
 

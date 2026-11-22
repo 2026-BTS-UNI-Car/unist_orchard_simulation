@@ -8,8 +8,6 @@ import hashlib
 import itertools
 import json
 import math
-from pathlib import Path
-import re
 
 import pytest
 import yaml
@@ -454,31 +452,6 @@ def test_override_pushing_a_derived_value_out_of_range_is_reported(profile):
     corner = profile.with_overrides({'track_front_m': .65, 'kingpin_width_m': .40}, label='corner')
     assert corner.value('scrub_radius_m') == pytest.approx(.125)
     assert corner.result_label()['overrides']['out_of_range'] == []
-
-
-# --- documentation consistency ------------------------------------------------------------------------------------------
-def test_spec_request_lists_every_spec_pending_name(profile):
-    doc = Path(vp.__file__).resolve().parents[3] / 'docs' / 'steering' / 'VEHICLE_SPEC_REQUEST_KO.md'
-    if not doc.is_file():
-        pytest.skip('VEHICLE_SPEC_REQUEST_KO.md is not next to this checkout')
-    text = doc.read_bytes().decode('utf-8')
-    missing = [name for name in profile.spec_pending() if '`%s`' % name not in text]
-    assert not missing, missing
-
-
-def test_spec_request_lists_every_new_placeholder(profile):
-    """RP-08: every value the profile marks "(새 자리값)" (no number in the design table) is listed in section 3.1."""
-    doc = Path(vp.__file__).resolve().parents[3] / 'docs' / 'steering' / 'VEHICLE_SPEC_REQUEST_KO.md'
-    if not doc.is_file():
-        pytest.skip('VEHICLE_SPEC_REQUEST_KO.md is not next to this checkout')
-    text = doc.read_bytes().decode('utf-8')
-    match = re.search(r'\n### 3\.1 [^\n]*\n(.*?)(?=\n## |\n### |\Z)', text, re.S)
-    assert match, 'section 3.1 (new placeholder values) missing'
-    section = match.group(1)
-    marked = [row['name'] for row in profile.provenance_table() if '(새 자리값)' in (row['note'] or '')]
-    assert len(marked) >= 10
-    missing = [name for name in marked if '`%s`' % name not in section]
-    assert not missing, missing
 
 
 # --- value shapes (RP-04) -------------------------------------------------------------------------------------------

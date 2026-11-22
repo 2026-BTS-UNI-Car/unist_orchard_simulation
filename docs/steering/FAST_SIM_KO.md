@@ -3,7 +3,7 @@
 - 작성: 2026-11-09. 설계 v1 8.3 P2 뒷부분(장면 명세, 기동 대본, W0, 실행기), 7.2 A1(F)·A4(F)·A8·A11, P1 셋째 씨앗 시험, probe 재실행.
 - 2026-11-09 리뷰 고침(작업 표지 fix_wf2b): 봉인 열 쌍 역방향 거부(R10), A4(F) release 개정 1 표본과 판정(R4), 건너뛰기 식별값(R5), trace 메타의 장면 SHA(R6), 하네스 첫 시간 표본(R7), 하네스 발자국(R8), `steer_target_rad` 표시(R9), 저장소 안 run·빌드 폴더 거부(R12). 고친 뒤 기록은 `runs/wf2b/fix_wf2b/`에 있다.
 - 코드: `sim/ubts/steering/{scene_spec,maneuvers,flat_world,fast_sim}.py`. 시험: `sim/ubts/test_steering_{scene_spec,maneuvers,fast_sim,seed_regressions}.py`.
-- 모든 수치는 자리값 기반 SIM 결과다. 현장 검증이 아니다. 실행 기록은 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/wf2b/p2_core/`에 있다.
+- 모든 수치는 자리값 기반 SIM 결과다. 현장 검증이 아니다. 실행 기록은 저장소 밖 `<runs>/wf2b/p2_core/`에 있다.
 - 평가기(`evaluate_steer.py`)는 이 문서 범위 밖이다. 아래 trace 형식 위에 만든다.
 
 ## 1. 장면 명세 (`scene_spec.py`)

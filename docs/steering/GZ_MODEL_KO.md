@@ -100,7 +100,7 @@ python3 -B -m steering.gz_assemble --scene w1_force --out /runs/scenes/w1_force
 
 - `docker/Dockerfile.ubts-steer`. 기반은 `ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29@sha256:6209168a3507…`(이 PC에서 RepoDigest = 이미지 ID). 빌드 전후 기반 ID가 같은지 확인했다.
 - apt·pip는 쓰지 않는다. 기반 이미지의 옛 소스(`/opt/ubts/dashboard`, `sim/ubts`, `ros2_ws/src/orchard_gazebo`, `orchard_navigation`, `compose.ubts*.yaml`)를 지우고 브랜치 소스를 복사한다. 그래서 브랜치에서 지운 파일이 남지 않는다.
-- 이미지 g++로 대시보드 raster 커널(`Dockerfile.ubts`와 같은 단계)과 조향 네이티브 lockstep 실행 파일(결정 R1 (d))을 만든다. 네이티브 빌드가 실패해도 이미지 빌드는 이어지고 `/opt/ubts/steer_native_build/BUILD_RESULT.json`에 남는다.
+- 이미지 g++로 대시보드 raster 커널(옛 기반 정의 `Dockerfile.ubts`와 같은 단계)과 조향 네이티브 lockstep 실행 파일(결정 R1 (d))을 만든다. 네이티브 빌드가 실패해도 이미지 빌드는 이어지고 `/opt/ubts/steer_native_build/BUILD_RESULT.json`에 남는다.
 - `/opt/ubts/STEER_IMAGE_MANIFEST.json`: 기반 이미지 참조·ID, 소스 커밋, `git status --porcelain` SHA-256, 파일별 SHA-256, 네이티브 빌드 결과, `firmware_build_id`.
 - 펌웨어 소스(2026-11-09 고침, 리뷰 F8): `firmware/ubts_steer_v3`(P3)를 dockerignore 허용 목록(`!firmware/`, `!firmware/**`)과 `COPY firmware /opt/ubts/firmware`에 넣었다. manifest 파일 목록에도 들어간다. 네이티브 빌드 뒤 `BUILD_RESULT.json`에 `firmware_build_id`가 없으면 이미지 빌드가 멈춘다(`UBTS_STEER_REQUIRE_FIRMWARE=1` 기본, 0이면 펌웨어 모드 없는 이미지를 허용하고 manifest에 적는다). 처음에는 펌웨어 없이 빌드되어도 이미지 빌드가 이어졌고, firmware 모드는 실행 때 `firmware mode needs the firmware sources`로 멈췄을 것이다.
   - 이번에는 새 이미지를 만들지 않았다(이 브랜치의 새 이미지 ID 두 개를 이미 썼다). 그래서 Dockerfile 고침은 빌드로 확인하지 않았다(미시험). 확인한 것: 같은 dockerignore로 BuildKit 문맥만 꺼낸 시험(이미지를 만들지 않는 `--output type=local`)에서 `firmware/ubts_steer_v3`가 문맥에 들어간다(11절). 그리고 이미지의 g++로 `/work/firmware`가 있는 작업 트리에서 네이티브 빌드를 하면 `firmware_build_id` 73575045가 들어간다(fix_wf2b `acc/a25_native` 결과의 빌드 기록).
@@ -113,10 +113,10 @@ $base = 'ubts-sim-clean-tenth:20261008-1791399576735742400-14657b29'
 $baseId = docker image inspect --format '{{.Id}}' $base
 $status = git status --porcelain | Out-String
 $sha = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($status))).Replace('-','').ToLower()
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py acquire --label <label> --gib 4
+python -I <작업 폴더>/tools/docker_budget.py acquire --label <label> --gib 4
 docker build -f docker/Dockerfile.ubts-steer --build-arg "BASE_IMAGE_ID=$baseId" `
   --build-arg "SOURCE_COMMIT=$(git rev-parse HEAD)" --build-arg "SOURCE_STATUS_SHA256=$sha" -t ubts-steer-sim:p5 .
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release --label <label>
+python -I <작업 폴더>/tools/docker_budget.py release --label <label>
 docker image inspect --format '{{.Id}}' $base      # 빌드 전과 같은지 본다
 ```
 
@@ -147,15 +147,15 @@ python3 -B -m steering.gz_probe report --out /runs/acc                          
 - 컨테이너 실행 예(D3D12 카메라 경로, `compose.ubts.gpu.yaml`과 같은 설정):
 
 ```powershell
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py acquire --label <label> --gib 4
+python -I <작업 폴더>/tools/docker_budget.py acquire --label <label> --gib 4
 docker run --rm --cpus 4 --memory 4g --network none --name ubts-steer-<label> `
   --device /dev/dxg -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro `
   -v /mnt/host/wslg/.X11-unix:/tmp/.X11-unix:ro `
   -e UBTS_RENDER_ENGINE=ogre -e UBTS_HEADLESS_RENDERING=0 -e LIBGL_ALWAYS_SOFTWARE=0 -e GALLIUM_DRIVER=d3d12 `
   -e MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel -e DISPLAY=:0 -e EGL_PLATFORM=x11 -e LD_LIBRARY_PATH=/usr/lib/wsl/lib `
-  -e GZ_PARTITION=ubts-steer-p5 -v "D:/Develop/UBTS/steering-sim-20261108/runs/<folder>:/runs" `
+  -e GZ_PARTITION=ubts-steer-p5 -v "<runs>/<folder>:/runs" `
   ubts-steer-sim:p5 python3 -B -m steering.gz_probe rtf --out /runs/a10 --duration 240 --camera both
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release --label <label>
+python -I <작업 폴더>/tools/docker_budget.py release --label <label>
 ```
 
 - GPU 없이 소프트웨어 렌더링이면 `-e LIBGL_ALWAYS_SOFTWARE=1 -e EGL_PLATFORM=surfaceless -e GALLIUM_DRIVER=llvmpipe`(기본 `ogre2`, headless)를 준다. 카메라가 없는 장면이나 fixture 묶음은 GPU 설정이 필요 없다.
@@ -183,7 +183,7 @@ python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release -
 
 ## 7. 합격 검사 결과
 
-- 최종 실행: 이미지 `ubts-steer-sim:p5`(ID `sha256:e440445947ff…`, 기반 `6209168a3507…`, 소스 커밋 `d6f0eac` + 작업 트리 변경, manifest의 파일 SHA 합 `72f9c762…`), 2026-11-09. 출력은 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/wf2b/p5_model/acc3/`(`ACCEPTANCE_P5.json`, 묶음별 `result.json`, `logs.npz`, 그림).
+- 최종 실행: 이미지 `ubts-steer-sim:p5`(ID `sha256:e440445947ff…`, 기반 `6209168a3507…`, 소스 커밋 `d6f0eac` + 작업 트리 변경, manifest의 파일 SHA 합 `72f9c762…`), 2026-11-09. 출력은 저장소 밖 `<runs>/wf2b/p5_model/acc3/`(`ACCEPTANCE_P5.json`, 묶음별 `result.json`, `logs.npz`, 그림).
 - 같은 소스를 기반 이미지에 붙여 먼저 돌린 결과(`acc1/`)와 비교했다. `a1_kinematic`, `a1_force`, `a4_drive`, `a21_limits`, `a25_l0`, `a25_native`의 기록(`logs.npz`)은 비트까지 같았다. `a1_ackermann`(표준 `AckermannSteering`)만 조금 달랐다: R 차이는 1e-9 m 수준, 과도 구간 관절 속도 차이는 최대 0.18 rad/s. 그 플러그인 안 어딘가가 실행마다 다르다고 본다(원인은 찾지 않았다). 교차 확인 전용이라 판정에는 영향이 없다.
 - 자리값 기반 SIM 결과다. 현장 검증이 아니다.
 
@@ -348,7 +348,7 @@ python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release -
 
 - 작업 표지 g_update(WF-3b). 결정 R13-1(바퀴 충돌 기본을 구로), R14(프로필 v0.1), SIM_ACCEPTANCE 개정 2·3·5를 따른다.
 - 모든 수치는 자리값 기반 SIM 결과다. 현장 검증이 아니다. v0.1의 A4(G) release 통과는 독립 검증이 아니라 맞춤 확인이다(개정 5). v0의 A4(G) release 실패(0.943 m)는 그대로 남는다(7·11절).
-- 원 기록은 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/wf3b/g_update/`에 있다. 묶음별 `result.json`, `logs.npz`, 세 변형 비교 `SUMMARY_G.json`, A12 입력 `A12_INPUT_G.json`, 빌드 기록 `build_*.log`.
+- 원 기록은 저장소 밖 `<runs>/wf3b/g_update/`에 있다. 묶음별 `result.json`, `logs.npz`, 세 변형 비교 `SUMMARY_G.json`, A12 입력 `A12_INPUT_G.json`, 빌드 기록 `build_*.log`.
 
 ### 12.1 바뀐 코드
 
@@ -382,12 +382,12 @@ python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release -
 - 실행(컨테이너, 소스를 붙이지 않음):
 
 ```powershell
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py acquire --label <label> --gib 4
+python -I <작업 폴더>/tools/docker_budget.py acquire --label <label> --gib 4
 docker run --rm --cpus 4 --memory 4g --network none --name ubts-steer-<label> -w /opt/ubts/sim/ubts `
   -e UBTS_STEER_SOURCE_COMMIT=<commit> -e UBTS_STEER_SOURCE_STATUS_SHA256=<status sha> -v <runs 폴더>:/runs `
   ubts-steer-sim:wf3 python3 -B -m steering.gz_probe run a1_kinematic a1_force a4_drive a21_limits a25_l0 a25_native `
   --out /runs/acc
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release --label <label>
+python -I <작업 폴더>/tools/docker_budget.py release --label <label>
 ```
 
   - 원통 비교: `... run <묶음> --out /runs/acc_cyl --model-option wheel_collision=cylinder`.

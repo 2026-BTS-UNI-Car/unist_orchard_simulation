@@ -56,7 +56,7 @@
 | J3 | 2026-10-10 | 정지, 상태 60회 조회 두 번 | 마지막 정상 결과의 정합 17.18 ms, prepare 23.63 ms, commit 6.95 ms. 시험 자체는 신선도 실패로 끝났다 | [대시보드] `NATIVE_LATENCY_PROGRESS_20261010.md` 29행 |
 | J5 | 2026-10-13 | 정지, 관찰 180 s, 500 ms 폴링 | 아래 표 | [대시보드] `NATIVE_MAP_CONTINUITY_20261013.md` 5.3절 |
 | J5b | 2026-10-13 | 정지 180 s, bridge 판정 설치 뒤 | scan 헤더→웹 p50/p90 242/295 ms(설치 전 248/293 ms). 세대 간격 최대 3.5 s(설치 전 4.0 s) | 같은 문서 5.7절 |
-| J7 | 2026-10-24~25 | 정지, 모터 없음 25 s, 관측 planner 교체 뒤 | 처리율 3.289 Hz 통과. 신선도 기준 FAIL | `D:/Develop/UBTS/single-row-20261102/jetson/INSTALL_PLAN_KO.txt` 77행 |
+| J7 | 2026-10-24~25 | 정지, 모터 없음 25 s, 관측 planner 교체 뒤 | 처리율 3.289 Hz 통과. 신선도 기준 FAIL | `<개발 폴더>/single-row-20261102/jetson/INSTALL_PLAN_KO.txt` 77행 |
 
 J5 표(같은 문서 5.3절):
 
@@ -110,7 +110,7 @@ J5 표(같은 문서 5.3절):
 | native 관찰 컨테이너 | 2 CPU·512 MiB, BLAS 단일 스레드, 지도 용량 250,000셀(0.1 m) | 2026-10-13 | 설정 | [대시보드] `NATIVE_MAP_CONTINUITY_20261013.md` 1절, 325행 |
 | 카메라 드라이버 CPU | 약 1.45~1.55코어. 원본 JPEG 29.7 fps | 2026-10-13 | 정지 | [대시보드] `CAMERA_MJPEG_PASSTHROUGH_20261013.md` 81, 87행 |
 | 영상 후처리 | 138 s 영상(1080p 3,939프레임) 인코딩에 1,013 s. 녹화·무장·주행·실시간 매핑 중에는 멈춘다 | 2026-10-13 | 정지 | [대시보드] `RESUME_OPERATIONS_20261013.md` 48행 |
-| 실행기 묶음의 Python 패키지 | numpy 1.21.5, scipy 1.8.0 | 2026-10-23 | 설치 검사 | `D:/Develop/UBTS/single-row-20261102/jetson/INSTALL_PLAN_KO.txt` 2.1절 |
+| 실행기 묶음의 Python 패키지 | numpy 1.21.5, scipy 1.8.0 | 2026-10-23 | 설치 검사 | `<개발 폴더>/single-row-20261102/jetson/INSTALL_PLAN_KO.txt` 2.1절 |
 
 - 코어 수는 읽은 문서에 없다. 제품 사양으로는 6코어지만 이번에 확인하지 않았다.
 - 실행기와 새 격자 층에 쓸 수 있는 CPU는 1~1.5코어 정도로 어림했다([조사] 3절). 측정값이 아니다.
@@ -122,7 +122,7 @@ J5 표(같은 문서 5.3절):
 | ID | 날짜 | 조건 | 값 | 출처 |
 |---|---|---|---|---|
 | P1 | 2026-10-22 | PC, 재생. 10/10 전체 17.6k 스캔, 직렬 1프로세스 | 추정기 on_scan p50 / p99 / 최대 10.8 / 33.5 / 77.0 ms. 병렬 2개: 11.2 / 65.1 / 171 ms. 병렬 3개: 8.2 / 50.2 / 117 ms | [C1 보고서] 4절(188~196행) |
-| P2 | 2026-11-02 | PC, 차동 단일열 SIM, 작업자 12개 동시 | 실행기 한 걸음 p50 3.98~5.31 ms, p99 56.23~59.57 ms, p99.9 84.14~125.89 ms, 최대 412.4~579.8 ms. 작업자 2개면 p99 약 12 ms | `D:/Develop/UBTS/single-row-20261102/DEV_REPORT_KO.txt` 5절(339~345행) |
+| P2 | 2026-11-02 | PC, 차동 단일열 SIM, 작업자 12개 동시 | 실행기 한 걸음 p50 3.98~5.31 ms, p99 56.23~59.57 ms, p99.9 84.14~125.89 ms, 최대 412.4~579.8 ms. 작업자 2개면 p99 약 12 ms | `<개발 폴더>/single-row-20261102/DEV_REPORT_KO.txt` 5절(339~345행) |
 | P3 | 2026-11-09 | PC, 조향 실행기 고리 대본 59개(SIM) | 작업자 1: p50 1.26 ms, p99 12.1 ms(대본별 중앙값), p99 최악 82.3 ms, 최대 137 ms. MCU 한 틱 평균 0.18 ms(작업자 6이면 0.27 ms) | [조향 문서] `EXECUTOR_STEER_KO.md` 6절 A11 |
 | P3b | 2026-11-09 | 같은 경로, 조용할 때와 부하 클 때 | 조용할 때 p50 1.80 ms, 최대 56.3 ms. 부하 클 때 최대 567 ms | [조향 문서] `DECISIONS_KO.md` R18(212행) |
 | P4 | 2026-11-09 | PC, 빠른 SIM 플랜트(SIM) | plant 한 걸음 p50 16~166 µs. 추정기를 넣은 하네스 최대 6.3~6.9 ms(10 Hz LiDAR·추정기 스텝) | [조향 문서] `FAST_SIM_KO.md` 6절 |
@@ -135,7 +135,7 @@ J5 표(같은 문서 5.3절):
 
 - 날짜: 2026-11-11에 셌다. 기록은 2026-10-10 과수원 수동 주행 7개다.
 - 조건: 기록. 수신 시각 간격과 수신기가 보고한 값의 통계다. 좌표는 읽기만 하고 출력하지 않았다.
-- 출처: 스크립트 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/perception_control/probe_gnss_gaps.py`, 결과 같은 폴더 `probe_gnss_gaps.out.json`. 입력은 `D:/Develop/UBTS/orchard-realdata-audit/20261010-field-manual/` 아래 10/10 기록의 압축 추출본 7개(`*.drive.json.gz`)다. 이 저장소의 좌표 검사 규칙에 걸리지 않게 GNSS 자료 폴더 이름은 적지 않았다. 다시 세려면 그 폴더를 인자로 `python -I probe_gnss_gaps.py <폴더>`를 돌린다(좌표는 출력하지 않는다).
+- 출처: 스크립트 `<runs>/replan_20261111/perception_control/probe_gnss_gaps.py`, 결과 같은 폴더 `probe_gnss_gaps.out.json`. 입력은 `<개발 폴더>/orchard-realdata-audit/20261010-field-manual/` 아래 10/10 기록의 압축 추출본 7개(`*.drive.json.gz`)다. 이 저장소의 좌표 검사 규칙에 걸리지 않게 GNSS 자료 폴더 이름은 적지 않았다. 다시 세려면 그 폴더를 인자로 `python -I probe_gnss_gaps.py <폴더>`를 돌린다(좌표는 출력하지 않는다).
 
 ### 6.1 센서 간격 (s)
 
@@ -166,7 +166,7 @@ J5 표(같은 문서 5.3절):
 | 051127 | 895 | 전부 autonomous | 1.00 / 2.02 | 10 | 0 | 4.4 / 5.3 / 6.2 | 0.52 | 16~20 |
 
 - 모든 행이 유효 표시였다. 이 기록들에는 긴 끊김이 없었다. 끊김은 SIM에서 넣어 시험해야 한다.
-- 열 간격은 3.6~4.1 m다(`D:/Develop/UBTS/single-row-20261102/PREREG.json` classes.NOMINAL). 수평 정확도 p50 5.3~10.0 m는 이보다 크다. 이 GNSS로는 행간 안 위치도, 어느 열인지도 가릴 수 없다.
+- 열 간격은 3.6~4.1 m다(`<개발 폴더>/single-row-20261102/PREREG.json` classes.NOMINAL). 수평 정확도 p50 5.3~10.0 m는 이보다 크다. 이 GNSS로는 행간 안 위치도, 어느 열인지도 가릴 수 없다.
 - 속도 정확도 p50 0.43~0.56 m/s는 목표 속도 0.40 m/s보다 크다. 목표 속도에서는 GNSS 속도와 진행 방향을 쓸 수 없다.
 
 ---
@@ -279,11 +279,11 @@ J5 표(같은 문서 5.3절):
 
 | 약칭 | 위치 |
 |---|---|
-| [조사] | `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_perception_control.txt` 2절(2-1~2-5), 3절, 4절. 2026-11-11 조사. 아래 원 문서를 인용했고, 이 문서를 쓰며 원 문서와 다시 대조했다 |
-| [PWM] | `D:/Develop/UBTS/steering-sim-20261108/runs/pwm_20261112/REPORT_KO.md`(2026-11-12, PW-01~PW-05) |
+| [조사] | `<runs>/replan_20261111/RESULT_perception_control.txt` 2절(2-1~2-5), 3절, 4절. 2026-11-11 조사. 아래 원 문서를 인용했고, 이 문서를 쓰며 원 문서와 다시 대조했다 |
+| [PWM] | `<runs>/pwm_20261112/REPORT_KO.md`(2026-11-12, PW-01~PW-05) |
 | [대시보드] | 대시보드 저장소 `unist_orachard_dashboard` main `3372139`의 `docs/` 아래 파일 |
-| [V5 보고서] | `D:/Develop/UBTS/_archive/differential_work/*-field-autonomy-20261022/V5_ARM_FULL_REPORT_20261023.md` |
-| [C1 보고서] | `D:/Develop/UBTS/_archive/differential_work/*-field-autonomy-20261022/gate/C1_GATE_REPORT.txt` |
+| [V5 보고서] | `<보관 폴더>/differential_work/*-field-autonomy-20261022/V5_ARM_FULL_REPORT_20261023.md` |
+| [C1 보고서] | `<보관 폴더>/differential_work/*-field-autonomy-20261022/gate/C1_GATE_REPORT.txt` |
 | [실행기 설정] | 이 저장소 `tools/row_executor/config.py` |
 | [제어기 기본값] | 이 저장소 `sim/ubts/closed_loop/controllers.py` |
 | [조향 문서] | 이 저장소 `docs/steering/` |

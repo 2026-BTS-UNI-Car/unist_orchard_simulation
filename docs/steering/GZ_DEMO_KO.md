@@ -52,9 +52,9 @@
 3단계(2026-11-09, 10절)부터는 `ubts-steer-sim:wf3`의 자기 소스로 돈다. 아래 명령에서 작업 트리 마운트(`-v …:/work:ro`)와 `PYTHONPATH`, `UBTS_STEER_BUILD_DIR`를 빼고 `-w /opt/ubts/sim/ubts`를 준다(이미지 안 네이티브 빌드 `/opt/ubts/steer_native_build`를 그대로 쓴다). 컨테이너에는 `UBTS_STEER_SOURCE_COMMIT`, `UBTS_STEER_SOURCE_STATUS_SHA256`을 넘긴다(`GZ_MODEL_KO.md` 5절).
 
 ```powershell
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py acquire --label <label> --gib 4
+python -I <작업 폴더>/tools/docker_budget.py acquire --label <label> --gib 4
 docker run --rm --cpus 4 --memory 4g --network none --name ubts-steer-<label> `
-  -v D:/Develop/UBTS/sim-wt-steering-20261108:/work:ro -v <출력 폴더>:/runs `
+  -v <개발 폴더>/sim-wt-steering-20261108:/work:ro -v <출력 폴더>:/runs `
   -v C:/Windows/Fonts/NanumGothic.ttf:/fonts/NanumGothic.ttf:ro `
   -e PYTHONPATH=/opt/ubts/raydeps:/work/dashboard:/work/sim/ubts -e PYTHONDONTWRITEBYTECODE=1 `
   -e UBTS_STEER_BUILD_DIR=/runs/build -e UBTS_DEMO_FONT=/fonts/NanumGothic.ttf -w /work/sim/ubts `
@@ -63,7 +63,7 @@ docker run --rm --cpus 4 --memory 4g --network none --name ubts-steer-<label> `
   -e LIBGL_ALWAYS_SOFTWARE=0 -e GALLIUM_DRIVER=d3d12 -e MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel -e DISPLAY=:0 `
   -e EGL_PLATFORM=x11 -e LD_LIBRARY_PATH=/usr/lib/wsl/lib -e GZ_PARTITION=ubts-steer-demo `
   ubts-steer-sim:p5 bash -c "<아래 명령>"
-python -I D:/Develop/UBTS/steering-sim-20261108/tools/docker_budget.py release --label <label>
+python -I <작업 폴더>/tools/docker_budget.py release --label <label>
 ```
 
 컨테이너 안 명령:

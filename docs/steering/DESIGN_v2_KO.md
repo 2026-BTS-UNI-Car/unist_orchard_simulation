@@ -5,7 +5,7 @@
 - v1 파일 `DESIGN_v1_KO.md`(SHA-256 `41efde0e5771b0f131b9e129cf194c5c87e3e89b99caa2cf0f3b721a9acc1c51`)는 바꾸지 않았다. 결정 기록과 합격 기준이 이 SHA를 가리킨다.
 - 읽는 법: v1과 이 문서를 같이 읽는다. 둘이 다르면 이 문서가 우선한다. 이 문서와 `DECISIONS_KO.md`가 다르면 결정 기록이 우선한다(결정 기록 머리말의 규칙 그대로).
 - 각 개정에는 바꾸는 v1 절(행 번호), v1 규칙, 새 규칙, 이유, 맡는 작업을 적었다. 결정 기록 번호는 R30~R38이다. 합격 기준 개정은 `SIM_ACCEPTANCE_KO.md` 개정 30~32다.
-- 근거: 2026-11-11 사용자 요청과 2026-11-12 계획 승인(계획 문서 `todo.md` 1절 2~21번, 4절 가1~가4, 나10·나11·나16). 조사 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_perception_control.txt`, `RESULT_steer_status.txt`. PWM 분석 `D:/Develop/UBTS/steering-sim-20261108/runs/pwm_20261112/REPORT_KO.md`. 지연 값은 `TIMING_BASELINE_KO.md`.
+- 근거: 2026-11-11 사용자 요청과 2026-11-12 계획 승인(계획 문서 `todo.md` 1절 2~21번, 4절 가1~가4, 나10·나11·나16). 조사 `<runs>/replan_20261111/RESULT_perception_control.txt`, `RESULT_steer_status.txt`. PWM 분석 `<runs>/pwm_20261112/REPORT_KO.md`. 지연 값은 `TIMING_BASELINE_KO.md`.
 - 표기는 v1과 같다: [확인] 파일·기록으로 확인, [추정] 근거에서 유추, [가정] SIM 가정값, [제안] 이 문서의 설계, [미정] 사용자 답이나 실측이 필요. 근거가 약한 숫자는 '자리값'이라고 적는다.
 - 이 문서에는 GNSS 좌표와 접속 정보가 없다.
 
@@ -387,7 +387,7 @@ v_ref = min(v_cruise, v_scan, v_blind, v_map, v_stop, v_curv, v_lat, v_sat, v_qu
 ## 7. 근거
 
 - 계획 `todo.md` 1절(요청 2~21번), 4절 가1~가4, 나10·나11·나16, 다1·다7, 6.4절(ST-08, PC-02, PC-05~PC-14).
-- 조사 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_perception_control.txt`: 1절(지금 사슬), 4a~4e절(네 층, 조향, 속도 조절기, 열 끝·이상 처리), 5절(현장 조정 값), 8절(규칙과 달라지는 곳), PC-01.
-- 조사 `D:/Develop/UBTS/steering-sim-20261108/runs/replan_20261111/RESULT_steer_status.txt`: 조향 하드웨어 항목, 목표 비교 항목, ST-08.
-- PWM 분석 `D:/Develop/UBTS/steering-sim-20261108/runs/pwm_20261112/REPORT_KO.md`.
+- 조사 `<runs>/replan_20261111/RESULT_perception_control.txt`: 1절(지금 사슬), 4a~4e절(네 층, 조향, 속도 조절기, 열 끝·이상 처리), 5절(현장 조정 값), 8절(규칙과 달라지는 곳), PC-01.
+- 조사 `<runs>/replan_20261111/RESULT_steer_status.txt`: 조향 하드웨어 항목, 목표 비교 항목, ST-08.
+- PWM 분석 `<runs>/pwm_20261112/REPORT_KO.md`.
 - 이 저장소: `tools/row_executor/config.py`(신선도 문턱, `hold_timeout_s`, `send_hz`, `scan_latency_s`), `tools/row_executor/operator_http.py` 16·32행(신호 100 ms, 화면 가림 때 해제), `sim/ubts/closed_loop/controllers.py` 122~126행(정지 모형), `docs/steering/EXECUTOR_STEER_KO.md` 3·7절, `DECISIONS_KO.md` R18, `TIMING_BASELINE_KO.md`.

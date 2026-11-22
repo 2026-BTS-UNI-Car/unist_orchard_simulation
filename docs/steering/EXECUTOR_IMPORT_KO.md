@@ -21,7 +21,7 @@
 
 ## 2. 기준선 (저장소 밖)
 
-- 추출: `git archive 546fa8c tools/row_executor sim` → `D:/Develop/UBTS/steering-sim-20261108/baseline_546fa8c_exec/src/` (343개 파일). 단일열 worktree에서는 아무것도 돌리지 않았다. `python -B`로만 돌렸다.
+- 추출: `git archive 546fa8c tools/row_executor sim` → `<작업 폴더>/baseline_546fa8c_exec/src/` (343개 파일). 단일열 worktree에서는 아무것도 돌리지 않았다. `python -B`로만 돌렸다.
 - 환경: Windows 11, Python 3.13.2, numpy 2.2.6, scipy 1.18.0, pytest 9.1.1.
 - 대시보드 `rover_control_core.py`: 기준선은 실차 대시보드 사본(`dashboard-live-raw`)을 읽었다. SHA-256 `5cc86b226e880406a849ad958ba92812e6c4f2c03e2b427592209f0b1680b92e`. 이 저장소의 `dashboard/scripts/rover_control_core.py`도 같은 값이다.
 
@@ -244,7 +244,7 @@
 
 - 설정 파일 형식은 `external_paths`와 같다(`schema` `ubts.row_executor.sim_paths.v1`, 값은 경로 문자열 또는 `{"nt": …, "posix": …}`, 상대 경로는 파일 폴더 기준, 모르는 키·다른 schema·틀린 형식은 오류).
 - 새 키를 `closed_loop/external_paths.py`에 넣지 않은 이유: 그 파일은 이 작업의 소유가 아니고, 모르는 키를 거부하므로 `paths.json`에 키를 더하면 그 파일을 쓰는 모든 코드가 멈춘다. 그래서 옆 파일을 따로 둔다.
-- 이 PC의 설정: `D:/Develop/UBTS/steering-sim-20261108/config/row_executor_paths.json`(저장소 밖). `single_row_prereg`, `field_manual_1010`(nt·posix), `field_manual_1010_drive`(nt·posix), `ffmpeg`·`posix_shell`(nt)을 적었다. `dashboard_dir`는 적지 않아 저장소의 `dashboard/`를 쓴다. `UBTS_STEER_PATHS=D:/Develop/UBTS/steering-sim-20261108/config/paths.json`만 주면 옆 파일이 함께 읽힌다.
+- 팀 개발 PC의 설정: `<작업 폴더>/config/row_executor_paths.json`(저장소 밖, 자리표시는 [`PATHS_KO.md`](PATHS_KO.md) 0절). `single_row_prereg`, `field_manual_1010`(nt·posix), `field_manual_1010_drive`(nt·posix), `ffmpeg`·`posix_shell`(nt)을 적었다. `dashboard_dir`는 적지 않아 저장소의 `dashboard/`를 쓴다. `UBTS_STEER_PATHS=<작업 폴더>/config/paths.json`만 주면 옆 파일이 함께 읽힌다.
 - 대시보드 기본값을 실차 사본에서 이 저장소의 `dashboard/`로 바꿨다. 두 `rover_control_core.py`의 SHA-256이 같다(2절). 설계 2.4대로 SIM 저장소 사본이 원본이고 실차 사본과는 A26으로 비교한다. 실차 사본을 쓰려면 `UBTS_DASH_DIR`를 준다. `single_row_sim`의 `RUN_MANIFEST.json`에는 읽은 파일의 SHA가 전과 같이 남는다.
 - 남긴 절대 경로: Jetson·컨테이너 실행 경로(`/run/ubts-rover/control.sock`, `/opt/row_executor`, `/etc/row_executor`, `/var/log/row_executor`, Jetson 홈 아래 녹화 폴더)는 실차 규약이라 그대로다. vendor `closed_loop/single_row.py` 3행 문서열의 목표 문서 절대 경로는 SIM 트리 `sim/ubts/closed_loop/single_row.py`와 바이트가 같아야 해서 고치지 않았다(11절).
 
@@ -390,7 +390,7 @@ WSL 3.10 결과:
 PowerShell, 작업 트리 루트에서:
 
 ```powershell
-$env:UBTS_STEER_PATHS = 'D:/Develop/UBTS/steering-sim-20261108/config/paths.json'   # 지도·카탈로그·hold + 옆의 row_executor_paths.json
+$env:UBTS_STEER_PATHS = '<작업 폴더>/config/paths.json'   # 지도·카탈로그·hold + 옆의 row_executor_paths.json
 python -B tools/row_executor/sim_in_loop.py --out <runs>/sil.json --seeds 0 --variants exec_field `
     --scenarios nominal_open_end --workers 2
 python -B tools/row_executor/single_row_sim.py --out-dir <runs>/sr_smoke --run-kind smoke `
@@ -399,8 +399,8 @@ python -B tools/row_executor/single_row_sim.py --out-dir <runs>/sr_smoke --run-k
 
 - `sim_in_loop`은 시작할 때 hold 폴더를 본다(`hold_dir`가 없으면 오류로 멈춘다). `HOLD_MEASUREMENT`가 있으면 기다린다.
 - `single_row_sim`은 PREREG.json(`single_row_prereg`), 카탈로그와 10/10 지도(`external_paths`)가 필요하다. 출력 폴더는 저장소 밖에 둔다. 봉인 회랑(042301 c01/c04/c07, 양방향)은 쓰지 않는다.
-- WSL: `export UBTS_STEER_PATHS=/mnt/d/Develop/UBTS/steering-sim-20261108/config/paths.json`. 단 3.10은 scipy 때문에 이 두 도구를 돌릴 수 없다.
-- Docker: 자료와 설정을 컨테이너 안 같은 `/mnt/d/...` 경로에 읽기 전용으로 붙이고 `-e UBTS_STEER_PATHS=...`를 준다.
+- WSL: `export UBTS_STEER_PATHS=<작업 폴더(WSL)>/config/paths.json`. 단 3.10은 scipy 때문에 이 두 도구를 돌릴 수 없다.
+- Docker: 자료와 설정을 컨테이너 안의 같은 WSL 경로에 읽기 전용으로 붙이고 `-e UBTS_STEER_PATHS=...`를 준다.
 - 실행기 시험은 파일마다 따로 돈다(2.1절): `cd tools/row_executor/tests; python -B -m pytest -q -p no:cacheprovider --basetemp=<runs>/pt <파일 하나>`.
 
 ## 11. 시험하지 않은 것과 남은 일

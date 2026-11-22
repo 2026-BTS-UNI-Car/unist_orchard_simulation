@@ -6,7 +6,7 @@
 - 2026-11-09 통합(P3 통합 작업): 펌웨어, 적합성 대본, 호스트를 서로 맞춰 보고 규격이 두 가지로 읽히던 곳을 정했다(12.1절 48~65). 본문의 해당 줄에는 결정 번호를 붙였다. 호스트↔펌웨어 T1 결과는 11.4절 끝에 있다.
 - 2026-11-09 검토 반영(P3 고침 작업): 펌웨어·호스트 검토에서 확인된 결함을 고치며 정한 것을 12.1절 66~77에 적었다. 송신 펌프가 실기 코어에서 기다리지 않게 하고 핀 쓰기를 송신보다 앞에 둔다(66), RX 고리는 옛 바이트를 버린다(67), THERMAL 조건 중 JOG·POL 거절(68), TRACK은 따라가는 서보를 세지 않는다(69), DRV_STUCK 관찰 규칙(70), POLARITY·DRV_STUCK 래치는 CAL POL 통과로만 풀린다(71), 결함 창의 감김(72), ERASE commit 실패(73), 호스트의 `cfgdirty` 거절(74), 호스트 래치는 확인된 ARM에서만 지운다(75), `N - boot`(76), 확인 전 ARM 뒤 STOP 확인(77).
 - 모든 수치는 자리값이다. 이 규격으로 얻는 결과는 자리값 기반 SIM 결과다. 현장 검증이 아니다.
-- 시험 벡터는 저장소 밖 스크립트로 계산했다: `D:/Develop/UBTS/steering-sim-20261108/runs/wf2a/p3_spec/crc_vectors.py`, 출력 `crc_vectors_out.txt`.
+- 시험 벡터는 저장소 밖 스크립트로 계산했다: `<runs>/wf2a/p3_spec/crc_vectors.py`, 출력 `crc_vectors_out.txt`.
 - SIM 실행 규약(lockstep v2, firmware 모드)은 `LOCKSTEP_PROTOCOL_KO.md` 11절에 있다.
 
 과제 항목과 절의 대응: A → 2절, B → 3절, C → 4절, D → 5절, E → 6절, F → 7절, G → 8절, H → 9절, I → 10절, J → 11절, K → 12절, M → 13절, L → `LOCKSTEP_PROTOCOL_KO.md` 11절.

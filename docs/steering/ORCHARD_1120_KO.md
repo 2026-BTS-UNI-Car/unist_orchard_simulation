@@ -4,7 +4,7 @@
 - 재생 수치는 **잰 기록(2026-10-10 과수원 수동 주행, 조향 장치 전의 차동 구동 차, 약 0.9 m/s, 개방 루프 재생)**이다. 실행기는 차를
   몰지 않았다. 제어기 명령은 '그 추정을 받았다면 냈을 명령'이다. SIM 수치는 **자리값 기반 SIM 결과**(개발 행렬, 사전등록 판정 아님)다.
   어느 쪽도 조향 차의 과수원 성능이 아니다.
-- 기록 폴더(레포 밖): `D:/Develop/UBTS/steering-sim-20261108/runs/orchard_1120/`(tools, replay, sim, NOTES_KO.txt,
+- 기록 폴더(레포 밖): `<runs>/orchard_1120/`(tools, replay, sim, NOTES_KO.txt,
   현장 절차 `ORCHARD_DAY_20261120_KO.md`). GNSS 좌표는 읽지도 적지도 않았다(지도 좌표는 회랑 좌표 s, d로만 적음).
 - 설정: 차에 깔린 `config_motor_orchard_20261120.json` + 금요일 조정 값(목표 0.5 m/s, 배율 0.93, 앞봄 2.5/4.0 m,
   `speed_window_s` 1.5, `align_timeout_s` 10). 단일열 모드라 추정기의 단일열 선택(첫 획득 뒤 2.5 m, 창 30°, 끝 분절 2 m, 마지막 줄기,
@@ -104,7 +104,7 @@
 ## 5. 다시 돌리는 법
 
 ```sh
-export UBTS_STEER_PATHS=D:/Develop/UBTS/steering-sim-20261108/config/paths.json
+export UBTS_STEER_PATHS=<작업 폴더>/config/paths.json
 # 재생(작업자 2~5, 약 1~2분)
 python -B runs/orchard_1120/tools/orchard_replay.py --wt <작업 트리> --config <차 설정 json> \
     --tuning runs/orchard_1120/replay/tuning_friday.json --out <json>

@@ -45,16 +45,15 @@ docs/provenance/IMPORT_NOTES_KO.md 의 '의도적으로 바꾼 파일' 에 적�
     dashboard/static/vendor/protomaps_basemaps/LICENSE.txt
 - dashboard/static/vendor/korean-font/korean.woff2 : Noto Sans KR (weight 400) 의 부분 글꼴. SIL Open Font License 1.1.
     전문 dashboard/static/vendor/korean-font/KOREAN-OFL.txt
-- dashboard/static/native-probability/ : 확률 격자 표시용 선택 구성요소 (Apache-2.0). Cartographer 와
-    Cartographer ROS (Copyright The Cartographer Authors, Apache-2.0) 의 확률 격자 값·좌표 의미를 따르며
-    상위 프로젝트의 C++ 실행 코드나 바이너리는 싣지 않습니다. 고지 dashboard/static/native-probability/NOTICE,
-    전문 dashboard/static/native-probability/LICENSE
-    (2026-11-13 대시보드 사본을 바꿀 때(커밋 65e2a60) 이 폴더는 빠져 지금 트리에는 없다. 옛 커밋에 대한 고지로 남긴다.)
+- dashboard/static/vendor/ubts-sans/*.woff2 : UBTS Sans. Pretendard 1.3.9 (Pretendard Variable) 의 부분 글꼴
+    (굵기 400~700). SIL Open Font License 1.1, Reserved Font Name Pretendard. 예약 글꼴 이름 조건에 따라 고친 사본의
+    글꼴 안 이름을 UBTS Sans 로 바꿨습니다. 저작권 표시와 전문 dashboard/static/vendor/ubts-sans/PRETENDARD-OFL.txt,
+    원본 파일·sha256·만든 방법 dashboard/static/vendor/ubts-sans/ubts-sans-var.json, ubts-sans-split.json
 각 파일의 출처 주소와 sha256 은 dashboard/static/vendor/gps-map-vendors.json 과
-dashboard/static/vendor/hls/provenance.json 에 있습니다.
+dashboard/static/vendor/hls/provenance.json 에 있습니다(UBTS Sans 는 그 폴더의 두 JSON).
 
 [실행하거나 이미지를 만들 때 쓰는 것 (저장소에는 없음)]
 - ROS 2 Jazzy · Gazebo Harmonic (Apache-2.0)
-- docker/Dockerfile.ubts 가 설치하는 배포판 패키지와 Python 패키지 (numpy, scipy, PyYAML, OpenCV, websockets,
-  trimesh, embreex 등)
+- docker/Dockerfile.base (docker/Dockerfile.ubts-steer 의 기반 이미지 정의) 가 설치하는 배포판 패키지와 Python 패키지
+  (numpy, scipy, PyYAML, OpenCV, websockets, trimesh, embreex 등)
 각 구성요소의 라이선스 전문은 원본 배포처에 있고, Docker 이미지 안에서는 /usr/share/doc 등에 있습니다.

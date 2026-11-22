@@ -206,7 +206,7 @@ python -I <tools>/docker_budget.py release --label p6a-stack
 
 ## 9. 검사 결과
 
-최종 실행: 이미지 `ubts-steer-sim:p6a`, 2026-11-09. 출력은 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/wf3b/p6a/checks/final/`(검사 JSON), `logs/`(콘솔, docker 상태). 모든 결과 파일의 `provenance.sources_match_image`가 참이다(검사 프로세스가 읽은 `sim/ubts`, `dashboard/scripts`, `firmware`의 모든 파일이 이미지 manifest의 SHA와 같음).
+최종 실행: 이미지 `ubts-steer-sim:p6a`, 2026-11-09. 출력은 저장소 밖 `<runs>/wf3b/p6a/checks/final/`(검사 JSON), `logs/`(콘솔, docker 상태). 모든 결과 파일의 `provenance.sources_match_image`가 참이다(검사 프로세스가 읽은 `sim/ubts`, `dashboard/scripts`, `firmware`의 모든 파일이 이미지 manifest의 SHA와 같음).
 
 ### 9.0 실행 조건과 부하
 
@@ -350,7 +350,7 @@ A9: 같은 장면 5번, 실행마다 스택을 새로 켬(같은 seed). 대본: 
 
 ### 9.9 리뷰 수정 뒤 다시 잰 결과 (fix_wf3b)
 
-- 2026-11-09. 결과 파일은 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/wf3b/fix_wf3b/checks/<묶음>/`(검사 JSON, 검사마다 에뮬레이터·브리지 사건 기록과 상태 파일 사본 `eventlogs/`), 콘솔과 묶음 기록은 `logs/`(`phases.txt`)에 있다.
+- 2026-11-09. 결과 파일은 저장소 밖 `<runs>/wf3b/fix_wf3b/checks/<묶음>/`(검사 JSON, 검사마다 에뮬레이터·브리지 사건 기록과 상태 파일 사본 `eventlogs/`), 콘솔과 묶음 기록은 `logs/`(`phases.txt`)에 있다.
 - 이미지는 `ubts-steer-sim:p6a` 그대로다(새 이미지 ID 없음). 고친 소스의 스냅숏(HEAD + WF-3b 파일의 작업 트리 판, 저장소 밖 `make_snapshot_fix.py`)을 모든 서비스의 `/opt/ubts/sim/ubts`와 `/opt/ubts/dashboard/scripts` 위에 읽기 전용으로 붙였다. 그래서 결과의 `provenance.sources_match_image`는 거짓이고, 이미지와 다른 파일 목록이 결과에 있다. 스냅숏 기록은 `logs/SNAPSHOT_v1.json`~`_v5.json`이다.
 - 스냅숏: v1(묶음 A), v2(B, C, D, A2: 15.1절), v3(E, F, G: 15.4절의 고침), v4(H, I: a25 계단 크기), v5(마지막 소스: 자르기 노드 보간, 시험 컨테이너만). 등록 기준은 바꾸지 않았다.
 - 실차 시계 묶음의 시간 민감 단계는 A10 무효 규칙으로 거른다: 단계를 덮는 5 s 창 RTF < 0.9, 단계 안 에뮬레이터 `/clock` 벽시계 틈 > 100 ms, 단계 안 SIM 쪽 원인의 호스트 래치(v3부터, 단계 창은 ARM 앞부터) 가운데 하나라도 있으면 그 단계는 판정하지 않는다(무효, 다시 돌림).

@@ -2,7 +2,7 @@
 
 - 작성: 2026-11-08
 - 상태: 설계 v1이다. 설계 초안 `DESIGN_DRAFT_KO.md`에 검토 `CRITIQUE_KO.md`를 반영했다. 구현 전이다. 저장소·데이터·Docker·Jetson은 바꾸지 않았다. 초안 파일은 그대로 두었다.
-- 근거: 같은 폴더 `survey/`의 조사 6개(`gazebo_stack_KO.md`, `original_ackermann_KO.md`, `real_interface_KO.md`, `fast_sim_KO.md`, `worlds_data_KO.md`, `env_ops_KO.md`), 증거 폴더 4개(`fw_v2_harness_check`, `host_contract_check`, `original_ackermann_probe`, `worlds_data_calc`), 단일열 사전등록 `D:/Develop/UBTS/single-row-20261102/PREREG.json`, 검토 문서. 이번에 저장소 소스 몇 곳을 읽기 전용으로 다시 확인했다(부록 A).
+- 근거: 같은 폴더 `survey/`의 조사 6개(`gazebo_stack_KO.md`, `original_ackermann_KO.md`, `real_interface_KO.md`, `fast_sim_KO.md`, `worlds_data_KO.md`, `env_ops_KO.md`), 증거 폴더 4개(`fw_v2_harness_check`, `host_contract_check`, `original_ackermann_probe`, `worlds_data_calc`), 단일열 사전등록 `<개발 폴더>/single-row-20261102/PREREG.json`, 검토 문서. 이번에 저장소 소스 몇 곳을 읽기 전용으로 다시 확인했다(부록 A).
 - 표기: [확인] 파일·기록으로 확인했다(가능하면 파일:행). [추정] 근거에서 유추했다. [가정] SIM 가정값이다. [제안] 이 문서의 설계다. [미정] 사용자 답이나 실측이 필요하다.
 - 값 출처 태그는 닫힌 목록이다(3.8.1절). 목록 밖 태그는 프로필 읽기에서 거부한다.
 - 이 문서에는 GNSS 좌표가 없다. 보조 도구 이름도 없다. 저장소 문서로 옮겨도 된다.
@@ -912,7 +912,7 @@ SIM 단계의 기록 범위를 정직하게 적는다. 고정 녹화 파일을 �
 - 조향 설명자: 토픽, `sample_hz` 20, `time_base`, `stale_after_s`, 보정표 사본(`cal_id`, 표), 프로필 id·SHA, 의미 문구("가변저항은 링크 각의 측정값이며 타이어 접지각이 아니다", "PWM은 엔코더가 아니다"), `frames_file`, `frame_count`, 미리보기.
 - 둘 곳: 기본은 녹화 폴더 옆 별도 폴더 `<archive_dir>/_steering/<recording_id>/`다. 녹화기 마감 절차(파일 목록·해시)가 낯선 파일을 어떻게 다루는지 P6b에서 읽은 뒤, 녹화 폴더 안에 둘지 정한다.
 - 허용 목록 방식으로 거른다(지금 `motor_pwm.py`와 같다).
-- SIM 평가 trace는 녹화와 나눈다. 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/<run_id>/`에 `EPISODES.jsonl`, `SUMMARY.json`, `trace/<episode>.npz`를 둔다. 참값은 trace의 평가 칸에만 둔다.
+- SIM 평가 trace는 녹화와 나눈다. 저장소 밖 `<runs>/<run_id>/`에 `EPISODES.jsonl`, `SUMMARY.json`, `trace/<episode>.npz`를 둔다. 참값은 trace의 평가 칸에만 둔다.
 - 실차 저장소로 옮길 때(P9) 녹화기 본체(`data_recorder_service.py`의 조향 토픽 인자, `motor_pwm.py`의 `UBTS_STEER_V3` 허용과 `throttle`·`steer_mrad` 필드)에 넣는다. 과거 녹화의 핀 표는 그대로 둔다.
 
 ---
@@ -938,7 +938,7 @@ SIM 단계의 기록 범위를 정직하게 적는다. 고정 녹화 파일을 �
 - 한 장면 명세에서 래스터 사본과 SDF를 함께 만든다. 같은 회랑·같은 변형이면 두 세계의 LiDAR 반사가 같아야 한다(A7).
 - 모드 R(래스터 동등): 모든 OCCUPIED 셀(0.05 m)을 상자로 세운다(z 0.3~0.9 m). LiDAR 동등성의 기준 월드다.
 - 모드 T(나무 형상): 줄기 후보 원기둥(행 단위, 대각 0.30 m 이하, 0~0.9 m, 물리 충돌), 수관 단면 셀 상자(충돌 없음), 끝·교차 구조물(0~1.5 m, 충돌), 선택 위쪽 수관(SIM_ASSUMED)을 넣는다. 시연과 기울어진 스캔 민감도용이다.
-- 모드 V(선택, 방문 일관): `D:/Develop/UBTS/maps-1010-20261022/quality/data/offline_submaps/`로 한 방문만으로 다시 그린 격자를 쓴다. 이중선이 줄어든다[확인: worlds_data 3.5]. 자료가 73 MB이고 우선순위가 낮아 P7 선택 항목으로 둔다.
+- 모드 V(선택, 방문 일관): `<개발 폴더>/maps-1010-20261022/quality/data/offline_submaps/`로 한 방문만으로 다시 그린 격자를 쓴다. 이중선이 줄어든다[확인: worlds_data 3.5]. 자료가 73 MB이고 우선순위가 낮아 P7 선택 항목으로 둔다.
 - 접촉·충돌 지표의 정본은 래스터 평가기다. Gazebo 물리 충돌은 확실한 것만 넣는다. 잎에 닿아 차가 튕기는 일을 막기 위해서다.
 - 좌표: SDF에는 회랑 시작점 기준 좌표만 쓴다(+x = 시작점 접선). manifest에는 래스터 국소 미터 변환만 쓴다. `<spherical_coordinates>`는 넣지 않는다. 생성물마다 좌표 누출 검사(lint)를 시험으로 고정한다.
 - 크기: 회랑 ±12 m 띠는 병합 상자 495~2,761개(삼각형 약 5.9k~33k)다. 지도 전체도 상자 10,359개 이하(삼각형 124k 이하)다. 원본 상세 과수원 lite는 삼각형 768k다.
@@ -1222,11 +1222,11 @@ flowchart LR
 
 - 할 일:
   1. `git fetch origin`으로 origin/main이 `4791d86`인지 확인한다(네트워크 필요).
-  2. 새 worktree `D:/Develop/UBTS/sim-wt-steering-20261108`, 브랜치 `steering-sim-20261108`을 origin/main에서 만든다.
+  2. 새 worktree `<개발 폴더>/sim-wt-steering-20261108`, 브랜치 `steering-sim-20261108`을 origin/main에서 만든다.
   3. 신원: 저장소 설정 user.name = `udonsari0101`, user.email = `yeappidw@gmail.com`이다. worktree는 이 설정을 공유한다[확인: env_ops 9.1]. 전역 email은 noreply 주소다. 그래서 저장소 설정이 없는 곳(NAS 사본 등)에서는 커밋하지 않는다.
   4. push 계정: GitHub 자격 증명의 활성 계정이 `udonsari0101`인지 확인한다. 예: `git config --get credential.helper`, Git Credential Manager의 계정 목록(설치 버전의 명령을 확인), 또는 `gh auth status`. 토큰과 비밀번호는 출력하지 않는다. 다른 계정이면 멈추고 사용자에게 묻는다. `git remote -v`가 `2026-BTS-UNI-Car/orchard-rover-clone`인지 본다. GitHub 계정에 `yeappidw@gmail.com`이 등록돼 있어야 커밋이 계정에 연결된다(사용자가 웹에서 확인).
   5. `tools/steer_sim/check_pins.py`: `tools/native_mapping_pc/fullsensor_sim/REPOSITORY_SOURCE_INPUTS.json`(423개)을 읽어 바이트를 비교한다. 허용 목록(P2의 7개) 밖 변경이 있으면 실패한다. 새 파일 이름이 기존 import 이름(`yaml`, `numpy`, `scripts` 등)을 가리는지도 검사한다.
-  6. push 검사 스크립트는 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/tools/safe_push.ps1`에 둔다. 금지어 목록 파일도 저장소 밖에 둔다. 검사 범위는 8.5절에 있다.
+  6. push 검사 스크립트는 저장소 밖 `<작업 폴더>/tools/safe_push.ps1`에 둔다. 금지어 목록 파일도 저장소 밖에 둔다. 검사 범위는 8.5절에 있다.
   7. MCU 구현 경로 관문(2.3.1절):
      - (a) Windows MinGW로 V2 하네스처럼 네이티브 실행 파일을 빌드하고 lockstep 파이프 왕복 비용을 잰다. 목표는 10 ms 스텝당 0.2 ms 이하다.
      - (b) WSL에 64비트 g++가 있는지 본다.
@@ -1236,7 +1236,7 @@ flowchart LR
      - 이미 확인한 것: MinGW는 32비트(`mingw32`, GCC 6.3.0), Python은 64비트(3.13.2)다. ctypes 공유 라이브러리 안은 이 도구로 안 된다[확인].
   8. Python 환경 목록: Windows 3.13.2, Jazzy 컨테이너 3.12, Jetson과 같은 3.10. 로컬에 3.10이 없으면 기록하고, 문법·모듈 검사로 3.11 이상 전용 기능을 막는다.
   9. 목표 전환 기록: 작업 루트의 `todo.md` 맨 위, 작업 루트 지침 문서의 맨 위 절, 재개 체크포인트에 "차동 단일열·10/24 전체 검증은 일시중지, 앞바퀴 조향 SIM 재구축이 새 목표"를 적는다. 단일열 폴더에는 새 파일 `STATUS_DIFFERENTIAL_HISTORY_KO.md`를 두어 PREREG가 차동 이력임을 표시한다. 등록된 `PREREG.json`은 바꾸지 않는다. 노션은 사용자가 요청할 때 한다.
-  10. 사양 요청서 `docs/steering/VEHICLE_SPEC_REQUEST_KO.md`: 9절 질문, 3.8절의 `SPEC_PENDING` 항목, 3.9절 측정 순서.
+  10. 사양 요청서 `docs/steering/VEHICLE_SPEC_REQUEST_KO.md`: 9절 질문, 3.8절의 `SPEC_PENDING` 항목, 3.9절 측정 순서. (2026-11-22 공개 정리 때 저장소에서 뺐다. 정해지지 않은 값의 목록은 [`../HARDWARE_KO.md`](../HARDWARE_KO.md).)
 - 검증: `check_pins` 423/423 일치. 금지 패턴이 든 시험 메시지·파일 이름·브랜치 이름을 검사 스크립트가 막는다. 신원·push 계정 확인 기록. 관문 결정 기록. 첫 커밋의 작성자·커미터 확인.
 
 #### P1 공유 코어
@@ -1259,8 +1259,8 @@ flowchart LR
   - `sim/ubts/test_closed_loop_*.py`, `sim/ubts/test_resolved_sensor_path.py`
   - 새 메시지로 커밋한다. 가져온 파일 전체(testdata 포함)에 금지어·좌표 검사를 돈다.
 - 이 이식으로 고정 파일 7개가 바뀐다: `sim/ubts/closed_loop/{controllers,estimator,evaluate,harness,matrix,world}.py`, `sim/ubts/orchard_perception/scan_corridor.py`[확인: `4791d86`..`546fa8c`에서 바뀌는 고정 파일은 이 7개뿐]. `check_pins` 허용 목록에 이 7개만 넣는다. 이 브랜치에서는 fullsensor 프로필을 쓰지 않는다고 받아들인다.
-- 절대 경로 정리 커밋: 가져오는 파일에 절대 경로가 박혀 있다[확인]. `raster_corridor.py:66-69`(`MAP_ROOTS`, `CATALOGUE_PATHS`. 환경 변수 이름 `UBTS_MAPS_1010`, `UBTS_SINGLE_ROW_CATALOGUE`는 이미 있다), `raster_catalogue.py:107`(`ROWS_ROOTS`), `single_row_eval.py:35`(HOLD 파일을 `parents[4]`로 찾음). 저장소 밖 설정 파일이나 환경 변수로 바꾸고 값이 없으면 분명한 오류를 낸다. 새 worktree 위치에서 `parents[4]`가 같은 폴더(`D:/Develop/UBTS`)를 가리키는지 확인한다. 이 커밋 뒤 비트 동일 시험을 다시 한다.
-- 기준 trace: `546fa8c`를 `git archive`로 저장소 밖(`D:/Develop/UBTS/steering-sim-20261108/baseline_546fa8c/src/`)에 풀고, 같은 Python·numpy로 `python -B`로 돌려 새 출력 폴더에 만든다. 기존 단일열 worktree에서는 돌리지 않는다(바이트코드 파일도 남기지 않는다). Python·numpy 버전과 trace SHA를 기록한다. 환경이 바뀌면 비교는 무효다.
+- 절대 경로 정리 커밋: 가져오는 파일에 절대 경로가 박혀 있다[확인]. `raster_corridor.py:66-69`(`MAP_ROOTS`, `CATALOGUE_PATHS`. 환경 변수 이름 `UBTS_MAPS_1010`, `UBTS_SINGLE_ROW_CATALOGUE`는 이미 있다), `raster_catalogue.py:107`(`ROWS_ROOTS`), `single_row_eval.py:35`(HOLD 파일을 `parents[4]`로 찾음). 저장소 밖 설정 파일이나 환경 변수로 바꾸고 값이 없으면 분명한 오류를 낸다. 새 worktree 위치에서 `parents[4]`가 같은 폴더(`<개발 폴더>`)를 가리키는지 확인한다. 이 커밋 뒤 비트 동일 시험을 다시 한다.
+- 기준 trace: `546fa8c`를 `git archive`로 저장소 밖(`<작업 폴더>/baseline_546fa8c/src/`)에 풀고, 같은 Python·numpy로 `python -B`로 돌려 새 출력 폴더에 만든다. 기존 단일열 worktree에서는 돌리지 않는다(바이트코드 파일도 남기지 않는다). Python·numpy 버전과 trace SHA를 기록한다. 환경이 바뀌면 비교는 무효다.
 - 하네스에 `actuation`, `plant_factory` hook을 넣는다. 기본값은 지금 동작과 비트 동일해야 한다. 고정 episode 몇 개로 기준 trace SHA와 같은지 시험한다.
 - 새 파일: `scene_spec.py`(장면 명세), `maneuvers.py`(계단, 램프, 고정 원, 사인 스윕, 지그재그, 정지 시험, 정지 모드별 정지), `fast_sim.py`(대본 실행기), `evaluate_steer.py`(조향 지표, 스윕 포함 발자국, REVERSE 규칙, 구동 기준 재출발, `STEER_AFTER_TERMINAL`), W0 평지 래스터 생성, `entry_feasibility.py`(A24).
 - probe 재실행: 0.4 m/s, 주시거리 2.0 m, 백래시·0점 오차·곡률 떠돎을 넣어 6.2절 표를 갱신한다(보고).
@@ -1404,12 +1404,12 @@ flowchart LR
 
 | 경로 | 용도 |
 |---|---|
-| `D:/Develop/UBTS/maps-1010-20261022/offline/maps/<id>/` | 10/10 오프라인 지도 5장 |
-| `D:/Develop/UBTS/maps-1010-20261022/quality/data/offline_submaps/` | 선택 모드 V(방문 일관 월드) |
-| `D:/Develop/UBTS/single-row-20261102/corridors/CATALOGUE.json`, `CORRIDOR_FREEZE.json`, `SEALED_CORRIDORS.json` | 회랑, 동결, 봉인 |
-| `D:/Develop/UBTS/orchard-realdata-audit/20261010-field-manual/lidar/<rid>.scans.npz`, 지도 폴더의 `trajectory.csv` | 실제 스캔 비교(평가 전용) |
-| `X:/home/UBTS/rover_control_test/firmware/wheel_pwm/wheel_pwm.ino`, `tests/native/*` | V2 펌웨어와 네이티브 시험(V3의 바탕) |
-| `X:/home/UBTS/rover_control_test/docs/control-architecture.md` | 09-19 제어 설계(TTL, handshake, 적용 확인, 정지 프로필, 필수 장애 시험) |
+| `<개발 폴더>/maps-1010-20261022/offline/maps/<id>/` | 10/10 오프라인 지도 5장 |
+| `<개발 폴더>/maps-1010-20261022/quality/data/offline_submaps/` | 선택 모드 V(방문 일관 월드) |
+| `<개발 폴더>/single-row-20261102/corridors/CATALOGUE.json`, `CORRIDOR_FREEZE.json`, `SEALED_CORRIDORS.json` | 회랑, 동결, 봉인 |
+| `<개발 폴더>/orchard-realdata-audit/20261010-field-manual/lidar/<rid>.scans.npz`, 지도 폴더의 `trajectory.csv` | 실제 스캔 비교(평가 전용) |
+| `<팀 NAS>/rover_control_test/firmware/wheel_pwm/wheel_pwm.ino`, `tests/native/*` | V2 펌웨어와 네이티브 시험(V3의 바탕) |
+| `<팀 NAS>/rover_control_test/docs/control-architecture.md` | 09-19 제어 설계(TTL, handshake, 적용 확인, 정지 프로필, 필수 장애 시험) |
 
 참고만 한다(upstream 등):
 
@@ -1442,16 +1442,16 @@ flowchart LR
 
 ### 8.5 저장소·브랜치·커밋
 
-- 저장소: `D:/Develop/UBTS/orchard-rover-sim`(GitHub `2026-BTS-UNI-Car/orchard-rover-clone`).
+- 저장소: `<개발 폴더>/orchard-rover-sim`(GitHub `2026-BTS-UNI-Car/orchard-rover-clone`).
 - 시작점: origin/main `4791d86`. 이미 공개된 기준이고 fullsensor 고정 바이트와 일치한다.
 - 새 worktree와 브랜치(이름에 보조 도구 이름을 넣지 않는다):
 
 ```powershell
-cd D:\Develop\UBTS\orchard-rover-sim
+cd <개발 폴더>\orchard-rover-sim
 git fetch origin                                   # 네트워크 필요
 git rev-parse origin/main                          # 4791d86… 확인
-git worktree add -b steering-sim-20261108 D:\Develop\UBTS\sim-wt-steering-20261108 origin/main
-cd D:\Develop\UBTS\sim-wt-steering-20261108
+git worktree add -b steering-sim-20261108 <개발 폴더>\sim-wt-steering-20261108 origin/main
+cd <개발 폴더>\sim-wt-steering-20261108
 git config user.name; git config user.email        # udonsari0101 / yeappidw@gmail.com
 python -I tools\steer_sim\check_pins.py            # P0 이후: 허용 목록 밖 변경 0
 ```
@@ -1468,7 +1468,7 @@ git commit -m "Import raster corridor world and sensor-only estimator (from 546f
 - 커밋 규칙:
   - 작성자와 커미터는 `udonsari0101 <yeappidw@gmail.com>`뿐이다. 저장소 설정을 쓰고, 커밋 전 매번 확인한다.
   - 공동 작성자 trailer(`Co-Authored-By`), 보조 도구 이름, 도구가 자동으로 붙이는 생성 표시 줄을 넣지 않는다. 커밋 메시지, 파일 내용, 파일 이름, 브랜치 이름, 태그 이름·메시지, PR 제목·본문 모두에 적용한다.
-  - NAS 사본 `X:/home/UBTS/orchard-rover`에서는 커밋하지 않는다. 저장소 단위 email이 없어 다른 주소(전역 noreply)가 쓰인다.
+  - NAS 사본 `<팀 NAS>/orchard-rover`에서는 커밋하지 않는다. 저장소 단위 email이 없어 다른 주소(전역 noreply)가 쓰인다.
   - 파일은 LF로 쓴다(`.gitattributes`는 `* text=auto eol=lf`, 전역 `core.autocrlf=true`). Python으로 쓸 때는 `write_bytes` 또는 `newline=''`.
 - push 전 검사(저장소 밖 `safe_push.ps1`):
   1. `git log origin/main..HEAD --format='%an <%ae> | %cn <%ce>'`가 모두 `udonsari0101 <yeappidw@gmail.com>`인지.
@@ -1481,13 +1481,13 @@ git commit -m "Import raster corridor world and sensor-only estimator (from 546f
   - PR을 만들 때(사용자 결정 뒤) 제목·본문에도 같은 검사를 한다.
 - hook은 쓰지 않는다. `core.hooksPath`를 저장소 설정에 두면 같은 저장소의 다른 worktree(main, 단일열 등)에도 걸린다. `extensions.worktreeConfig`를 켜면 `git config --worktree core.hooksPath`로 이 worktree에만 걸 수 있다. 하지만 공유 저장소 설정에 확장 한 줄이 생긴다(지금은 그 확장이 없다[확인: env_ops 9.1]). 저장소 밖 검사 스크립트로 충분하므로 hook은 선택 사항으로 남긴다.
 - main에는 합치지 않는다. 합칠 때는 사용자 결정 뒤, 고정 목록(`REPOSITORY_SOURCE_INPUTS.json`, `PACKAGE_SOURCE_MANIFEST.json`) 갱신과 `launch.py --simulate-fullsensor` 재검증을 한 검토 단위로 한다.
-- 실차 대시보드 저장소(`D:/Develop/UBTS/dashboard-live-raw`, GitHub `unist_orachard_dashboard`)는 하드웨어 준비 뒤 별도 브랜치에서 같은 규칙으로 바꾼다. 이 저장소의 저장소 설정 신원도 `udonsari0101` / `yeappidw@gmail.com`이다[확인: 이번 읽기].
-- 실행 결과는 저장소 밖 `D:/Develop/UBTS/steering-sim-20261108/runs/`에 둔다.
+- 실차 대시보드 저장소(`<개발 폴더>/dashboard-live-raw`, GitHub `unist_orachard_dashboard`)는 하드웨어 준비 뒤 별도 브랜치에서 같은 규칙으로 바꾼다. 이 저장소의 저장소 설정 신원도 `udonsari0101` / `yeappidw@gmail.com`이다[확인: 이번 읽기].
+- 실행 결과는 저장소 밖 `<runs>/`에 둔다.
 
 ### 8.6 운영
 
 - Docker: 다른 프로젝트 컨테이너(`ctf_agent_local*`)를 건드리지 않는다. `prune`·`volume prune`·`rm -v`를 쓰지 않는다. 기존 `ubts-sim` 컨테이너와 볼륨은 차동 기준선으로 남긴다. 새 이미지는 1~2개만 만든다. 짧은 점검 컨테이너는 고유 이름 + `--rm`으로 돌리고 결과는 호스트 폴더에 남긴다.
-- HOLD: `D:/Develop/UBTS/HOLD_SIM_MATRIX`가 아직 있다(10/21 생성, 예정 종료 10/25 지남)[확인]. 큰 행렬(P8)은 미룬다. `HOLD_MEASUREMENT`는 지금 없다. 생기면 `HOLD_PROTOCOL.txt`대로 무거운 작업(행렬, 빌드, 큰 시험)을 시작하지 않는다.
+- HOLD: `<개발 폴더>/HOLD_SIM_MATRIX`가 아직 있다(10/21 생성, 예정 종료 10/25 지남)[확인]. 큰 행렬(P8)은 미룬다. `HOLD_MEASUREMENT`는 지금 없다. 생기면 `HOLD_PROTOCOL.txt`대로 무거운 작업(행렬, 빌드, 큰 시험)을 시작하지 않는다.
 - 가져온 트리와 기준 트리에서는 `python -B`로 돌려 바이트코드 파일을 남기지 않는다.
 - 단계마다 작업 루트 `todo.md`와 재개 체크포인트를 갱신한다. 노션은 사용자가 요청할 때 한다.
 
@@ -1574,32 +1574,32 @@ git commit -m "Import raster corridor world and sensor-only estimator (from 546f
 
 근거 문서:
 
-- `D:/Develop/UBTS/steering-sim-20261108/survey/gazebo_stack_KO.md`: Gazebo 스택, 차동 가정 위치, 플러그인 선택지, 고정 파일.
-- `D:/Develop/UBTS/steering-sim-20261108/survey/original_ackermann_KO.md`: 원본 Ackermann 자산, pure pursuit 조향 지연 예시 시험(`original_ackermann_probe/`).
-- `D:/Develop/UBTS/steering-sim-20261108/survey/real_interface_KO.md`: 실차 제어 경로, ESP V2, V3 제안, 에뮬레이터 구조, 래치 결함 재현.
-- `D:/Develop/UBTS/steering-sim-20261108/survey/fast_sim_KO.md`: 빠른 SIM 구조, 재사용·차동 부분, 조향 플랜트 제안, 조건 재매핑.
-- `D:/Develop/UBTS/steering-sim-20261108/survey/worlds_data_KO.md`: 월드·10/10 데이터, `field_world` 제안, 실차 기하 미정 목록.
-- `D:/Develop/UBTS/steering-sim-20261108/survey/env_ops_KO.md`: 로컬 실행 환경, 이미지·볼륨, Git 상태, 새 브랜치 시작점.
-- `D:/Develop/UBTS/steering-sim-20261108/CRITIQUE_KO.md`: 설계 초안 검토.
-- `D:/Develop/UBTS/single-row-20261102/PREREG.json`: 지표, 종료 규칙, 클래스 한계, 조건, 판정 규칙, 플랜트 역할, known_limitations(차동판, 이력).
-- `X:/home/UBTS/rover_control_test/docs/control-architecture.md`: 2026-09-19 제어 설계(6~13절).
+- `<작업 폴더>/survey/gazebo_stack_KO.md`: Gazebo 스택, 차동 가정 위치, 플러그인 선택지, 고정 파일.
+- `<작업 폴더>/survey/original_ackermann_KO.md`: 원본 Ackermann 자산, pure pursuit 조향 지연 예시 시험(`original_ackermann_probe/`).
+- `<작업 폴더>/survey/real_interface_KO.md`: 실차 제어 경로, ESP V2, V3 제안, 에뮬레이터 구조, 래치 결함 재현.
+- `<작업 폴더>/survey/fast_sim_KO.md`: 빠른 SIM 구조, 재사용·차동 부분, 조향 플랜트 제안, 조건 재매핑.
+- `<작업 폴더>/survey/worlds_data_KO.md`: 월드·10/10 데이터, `field_world` 제안, 실차 기하 미정 목록.
+- `<작업 폴더>/survey/env_ops_KO.md`: 로컬 실행 환경, 이미지·볼륨, Git 상태, 새 브랜치 시작점.
+- `<작업 폴더>/CRITIQUE_KO.md`: 설계 초안 검토.
+- `<개발 폴더>/single-row-20261102/PREREG.json`: 지표, 종료 규칙, 클래스 한계, 조건, 판정 규칙, 플랜트 역할, known_limitations(차동판, 이력).
+- `<팀 NAS>/rover_control_test/docs/control-architecture.md`: 2026-09-19 제어 설계(6~13절).
 
 이번에 다시 읽은 파일(모두 읽기 전용):
 
-- SIM 저장소 `D:/Develop/UBTS/orchard-rover-sim`(main `4791d86`):
+- SIM 저장소 `<개발 폴더>/orchard-rover-sim`(main `4791d86`):
   - `dashboard/scripts/rover_control_bridge.py`(1~40, 50~60, 130~145행), `esp_motor.py`(1~12행), `rover_control_core.py`(1~30행)
   - `dashboard/dashboard_server/app.py`(26, 120~140, 270~276, 636~642행), `motor_pwm.py`(60~100행)
   - `dashboard/scripts/data_recorder_service.py`(1257~1380행 인자 이름)
   - `sim/ubts/cpu_lidar.py`(170, 203~204, 250행), `health.py`, `control.py`(1~14행), `adapter.py`(129~145, 427행), `field_response.py`(90~98, 144~148, 333~345행), `rover.yaml`(15~30행)
   - `tools/native_mapping_pc/fullsensor_sim/REPOSITORY_SOURCE_INPUTS.json`(423개에서 관련 파일의 소속 확인)
   - `git diff --name-only 4791d86 546fa8c`(바뀌는 고정 파일이 정확히 7개), `git worktree list`, `git ls-files`
-- 단일열 worktree `D:/Develop/UBTS/sim-wt-singlerow-20261102`(`546fa8c`):
+- 단일열 worktree `<개발 폴더>/sim-wt-singlerow-20261102`(`546fa8c`):
   - `tools/row_executor/core.py`(130~140행), `executor_main.py`(80~145, 1444~1456, 1544~1548행), `sim_in_loop.py`(60~112, 305행), `single_row_sim.py`(48~93행), `config.py`(44~60, 105, 214~226행)
   - `tools/row_executor/vendor/SOURCE_MANIFEST.json`, `SHA256SUMS`(74줄)
   - import 폐포 정적 분석(AST, 파일을 import하지 않음), 보조 도구 이름·절대 경로 문자열 셈
   - `sim/ubts/closed_loop/raster_corridor.py`(62~72행), `raster_catalogue.py`(104~110행), `single_row_eval.py`(30~38행), `tools/field_calib/` 목록
-- 실차 대시보드 저장소 `D:/Develop/UBTS/dashboard-live-raw`(HEAD `3372139`): 기반 파일 SHA(앞 12자리)가 SIM 사본과 같음(`rover_control_core.py` `5cc86b226e88`, `rover_control_bridge.py` `c0a9945ee6d0`, `esp_motor.py` `3ff12d0d3f60`, `esp_wheel_controller.py` `d31e12eda589`, `motor_pwm.py` `60ac85934bb9`, `rover_api.py` `c69f3573ab39`), 저장소 설정 신원.
-- 그 밖: `D:/Develop/UBTS/single-row-20261102/dev_r3/SUMMARY.json`(step 시간), `survey/original_ackermann_probe/result.json`(속도·주시거리·조향 속도별 재집계), `survey/fw_v2_harness_check/RESULT.json`, `D:/Develop/UBTS/HOLD_PROTOCOL.txt`, `D:/Develop/UBTS/HOLD_SIM_MATRIX`.
+- 실차 대시보드 저장소 `<개발 폴더>/dashboard-live-raw`(HEAD `3372139`): 기반 파일 SHA(앞 12자리)가 SIM 사본과 같음(`rover_control_core.py` `5cc86b226e88`, `rover_control_bridge.py` `c0a9945ee6d0`, `esp_motor.py` `3ff12d0d3f60`, `esp_wheel_controller.py` `d31e12eda589`, `motor_pwm.py` `60ac85934bb9`, `rover_api.py` `c69f3573ab39`), 저장소 설정 신원.
+- 그 밖: `<개발 폴더>/single-row-20261102/dev_r3/SUMMARY.json`(step 시간), `survey/original_ackermann_probe/result.json`(속도·주시거리·조향 속도별 재집계), `survey/fw_v2_harness_check/RESULT.json`, `<개발 폴더>/HOLD_PROTOCOL.txt`, `<개발 폴더>/HOLD_SIM_MATRIX`.
 - 도구·환경: `C:/MinGW/bin/g++.exe -dumpmachine` → `mingw32`, 버전 `MinGW.org GCC-6.3.0-1`. Python 3.13.2 64비트(AMD64). 읽기 전용 `docker images`, `docker image inspect 6209168a3507`(태그 3개, RepoDigest = 이미지 ID).
 
 계산값(자리값 기하·가정, 실측 아님):

@@ -9,7 +9,8 @@
   기록을 읽는다([`EXECUTOR_ESP32_KO.md`](steering/EXECUTOR_ESP32_KO.md) 3절). 바퀴 든 정지 측정이며 주행 결과가 아니다. SIM 프로필은 바꾸지 않았다.
 - 실차 배선·핀·설치의 원본은 대시보드 저장소다([`DOCS_POLICY_KO.md`](DOCS_POLICY_KO.md) 1절). 여기 핀 표는 펌웨어 V3 규격의 배치 안이다.
 - **조향 장치의 값은 모두 자리값이다.** 사용자가 실측·사양을 주면 [`SPEC_UPDATE_KO.md`](steering/SPEC_UPDATE_KO.md)의 절차로 바꾼다.
-  묻는 질문 목록은 [`VEHICLE_SPEC_REQUEST_KO.md`](steering/VEHICLE_SPEC_REQUEST_KO.md)(Q1~Q29)다.
+  아직 정해지지 않은 값은 이 문서의 **자리값**·**미정** 표시와 프로필의 `SPEC_PENDING` 항목(`sim/ubts/steering/vehicle_profile.py`)이 목록이다.
+  팀 안에서 쓰던 사양·실측 질문서(Q1~Q29)는 2026-11-22 공개 정리 때 저장소에서 뺐다. 사양 입력 파일의 질문 번호(`q`)는 그 질문서의 번호다.
 - 이 저장소의 SIM 수치는 자리값 기반 SIM 결과이며 현장 성능이 아니다.
 
 출처 표시: **제품표기**(라벨·판매 설명), **사용자**(사용자 설명·어림값, 날짜), **측정**(기록에서 잰 값, 날짜), **설정**(Jetson·실행기 설정),

@@ -232,7 +232,7 @@ python -B tools/drive_response/run_all.py --config <설정 파일> --out <출력
 
 그림(`figures/`, PNG. SVG는 다시 만들 때 같이 나온다): fig01_duty_speed, fig02_duty_speed_by_ground, fig03_duty_seconds_by_record, fig04_start_distance_time, fig05_start_onset, fig06_stop_distance, fig07_session_time, fig08_reference_compare, fig10_duty_hold_distance. 모든 그림 아래에 "조향 장치 장착 전 차(좌우 차동 구동)의 2026-10-03·10-10 수동 주행 기록. 조향 차량의 값이 아님."이 찍혀 있다. 그림 9(옛 직진 흔들림)는 범위 밖이라 만들지 않았다.
 
-표(`tables/`, MD. CSV는 다시 만들 때 같이 나온다): T0 읽기 확인, T1 기록, T1b 열 안 비율, T2 기준표, T3 지면별(+full.csv), T3b 기록별, T3c 날짜별, T4/T4s 출발, T5/T5s 정지, T6 이동거리, T7/T7b/T7c 세션, T8 재현, T8b 참조 비교, T9 구간 목록, T10 자료 없는 duty, ALL_TABLES.md.
+표(`tables/`, MD. CSV는 다시 만들 때 같이 나온다): T0 읽기 확인, T1 기록, T1b 열 안 비율, T2 기준표, T3 지면별(+full.csv), T3b 기록별, T3c 날짜별, T4/T4s 출발, T5/T5s 정지, T6 이동거리, T7/T7b/T7c 세션, T8 재현, T8b 참조 비교, T9 구간 목록, T10 자료 없는 duty. 다시 만들 때 함께 나오는 이어 붙인 사본 `ALL_TABLES.md`는 위 표와 같은 내용이라 저장소에 두지 않는다(2026-11-22).
 
 ## 9. 한계
 

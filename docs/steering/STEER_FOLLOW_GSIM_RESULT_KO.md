@@ -99,7 +99,7 @@ python -I tools/steer_sim/capture_media.py page --out <기록>/dashboard_follow.
 
 ```
 # 스택 올리기
-python -B D:/Develop/UBTS/steering-sim-20261108/tools/local_env/sim_stack.py start --executor --scene w1_force --image ubts-steer-sim:wf4c
+python -B <작업 폴더>/tools/local_env/sim_stack.py start --executor --scene w1_force --image ubts-steer-sim:wf4c
 
 # (a) 자율 열 추종 run 하나. 열 끝에서 스스로 끝난다. 1 s마다 상태 한 줄
 docker exec -it ubts-steer-executor-1 python3 -B -m steering.exec_run start
@@ -114,7 +114,7 @@ docker exec ubts-steer-executor-1 python3 -B -m steering.exec_run status
 docker exec ubts-steer-sim-1 /ros_entrypoint.sh python3 -B -m steering.exec_run reset
 
 # 스택 내리기
-python -B D:/Develop/UBTS/steering-sim-20261108/tools/local_env/sim_stack.py stop
+python -B <작업 폴더>/tools/local_env/sim_stack.py stop
 ```
 
 - (a)가 하는 일: 제어기 자리를 `{"kind": "row_follow"}`로 바꾸고, 운영자 페이지에 Start와 Arm을 보내고, 한 번 누른 뒤 누름 박동(약 0.1 s마다)을 run이 끝날 때까지 스스로 보낸다. 줄마다 실행기 상태, 제어기 사유, 통로 유효 여부, 실행기가 추정한 횡 위치·방향·거리·속도, 구동·조향 명령, 스캔 나이를 찍는다(실행기의 추정값이고 참값이 아니다). 끝나면 종결 이유를 찍는다. 종료 코드 0은 `row_end`, 3은 다른 종결, 4는 시작하지 못함이다.

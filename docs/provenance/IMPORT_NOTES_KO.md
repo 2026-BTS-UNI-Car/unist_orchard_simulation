@@ -7,7 +7,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 옛 저장소 | `2026-BTS-UNI-Car/orchard-rover-clone` (비공개. 지우지 않고 보존한다) |
+| 옛 저장소 | `2026-BTS-UNI-Car/orchard-rover-clone` (비공개. 2026-11-14 보관(읽기 전용)으로 바꿨고 지우지 않는다) |
 | 브랜치와 커밋 | `steering-sim-20261108`, 커밋 `50fc854ee2462e761e7ce281dca937f1700e0f2b` |
 | 원본 프로젝트 | `pathcmd95/orchard-rover` (Apache-2.0), 커밋 `c3c1f8657ab0526f8ff2221064ebc145e0a0831a` |
 | 옛 커밋의 추적 파일 | 2216개, 102.85 MB |
@@ -125,15 +125,22 @@ CI 작업 정의는 넣지 않았다. 이 저장소로 올리기 전의 검사�
 - **좌표 검사.** `field_world.coord_lint` 의 판정 항목(latlon_pair, yaml_origin, gnss_path)은 트리 전체에서 0건이다.
   엄격 쌍(소수 4자리 이상) 1건은 `ros2_ws/src/orchard_gazebo/orchard_gazebo/world_gen.py` 에 있는 원본 프로젝트의 월드
   원점 값이다. 공개된 원본 파일을 바꾸지 않고 가져온다는 결정에 따라 그대로 두었다.
-- **문서의 경로 표기와 옛 설명.** `docs/steering/` 문서에는 개발 PC 의 결과 폴더 경로 표기가 남아 있다. 바이트 동일성 확인
-  범위를 줄이지 않으려고 반입 때는 고치지 않았고, 뒤에 자리표시로 바꾼다. 같은 문서의 일부 설명(옛 저장소와 브랜치 이름,
+- **문서의 경로 표기와 옛 설명.** `docs/steering/` 문서에는 개발 PC 의 결과 폴더 경로 표기가 남아 있었다. 바이트 동일성 확인
+  범위를 줄이지 않으려고 반입 때는 고치지 않았고, 2026-11-22 자리표시로 바꿨다(다음 항목). 같은 문서의 일부 설명(옛 저장소와 브랜치 이름,
   옛 고정 파일 목록, push 규칙)도 옛 저장소 기준이므로 뒤에 개정한다.
-- **공개 전에 걸러야 할 표기.** 이 저장소는 비공개를 전제로 한다. 가져온 코드와 문서에 팀 내부 도메인 이름 2건, 장비의 홈
-  경로 2건, 사설망 주소 13건, 개발 PC 와 NAS 의 경로 표기 73건(`docs/steering/`)이 들어 있다. 토큰, 비밀번호, 인증서는
-  없고, GNSS 좌표 꼴의 값은 위 원본 월드 원점 1건뿐이다. 공개로 바꾸려면 먼저 이 표기들을 걸러야 한다.
-- **기반 이미지.** `docker/Dockerfile.ubts-steer` 의 기반은 개발 PC 의 로컬 이미지다. `docker/Dockerfile.ubts` 는 그 기반을
-  만든 옛 정의로, 가져오지 않은 옛 Compose 파일을 복사하므로 이 저장소에서는 그대로 빌드되지 않는다. 스스로 서는 기반
-  정의는 뒤에 더한다. 이미지 안에서 도는 시험과 Gazebo 스택 검사는 그때 다시 확인한다.
+- **공개 전에 거른 표기.** 반입 때는 비공개 저장소였고, 가져온 코드와 문서에 팀 내부 도메인 이름 2건, 장비의 홈
+  경로 2건, 사설망 주소 13건, 개발 PC 와 NAS 의 경로 표기 73건(`docs/steering/`)이 들어 있었다. 토큰, 비밀번호, 인증서는
+  없고, GNSS 좌표 꼴의 값은 위 원본 월드 원점 1건뿐이다. 2026-11-22 공개 준비 점검에서 문서와 주석의 개발 PC·NAS·장비
+  경로를 자리표시(`<작업 폴더>`, `<runs>` 등, [`../steering/PATHS_KO.md`](../steering/PATHS_KO.md) 0절)로 바꿨다. 남은 것:
+  대시보드 사본(`dashboard/`)의 팀 도메인 이름과 장비 홈 경로는 대시보드 저장소에서 고친 뒤 사본을 다시 받아야 한다.
+  사설망 주소(Jetson AP 와 실행기 운영자 화면의 기본 바인드 주소)는 밖에서 닿지 않는 설정 기본값이라 그대로 둔다.
+  경로 처리 시험(`sim/ubts/test_steering_scene_spec.py`)의 드라이브 경로는 시험 값이다. 이 저장소의 이력(지난 커밋)에는
+  고치기 전 표기가 그대로 있다.
+- **기반 이미지.** `docker/Dockerfile.ubts-steer` 의 기반은 개발 PC 의 로컬 이미지다. 그 기반을 만든 옛 정의
+  `docker/Dockerfile.ubts` 는 가져오지 않은 옛 Compose 파일을 복사해 이 저장소에서는 빌드되지 않으므로 2026-11-22 트리에서
+  뺐다(반입 커밋과 `IMPORT_MANIFEST.json` 에 남는다. 고정 목록의 예외는 `tools/steer_sim/PIN_ALLOWLIST.json`). 스스로 서는
+  기반 정의는 `docker/Dockerfile.base`([`BASE_IMAGE_KO.md`](BASE_IMAGE_KO.md))이고 아직 빌드·검증하지 않았다. 이미지 안에서
+  도는 시험과 Gazebo 스택 검사는 그때 다시 확인한다.
 - **원본 생성기 시험 1개.** `ros2_ws/src/orchard_gazebo/test/test_generators.py` 의
   `test_model_adds_sensors_and_keeps_px4_sensors` 는 가져오지 않은 `orchard_description/config/rover.yaml`
   (원본의 3D LiDAR·카메라 장착 설정)을 읽어서 실패한다. 조향 시뮬레이션은 그 모델 생성 경로를 쓰지 않는다. 같은 파일의

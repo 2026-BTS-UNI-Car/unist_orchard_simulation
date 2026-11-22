@@ -5,7 +5,8 @@
 # repository with docker/Dockerfile.ubts). This file defines the same package set without any source of the old
 # repository, so the base can be made again from public packages:
 #   - the ROS 2 Jazzy base image pinned by digest (the digest of the local copy the verified base was built on)
-#   - the apt packages of docker/Dockerfile.ubts (same names, same order)
+#   - the apt packages of docker/Dockerfile.ubts (same names, same order; that old definition was removed from this
+#     tree on 2026-11-22 and stays in the import commit)
 #   - the two pip packages at their pinned versions, into /opt/ubts/raydeps (Embree ray casting of cpu_lidar)
 #   - no COPY of sources: the steering Dockerfile copies them
 #

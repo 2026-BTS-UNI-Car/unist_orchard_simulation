@@ -316,7 +316,7 @@ OutputGuard·브리지 경로를 지나고, 제어기 대신 정해진 duty 표�
     E-stop 함·안테나 등 새 장착물은 그대로 둔다(그것이 마스크 대상이다).
   2 대시보드 'both' 녹화를 30–40 s 한다(같은 녹화를 C1 gyro bias에도 쓴다).
   3 실행(녹화 ID는 대시보드 목록에서):
-      R=/home/unist/workspace/unist_orachard_dashboard/runtime/recordings/<녹화 ID>
+      R=~/workspace/unist_orachard_dashboard/runtime/recordings/<녹화 ID>
       python3 -B ~/row-executor/src/row_executor/body_mask_static.py --recording $R --config ~/row-executor/config/config.json \
           --out-fragment ~/c0_fragment.json --out-config ~/config.c0.json --report ~/c0_report.json
     (권한 오류면 sudo. 녹화가 길면 --from 5 --to 35처럼 정지 구간만.)

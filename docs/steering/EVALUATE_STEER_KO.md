@@ -282,7 +282,7 @@ python -B -m steering.truth_isolation [--json]
 - 리뷰 고친 뒤 시험(2026-11-09, fix_wf2b). 3개 파일 51개: `test_steering_evaluate.py` 31, `test_steering_entry_feasibility.py` 11, `test_steering_truth_isolation.py` 9.
   - Windows 3.13.2(numpy 2.2.6, pytest 9.1): 51 통과. 기록 `runs/wf2b/fix_wf2b/pytest_win313_final.log`(WF-2b·1단계 16개 파일 650 통과, 1 건너뜀).
   - 기반 이미지 `6209168a3507`(Python 3.12.3, numpy 1.26.4, scipy 1.11.4, pytest 7.4.4): 50 통과, 1 건너뜀(저장소 가드 시험: 컨테이너에는 붙인 작업 트리 말고 같은 저장소의 다른 작업 트리가 없다). `truth_isolation` CLI 통과(81개 파일, 오류 0). 기록 `fix_wf2b/pytest_docker_py312.log`.
-  - WSL 3.10.12(`python3 -m unittest`): 51개 중 50 통과, 1 건너뜀(`single_row_eval` import에 scipy 필요, R10). 저장소 가드 시험은 WSL에서 main checkout(`/mnt/d/...`)까지 보고 통과했다(드라이브 경로 읽기 고침 뒤, FAST_SIM_KO.md 4.2절). `truth_isolation` CLI 통과. 기록 `fix_wf2b/tests_wsl_py310.log`.
+  - WSL 3.10.12(`python3 -m unittest`): 51개 중 50 통과, 1 건너뜀(`single_row_eval` import에 scipy 필요, R10). 저장소 가드 시험은 WSL에서 main checkout(WSL 드라이브 경로)까지 보고 통과했다(드라이브 경로 읽기 고침 뒤, FAST_SIM_KO.md 4.2절). `truth_isolation` CLI 통과. 기록 `fix_wf2b/tests_wsl_py310.log`.
 - 실제 trace 평가(보고): p2_core probe run 768개(162 s, 에피소드당 약 0.2 s), a8 W0 run 16개, W2 동결 회랑 040927 c08 fwd의 직진(L0, L1)·열로 꺾기(이탈 검출)·정지(hold_measured: 사건 없음, center: `STEER_AFTER_TERMINAL`과 자동 중앙 복귀 검출). 원자료는 `runs/wf2b/p2_eval/`에 있다.
 
 ## 8. 실행기 trace 평가 (2026-11-09, 3단계 WF-3a p4_exec)

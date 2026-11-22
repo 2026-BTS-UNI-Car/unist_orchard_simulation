@@ -15,13 +15,10 @@
 | `dashboard/static/vendor/pmtiles/pmtiles.js` | PMTiles 4.5.0 | BSD-3-Clause | `dashboard/static/vendor/pmtiles/LICENSE.txt` |
 | `dashboard/static/vendor/protomaps_basemaps/basemaps.js` | @protomaps/basemaps 5.7.2 | BSD-3-Clause 외 (Copyright 2019-2023 Protomaps LLC, Kelso Cartography) | `dashboard/static/vendor/protomaps_basemaps/LICENSE.txt` |
 | `dashboard/static/vendor/korean-font/korean.woff2` | Noto Sans KR (weight 400) 부분 글꼴 | SIL Open Font License 1.1 | `dashboard/static/vendor/korean-font/KOREAN-OFL.txt` |
+| `dashboard/static/vendor/ubts-sans/*.woff2` | Pretendard 1.3.9 (Pretendard Variable) 부분 글꼴, 굵기 400~700. 예약 글꼴 이름 조건에 따라 글꼴 안 이름을 `UBTS Sans` 로 바꾼 사본 | SIL Open Font License 1.1 (Reserved Font Name Pretendard) | `dashboard/static/vendor/ubts-sans/PRETENDARD-OFL.txt` |
 
 출처 주소와 sha256 은 `dashboard/static/vendor/gps-map-vendors.json`, `dashboard/static/vendor/hls/provenance.json` 에 있습니다.
-
-`dashboard/static/native-probability/` 는 이 팀이 쓴 선택 구성요소(Apache-2.0)이며, Cartographer 와 Cartographer ROS
-(Copyright The Cartographer Authors, Apache-2.0) 의 확률 격자 값·좌표 의미를 따릅니다. 상위 프로젝트의 실행 코드나
-바이너리는 들어 있지 않습니다. 고지와 전문은 그 폴더의 `NOTICE`, `LICENSE` 입니다.
-2026-11-13 대시보드 사본을 바꿀 때(커밋 65e2a60) 이 폴더는 빠져 지금 트리에는 없다. 옛 커밋에 대한 고지로 남긴다.
+UBTS Sans 의 원본 파일·sha256·만든 방법은 `dashboard/static/vendor/ubts-sans/ubts-sans-var.json`, `ubts-sans-split.json` 에 있습니다.
 
 ## 이 저장소에 없는 것
 
@@ -32,6 +29,6 @@
 
 ## 실행하거나 이미지를 만들 때 받는 것 (저장소에는 없음)
 
-ROS 2 Jazzy · Gazebo Harmonic (Apache-2.0), 그리고 `docker/Dockerfile.ubts` 가 설치하는 배포판 패키지와 Python
+ROS 2 Jazzy · Gazebo Harmonic (Apache-2.0), 그리고 `docker/Dockerfile.base`(`docker/Dockerfile.ubts-steer` 의 기반 이미지 정의)가 설치하는 배포판 패키지와 Python
 패키지(numpy, scipy, PyYAML, OpenCV, websockets, trimesh, embreex 등). 각 라이선스 전문은 원본 배포처에 있고,
 Docker 이미지 안에서는 `/usr/share/doc` 등에 있습니다.
