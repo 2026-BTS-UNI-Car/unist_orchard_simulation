@@ -234,3 +234,25 @@ CPU 59 ~ 67 %, WSL 1분 부하 3.6, 가용 메모리 1,970 MB).
 
 - 첫 시도는 확인 대본 자체의 출력 인코딩 오류로 끌던 도중 끝났다(차는 SIM, 조종권은 브라우저가 닫혀 만료). 그 조종권이 남아 있던
   동안 두 번째 시도의 조종 활성화가 `control_in_use`로 거절됐고(설계대로), Esc 뒤 세 번째 시도부터 위 결과가 나왔다.
+
+## 10. 사본 07ce6d9 (2026-11-22, 공개 준비)
+
+- `sync_dashboard.py --source <대시보드 레포> --commit 07ce6d9`(대시보드 main): 131 파일, 5,136,019 B. 앞 사본 `eb1352d` 와 견주어
+  추가 2(`static/assets/ubts-logo-dark.png`, `ubts-logo-light.png`), 바뀜 8(`app.py`, `telemetry.py`, `static/index.html`,
+  `live-map.js`, `styles.css`, `css/frame.css`, `css/tokens.css`, `ui-kit.html`), 지움 14.
+- 지운 것: 차동 차량 시기의 자율 감독기와 관찰 묶음(`autonomy_observation`, `autonomy_settings`, `encoderless_drive_preview`,
+  `field10_shadow`, `field10_shadow_preflight`, `field_preflight`, `native_autonomy_application`, `native_autonomy_supervisor`,
+  `native_observation_client`, `native_owner_lifecycle`, `record_based_autonomy`), `config/field_autonomy_preparation.json`,
+  `static/field-preparation.js`, `static/native-accepted-map.mjs`. 대시보드의 `/api/autonomy*` 경로와 Rover Control 의 차동 자율 칸도
+  함께 없어졌다. 조향 자율은 전처럼 실행기 중계 `/api/executor/*` 로 한다.
+- 팀 장비 도메인과 장비 계정의 홈 경로가 사본에서 빠졌다. 터널 공개 주소는 `DASHBOARD_PUBLIC_HOST`, 더 보일 디스크는
+  `DASHBOARD_WORKSPACE_DIR` 설정값이 되었고 SIM 은 둘 다 주지 않는다(SIM 제공자는 서비스 표에서 `cloudflared` 칸을 뺀다).
+- SIM 쪽은 고칠 것이 없었다. `dashboard_sim/`, compose, Dockerfile, 시험은 지운 모듈과 경로를 쓰지 않고, `create_server` 를 부르는
+  시험은 없어진 `autonomy_bindings` 를 넘기지 않는다. 기록기가 쓰는 모듈 4개와 `extensions.py`, `executor_proxy.py` 는 바이트가 같다.
+- `dashboard_server/_field10/` 은 대시보드 레포에서도 지워졌다. `sync_dashboard.py` 의 `EXCLUDED` 규칙은 옛 커밋을 다시 가져올 때를
+  위해 그대로 둔다(이 커밋에는 걸리는 파일이 없다).
+- 확인: `sync_dashboard.py --check --source` OK. `test_steering_dashboard_sync.py` 는 사본을 git 색인에 올린 상태에서 12개 모두 통과한다
+  (올리기 전에는 색인의 blob 을 보는 시험 1개가 옛 사본과 달라 실패한다). `test_steering_ui_routes.py` 는 WSL 에서 30개 모두,
+  Windows 에서 22개 통과·8개 건너뜀(Linux 소켓).
+- 로컬 이미지 `ubts-steer-sim:wf17` 은 옛 사본 `eb1352d` 를 담고 있다. 새 사본은 다음 이미지 빌드부터 들어가고, 그 전에는
+  덮어쓰기(5절)로 본다.

@@ -1,10 +1,10 @@
 {
- "bytes": 5314652,
- "commit": "eb1352dc84197b28c1b866807d8f5c63da144ebb",
+ "bytes": 5136019,
+ "commit": "07ce6d9ecec3e6eab60c5a76487f2c04054bb93b",
  "excluded": {
   "dashboard_server/_field10/": "the hash-pinned field SHADOW bundle of the differential vehicle (dashboard D-14); the steering stack never starts the differential observation that imports it, and the bundle holds recorded-data paths and names that this repository does not carry"
  },
- "file_count": 143,
+ "file_count": 131,
  "files": {
   "config/dashboard.json": {
    "blob": "67f0ec8e55737a0efc71fe54601cd188cd8765d6",
@@ -17,12 +17,6 @@
    "bytes": 6475,
    "mode": "100644",
    "sha256": "5b3e67c21ef6d7323c1ffe0fee69f6217542e4ca22fadcb3926eec1b6b3f8585"
-  },
-  "config/field_autonomy_preparation.json": {
-   "blob": "2d432b38d81fc4f7ca8e2e8c09929e279f38205d",
-   "bytes": 1428,
-   "mode": "100644",
-   "sha256": "c9f731640ab23f7ae8957814ebfa33048afc87e39e6191ff791cb56a0bd940a4"
   },
   "dashboard_server/__init__.py": {
    "blob": "6cba31cdd4833cba665c82ddbfd7e6ea4d60b1bb",
@@ -43,28 +37,16 @@
    "sha256": "879650178ab8c0275f4080bfdb4adb0d2e9d9537876c7ad695693e732eaa4a37"
   },
   "dashboard_server/app.py": {
-   "blob": "afc69f40fa009a6dc59632aa5c7feff78cfb1a59",
-   "bytes": 107542,
+   "blob": "9d451366a1f2550a259763cd97d1fa1ac5e6276e",
+   "bytes": 94744,
    "mode": "100644",
-   "sha256": "802dae058d9c3f0a182b5931139076a8d725263ca574a39ad4e1be243913fab5"
+   "sha256": "ed6bbf30533adec3a2aec155929e742dd3b2f181b2bbf9ea94ee17139016d695"
   },
   "dashboard_server/archive_mapping.py": {
    "blob": "85f3604092a5b4405eef59e78febe5c38374ae6b",
    "bytes": 16056,
    "mode": "100644",
    "sha256": "552dab29b1a9f88bf1597c6fe303d9eb94f6870bdf306de840e843b97ae1d40f"
-  },
-  "dashboard_server/autonomy_observation.py": {
-   "blob": "d8110893bc2e22312adb47db786b6531438628b3",
-   "bytes": 39837,
-   "mode": "100644",
-   "sha256": "9d321f104bfd4e4d1d5fce2a3939594f87e34bda40b51a4313a74607b54cb39a"
-  },
-  "dashboard_server/autonomy_settings.py": {
-   "blob": "8686257a334c653c00a40fcfe0550f5b2e999d27",
-   "bytes": 1932,
-   "mode": "100644",
-   "sha256": "d2d858aeed2b22372e16cdc485e9b38ac664052dcc4b74ec87789f8551012f0f"
   },
   "dashboard_server/body_feedback.py": {
    "blob": "703626089f6262005927ae710440e80358485ac9",
@@ -84,12 +66,6 @@
    "mode": "100644",
    "sha256": "647f46089a758ae32bf7b66bf38e2157fe7f3b00fa8e0fdb792a230f07ed96af"
   },
-  "dashboard_server/encoderless_drive_preview.py": {
-   "blob": "0c388dea33a1ac977bb6f3c1690cafc2b74a611f",
-   "bytes": 12142,
-   "mode": "100644",
-   "sha256": "cf18240620ee580de110d35d60ff420944fa892c80661d044c070aca2d7ee97d"
-  },
   "dashboard_server/executor_proxy.py": {
    "blob": "541182a39ee6ae1908aa266ba15a2723083e6be3",
    "bytes": 24861,
@@ -101,24 +77,6 @@
    "bytes": 7407,
    "mode": "100644",
    "sha256": "01d9b12cc09e794e76ef9c8838c2d9ea0193df0548178f814759223adaec30d2"
-  },
-  "dashboard_server/field10_shadow.py": {
-   "blob": "e781dcc9a63bb6a5c3b27e35f7f5ded0f9a7642d",
-   "bytes": 7672,
-   "mode": "100644",
-   "sha256": "185e6b58edf04666622ac34e850ba2aa51237e68ff2f3859cceab350fa7cc960"
-  },
-  "dashboard_server/field10_shadow_preflight.py": {
-   "blob": "e0aef6fe82d9d21e9fc7663ea57b48b75a546899",
-   "bytes": 1950,
-   "mode": "100644",
-   "sha256": "3e1a75f48689b13d896a69f76b155529d531de6c7342a3369907e4ef55352ff3"
-  },
-  "dashboard_server/field_preflight.py": {
-   "blob": "88ec2967255abc8a6ef00dbeb9f3b71646756636",
-   "bytes": 4513,
-   "mode": "100644",
-   "sha256": "a44a26b061441c5863e639aad3d2195a96c1bc18d9c8120b4db30464808ecf50"
   },
   "dashboard_server/gps.py": {
    "blob": "c98c6d196ddc13160d193c17fd3df85156ace552",
@@ -179,30 +137,6 @@
    "bytes": 12435,
    "mode": "100644",
    "sha256": "60ac85934bb978fa8943eb04542d9992a7f96ce60a48e3f15e54b1067ccbf3e4"
-  },
-  "dashboard_server/native_autonomy_application.py": {
-   "blob": "0f1a3ba85b1230a48db21511765c7458eea78bbe",
-   "bytes": 4587,
-   "mode": "100644",
-   "sha256": "4aa8498391ee8d267a1fd00dd872bd203455d9c3da55ab38cd48654bc99196a3"
-  },
-  "dashboard_server/native_autonomy_supervisor.py": {
-   "blob": "e5352dae385a0e92e4464348cef53ebadb9c0a91",
-   "bytes": 24216,
-   "mode": "100644",
-   "sha256": "da5e1ac91d8592cde436b81dcca58accac9583b940037fe122fa0b5086207d18"
-  },
-  "dashboard_server/native_observation_client.py": {
-   "blob": "37ec5aff81c9f241cfaf2e4db528b8a36a7b9f75",
-   "bytes": 7618,
-   "mode": "100644",
-   "sha256": "765355415498f645856b3de82e11fa6d98e0c9f5a592eaeba69510e99d54677b"
-  },
-  "dashboard_server/native_owner_lifecycle.py": {
-   "blob": "c3dbf4fa8abee66706c5bd8a3f0eb7cbcd1fd6f5",
-   "bytes": 15464,
-   "mode": "100644",
-   "sha256": "1e6dfe146d23c7f1abfdb6a43ce9bb0ccc4e848fe5d78ba9508172668e19c51d"
   },
   "dashboard_server/native_raster.cc": {
    "blob": "42757dab4435ec869f3e7c5f35167c0af588b674",
@@ -282,12 +216,6 @@
    "mode": "100644",
    "sha256": "6f8293fcccf995425be3667d9a9bcdd52d88ac3b16b9870de925ab0b80ae18f3"
   },
-  "dashboard_server/record_based_autonomy.py": {
-   "blob": "ffc0a8bf19cff2fe6153e9a85c277af8398526fe",
-   "bytes": 22156,
-   "mode": "100644",
-   "sha256": "c4ccf195f0d4bbd2381ae96d197cf7c86ac58319a8f977832df397176b15c6d9"
-  },
   "dashboard_server/recording_clock.py": {
    "blob": "55e73050ba51a7c610104cab5e2917210008ff1e",
    "bytes": 9247,
@@ -337,10 +265,10 @@
    "sha256": "ddc27b11c782f37f74713a1b01664671317d698e1be9afffcf89f8dc1efe3c27"
   },
   "dashboard_server/telemetry.py": {
-   "blob": "9c4697ea3381dde0279a674a2156afef4987e9e0",
-   "bytes": 179974,
+   "blob": "9e8fc4318e50a727b94bdcfa2d3c7969f9cb61ce",
+   "bytes": 180371,
    "mode": "100644",
-   "sha256": "98f8e395cfdc42d72979d7301fe93ac8b007a39c256f8520a0abd3011c4b0383"
+   "sha256": "ffa00909dca726f2feabb39d1df3155ff921fcd1a81a8c40f7eba8e9d2647591"
   },
   "dashboard_server/telemetry_cache.py": {
    "blob": "6fd1bb08db1c26765f916b92b817710283c9dcdf",
@@ -528,6 +456,18 @@
    "mode": "100644",
    "sha256": "461732080b3985c74bdd1334ea90d4b71274475d2181251ff4664e6cf20f8b8c"
   },
+  "static/assets/ubts-logo-dark.png": {
+   "blob": "76a60f1461a1db938230574c1b2dcbe13b7fb38b",
+   "bytes": 3809,
+   "mode": "100644",
+   "sha256": "06f21ba5fd0d9facf186148b3f71b4eb251568a11429233073a62bd98ae86ec0"
+  },
+  "static/assets/ubts-logo-light.png": {
+   "blob": "3360b7c75836880796b704e2c3f8abc9f1129413",
+   "bytes": 3221,
+   "mode": "100644",
+   "sha256": "8ac4903d0a0e0182208c7da5005dcce010f96783018e4eb8bd7d009ca3ae32f4"
+  },
   "static/css/base.css": {
    "blob": "9dd8f35ba856ae36196eff8cb8496065a3f591af",
    "bytes": 2921,
@@ -541,28 +481,22 @@
    "sha256": "36671feb583d0f075dba1caf7c7e10f54a8c5939e0dfa39b737b8c129e57688e"
   },
   "static/css/frame.css": {
-   "blob": "ae546ae34be9b8fe82ac2994a9c478bba5405dcd",
-   "bytes": 12145,
+   "blob": "6ab5aa530f824857abe71ca0e935b223ef1964ae",
+   "bytes": 12001,
    "mode": "100644",
-   "sha256": "86fdb1cbb99f40c1f85dfb5cf877317941f3aa9720cf09bc29d5a3c564cae4ad"
+   "sha256": "b7b63ffb3798bfe9cf0486878f65c0c99865cff1c8243f41cd61de5a6abddcfa"
   },
   "static/css/tokens.css": {
-   "blob": "0d9b1072bbe2c57a2f6e573238c6f8cb258211bd",
-   "bytes": 13865,
+   "blob": "a83994147c78cb54b9442a6f836327823e75d5bc",
+   "bytes": 13982,
    "mode": "100644",
-   "sha256": "c8f1a3cc09fd611e5f6acf8ba857de3d90157d612b35db8f203a2023e709717b"
+   "sha256": "7071b13fe46ab54e758f22c85e62a270d258ef586bc0aebdd25693e70588cc93"
   },
   "static/favicon.ico": {
    "blob": "ed5c2b43a5f14da9f14d13543b629bbe69df40f3",
    "bytes": 9664,
    "mode": "100644",
    "sha256": "32fc94ab64b54d9932180e28b116aa89517efe536bb8adb66eb70e97401d682e"
-  },
-  "static/field-preparation.js": {
-   "blob": "7d283904b8422f2dec2bf323f7197ed0d3770256",
-   "bytes": 10688,
-   "mode": "100644",
-   "sha256": "3cf4a145fdcae5d51e001a5ff8896f9ee44b72af4ebb1af529f73c506b7452dd"
   },
   "static/gps-map-model.mjs": {
    "blob": "57b44d8d43d2f989c258c0b952fa8205b9ca7a33",
@@ -595,10 +529,10 @@
    "sha256": "ec7afaf62937e54e67e1b096151a3769d8c4e14af20c198d23f7a061e3ae4136"
   },
   "static/index.html": {
-   "blob": "19339506130f5ee9e9b97d6c250eb822f94edb63",
-   "bytes": 64354,
+   "blob": "9ce04c00d882095a0d28662cb98a6f9fd33f8b80",
+   "bytes": 63329,
    "mode": "100644",
-   "sha256": "3e14fe5417b7c1a70e56008e7af26a0f33ee76152dae2aed13ae2bf748310cf1"
+   "sha256": "c9ad55605ecb4ad83cd8d0b0cd66d6269c169ff0d7d3d047be9bf7792d81ee93"
   },
   "static/live-map-delta.mjs": {
    "blob": "58e4f2a8fd54a378d89aa233bf70f230b1d39bcf",
@@ -607,10 +541,10 @@
    "sha256": "5678167c62f0a1899619eebfb960a969aff8ccfb86fa635b4773b40a0a968625"
   },
   "static/live-map.js": {
-   "blob": "99796b7a49494c4b612479d41d168748a21999bc",
-   "bytes": 36066,
+   "blob": "1966d166d2e44fe8452a294c27089db53013c67b",
+   "bytes": 34432,
    "mode": "100644",
-   "sha256": "69e211ce5220b9f99c47927f24b834cfd8d564bf1a89aa93106a4f27015a4d4c"
+   "sha256": "7a1242a2a4cb8c4839d93150e4d474445a4b8ea9ee6f761878a87b3f9cff4c30"
   },
   "static/mapping-jobs.mjs": {
    "blob": "27a72b20e5eebefc04c674364ac80b37613a93a3",
@@ -629,12 +563,6 @@
    "bytes": 15038,
    "mode": "100644",
    "sha256": "e6783d763df253656530dfa2448b20a3a1ed1ee982f295d4161fa988ec7141cf"
-  },
-  "static/native-accepted-map.mjs": {
-   "blob": "b68311a5da56fec0ae6dc8f11373308d3be4d03b",
-   "bytes": 15121,
-   "mode": "100644",
-   "sha256": "65df96b83afb4ce6a43238d6526241e8011180804a9fa36b6d58a725d496a526"
   },
   "static/network/wifi-manager.mjs": {
    "blob": "a69d20d16fcdf768cbbe6c7544d4242cfefc437b",
@@ -727,16 +655,16 @@
    "sha256": "a07a6c84e15049a247e609d583a425b0b77e159fcd341a8fad5bbd1ac1f02165"
   },
   "static/styles.css": {
-   "blob": "9936456820ff319b0ff476f858d892c5365d1eeb",
-   "bytes": 51080,
+   "blob": "a8f98d6ab7998de99b8d57596aba9fb49a7800a2",
+   "bytes": 50067,
    "mode": "100644",
-   "sha256": "073c63db736f9e742230d810386cb3c872226ce3e01f1636aa4ddae4a9d9d55f"
+   "sha256": "db482787bd200eca90a2873fa8a8a11f7bd69c94c3777b4b51d369dce89c508f"
   },
   "static/ui-kit.html": {
-   "blob": "7c9dcaaca29bab8cdfe95f59b38de053da43cb06",
-   "bytes": 24531,
+   "blob": "6a6996544c78e9a29eaf8bc878df0af7b302e5ee",
+   "bytes": 24292,
    "mode": "100644",
-   "sha256": "36900b76a0fc5b484fbfd2addd52c99f364cf88bb902d33d65714a9e67073ecf"
+   "sha256": "59fd9db6941b652fd87a5de713cdbbae72ad40e830b5fb959fab82422d68b686"
   },
   "static/vendor/gps-map-vendors.json": {
    "blob": "f6858ca5f5ea84d5354846eaf0f97ccf09ea8e8d",
@@ -865,7 +793,7 @@
    "sha256": "dd378dfa7cfd7f3f2fe0796325342cb155c4548cd7b9a4acac11548f6182d8f5"
   }
  },
- "files_sha256": "86a035160f884371f04fbc1e1ac7dc699201aa662ccefb8ffaad38a6fb9ba8d2",
+ "files_sha256": "b265973db4e141168869e5363af5f35967c28d163ec866b8a1d9b25e39b9893e",
  "note": "Copy of the dashboard repository (server and page). The files under config/, dashboard_server/ and static/ are the blobs of the commit above, unchanged; tools/steer_sim/sync_dashboard.py writes and checks them. dashboard/scripts/ is not part of this copy: the sensor bridges, the recorder and the steering host code that the simulation runs (docs/steering/SIM_DASHBOARD_KO.md section 3). The simulation additions of the dashboard are in dashboard_sim/ and are plugged into the extension points DASHBOARD_PROVIDER, DASHBOARD_EXTENSION and DASHBOARD_EXTRA_STATIC.",
  "repository": "2026-BTS-UNI-Car/unist_orachard_dashboard",
  "roots": [

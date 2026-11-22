@@ -3432,7 +3432,8 @@ class TelemetryProvider:
             "cloudflared": {
                 "ok": True,
                 "state": "tunnel_configured",
-                "host": "bts.sarihub.com",
+                # The public address of the tunnel (docs/cloudflared.md); a setting, not part of the repository.
+                "host": os.environ.get("DASHBOARD_PUBLIC_HOST", "").strip() or None,
             },
             "ros2_bridge": {"ok": False, "state": "not_connected"},
             "lidar_bridge": {"ok": False, "state": "not_connected", "topic": "/scan"},
@@ -3821,9 +3822,12 @@ class TelemetryProvider:
 
     def _fallback_disks(self) -> list[dict[str, Any]]:
         targets = [("/", self.host_root, None, None)]
-        workspace = self.host_root / "home/unist/workspace"
-        if workspace.exists():
-            targets.append(("/home/unist/workspace", workspace, None, None))
+        # A work folder of the host to show as well (absolute host path, e.g. /home/<user>/workspace); unset = none.
+        workspace_dir = os.environ.get("DASHBOARD_WORKSPACE_DIR", "").strip()
+        if workspace_dir.startswith("/"):
+            workspace = self.host_root / workspace_dir.lstrip("/")
+            if workspace.exists():
+                targets.append((workspace_dir, workspace, None, None))
         disks = []
         for label, path, source, fstype in targets:
             try:

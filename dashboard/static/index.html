@@ -36,7 +36,6 @@
 <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5"/></symbol>
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11.5a8 8 0 0 0-14.6-4L4 9.3M4 4.5v4.8h4.8M4 12.5a8 8 0 0 0 14.6 4l1.4-1.8M20 19.5v-4.8h-4.8"/></symbol>
 <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></symbol>
-<symbol id="i-rover" viewBox="0 0 24 24"><rect height="7" rx="2" width="17" x="3.5" y="9"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/><path d="M12 9V5.5M9.5 5.5h5"/></symbol>
 </svg>
 <div hidden="" class="simulation-banner" role="status">SIMULATION · Gazebo 센서 · 실제 Jetson에 연결되지 않음</div>
 <header class="statusbar" id="statusBar">
@@ -55,7 +54,7 @@
 <button aria-label="메뉴 닫기" class="mobile-nav-backdrop" id="mobileNavBackdrop" type="button"></button>
 <div class="app-shell">
 <aside aria-label="메뉴" class="sidebar" id="sidebar">
-<div class="sidebar-brand"><span class="sidebar-mark"><svg aria-hidden="true" class="icon"><use href="#i-rover"/></svg></span><span class="sidebar-name"><strong>UBTS</strong><small>로버 대시보드</small></span></div>
+<div class="sidebar-brand"><span aria-hidden="true" class="sidebar-mark"></span><span class="sidebar-name"><strong>UBTS</strong><small>로버 대시보드</small></span></div>
 <nav class="nav-list">
 <a data-route="/" href="/"><svg aria-hidden="true" class="icon"><use href="#i-overview"/></svg><span>Overview</span></a>
 <a data-route="/connection" href="/connection"><svg aria-hidden="true" class="icon"><use href="#i-link"/></svg><span>Connection</span></a>
@@ -677,16 +676,6 @@
 <button class="action-button danger" id="roverStopButton" type="button">STOP</button>
 </div>
 </div>
-<div class="sim-autonomy-controls" data-vehicle="differential" id="hardwareAutonomyPanel">
-<label for="hardwareAutonomySpeed">자율주행 순항속도 <strong id="hardwareAutonomySpeedValue">--</strong></label>
-<input id="hardwareAutonomySpeed" type="range" min="0" max="100" step="5" value="100"/>
-<button class="action-button secondary" disabled="" type="button">자율주행 시작 (검증 대기)</button>
-<p class="sim-map-status" id="hardwareAutonomyStatus" role="status">아직 검증 전입니다. 속도 설정은 저장됩니다.</p>
-<details class="field-preparation" id="fieldPreparationPanel">
-<summary>현장 시험 준비 (점검 자료 수신 대기)</summary>
-<ul data-preparation-checks=""></ul>
-</details>
-</div>
 <div class="rover-arm-controls" data-vehicle="differential">
 <button aria-pressed="false" class="action-button primary" id="roverArmButton" type="button">조종 활성화 OFF</button>
 </div>
@@ -1064,7 +1053,6 @@
 <script src="/static/app/13-charts-canvas.js"></script>
 <script src="/static/app/14-steer.js"></script>
 <script src="/static/app/99-main.js"></script>
-<script src="/static/field-preparation.js"></script>
 <script src="/static/gps-map.js" type="module"></script>
 <script src="/static/live-map.js" type="module"></script>
 <script src="/static/media-jobs.js"></script>

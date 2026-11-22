@@ -186,19 +186,10 @@ html:has(.simulation-banner:not([hidden])) {
 }
 
 .sidebar-mark {
-  display: grid;
   flex: 0 0 auto;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-control);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-}
-
-.sidebar-mark .icon {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
+  background: var(--brand-logo) center / contain no-repeat;
 }
 
 .sidebar-name {

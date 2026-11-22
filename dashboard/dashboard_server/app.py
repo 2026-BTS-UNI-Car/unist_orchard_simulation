@@ -126,7 +126,7 @@ class _TeeWriter:
         self.cache_target.flush()
 
 
-DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP32-S3 · ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP32-S3(BTS7960 3개) 조종 브리지와 구동 안전, 옛 ESP8266 V2 조종권과 정지', 'file': 'esp_rover_control.md'}, {'slug': 'field-steer-autonomy-test', 'title': '현장 첫 조향·자율 시험', 'category': 'Hardware', 'summary': 'ESP32-S3 차량: 바퀴 든 조향 시험과 잴 값, 그림자 주행, 구동 측정, 결정할 것, 첫 자율 시험 순서', 'file': 'FIELD_STEER_AUTONOMY_TEST_KO.md'}, {'slug': 'corridor-test', 'title': '복도 주행 시험', 'category': 'Hardware', 'summary': '건물 복도 첫 땅 시험의 준비물, 당일 순서, 채울 값과 안전 규칙', 'file': 'CORRIDOR_TEST_KO.md'}, {'slug': 'orchard-day-20261120', 'title': '과수원 자율주행 날 (11/20)', 'category': 'Hardware', 'summary': '열 단위 자율주행: 첫 열 전 점검, 차 놓기, 열마다 순서, 멈췄을 때, 적을 것, 권하는 설정', 'file': 'ORCHARD_DAY_20261120_KO.md'}, {'slug': 'grid-map', 'title': '격자 지도 그리기', 'category': 'Data', 'summary': '쓰는 센서, 위치 추정 순서, IMU 방향을 따르는 방향 추정(2026-11-21), 과수원 기록으로 잰 결과와 한계', 'file': 'GRID_MAP_KO.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'bts.sarihub.com 터널과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
+DOCS_CATALOG = [{'slug': 'docs-index', 'title': '문서 색인', 'category': 'System', 'summary': 'docs 폴더의 문서 목록과 지금 내용과 맞는지 표시', 'file': 'README_KO.md'}, {'slug': 'gps-offline-map', 'title': 'GPS · 대한민국 오프라인 지도', 'category': 'Sensors', 'summary': 'GPS UART 드라이버, 지도 추적, 동기 기록 및 배선 진단', 'file': 'gps_offline_map.md'}, {'slug': 'lidar-connection', 'title': 'LiDAR 연결과 테스트', 'category': 'Hardware', 'summary': 'RPLIDAR S2, ROS2 /scan owner 구조, WebSocket live map, serial 충돌 방지', 'file': 'lidar_connection.md'}, {'slug': 'usb-camera-connection', 'title': 'USB 카메라 연결', 'category': 'Hardware', 'summary': 'UVC USB 카메라 인식, ROS2 image topic, dashboard live view 설정', 'file': 'usb_camera_connection.md'}, {'slug': 'imu-ros2-recording', 'title': 'ROS2 IMU 실시간 표시와 기록', 'category': 'Hardware', 'summary': 'BNO085 ROS2 원본 토픽, 소프트웨어 보정 없는 표시·기록 계약', 'file': 'imu_ros2_recording.md'}, {'slug': 'jetson-offline-access', 'title': 'Jetson 오프라인 Wi-Fi 접속', 'category': 'Network', 'summary': '단일 무선랜 Wi-Fi/AP 자동 전환, 로컬 DNS, Dashboard·SSH·Portainer 접속 계약', 'file': 'jetson_offline_access.md'}, {'slug': 'wifi-ap-checklist', 'title': '차의 무선 AP 점검표', 'category': 'Network', 'summary': '채널·대역·출력·안테나·거리 현장 점검, 연결 기록(?link_log=1)과 등급 경계 맞추기', 'file': 'WIFI_AP_CHECKLIST_KO.md'}, {'slug': 'esp-rover-control', 'title': 'ESP32-S3 · ESP8266 연동', 'category': 'Hardware', 'summary': 'ESP32-S3(BTS7960 3개) 조종 브리지와 구동 안전, 옛 ESP8266 V2 조종권과 정지', 'file': 'esp_rover_control.md'}, {'slug': 'field-steer-autonomy-test', 'title': '현장 첫 조향·자율 시험', 'category': 'Hardware', 'summary': 'ESP32-S3 차량: 바퀴 든 조향 시험과 잴 값, 그림자 주행, 구동 측정, 결정할 것, 첫 자율 시험 순서', 'file': 'FIELD_STEER_AUTONOMY_TEST_KO.md'}, {'slug': 'corridor-test', 'title': '복도 주행 시험', 'category': 'Hardware', 'summary': '건물 복도 첫 땅 시험의 준비물, 당일 순서, 채울 값과 안전 규칙', 'file': 'CORRIDOR_TEST_KO.md'}, {'slug': 'orchard-day-20261120', 'title': '과수원 자율주행 날 (11/20)', 'category': 'Hardware', 'summary': '열 단위 자율주행: 첫 열 전 점검, 차 놓기, 열마다 순서, 멈췄을 때, 적을 것, 권하는 설정', 'file': 'ORCHARD_DAY_20261120_KO.md'}, {'slug': 'grid-map', 'title': '격자 지도 그리기', 'category': 'Data', 'summary': '쓰는 센서, 위치 추정 순서, IMU 방향을 따르는 방향 추정(2026-11-21), 과수원 기록으로 잰 결과와 한계', 'file': 'GRID_MAP_KO.md'}, {'slug': 'rover-control-dashboard', 'title': 'Rover Control Dashboard', 'category': 'Data', 'summary': '주행 제어, live 센서, LiDAR/카메라 기록, archive 조회와 다운로드', 'file': 'rover_control_dashboard.md'}, {'slug': 'fan-control', 'title': 'Fan Control', 'category': 'Hardware', 'summary': 'Jetson 온도 확인과 수동 PWM 유지', 'file': 'fan_control.md'}, {'slug': 'cloudflared', 'title': 'Cloudflare Tunnel', 'category': 'Network', 'summary': 'Cloudflare 터널(공개 주소는 설정값)과 localhost:8080 연결 구성', 'file': 'cloudflared.md'}]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -145,6 +145,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
     # The recordings of an autonomy run (dashboard_server/run_recording.py): one per driven stretch, its record, the
     # keeper that stops a recording nobody stops; None = the plain recorder routes.
     run_recordings = None
+    # An in-process autonomy run that owns the motor (status(), manual_takeover()); the manual, calibration and
+    # distance routes yield to it. None: the old differential supervisor left the repository on 2026-11-22 and the
+    # row executor runs outside this server (relayed by executor_client).
+    autonomy_supervisor = None
     # Change log of the tuning screen (dashboard_server/steer_tuning.py); create_server() sets it.
     tuning_log = None
     # Distance moves (dashboard_server/drive_distance.py); create_server() sets the store and the runner.
@@ -159,7 +163,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
-        if path.startswith('/api/live/') or path.startswith('/api/autonomy/'):
+        if path.startswith('/api/live/'):
             self._live_request(parsed, action=True)
         elif path.startswith("/api/rover/distance/"):
             self._distance_action(path.removeprefix("/api/rover/distance/"))
@@ -223,7 +227,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/ping":
             self._send_ping()
             return
-        if path.startswith('/api/live/') or path.startswith('/api/autonomy/native-map/') or path in ('/api/autonomy','/api/autonomy/preflight','/api/autonomy/observe','/api/autonomy/supervisor'):
+        if path.startswith('/api/live/'):
             self._live_request(parsed)
         elif path.startswith("/occupancy-api"):
             self._proxy_occupancy_request(parsed)
@@ -422,67 +426,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 result=self.mapping_operations.status()
             elif path=='/api/live/mapping-jobs/stop' and action:
                 result=self.mapping_operations.stop(payload.get('job_id'),payload.get('expected_epoch'))
-            elif path=='/api/autonomy' and not action:
-                live=self.live_mapping.task_status() if hasattr(self.live_mapping,'task_status') else {'state':'unavailable'}
-                result=self.autonomy_settings.status(live)
-                result={**result,'supervisor':self.autonomy_supervisor.status()}
-            elif path=='/api/autonomy/preflight' and not action:
-                from dashboard_server.field_preflight import report
-                result=report(ROOT/'config/field_autonomy_preparation.json',self.live_mapping.task_status())
-            elif path in ('/api/autonomy/native-map/status','/api/autonomy/native-map/tiles','/api/autonomy/native-map/release') and not action:
-                native=getattr(self,'native_observation_client',None)
-                if not getattr(self,'native_map_preview_enabled',False) or native is None:
-                    result=dict(ok=True,available=False,status=dict(enabled=False,reason='native_map_default_OFF'),
-                        runtime_authority=False,motor_command_sent=False,autonomy_output_enabled=False,
-                        execution_eligible=False,physical_accuracy_verified=False,live_input_eligible=False)
-                else:
-                    query=parse_qs(parsed.query,keep_blank_values=True)
-                    if set(query)-{'cursor','lease'} or any(len(v)!=1 for v in query.values()):
-                        raise ValueError('native_map_get_query_required')
-                    if path.endswith('/status'):
-                        if query:raise ValueError('native_map_status_has_no_query')
-                        result=native.map_status()
-                    elif path.endswith('/release'):
-                        if set(query)!={'lease'}:raise ValueError('native_map_lease_required')
-                        result=native.map_release(query['lease'][0])
-                    else:
-                        if set(query)-{'cursor'}:raise ValueError('native_map_tiles_query_required')
-                        result=native.map_tiles(query.get('cursor',[None])[0])
-                    if (not isinstance(result,dict) or any(result.get(k) is not False for k in
-                            ('runtime_authority','motor_command_sent','autonomy_output_enabled'))):
-                        raise ValueError('native_map_observation_only_reply_required')
-                    if len(json.dumps(result,allow_nan=False,separators=(',',':')).encode())>131072:
-                        raise ValueError('native_map_page_capacity')
-            elif path=='/api/autonomy/native-map/new' and action:
-                native=getattr(self,'native_observation_client',None)
-                if (not getattr(self,'native_map_preview_enabled',False) or native is None or
-                        parsed.query or set(payload)!={'map_epoch'}):
-                    raise ValueError('explicit_enabled_native_new_map_required')
-                result=native.map_new(payload['map_epoch'])
-                if (not isinstance(result,dict) or any(result.get(k) is not False for k in
-                        ('runtime_authority','motor_command_sent','autonomy_output_enabled'))):
-                    raise ValueError('native_map_observation_only_reply_required')
-            elif path=='/api/autonomy/observe' and not action:
-                result=self._autonomy_observe_status()
-            elif path in ('/api/autonomy/observe/start','/api/autonomy/observe/stop') and action:
-                if payload:raise ValueError('observation_actions_do_not_accept_sensor_or_control_inputs')
-                self._autonomy_observe_action(path.rsplit('/',1)[-1])
-                result=self._autonomy_observe_status()
-            elif path=='/api/autonomy/speed' and action:
-                with self.autonomy_observe_lock:
-                    observer=getattr(self,'autonomy_observation',None)
-                    observing=observer is not None and observer.status().get('active') is True
-                    percent=payload.get('speed_percent')
-                    if observing and (isinstance(percent,bool) or not isinstance(percent,(int,float)) or not 0<=percent<=30):
-                        raise ValueError('active_observation_speed_requires_0_to_30_percent')
-                    result=self.autonomy_settings.set_speed(percent)
-                    if observing:observer.set_cruise_percent(percent)
-            elif path=='/api/autonomy/supervisor' and not action:
-                result=self.autonomy_supervisor.status()
-            elif path in ('/api/autonomy/start','/api/autonomy/stop') and action:
-                result=self._native_autonomy_action(path.rsplit('/',1)[-1],payload)
-                if path.endswith('/start') and not result.get('active'):
-                    self._send_json({**result,'ok':False},409);return
             elif path=='/api/live/map' and not action:
                 query=parse_qs(parsed.query)
                 if query.get('transport',[None])[0]=='tiles':
@@ -545,61 +488,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send_json({'ok':False,'error':str(error),'deferred':True,'retry_after_s':error.retry_after_s},503,
                                 headers={'Retry-After':str(error.retry_after_s)});return
             self._send_json({'ok':False,'error':str(error)},409 if isinstance(error,MappingConflict) or str(error)=='mapping_epoch_changed_refresh_before_action' else 400)
-
-    def _native_autonomy_action(self,action,payload):
-        # Actual arming remains local and requires the existing authenticated session.
-        origin=self.headers.get('Origin')
-        if (not origin or urlparse(origin).netloc!=self.headers.get('Host') or
-                self.client_address[0] not in ('127.0.0.1','::1')):
-            raise ValueError('explicit_local_same_origin_operator_required')
-        session=self._ensure_session(create=False)
-        if not session:raise ValueError('authenticated_local_operator_required')
-        if action=='stop':
-            if payload:raise ValueError('autonomy_stop_accepts_no_control_or_sensor_inputs')
-            return self.autonomy_supervisor.stop()
-        if set(payload)!={'operator_arm','deadman'} or payload.get('operator_arm') is not True or payload.get('deadman') is not True:
-            raise ValueError('explicit_operator_arm_and_deadman_required')
-        return self.autonomy_supervisor.start(session,explicit=True,cruise_percent=self.autonomy_settings.percent)
-
-    def _autonomy_observe_status(self):
-        result=self.autonomy_observation.status()
-        if (not isinstance(result,dict) or result.get('runtime_authority') is not False
-                or result.get('motor_command_sent') is not False
-                or result.get('autonomy_output_enabled') is not False):
-            raise ValueError('observation_only_status_required')
-        # The existing percentage is a preference. No measured m/s conversion,
-        # motor sender, lease or mapping action is introduced by these routes.
-        native=getattr(self,'native_observation_client',None)
-        return {**result,'speed_percent':self.autonomy_settings.percent,
-            'native_source':native.status() if native is not None else {
-                'enabled':False,'reason':'legacy_web_ws_provenance_unverified'},
-            'speed_units':'percent_of_configured_cruise','calibrated_speed_m_s':None}
-
-    def _autonomy_observe_action(self,action):
-        with self.autonomy_observe_lock:
-            native=self.native_observation_client
-            if action=='start':
-                percent=self.autonomy_settings.percent
-                if isinstance(percent,bool) or not isinstance(percent,(int,float)) or not 0<=percent<=30:
-                    raise ValueError('observation_requires_existing_speed_preference_0_to_30_percent')
-                if native is not None:
-                    started=native.start()
-                    if not isinstance(started,dict) or started.get('ok') is not True:
-                        raise ValueError('native_observation_start_failed:'+str(started.get('error','unknown') if isinstance(started,dict) else 'invalid_response'))
-                try:
-                    observed=self.autonomy_observation.start(cruise_percent=percent)
-                    if not isinstance(observed,dict) or observed.get('active') is not True or observed.get('first_failure_reason'):
-                        raise ValueError('autonomy_observation_start_failed:'+str(observed.get('first_failure_reason') or observed.get('state','unknown') if isinstance(observed,dict) else 'invalid_response'))
-                except Exception:
-                    if native is not None:native.stop()
-                    raise
-            else:
-                try:self.autonomy_observation.stop()
-                finally:
-                    if native is not None:
-                        stopped=native.stop()
-                        if not isinstance(stopped,dict) or stopped.get('ok') is not True:
-                            raise ValueError('native_observation_stop_failed:'+str(stopped.get('error','unknown') if isinstance(stopped,dict) else 'invalid_response'))
 
     def _recording_media_action(self):
         origin = self.headers.get("Origin")
@@ -1865,38 +1753,8 @@ class DashboardServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True, *,
-                 autonomy_supervisor=None, autonomy_observation=None,
-                 native_observation_client=None, autonomy_observe_lock=None):
-        # TCPServer.__init__ may call our server_close() if bind/activate fails.
-        # Establish instance ownership BEFORE that call, including direct
-        # DashboardServer users which intentionally have no observation worker.
-        self.autonomy_supervisor = autonomy_supervisor
-        self.autonomy_observation = autonomy_observation
-        self.native_observation_client = native_observation_client
-        self.autonomy_observe_lock = (threading.RLock() if autonomy_observe_lock is None
-                                      else autonomy_observe_lock)
-        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
 
-    def server_close(self):
-        supervisor=getattr(self,'autonomy_supervisor',None)
-        if supervisor is not None:
-            closed=supervisor.close()
-            if not closed.get('loop_joined'):
-                raise RuntimeError('autonomy_supervisor_cleanup_unproven')
-        try:
-            with self.autonomy_observe_lock:
-                try:
-                    observer=getattr(self,'autonomy_observation',None)
-                    if observer is not None:observer.stop(reason='dashboard_server_closed')
-                finally:
-                    native=getattr(self,'native_observation_client',None)
-                    if native is not None:native.stop()
-        finally:
-            super().server_close()
-
-
-def create_server(host: str, port: int, config: str | None = None, *, autonomy_bindings=None) -> ThreadingHTTPServer:
+def create_server(host: str, port: int, config: str | None = None) -> ThreadingHTTPServer:
     from dashboard_server import extensions
     from dashboard_server.executor_proxy import executor_from_env
     from dashboard_server.steer_tuning import TuningLog
@@ -1917,54 +1775,15 @@ def create_server(host: str, port: int, config: str | None = None, *, autonomy_b
     DashboardHandler.distance_runner = drive_distance.MoveRunner(lambda payload: rover_api.request(payload))
     from dashboard_server.source_live_mapping import SourceLiveMapping as LiveMapping
     from dashboard_server.mapping_operations import ManagedArchiveMapping,MappingOperations
-    from dashboard_server.autonomy_settings import AutonomySettings
-    from dashboard_server.autonomy_observation import AutonomyObservation
-    from dashboard_server.record_based_autonomy import RecordBasedAutonomy
     DashboardHandler.live_mapping=LiveMapping(ROOT/'runtime/live-map',start_worker=os.environ.get('DASHBOARD_LIVE_MAP_WORKER','1')=='1')
     DashboardHandler.archive_mapping=ManagedArchiveMapping(DashboardHandler.provider.recording_archive_dir,DashboardHandler.live_mapping)
     DashboardHandler.mapping_operations=MappingOperations(DashboardHandler.live_mapping,DashboardHandler.archive_mapping)
-    DashboardHandler.autonomy_settings=AutonomySettings(ROOT/'runtime/autonomy_settings.json')
     from dashboard_server.run_recording import RunRecordings
     DashboardHandler.run_recordings = RunRecordings(
         DashboardHandler.provider.recording_archive_dir, ROOT / "runtime/autonomy_segments", executor_status_raw,
         lambda: DashboardHandler.provider.recording_status(), stop_recording_now, log=dashboard_log)
-    native_path=os.environ.get('UBTS_NATIVE_STREAM_SOCKET')
-    DashboardHandler.native_observation_client=None
-    DashboardHandler.native_map_preview_enabled=os.environ.get('UBTS_NATIVE_MAP_PREVIEW','0')=='1'
-    if native_path:
-        from dashboard_server.native_observation_client import NativeObservationClient
-        DashboardHandler.native_observation_client=NativeObservationClient(native_path)
-    from dashboard_server.native_autonomy_application import NativeAutonomyApplication
-    def native_session_valid(token):
-        with _SESSION_LOCK:
-            _prune_sessions();return token in _SESSIONS
-    DashboardHandler.autonomy_supervisor=NativeAutonomyApplication(
-        DashboardHandler.native_observation_client,session_valid=native_session_valid,bindings=autonomy_bindings)
-    DashboardHandler.autonomy_observe_lock=threading.RLock()
-    from dashboard_server.field10_shadow import make_field10_shadow_planner
-    # Enabled only by a release that pins BOTH roles to the scalar protocol.
-    # An old/unsupported server returns None; it is never a full-getter fallback.
-    comparison_protocol=os.environ.get('UBTS_NATIVE_CONTROL_COMPARISON_V1','0')
-    if comparison_protocol not in ('0','1'):
-        raise ValueError('explicit_native_comparison_protocol_required')
-    if comparison_protocol=='1' and DashboardHandler.native_observation_client is None:
-        raise ValueError('native_comparison_protocol_requires_native_source')
-    DashboardHandler.autonomy_observation=AutonomyObservation(
-        planner=make_field10_shadow_planner(),input_provider=DashboardHandler.native_observation_client.input
-            if DashboardHandler.native_observation_client is not None else DashboardHandler.live_mapping.observation_input,
-        comparison_provider=DashboardHandler.native_observation_client.control_comparison
-            if comparison_protocol=='1' else None)
     dashboard_log("server.create", host=host, port=port, session_ttl_s=SESSION_TTL_S)
-    server=DashboardServer((host, port), DashboardHandler,
-        autonomy_supervisor=DashboardHandler.autonomy_supervisor,
-        autonomy_observation=DashboardHandler.autonomy_observation,
-        native_observation_client=DashboardHandler.native_observation_client,
-        autonomy_observe_lock=DashboardHandler.autonomy_observe_lock)
-    server.autonomy_supervisor=DashboardHandler.autonomy_supervisor
-    server.autonomy_observation=DashboardHandler.autonomy_observation
-    server.native_observation_client=DashboardHandler.native_observation_client
-    server.autonomy_observe_lock=DashboardHandler.autonomy_observe_lock
-    return server
+    return DashboardServer((host, port), DashboardHandler)
 
 
 def main():

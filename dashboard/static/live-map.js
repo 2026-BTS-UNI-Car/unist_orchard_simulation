@@ -14,7 +14,7 @@ const routeOn=()=>location.pathname.replace(/\/$/,'')==='/rover-control'&&!docum
 let liveMapOnScreen=null;
 const active=()=>routeOn()&&(liveMapOnScreen===true||(liveMapOnScreen===null&&typeof IntersectionObserver!=='function'));
 const archiveActive=routeOn;
-let polling=false,timer=null,selected='',archiveEpoch=0,speedBusy=false,lastAutonomyPoll=0;
+let polling=false,timer=null,selected='',archiveEpoch=0;
 let mapBuffer=null,nextMapBuffer=null,mapWindowPending=null,bufferPaintPending=false,windowSupported=null;
 let archiveTimer=null,archivePending=null,archiveTimeS=0,archivePlaying=false,followGeneration=false,archiveGenerating=false;
 let archiveRetryMs=75;
@@ -33,7 +33,7 @@ const MAP_CONTROL_RETRY_MS=3000,MAP_CONTROL_ERROR_RETRY_MS=1000;
 let archiveControlNote='',playbackRetryAt=-Infinity;
 // S17: a poll that departed before (or during) a New map/Start/Stop action
 // must not bring back the previous map or epoch.
-let liveActionSeq=0,liveRttMs=0,autonomyPending=false;
+let liveActionSeq=0,liveRttMs=0;
 let inlinePlaybackMap=false,immutableCursorMap=false,bufferedCursorMap=false,availableCursorPrefix=0;
 const playbackClient=globalThis.crypto?.randomUUID?.()||`map-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;let playbackSequence=0;
 const segments=new ArchiveSegmentGallery(archive,time=>window.setArchiveTime?.(time,{pause:true}));
@@ -419,27 +419,6 @@ $('liveArchiveRegenerate').addEventListener('click',async()=>{
   catch(error){if(epoch===archiveEpoch)text('liveArchiveStatus',error.message);}
   finally{if(epoch===archiveEpoch)$('liveArchiveRegenerate').disabled=archiveGenerating;}
 });
-$('hardwareAutonomySpeed').addEventListener('input',()=>text('hardwareAutonomySpeedValue',`${$('hardwareAutonomySpeed').value}%`));
-$('hardwareAutonomySpeed').addEventListener('change',async()=>{
-  if(speedBusy)return;speedBusy=true;$('hardwareAutonomySpeed').disabled=true;
-  try{const value=await request('/api/autonomy/speed',{speed_percent:Number($('hardwareAutonomySpeed').value)});text('hardwareAutonomyStatus',`${value.message} · 속도 ${value.speed_percent}% 저장됨`);}
-  catch(error){text('hardwareAutonomyStatus',error.message);}
-  finally{speedBusy=false;$('hardwareAutonomySpeed').disabled=false;}
-});
-async function refreshAutonomyStatus(){
-  // Independent of the map poll: a slow /api/autonomy never delays the map.
-  if(autonomyPending||Date.now()-lastAutonomyPoll<=3000)return;
-  autonomyPending=true;lastAutonomyPoll=Date.now();
-  try{
-    const value=await request('/api/autonomy');
-    if(value&&!speedBusy&&document.activeElement!==$('hardwareAutonomySpeed')){
-      $('hardwareAutonomySpeed').value=value.speed_percent;text('hardwareAutonomySpeedValue',`${value.speed_percent}%`);
-      text('hardwareAutonomyStatus',`${value.message} · 현재 순항속도 설정 ${value.speed_percent}%`);
-    }
-    if(value)window.FieldPreparation?.render($('fieldPreparationPanel'),value.preparation);
-  }catch(_){}
-  finally{autonomyPending=false;}
-}
 async function poll(){
   const started=performance.now();
   clearTimeout(timer);if(polling||!active())return;polling=true;
@@ -449,7 +428,6 @@ async function poll(){
     if(live.tileEpoch){query.set('tile_epoch',live.tileEpoch);query.set('tile_since',live.snapshot.tile_version || 0);}
     // S02: name the newest path point we hold; the server then sends only later points.
     if(live.tileEpoch)for(const [key,value] of Object.entries(livePathQuery(live.snapshot,live.pathNeedsFull)))query.set(key,value);
-    refreshAutonomyStatus();
     if($('mappingJobsPanel')?.open&&Date.now()-lastJobsPoll>1500){lastJobsPoll=Date.now();pollJobs().catch(()=>{});}
     try{
       const value=await request('/api/live/map?'+query,undefined,undefined,LIVE_MAP_TIMEOUT_MS);
@@ -501,7 +479,5 @@ if(typeof IntersectionObserver==='function'&&$('liveMapPanel'))new IntersectionO
   const was=liveMapOnScreen;liveMapOnScreen=Boolean(entries[entries.length-1].isIntersecting);
   if(liveMapOnScreen&&was!==true)routeChanged();
 }).observe($('liveMapPanel'));
-// The drive panel's autonomy speed and field preparation rows are refreshed with the map poll, or on their own
-// while the map is off screen.
-setInterval(()=>{if(routeOn())refreshAutonomyStatus();if(active()&&!polling)poll();},3000);
+setInterval(()=>{if(active()&&!polling)poll();},3000);
 routeChanged();
