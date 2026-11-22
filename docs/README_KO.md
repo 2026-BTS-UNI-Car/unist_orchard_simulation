@@ -75,6 +75,7 @@
 | [`ORCHARD_MEASURED_KO.md`](steering/ORCHARD_MEASURED_KO.md) | 2026-11-20 과수원의 줄자 행 폭과 대조한 평가: 행 확인, LiDAR 폭 대 줄자, 실측 지도 위 위치 오차와 행 길이 정규화, 주행거리계 방향 흐름, GPS 켬·끔, 저녁 조각. 줄자 자료 `steering/orchard_tape/` |
 | [`GPS_COMPARE_KO.md`](steering/GPS_COMPARE_KO.md) | GPS 유무에 따른 성능 비교(2026-11-22): 2026-11-20 현장 기록의 GPS 켬·끔 주행, 시험 설계와 줄자 지도 위 Ē, 빠른 SIM 개발 측정(끔 / 일반 수신기 / RTK FIXED, 170 run) |
 | [`FIELD_EXTRA_KO.md`](steering/FIELD_EXTRA_KO.md) | 2026-11-20 과수원 run 추가 분석(2026-11-22): 실행기 경로 거리를 줄자 길이·LiDAR 줄기 이동·지도 경로·GNSS 로 본 배율, 현장의 LiDAR 열 끝 검출(실제 열 끝 보고, 행 중간 보고, 사과 2행 두 줄의 2.1 m 엇갈림, 서지 않은 까닭), SIM 판정 수치와 현장 수치를 나란히 놓고 말할 수 있는 것 |
+| [`TIMESERIES_KO.md`](steering/TIMESERIES_KO.md) | 명령·측정·한도 시계열(2026-11-23): 대표 run 다섯(과수원 넷, 복도 하나)의 속도·duty·조향·가속도·횡 오차·방향 오차를 한 시간 축에 명령 / 측정 / 한도로 그린 그림, 16:44 상세, 끝까지 간 과수원 9번 갤러리, 실행기에 가속도 명령이 없다는 것과 IMU 앞방향 가속도의 한계. 그림 `steering/figures/timeseries/` |
 
 SIM 결과
 

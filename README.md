@@ -21,6 +21,7 @@
 | 줄자와 대조 | 실행기가 잰 통로 폭 − 줄자 폭: 사과 2행 −3.3 cm, 배 1행 −7.5 cm. 줄자 지도 위 Ē(횡 오차 적분 ÷ 행 길이): 사과 평균 2.02 cm, 배 3.10 cm | 실측·줄자 + 현장 기록 |
 | LiDAR 열 끝 | 실제 열 끝을 약 8.3 m 앞에서 보고하고 정지까지 유지했다. 정지에는 쓰이지 않았다(거리 한도가 먼저 걸림). 행 중간의 거짓 보고(사과 22~26·50~52 m, 배 32~34 m)는 다가가자 사라졌다 | 현장 기록 |
 | 속도 | 목표 0.45 m/s(오후)·0.40 m/s(저녁), 실제 0.28 m/s(사과 2행)·0.34 m/s(배 1행). 제어 지연 상한이 속도를 정했다 | 현장 기록 |
+| 명령 대 측정 시계열 | 과수원에서 끝까지 간 9번: 조향 명령 RMS 0.91~2.22°, ±12° 한도에 닿은 틱 0, 잰 조향각이 명령을 0.35~0.55 s 늦게 따라감. 속도 명령은 주행 틱의 96.3~100 %에서 제어 지연 상한과 같았다 | 현장 기록 |
 | GPS 켬·끔 | 차이 없음(수신기가 단독 측위라 보정이 걸리지 않았다). SIM에서 RTK FIXED는 한쪽 나무가 비켜 선 구간의 오차만 30 % 줄였다 | 현장 기록, SIM · 자리값 |
 | SIM 열 추종 | 빠른 SIM 15/15 합격(횡 RMSE 0.029~0.055 m), Gazebo 4/4(평가 코드 수정 뒤, 0.021~0.039 m). 넓은 조건 행렬은 불합격(조향축 외란 등) | SIM · 자리값 |
 
@@ -101,7 +102,7 @@ Gazebo 이미지(`docker/Dockerfile.ubts-steer`)는 로컬 기반 이미지 위�
 - [자율주행 알고리즘](docs/AUTONOMY_ALGORITHM_KO.md): 수식, 기법 이름, 매개변수, 코드 위치
 - [시뮬레이션 환경과 평가 방법](docs/SIMULATION_KO.md): 두 SIM, 차량·세계·센서 모델, 지표, SIM 판정 요약
 - [시스템 참고](docs/SYSTEM_REFERENCE_KO.md): 노드·토픽, 제어 소켓, 운영자 API, 잰 처리 시간
-- 현장 결과: [과수원 2026-11-20](docs/steering/ORCHARD_1120_RESULT_KO.md), [줄자 대조](docs/steering/ORCHARD_MEASURED_KO.md), [자율주행 33번 통합 분석](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md), [GPS 유무 비교](docs/steering/GPS_COMPARE_KO.md), [실내 복도](docs/steering/FIELD_CORRIDOR_20261119_KO.md), [거리·LiDAR 열 끝·SIM 대비](docs/steering/FIELD_EXTRA_KO.md)
+- 현장 결과: [과수원 2026-11-20](docs/steering/ORCHARD_1120_RESULT_KO.md), [줄자 대조](docs/steering/ORCHARD_MEASURED_KO.md), [자율주행 33번 통합 분석](docs/steering/AUTONOMY_RUNS_ANALYSIS_KO.md), [GPS 유무 비교](docs/steering/GPS_COMPARE_KO.md), [명령·측정·한도 시계열](docs/steering/TIMESERIES_KO.md), [실내 복도](docs/steering/FIELD_CORRIDOR_20261119_KO.md), [거리·LiDAR 열 끝·SIM 대비](docs/steering/FIELD_EXTRA_KO.md)
 - [SIM 검사 결과 전체](docs/RESULTS_KO.md), [하드웨어](docs/HARDWARE_KO.md)
 
 ## 한계
